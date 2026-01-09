@@ -1,0 +1,24 @@
+{
+  "name": "templeton-agentic-dev-workbench",
+  "version": "1.0.0",
+  "description": "Personal agentic development workbench with Python/Ruby coding styles, code review agents, feature development, and PKM tools",
+  "author": "Templeton",
+  "skills": [
+    "skills/python-code-review/SKILL.md",
+    "skills/rails-code-review/SKILL.md",
+    "skills/rails-rspec-tester/SKILL.md",
+    "skills/rails-way-conventions/SKILL.md",
+    "skills/templeton-python-style/SKILL.md",
+    "skills/terraform-iac-expert/SKILL.md"
+  ],
+  "agents": [
+    "agents/code-simplifier.md",
+    "agents/python-feature-developer.md",
+    "agents/rails-code-reviewer.md"
+  ],
+  "commands": [
+    "commands/python-code-review.md",
+    "commands/python-feature-dev.md",
+    "commands/rails-code-review.md"
+  ]
+}
