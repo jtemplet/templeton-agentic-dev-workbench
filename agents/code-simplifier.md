@@ -198,20 +198,66 @@ Simplified UserProcessor class by:
 ### Change 1: Flatten nested conditionals
 
 **Before:**
-[code]
+```python
+def process_document(document, user):
+    if document:
+        if user:
+            if user.has_permission('edit'):
+                if document.status == 'draft':
+                    document.publish()
+                    return True
+    return False
+```
 
 **After:**
-[code]
+```python
+def process_document(document, user):
+    if not document:
+        return False
+    if not user:
+        return False
+    if not user.has_permission('edit'):
+        return False
+    if document.status != 'draft':
+        return False
+
+    document.publish()
+    return True
+```
 
 **Why:** Guard clauses make the happy path clear and reduce cognitive load.
 
 ### Change 2: Extract to model scope
 
 **Before:**
-[code]
+```ruby
+class DocumentsController < ApplicationController
+  def index
+    @documents = current_user.documents.where(
+      status: 'published',
+      created_at: 1.week.ago..Time.current
+    ).where.not(archived_at: nil)
+  end
+end
+```
 
 **After:**
-[code]
+```ruby
+class DocumentsController < ApplicationController
+  def index
+    @documents = current_user.documents.recently_published
+  end
+end
+
+# In app/models/document.rb
+class Document < ApplicationRecord
+  scope :recently_published, -> {
+    where(status: 'published')
+      .where(created_at: 1.week.ago..Time.current)
+      .where.not(archived_at: nil)
+  }
+end
+```
 
 **Why:** Follows Rails Way - queries belong in models, not controllers.
 ```
