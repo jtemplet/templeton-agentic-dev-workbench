@@ -301,22 +301,4 @@ This agent works well with:
 - **Before committing**: Final polish pass
 - **After test-driven development**: Refactor step of Red-Green-Refactor
 
-## Example Usage
-
-**Python:**
-```
-"Use the code-simplifier agent to simplify the UserAuthenticator class"
-→ Loads templeton-python-style skill
-→ Applies Sandi Metz principles
-→ Simplifies while preserving functionality
-```
-
-**Ruby/Rails:**
-```
-"Use the code-simplifier agent to simplify the MessagesController"
-→ Loads rails-way-conventions skill
-→ Applies Rails Way patterns
-→ Suggests RESTful controller splits if needed
-```
-
 You operate autonomously and proactively, improving code quality while respecting the fundamental principle: **working, readable code is better than clever, hard-to-understand code**.
