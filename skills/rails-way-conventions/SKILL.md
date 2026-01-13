@@ -56,6 +56,78 @@ Exception: Only when Rails genuinely doesn't provide the functionality
 
 ## Code Organization Patterns
 
+### Step-Down Rule: Read Top-to-Bottom
+
+Classes and methods must follow the step-down rule—code reads like a narrative from highest-level public interface down to implementation details. Public methods first, private methods below. High-level abstractions before low-level details.
+
+**Why:** Developers read code top-down. Force them to jump around and they lose context.
+
+**Pattern:**
+```ruby
+class ArticlePublisher
+  def publish(article)
+    validate_article(article)
+    send_notifications(article)
+    update_article_state(article)
+    record_event(article)
+  end
+
+  private
+
+  def validate_article(article)
+    raise InvalidArticle unless article.valid?
+  end
+
+  def send_notifications(article)
+    NotificationService.publish_article(article)
+  end
+
+  def update_article_state(article)
+    article.update(published_at: Time.current, status: :published)
+  end
+
+  def record_event(article)
+    PublishEvent.create(article: article, user: article.author)
+  end
+end
+```
+
+Read the `publish` method first—you understand what happens. Details follow below.
+
+**Anti-pattern:**
+```ruby
+class ArticlePublisher
+  private
+
+  def update_article_state(article)
+    article.update(published_at: Time.current, status: :published)
+  end
+
+  def record_event(article)
+    PublishEvent.create(article: article, user: article.author)
+  end
+
+  def validate_article(article)
+    raise InvalidArticle unless article.valid?
+  end
+
+  public
+
+  def publish(article)
+    validate_article(article)
+    send_notifications(article)
+    update_article_state(article)
+    record_event(article)
+  end
+
+  def send_notifications(article)
+    NotificationService.publish_article(article)
+  end
+end
+```
+
+Reader must jump to bottom to find the public API, then jump back up for details. Chaos.
+
 ### Many Small Controllers > Few Fat Controllers
 
 Create RESTful controllers prolifically. Each action gets focused context.
