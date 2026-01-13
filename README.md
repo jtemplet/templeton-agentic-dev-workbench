@@ -27,7 +27,7 @@ Systematic technique for comprehensive Rails 8 code reviews covering security vu
 
 See [SKILL.md](./skills/rails-code-review/SKILL.md) for full documentation.
 
-### rails-rspec-tester
+### templeton-rspec-style
 
 Opinionated RSpec testing style for Rails applications emphasizing request specs, clean test organization, and DRY principles.
 
@@ -44,7 +44,7 @@ Opinionated RSpec testing style for Rails applications emphasizing request specs
 - Context-driven organization
 - Concise assertions
 
-See [SKILL.md](./skills/rails-rspec-tester/SKILL.md) for full documentation.
+See [SKILL.md](./skills/templeton-rspec-style/SKILL.md) for full documentation.
 
 ### terraform-iac-expert
 
@@ -111,25 +111,34 @@ Write or refactor Python code following Sandi Metz's object-oriented design prin
 
 See [SKILL.md](./skills/templeton-python-style/SKILL.md) for full documentation.
 
-### fizzy-style
+### rails-conventions
 
-Ruby code style guide emphasizing clean, expressive code patterns focused on readability and maintainability.
+Comprehensive Rails 8 conventions and best practices guide. Enforces "The Rails 8 Way": convention over configuration, Solid Stack over external dependencies, and Hotwire over React.
 
 **Use when:**
-- Writing or refactoring Ruby code
-- Establishing consistent code style across a project
-- Reviewing code for style and clarity
-- Learning Ruby best practices
+- Generating or refactoring Rails code
+- Evaluating whether to add a gem or framework
+- Making architectural decisions
+- Choosing between Rails-native vs third-party solutions
 
 **Core principles:**
-- Prioritize readability and clarity
-- Use consistent naming conventions
-- Favor composition over complex inheritance
-- Keep methods small and focused
-- Leverage Ruby idioms appropriately
-- Write self-documenting code
+- Convention over configuration (Rails defaults)
+- Vanilla Rails (thin controllers, rich domain models)
+- Step-down rule (read code top-to-bottom)
+- Many small controllers > few fat controllers
+- Concerns for composition, service objects when truly needed
+- Rails 8 Solid Stack (Solid Queue, Solid Cache, Solid Cable)
+- Hotwire (Turbo + Stimulus) over React
 
-See [SKILL.md](./skills/fizzy-style/SKILL.md) for full documentation.
+**Includes detailed guidance on:**
+- Controller/Model/Concern structure and ordering
+- When to use service objects (POROs) vs models + concerns
+- Method ordering (vertical invocation + step-down rule)
+- Conditional returns and visibility modifiers
+- ActiveRecord patterns and scopes
+- Resource-oriented design
+
+See [SKILL.md](./skills/rails-conventions/SKILL.md) for full documentation.
 
 ## Agents
 
@@ -145,7 +154,7 @@ Language-agnostic code simplification agent for Python and Ruby/Rails. Enhances 
 
 **Approach:**
 - Python: Applies `templeton-python-style` skill (Sandi Metz principles)
-- Ruby/Rails: Applies `rails-way-conventions` skill (Rails Way patterns)
+- Ruby/Rails: Applies `rails-conventions` skill (Rails Way patterns)
 
 **Key principles:**
 - Preserve functionality (never change behavior)

@@ -1,5 +1,5 @@
 ---
-name: rails-rspec-tester
+name: templeton-rspec-style
 description: Use when writing RSpec tests in Rails applications - enforces opinionated testing style with request specs, context-driven organization, and DRY principles
 ---
 

@@ -145,12 +145,12 @@ description: One-line description
 - Security-first approach with pragmatic severity assessment
 - Understands `where.missing`, `broadcast_refresh_to`, Solid Stack patterns
 
-**Testing:** Use the `rails-rspec-tester` skill
+**Testing:** Use the `templeton-rspec-style` skill
 - Opinionated RSpec style
 - Request specs over controller specs
 - Context-driven organization
 
-**Conventions:** Use the `rails-way-conventions` skill
+**Conventions:** Use the `rails-conventions` skill
 - Enforces Rails 8 conventions and best practices
 - Ensures idiomatic Rails patterns
 
@@ -179,8 +179,8 @@ git diff main...HEAD  # See changes to be reviewed
 **Registered Skills:**
 - `python-code-review` - PEP 8 and Google Style Guide reviews
 - `rails-code-review` - Rails 8-aware systematic code review
-- `rails-rspec-tester` - Opinionated RSpec testing patterns
-- `rails-way-conventions` - Rails conventions and best practices
+- `templeton-rspec-style` - Opinionated RSpec testing patterns
+- `rails-conventions` - Rails conventions and best practices
 - `templeton-python-style` - Python style preferences (Sandi Metz principles)
 - `terraform-iac-expert` - Infrastructure as Code reviews
 

@@ -1,6 +1,6 @@
 ---
 name: code-simplifier
-description: Simplifies and refines Python or Ruby code for clarity, consistency, and maintainability while preserving all functionality. Focuses on recently modified code unless instructed otherwise. Works with project-specific style guides (templeton-python-style for Python, rails-way-conventions for Ruby/Rails).
+description: Simplifies and refines Python or Ruby code for clarity, consistency, and maintainability while preserving all functionality. Focuses on recently modified code unless instructed otherwise. Works with project-specific style guides (templeton-python-style for Python, rails-conventions for Ruby/Rails).
 model: opus
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "Skill"]
 ---
@@ -71,7 +71,7 @@ def _is_paid_active_user(user):
 
 ### Ruby/Rails Code Simplification
 
-When working with Ruby/Rails code, **load and apply the `rails-way-conventions` skill**:
+When working with Ruby/Rails code, **load and apply the `rails-conventions` skill**:
 
 **Core Principles:**
 - Follow "The Rails Way" - convention over configuration
@@ -170,7 +170,7 @@ These apply to **both Python and Ruby**:
 2. **Detect language**: Is this Python or Ruby/Rails?
 3. **Load appropriate skill**:
    - Python → Use `templeton-python-style` skill
-   - Ruby/Rails → Use `rails-way-conventions` skill
+   - Ruby/Rails → Use `rails-conventions` skill
 4. **Analyze for opportunities**: Look for nesting, duplication, unclear naming, complex conditionals
 5. **Apply simplifications**: Make changes that improve clarity
 6. **Verify functionality**: Ensure behavior is unchanged
@@ -266,7 +266,7 @@ end
 
 **Always:**
 - ✅ Preserve exact functionality (all tests must still pass)
-- ✅ Load the appropriate language skill (templeton-python-style or rails-way-conventions)
+- ✅ Load the appropriate language skill (templeton-python-style or rails-conventions)
 - ✅ Focus on recently modified code
 - ✅ Improve readability and maintainability
 - ✅ Use clear, descriptive names
