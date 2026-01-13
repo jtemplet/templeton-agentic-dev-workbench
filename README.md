@@ -111,6 +111,26 @@ Write or refactor Python code following Sandi Metz's object-oriented design prin
 
 See [SKILL.md](./skills/templeton-python-style/SKILL.md) for full documentation.
 
+### fizzy-style
+
+Ruby code style guide emphasizing clean, expressive code patterns focused on readability and maintainability.
+
+**Use when:**
+- Writing or refactoring Ruby code
+- Establishing consistent code style across a project
+- Reviewing code for style and clarity
+- Learning Ruby best practices
+
+**Core principles:**
+- Prioritize readability and clarity
+- Use consistent naming conventions
+- Favor composition over complex inheritance
+- Keep methods small and focused
+- Leverage Ruby idioms appropriately
+- Write self-documenting code
+
+See [SKILL.md](./skills/fizzy-style/SKILL.md) for full documentation.
+
 ## Agents
 
 ### code-simplifier
