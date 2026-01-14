@@ -189,6 +189,23 @@ Guided Python feature development agent that leads through a 4-phase workflow: d
 
 **Output:** Production-ready Python code written to files with type hints, docstrings, and error handling
 
+### rework-coding-style
+
+Language-aware agent for applying opinionated coding style conventions. Detects code language and invokes the appropriate style skill.
+
+**Use when:**
+- Applying templeton style to Python code
+- Styling Rails/Ruby code to follow conventions
+- Standardizing code across multiple files
+- Reworking code after feature implementation
+
+**Approach:**
+- Python: Invokes `templeton-python-style` skill
+- Ruby/Rails: Invokes `rails-conventions` skill
+- Detects language from file extension and context
+
+**Output:** Styled code with clear summary of conventions applied
+
 ## Commands
 
 ### /rails-code-review

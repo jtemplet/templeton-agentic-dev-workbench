@@ -1,6 +1,6 @@
 {
   "name": "templeton-agentic-dev-workbench",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Personal agentic development workbench with Python/Ruby coding styles, code review agents, feature development, and PKM tools",
   "author": {
     "name": "Templeton"
