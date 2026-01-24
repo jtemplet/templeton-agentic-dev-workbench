@@ -1,0 +1,70 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    // File associations
+    "files.associations": {
+      "**/agents/*.md": "markdown",
+      "**/skills/*/SKILL.md": "markdown",
+      "**/commands/*.md": "markdown"
+    },
+
+    // Exclude from search/watch for performance
+    "files.exclude": {
+      "**/.git": true,
+      "**/.beads": true,
+      "**/__pycache__": true,
+      "**/*.pyc": true,
+      ".session-handoff.md": true
+    },
+
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.git": true,
+      "**/.beads": true,
+      "**/__pycache__": true
+    },
+
+    // Markdown settings
+    "markdown.preview.breaks": true,
+    "markdown.preview.linkify": true,
+
+    // Editor settings for consistency
+    "editor.rulers": [80, 120],
+    "editor.formatOnSave": false,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+
+    // Git settings
+    "git.ignoreLimitWarning": true
+  },
+
+  "extensions": {
+    "recommendations": [
+      "yzhang.markdown-all-in-one",
+      "davidanson.vscode-markdownlint",
+      "editorconfig.editorconfig"
+    ]
+  },
+
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Review CLAUDE.md",
+        "type": "shell",
+        "command": "echo 'Use: /review-claude-md in Claude Code'",
+        "problemMatcher": []
+      },
+      {
+        "label": "Sync Beads",
+        "type": "shell",
+        "command": "bd sync",
+        "problemMatcher": []
+      }
+    ]
+  }
+}
