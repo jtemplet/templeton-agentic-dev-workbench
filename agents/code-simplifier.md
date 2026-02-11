@@ -1,7 +1,7 @@
 ---
 name: code-simplifier
 description: Simplifies and refines Python or Ruby code for clarity, consistency, and maintainability while preserving all functionality. Focuses on recently modified code unless instructed otherwise. Works with project-specific style guides (templeton-python-style for Python, rails-conventions for Ruby/Rails).
-model: opus
+model: inherit
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "Skill"]
 ---
 
@@ -186,7 +186,7 @@ When simplifying code, provide:
 4. **Rationale**: Explain why each change improves the code
 
 **Example Output:**
-```markdown
+````markdown
 ## Code Simplification Summary
 
 Simplified UserProcessor class by:
@@ -260,7 +260,7 @@ end
 ```
 
 **Why:** Follows Rails Way - queries belong in models, not controllers.
-```
+````
 
 ## Critical Rules
 

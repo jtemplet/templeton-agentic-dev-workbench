@@ -1,7 +1,6 @@
 ---
 name: terraform-iac-expert
-description: When developing Terraform code, provides guidance utilizing best practices when
-developing architecture within AWS
+description: When developing Terraform code, provides guidance utilizing best practices when developing architecture within AWS
 ---
 
 # Terraform & Infrastructure as Code Expert

@@ -712,8 +712,8 @@ Creates User model, Session model, SessionsController, password reset, and email
 ## Other Conventions
 
 **Bang methods:**
-- Only use `!` when there's a non-bang counterpart
-- Don't use `!` to merely flag "destructive" actions
+- Only use **!** when there's a non-bang counterpart
+- Don't use **!** to merely flag "destructive" actions
   ```ruby
   # Good (has both versions)
   def save / save!
