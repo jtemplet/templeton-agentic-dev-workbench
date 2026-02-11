@@ -18,13 +18,14 @@ This repository follows the Claude Code plugin architecture with three main dire
 
 ### Component Relationships
 
-```
+```text
 commands/*.md → agents/*.md → skills/*/SKILL.md
      ↓               ↓              ↓
   Invokes       Follows        Implements
 ```
 
 **Example Flow:**
+
 1. User invokes `/rails-code-review` command
 2. Command loads `agents/rails-code-reviewer.md` workflow
 3. Agent uses `skills/rails-code-review/SKILL.md` for systematic review technique
@@ -33,6 +34,7 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 ### Agent Architecture
 
 Agents are structured workflow definitions located in `agents/`. Each agent:
+
 - Defines a specific role or expertise area
 - References skills via the Skill tool
 - Specifies required workflow steps
@@ -42,6 +44,7 @@ Agents are structured workflow definitions located in `agents/`. Each agent:
 ### Skill Architecture
 
 Skills are located in `skills/*/SKILL.md` and contain:
+
 - YAML frontmatter with `name` and `description`
 - Systematic techniques and frameworks
 - When to use / when not to use guidelines
@@ -49,6 +52,7 @@ Skills are located in `skills/*/SKILL.md` and contain:
 - Quick reference documentation
 
 Skills can be invoked:
+
 1. Directly: "Use the rails-code-review skill"
 2. Via commands: `/rails-code-review`
 3. Via agent workflows: Task tool with custom agent
@@ -58,7 +62,8 @@ Skills can be invoked:
 ### Creating New Skills
 
 Skills should be self-contained in `skills/<skill-name>/`:
-```
+
+```text
 skills/
   my-skill/
     SKILL.md      # Main skill content with YAML frontmatter
@@ -66,6 +71,7 @@ skills/
 ```
 
 **SKILL.md structure:**
+
 ```markdown
 ---
 name: skill-name
@@ -75,15 +81,18 @@ description: One-line description for when to use this skill
 # Skill Title
 
 ## When to Use
+
 [Specific scenarios]
 
 ## Implementation
+
 [Step-by-step technique]
 ```
 
 ### Creating New Agents
 
 Agents should be placed in `agents/` and follow this structure:
+
 ```markdown
 ---
 name: agent-name
@@ -95,24 +104,30 @@ tools: [list of allowed tools]
 # Role: [Agent Role]
 
 ## Core Responsibilities
+
 [What this agent does]
 
 ## Required Workflow
+
 [Exact steps to follow]
 
 ## Output Format
+
 [Expected output structure]
 
 ## Critical Rules
+
 [Always/Never lists]
 
 ## Quality Checklist
+
 [Pre-completion verification]
 ```
 
 ### Creating New Commands
 
 Commands are shortcuts placed in `commands/`:
+
 ```markdown
 ---
 description: One-line description
@@ -126,14 +141,17 @@ description: One-line description
 ### Python Development
 
 **Code Review:** Use `/python-code-review` or the `python-code-review` skill
+
 - Checks PEP 8 and Google Python Style Guide compliance
 - Reviews security, performance, and maintainability
 
 **Feature Development:** Use the `python-feature-developer` agent
+
 - Follows Sandi Metz principles via `templeton-python-style` skill
 - 4-phase workflow: discovery → implementation → simplification → linting
 
 **Code Simplification:** Use the `code-simplifier` agent
+
 - Works with both Python and Ruby/Rails
 - Applies language-specific style guides automatically
 - Reduces complexity while preserving functionality
@@ -141,20 +159,24 @@ description: One-line description
 ### Rails Development
 
 **Code Review:** Use `/rails-code-review` or the `rails-code-reviewer` agent
+
 - Rails 8-aware with modern Hotwire/Turbo patterns
 - Security-first approach with pragmatic severity assessment
 - Understands `where.missing`, `broadcast_refresh_to`, Solid Stack patterns
 
 **Testing:** Use the `templeton-rspec-style` skill
+
 - Opinionated RSpec style
 - Request specs over controller specs
 - Context-driven organization
 
 **Conventions:** Use the `rails-conventions` skill
+
 - Enforces Rails 8 conventions and best practices
 - Ensures idiomatic Rails patterns
 
 **Common Commands:**
+
 ```bash
 # Running tests
 bundle exec rspec
@@ -166,6 +188,7 @@ git diff main...HEAD  # See changes to be reviewed
 ### Infrastructure as Code
 
 **Terraform Review:** Use the `terraform-iac-expert` skill
+
 - Reviews Terraform configurations
 - Checks for security and best practices
 - Validates resource configurations
@@ -177,6 +200,7 @@ git diff main...HEAD  # See changes to be reviewed
 `.claude-plugin/plugin.json` defines plugin metadata and component registration:
 
 **Registered Skills:**
+
 - `python-code-review` - PEP 8 and Google Style Guide reviews
 - `rails-code-review` - Rails 8-aware systematic code review
 - `templeton-rspec-style` - Opinionated RSpec testing patterns
@@ -185,11 +209,13 @@ git diff main...HEAD  # See changes to be reviewed
 - `terraform-iac-expert` - Infrastructure as Code reviews
 
 **Registered Agents:**
+
 - `code-simplifier` - Language-agnostic code simplification (Python & Ruby/Rails)
 - `python-feature-developer` - Guided Python feature development
 - `rails-code-reviewer` - Comprehensive Rails code review workflow
 
 **Registered Commands:**
+
 - `/python-code-review` - Quick Python code review
 - `/python-feature-dev` - Start Python feature development
 - `/rails-code-review` - Quick Rails code review
@@ -199,6 +225,7 @@ git diff main...HEAD  # See changes to be reviewed
 ### Verification-First Approach
 
 Before flagging code as problematic:
+
 1. Check if tests pass
 2. Verify Rails/Python version
 3. Understand modern framework patterns
@@ -213,6 +240,7 @@ Working non-standard code is better than non-working standard code. Context matt
 ### Agent Integration
 
 Agents should:
+
 - Reference existing skills (don't duplicate knowledge)
 - Provide concrete output formats with examples
 - Include quality checklists for consistency
@@ -259,17 +287,20 @@ Agents should:
 2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
+
    ```bash
    git pull --rebase
    bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```
+
 5. **Clean up** - Clear stashes, prune remote branches
 6. **Verify** - All changes committed AND pushed
 7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push

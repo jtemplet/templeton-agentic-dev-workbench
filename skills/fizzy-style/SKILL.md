@@ -19,12 +19,14 @@ This skill captures the Ruby on Rails coding conventions used in the Fizzy codeb
 ### Structure and Organization
 
 **Order of elements:**
+
 1. Class-level declarations (`include`, `before_action`, `layout`, etc.)
 2. Public action methods (in RESTful order when possible: index, show, new, create, edit, update, destroy)
 3. `private` keyword
 4. Private helper methods
 
 **Example:**
+
 ```ruby
 class CardsController < ApplicationController
   include FilterScoped
@@ -55,13 +57,16 @@ end
 ### Controller Conventions
 
 **Use concerns for shared behavior:**
+
 - Concerns live in `app/controllers/concerns/`
 - Use for setting up scoped resources (e.g., `CardScoped`, `BoardScoped`)
 - Use for cross-cutting concerns (e.g., `Authentication`, `Authorization`)
 
 **Resource-oriented design:**
+
 - Model actions as CRUD operations on resources
 - When an action doesn't fit standard CRUD, introduce a new resource rather than custom actions
+
   ```ruby
   # Bad
   resources :cards do
@@ -75,8 +80,10 @@ end
   ```
 
 **Call model methods directly:**
+
 - Controllers should call model APIs, not extract logic
 - Keep business logic in models, not controllers
+
   ```ruby
   # Good
   def create
@@ -89,8 +96,10 @@ end
   ```
 
 **Parameter handling:**
+
 - Use `params.expect` (Rails 8) for strong parameters
 - Define param methods in private section
+
   ```ruby
   private
     def card_params
@@ -99,8 +108,10 @@ end
   ```
 
 **Instance variable setup:**
+
 - Use `before_action` callbacks for setting instance variables
 - Define setup methods in private section
+
   ```ruby
   before_action :set_board, only: %i[ create ]
 
@@ -115,6 +126,7 @@ end
 ### Structure and Organization
 
 **Order of elements:**
+
 1. Concerns (via `include`)
 2. Associations (`belongs_to`, `has_many`, etc.)
 3. Attachments and rich text
@@ -126,6 +138,7 @@ end
 9. Private methods
 
 **Example:**
+
 ```ruby
 class Card < ApplicationRecord
   include Closeable, Golden, Taggable
@@ -163,13 +176,16 @@ end
 ### Model Conventions
 
 **Heavy use of concerns:**
+
 - Shared concerns in `app/models/concerns/` (e.g., `Searchable`, `Eventable`)
 - Model-specific concerns in `app/models/model_name/` (e.g., `Card::Golden`, `Board::Publishable`)
 - Concerns encapsulate related behavior (associations, scopes, methods)
 
 **Rich domain models:**
+
 - Models contain business logic, not just data access
 - Methods should be intention-revealing
+
   ```ruby
   # Good
   def gild
@@ -187,9 +203,11 @@ end
   ```
 
 **Scopes for queries:**
+
 - Define common queries as scopes
 - Chain scopes for complex queries
 - Use lambda syntax for all scopes
+
   ```ruby
   scope :latest, -> { order last_active_at: :desc, id: :desc }
   scope :closed, -> { joins(:closure) }
@@ -197,7 +215,9 @@ end
   ```
 
 **Use defaults for associations:**
+
 - Leverage `default:` option for automatic assignment
+
   ```ruby
   belongs_to :account, default: -> { board.account }
   belongs_to :creator, class_name: "User", default: -> { Current.user }
@@ -208,6 +228,7 @@ end
 ### Controller Concerns
 
 **Structure:**
+
 ```ruby
 module CardScoped
   extend ActiveSupport::Concern
@@ -228,12 +249,14 @@ end
 ```
 
 **Patterns:**
+
 - Use `extend ActiveSupport::Concern`
 - Use `included do` block for callbacks and helpers
 - Methods are private unless explicitly needed as helpers
 - Can define `class_methods` block for class-level extensions
 
 **When to use:**
+
 - Setting up scoped resources (e.g., `@card`, `@board`)
 - Shared authentication/authorization logic
 - Cross-cutting presentation concerns (e.g., `TurboFlash`)
@@ -241,6 +264,7 @@ end
 ### Model Concerns
 
 **Structure for shared concerns:**
+
 ```ruby
 module Searchable
   extend ActiveSupport::Concern
@@ -262,6 +286,7 @@ end
 ```
 
 **Structure for model-specific concerns:**
+
 ```ruby
 module Card::Golden
   extend ActiveSupport::Concern
@@ -286,12 +311,14 @@ end
 ```
 
 **When to use:**
+
 - Encapsulate related associations, scopes, and methods
 - Keep primary model file focused and readable
 - Shared behavior across multiple models (in `app/models/concerns/`)
 - Model-specific behavior that deserves its own file (in `app/models/model_name/`)
 
 **Concern organization:**
+
 - Model-specific concerns: `app/models/model_name/feature.rb` (e.g., `Card::Golden`)
 - Shared concerns: `app/models/concerns/feature.rb` (e.g., `Searchable`)
 - Each concern should have a clear, focused purpose
@@ -299,12 +326,14 @@ end
 ## Service Objects (POROs)
 
 **When to use:**
+
 - Complex multi-step operations (e.g., `Signup` for account creation)
 - Form objects that need validation but aren't persisted
 - Coordinating objects that orchestrate multiple models
 - Parsing or transformation logic
 
 **Structure:**
+
 ```ruby
 class Signup
   include ActiveModel::Model
@@ -341,13 +370,16 @@ end
 ```
 
 **Location:**
+
 - Place in `app/models/` directory (not a separate `services/` directory)
 - They are domain objects, not a special "service layer"
 
 **Patterns:**
+
 - Use `ActiveModel::Model` for form-like objects
 - Private `initialize` when using factory methods
 - Class methods for factory patterns when appropriate
+
   ```ruby
   class Notifier
     class << self
@@ -366,6 +398,7 @@ end
 ## Conditional Returns
 
 **Prefer expanded conditionals over guard clauses:**
+
 ```ruby
 # Good
 def todos_for_new_group
@@ -385,8 +418,10 @@ end
 ```
 
 **Exception:** Use guard clauses when:
+
 - The return is at the very beginning of the method
 - The main method body is non-trivial (several lines)
+
   ```ruby
   def after_recorded_as_commit(recording)
     return if recording.parent.was_created?
@@ -402,6 +437,7 @@ end
 ## Visibility Modifiers
 
 **No newline under visibility modifiers, indent content under them:**
+
 ```ruby
 class SomeClass
   def public_method
@@ -420,6 +456,7 @@ end
 ```
 
 **For modules with only private methods:**
+
 ```ruby
 module SomeModule
   private
@@ -434,6 +471,7 @@ end
 
 **Vertical invocation order:**
 Order methods based on their call order to show flow:
+
 ```ruby
 class SomeClass
   def some_method
@@ -464,8 +502,10 @@ end
 ## Other Conventions
 
 **Bang methods:**
+
 - Only use `!` when there's a non-bang counterpart
 - Don't use `!` to merely flag "destructive" actions
+
   ```ruby
   # Good (has both versions)
   def save / save!
@@ -475,8 +515,10 @@ end
   ```
 
 **Custom errors:**
+
 - Rarely needed - prefer standard Ruby/Rails exceptions
 - When needed, define inline in the class that uses them
+
   ```ruby
   class Webhook::Delivery
     class ResponseTooLarge < StandardError; end
@@ -489,6 +531,7 @@ end
   ```
 
 **Current context:**
+
 - Use `Current` attributes for request-scoped values
 - Common: `Current.user`, `Current.account`, `Current.identity`
 

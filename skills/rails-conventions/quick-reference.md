@@ -24,7 +24,7 @@ end
 class User < ApplicationRecord
   has_secure_password
   has_many :sessions, dependent: :destroy
-  
+
   normalizes :email_address, with: ->(e) { e.strip.downcase }
   generates_token_for :password_reset, expires_in: 15.minutes
 end
@@ -36,7 +36,7 @@ end
 # Job
 class ReportJob < ApplicationJob
   queue_as :default
-  
+
   def perform(user_id)
     user = User.find(user_id)
     ReportMailer.send_report(user, generate_report(user)).deliver_now
@@ -116,11 +116,11 @@ end
 # app/models/concerns/trackable.rb
 module Trackable
   extend ActiveSupport::Concern
-  
+
   included do
     after_create :track_creation
   end
-  
+
   private
   def track_creation
     Analytics.track("#{self.class.name} Created", id: id)
@@ -186,7 +186,7 @@ config.action_cable.adapter = :solid_cable
 # config/routes.rb
 resources :posts do
   resources :comments, only: [:create]
-  
+
   namespace :posts do
     resource :publication, only: [:create, :destroy]
   end

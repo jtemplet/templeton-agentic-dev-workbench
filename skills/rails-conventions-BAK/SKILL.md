@@ -47,6 +47,7 @@ Exception: Only when Rails genuinely doesn't provide the functionality
 ## Rails 8 Defaults
 
 **Use these (Rails 8 built-in):**
+
 - Solid Queue (background jobs, not Sidekiq)
 - Solid Cache (caching, not Redis)
 - Solid Cable (WebSockets, not Redis)
@@ -61,6 +62,7 @@ Exception: Only when Rails genuinely doesn't provide the functionality
 Create RESTful controllers prolifically. Each action gets focused context.
 
 **Anti-pattern:**
+
 ```ruby
 class MessagesController < ApplicationController
   def index
@@ -74,6 +76,7 @@ end
 ```
 
 **Rails Way:**
+
 ```ruby
 class MessagesController < ApplicationController
   def index
@@ -99,11 +102,13 @@ end
 Keep models focused. Use concerns for shared behavior.
 
 **When service objects ARE appropriate:**
+
 - Complex multi-model transactions
 - External API integrations with significant logic
 - Business processes that don't map to a single model
 
 **When to use models + concerns instead:**
+
 - Single model operations (create, update, delete)
 - Shared behavior across models
 - Standard CRUD with callbacks
@@ -151,12 +156,14 @@ Don't add microservices, Redis clusters, message queues, or GraphQL prematurely.
 ## Quick Decision Trees
 
 **Should I create a service object?**
+
 - Single model operation? Use model + callbacks
 - Multiple models in transaction? Service object OK
 - External API integration? Service object OK
 - Otherwise? Use model methods or concern
 
 **Should I create a new controller?**
+
 - One of 7 REST actions? Add to existing controller
 - State/filter of resource (drafts, archived)? Create nested controller
 - Operating on relationship (like, bookmark)? Create singular resource controller
@@ -165,6 +172,7 @@ Don't add microservices, Redis clusters, message queues, or GraphQL prematurely.
 ## Solid Stack Quick Reference
 
 **Solid Queue (Background Jobs):**
+
 ```ruby
 class ReportJob < ApplicationJob
   queue_as :default
@@ -178,6 +186,7 @@ ReportJob.perform_later(current_user.id)
 ```
 
 **Solid Cache:**
+
 ```ruby
 Rails.cache.fetch(["product", id, "stats"], expires_in: 1.hour) do
   expensive_calculation
@@ -185,6 +194,7 @@ end
 ```
 
 **Authentication Generator:**
+
 ```bash
 bin/rails generate authentication
 ```
@@ -199,5 +209,5 @@ When in doubt, do it the simplest Rails way possible. Add complexity only when y
 
 For detailed code patterns and examples, see quick-reference.md in this directory.
 
-For Rails Doctrine details: https://rubyonrails.org/doctrine
-For Rails 8 Release Notes: https://guides.rubyonrails.org/8_0_release_notes.html
+For Rails Doctrine details: <https://rubyonrails.org/doctrine>
+For Rails 8 Release Notes: <https://guides.rubyonrails.org/8_0_release_notes.html>

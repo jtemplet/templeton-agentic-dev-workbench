@@ -19,6 +19,7 @@ Custom skills for Claude Code. Part of the [agent-marketplace](https://github.co
 Systematic technique for comprehensive Rails 8 code reviews covering security vulnerabilities (XSS, SQL injection), Rails conventions, Hotwire/Turbo patterns, performance optimization, and DRY principles with priority-based issue categorization.
 
 **Use when:**
+
 - Reviewing Rails code before merge or PR
 - Performing security audits
 - Validating Rails 8 conventions and Hotwire patterns
@@ -32,12 +33,14 @@ See [SKILL.md](./skills/rails-code-review/SKILL.md) for full documentation.
 Opinionated RSpec testing style for Rails applications emphasizing request specs, clean test organization, and DRY principles.
 
 **Use when:**
+
 - Writing new RSpec tests for Rails applications
 - Converting controller tests to request specs
 - Refactoring existing tests to follow best practices
 - Reviewing test code for style compliance
 
 **Key principles:**
+
 - Request specs over controller tests (always)
 - Setup in `let`/`let!` blocks, not in `it` blocks
 - HTTP requests in `subject` blocks
@@ -51,6 +54,7 @@ See [SKILL.md](./skills/templeton-rspec-style/SKILL.md) for full documentation.
 Senior staff-level DevOps expertise for Terraform and Infrastructure as Code across AWS, Azure, and GCP with 10+ years of FAANG experience.
 
 **Use when:**
+
 - Writing or reviewing Terraform configurations
 - Designing cloud infrastructure
 - Creating reusable Terraform modules
@@ -59,6 +63,7 @@ Senior staff-level DevOps expertise for Terraform and Infrastructure as Code acr
 - Implementing security and compliance best practices
 
 **Key principles:**
+
 - Infrastructure as Code (IaC) first approach
 - Modular, reusable, maintainable infrastructure
 - Security by default with least privilege
@@ -72,6 +77,7 @@ See [SKILL.md](./skills/terraform-iac-expert/SKILL.md) for full documentation.
 Comprehensive Python code review following PEP 8 and Google Python Style Guide standards, with emphasis on security, type hints, and best practices.
 
 **Use when:**
+
 - Reviewing Python code before merge or PR
 - Performing security audits (SQL injection, hardcoded secrets, unsafe functions)
 - Validating PEP 8 and Google Style Guide compliance
@@ -79,6 +85,7 @@ Comprehensive Python code review following PEP 8 and Google Python Style Guide s
 - Analyzing performance and maintainability
 
 **Key principles:**
+
 - Consistency within project > rigid rule adherence
 - Wait for third occurrence before flagging duplication (Sandi Metz principle)
 - Prioritize: Critical (security/bugs) > High (readability) > Medium (style) > Low (nitpicks)
@@ -93,12 +100,14 @@ See [SKILL.md](./skills/python-code-review/SKILL.md) for full documentation.
 Write or refactor Python code following Sandi Metz's object-oriented design principles from "Practical Object-Oriented Design in Ruby" (POODR), adapted for Python.
 
 **Use when:**
+
 - Writing new Python code with strong OOD principles
 - Refactoring Python code to improve design
 - Reviewing Python code for architectural issues
 - Learning object-oriented design patterns
 
 **Core principles:**
+
 - Wait for duplication (rule of three) before abstracting
 - Methods should be small and do one thing
 - Classes should have single, cohesive responsibilities
@@ -116,12 +125,14 @@ See [SKILL.md](./skills/templeton-python-style/SKILL.md) for full documentation.
 Comprehensive Rails 8 conventions and best practices guide. Enforces "The Rails 8 Way": convention over configuration, Solid Stack over external dependencies, and Hotwire over React.
 
 **Use when:**
+
 - Generating or refactoring Rails code
 - Evaluating whether to add a gem or framework
 - Making architectural decisions
 - Choosing between Rails-native vs third-party solutions
 
 **Core principles:**
+
 - Convention over configuration (Rails defaults)
 - Vanilla Rails (thin controllers, rich domain models)
 - Step-down rule (read code top-to-bottom)
@@ -131,6 +142,7 @@ Comprehensive Rails 8 conventions and best practices guide. Enforces "The Rails 
 - Hotwire (Turbo + Stimulus) over React
 
 **Includes detailed guidance on:**
+
 - Controller/Model/Concern structure and ordering
 - When to use service objects (POROs) vs models + concerns
 - Method ordering (vertical invocation + step-down rule)
@@ -147,16 +159,19 @@ See [SKILL.md](./skills/rails-conventions/SKILL.md) for full documentation.
 Language-agnostic code simplification agent for Python and Ruby/Rails. Enhances code clarity and maintainability while preserving exact functionality.
 
 **Use when:**
+
 - Refactoring complex code
 - Reducing nesting and cognitive load
 - Simplifying after feature implementation
 - Before committing changes
 
 **Approach:**
+
 - Python: Applies `templeton-python-style` skill (Sandi Metz principles)
 - Ruby/Rails: Applies `rails-conventions` skill (Rails Way patterns)
 
 **Key principles:**
+
 - Preserve functionality (never change behavior)
 - Reduce nesting with guard clauses
 - Eliminate redundancy (wait for third occurrence)
@@ -177,11 +192,13 @@ Specialized subagent for comprehensive Rails 8 code reviews. Loads the rails-cod
 Guided Python feature development agent that leads through a 4-phase workflow: discovery, implementation, simplification, and linting. Uses the templeton-python-style skill for implementation guidance.
 
 **Triggers on:**
+
 - "implement [feature] in Python"
 - "create a Python [component]"
 - "add [functionality] to Python code"
 
 **Workflow phases:**
+
 1. **Discovery** - Asks clarifying questions about inputs, outputs, and edge cases
 2. **Implementation** - Writes code following Sandi Metz principles
 3. **Simplification** - Refines code while preserving readability
@@ -194,12 +211,14 @@ Guided Python feature development agent that leads through a 4-phase workflow: d
 Language-aware agent for applying opinionated coding style conventions. Detects code language and invokes the appropriate style skill.
 
 **Use when:**
+
 - Applying templeton style to Python code
 - Styling Rails/Ruby code to follow conventions
 - Standardizing code across multiple files
 - Reworking code after feature implementation
 
 **Approach:**
+
 - Python: Invokes `templeton-python-style` skill
 - Ruby/Rails: Invokes `rails-conventions` skill
 - Detects language from file extension and context
@@ -225,6 +244,7 @@ One-command trigger for comprehensive Python code reviews following PEP 8 and Go
 Guided Python feature development with discovery, implementation, simplification, and linting phases.
 
 **Usage:**
+
 - `/python-feature-dev "add user authentication"` - With feature description
 - `/python-feature-dev` - Interactive mode (prompts for feature description)
 
@@ -233,6 +253,7 @@ Guided Python feature development with discovery, implementation, simplification
 ## System Architecture
 
 The workbench uses a three-layer architecture:
+
 - **Commands** (e.g., `/rails-code-review`) provide quick access triggers
 - **Agents** (e.g., `rails-code-reviewer`) define workflows and processes
 - **Skills** (e.g., `rails-code-review`) contain systematic techniques and best practices
@@ -242,6 +263,7 @@ This layered approach ensures consistency, maintainability, and flexibility.
 ## Creating New Skills
 
 Each skill should:
+
 1. Live in its own directory under `skills/`
 2. Have a `SKILL.md` file with YAML frontmatter
 3. Follow the format shown in `skills/example-skill/SKILL.md`
