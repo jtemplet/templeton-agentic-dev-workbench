@@ -249,19 +249,72 @@ Agents should:
 - Agents provide consistent, structured workflows
 - Commands provide quick access to common operations
 
+## Issue Tracking (br + bv)
+
+This project uses **br** (beads_rust) for issue CRUD and **bv** (beads_viewer) for triage and planning.
+
+**Key principle:** `br` never auto-commits or runs git commands. All git operations are explicit.
+
+### Common br Commands
+
+```bash
+# Issue lifecycle
+br create "Issue title" -p 2 -t bug -l "label1,label2"
+br list                              # List open issues
+br show <id>                         # Show issue details
+br update <id> --status in_progress
+br update <id> --claim               # Atomic: assign to self + set in_progress
+br close <id>                        # Close an issue
+br ready                             # List unblocked, non-deferred issues
+
+# Sync DB <-> JSONL (for git)
+br sync --flush-only                 # Export DB -> JSONL (before git commit)
+br sync --import-only                # Import JSONL -> DB (after git pull)
+br sync --merge                      # 3-way merge after pull conflicts
+
+# Dependencies
+br dep add <issue> <depends-on>
+br dep tree <issue>
+
+# Labels
+br label list-all                    # All labels with counts
+```
+
+### Common bv Commands
+
+```bash
+# Triage and planning (use these to decide what to work on)
+bv --robot-next                      # Top pick + claim command
+bv --robot-triage                    # Full triage: picks, quick wins, blockers
+bv --robot-plan                      # Dependency-respecting execution tracks
+
+# Analysis
+bv --robot-insights                  # Graph metrics + critical path
+bv --robot-alerts                    # Stale issues, blocking cascades
+bv --robot-suggest                   # Duplicates, missing deps, label assignments
+```
+
+### Workflow
+
+1. `bv --robot-next` — find out what to work on
+2. `br update <id> --claim` — claim the issue
+3. Do the work
+4. `br close <id>` — close when done
+5. `br sync --flush-only` — export to JSONL before committing
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
 
 **MANDATORY WORKFLOW:**
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
+1. **File issues for remaining work** - Use `br create` for anything that needs follow-up
 2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
+3. **Update issue status** - `br close` finished work, `br update` in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
+   br sync --flush-only
    git push
    git status  # MUST show "up to date with origin"
    ```

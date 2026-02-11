@@ -537,7 +537,7 @@ Run these queries to verify progressive disclosure works:
 - ✅ docs/PYTHON_WORKFLOWS.md (78 lines, 312 tokens)
 - ✅ docs/RAILS_WORKFLOWS.md (65 lines, 260 tokens)
 - ✅ docs/PLUGIN_DEVELOPMENT.md (145 lines, 580 tokens)
-- ✅ docs/BEADS_WORKFLOW.md (28 lines, 112 tokens)
+- ✅ docs/BR_WORKFLOW.md (28 lines, 112 tokens)
 
 ### Files Modified:
 - ✅ AGENTS.md (276 → 45 lines, -83%)
@@ -555,7 +555,7 @@ Modified:   AGENTS.md
 New files:  docs/PYTHON_WORKFLOWS.md
            docs/RAILS_WORKFLOWS.md
            docs/PLUGIN_DEVELOPMENT.md
-           docs/BEADS_WORKFLOW.md
+           docs/BR_WORKFLOW.md
 ```
 
 ## Health Score Update
