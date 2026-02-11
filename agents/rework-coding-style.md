@@ -59,6 +59,7 @@ You are a coding style specialist that detects code language and applies opinion
 **Output Format:**
 
 Provide:
+
 - Language detected clearly stated
 - Style skill used identified
 - Reworked code with style applied

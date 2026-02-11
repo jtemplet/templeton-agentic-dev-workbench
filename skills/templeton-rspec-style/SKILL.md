@@ -51,6 +51,7 @@ end
 ## Key Rules
 
 1. **HTTP requests go in `subject` blocks**
+
    ```ruby
    subject { post invitations_path, params: { invitation: invitation_params } }
    ```
@@ -61,6 +62,7 @@ end
    - Use `build`/`build_stubbed` when persistence isn't needed
 
 3. **Context blocks describe scenarios**
+
    ```ruby
    context "when user is unauthorized" do
    context "when email is duplicate" do
@@ -68,6 +70,7 @@ end
    ```
 
 4. **`it` blocks are concise**
+
    ```ruby
    it "creates the record" do
      expect { subject }.to change(Model, :count).by(1)
@@ -291,6 +294,7 @@ end
 ```
 
 **Best practices**:
+
 - **Always use `find_by` with a unique attribute** (email, reference ID, unique combination)
 - **Never use `Model.last`** - you can't assume the table has only one record or that yours is last
 - Use `be_present` to verify the record exists with the unique attribute
@@ -371,6 +375,7 @@ end
 ```
 
 **Key patterns**:
+
 - Set up parent resources with `let!` at the describe level
 - Use nested path helpers (`deal_invitations_path(deal)`)
 - Test associations between child and parent
@@ -396,6 +401,7 @@ end
 ## When to Use This Skill
 
 Use this skill when:
+
 - Writing new RSpec tests for Rails applications
 - Converting controller tests to request specs
 - Refactoring existing tests to follow this style

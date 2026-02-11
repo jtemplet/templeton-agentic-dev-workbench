@@ -5,6 +5,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ## Original vs Improved
 
 ### Original Agent (v1)
+
 - Basic recommendations without quantification
 - Manual analysis only
 - No validation or testing
@@ -16,6 +17,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 **Capabilities:** 5 core features
 
 ### Improved Agent (v2)
+
 - Quantitative scoring with measurable metrics
 - Multiple operating modes (Review/Refactor/Monitor)
 - Automated refactoring with validation
@@ -35,6 +37,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 1. Quantification & Measurement (High Confidence)
 
 **Added:**
+
 - Health score calculation (0-100) with 4 sub-components
 - Token efficiency metrics (actual vs ideal)
 - Instruction budget tracking (used vs available)
@@ -51,6 +54,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 2. Auto-Refactoring Capability (High Confidence)
 
 **Added:**
+
 - **Review Mode:** Analyze and recommend (original behavior)
 - **Refactor Mode:** Actually implement changes
   - Creates docs/ directory structure
@@ -69,6 +73,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 3. Codebase Pattern Analysis (High Confidence)
 
 **Added:**
+
 - Verify tech stack mentions match actual dependencies
 - Check build commands exist in package.json/Makefile
 - Validate file paths in CLAUDE.md actually exist
@@ -84,6 +89,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 4. Impact Estimation (High Confidence)
 
 **Added:**
+
 - Token savings per request (exact calculation)
 - Context window freed (percentage)
 - Estimated response time improvement
@@ -99,6 +105,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 5. Confidence Scoring for Issues (Medium Confidence)
 
 **Added:**
+
 - Severity ratings: Critical (9-10), High (7-8), Medium (5-6), Low (3-4), Info (1-2)
 - Confidence levels: High/Medium/Low for each recommendation
 - Prioritization framework for fixes
@@ -112,6 +119,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 6. Diff Preview Mode (High Confidence)
 
 **Added:**
+
 - Unified diffs showing exact changes
 - Before/after side-by-side comparisons
 - Annotations explaining why changes improve performance
@@ -125,6 +133,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 7. Post-Refactor Validation (High Confidence)
 
 **Added:**
+
 - Verify all progressive disclosure links resolve
 - Check for broken references
 - Confirm token count decreased (regression test)
@@ -140,6 +149,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 8. Regression Detection (Medium Confidence)
 
 **Added:**
+
 - Track CLAUDE.md health over time
 - Show trend: "Last review: 12/100 → This review: 95/100"
 - Alert on regression (file growing, anti-patterns returning)
@@ -154,6 +164,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 9. Test Query Generation (High Confidence)
 
 **Added:**
+
 - Generate sample queries that test progressive disclosure
 - Validation tests: "Does Claude find the right docs?"
 - Expected behavior documentation
@@ -167,6 +178,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 10. Interactive Configuration (Medium Confidence)
 
 **Added:**
+
 - Ask clarifying questions before refactoring
 - Primary use case selection
 - Token budget priority (aggressive/balanced/conservative)
@@ -181,6 +193,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 11. Multiple Export Formats (Medium Confidence)
 
 **Added:**
+
 - Markdown report (default, human-readable)
 - JSON (programmatic, CI/CD integration)
 - Checklist (actionable TODO list)
@@ -195,6 +208,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 12. CI/CD Integration (High Confidence)
 
 **Added:**
+
 - Generate pre-commit hook that validates CLAUDE.md size
 - Enforce max lines, max instructions, max tokens
 - Prevent regression via automated checks
@@ -208,6 +222,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 13. Watch/Monitor Mode (Low Confidence)
 
 **Added:**
+
 - Continuous monitoring of CLAUDE.md changes
 - Real-time alerts on regression
 - Suggestions as file grows
@@ -221,6 +236,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 14. Team Collaboration Features (Medium Confidence)
 
 **Added:**
+
 - Consensus mode: Identify conflicting opinions from different developers
 - Facilitate resolution with options (A/B/C/D)
 - Style guide generation for teams
@@ -235,11 +251,13 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 15. Framework-Specific Intelligence (High Confidence)
 
 **Added:**
+
 - Auto-detect framework patterns (Next.js, Nx, Rails, etc.)
 - Provide framework-specific recommendations
 - Adjust advice based on detected stack
 
 **Example:**
+
 - Detects Next.js → Suggests referencing Next.js docs
 - Detects Nx monorepo → Recommends project-specific CLAUDE.md files
 
@@ -252,6 +270,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 16. Usage Analytics (Medium Confidence)
 
 **Added:**
+
 - Track which progressive disclosure files Claude actually loads
 - Identify high-value vs never-accessed files
 - Recommend consolidation based on usage
@@ -265,6 +284,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 17. Pattern Library (Low Confidence)
 
 **Added:**
+
 - Library of successful CLAUDE.md patterns from other projects
 - "Similar projects" recommendations
 - Proven patterns with metrics
@@ -278,6 +298,7 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ### 18. Skill vs Docs Intelligence (High Confidence)
 
 **Added:**
+
 - Recognize skill-based style enforcement pattern
 - Prefer skills over docs/code-style.md (skills load on-demand)
 - Understand this plugin already uses superior pattern
@@ -291,7 +312,8 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ## Architecture Improvements
 
 ### Original Agent Structure
-```
+
+```text
 1. Read file
 2. Apply heuristics
 3. Suggest changes
@@ -299,7 +321,8 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ```
 
 ### Improved Agent Structure
-```
+
+```text
 1. Configuration Phase
    - Detect mode (Review/Refactor/Monitor)
    - Ask clarifying questions
@@ -339,7 +362,8 @@ This document summarizes the comprehensive improvements made to the `claude-md-r
 ## Metrics Comparison
 
 ### Original Agent Output
-```
+
+```text
 "Your CLAUDE.md is too large. Consider moving language-specific
 content to separate files."
 
@@ -347,7 +371,8 @@ content to separate files."
 ```
 
 ### Improved Agent Output
-```
+
+```text
 Health Score: 12/100 (Grade F) → After optimization: 100/100 (Grade A+)
 
 Current: 276 lines, 1,104 tokens, 35 instructions
@@ -368,6 +393,7 @@ Impact: 924 tokens saved per request (83% reduction)
 ### From aihero.dev Research
 
 ✅ **Implemented:**
+
 - Absolute minimum test (project description, package manager, build commands)
 - Progressive disclosure pattern (extract to docs/)
 - Instruction budget awareness (~150-200 instructions total)
@@ -376,6 +402,7 @@ Impact: 924 tokens saved per request (83% reduction)
 - One-liner project description pattern
 
 ✅ **Enhanced:**
+
 - Quantified "instruction budget" with actual counting
 - Made progressive disclosure automatic (Refactor mode)
 - Added validation for stale doc detection
@@ -383,6 +410,7 @@ Impact: 924 tokens saved per request (83% reduction)
 ### From humanlayer.dev Research
 
 ✅ **Implemented:**
+
 - "LLMs are stateless" understanding
 - WHAT/WHY/HOW framework
 - Minimize instructions principle
@@ -392,6 +420,7 @@ Impact: 924 tokens saved per request (83% reduction)
 - Don't auto-generate (manual curation)
 
 ✅ **Enhanced:**
+
 - Quantified token waste from excess instructions
 - Added codebase verification (WHAT matches reality)
 - Automated progressive disclosure creation
@@ -458,18 +487,23 @@ The improved agent can demonstrate success through:
 ## Risks & Mitigations
 
 ### Risk 1: Auto-refactoring breaks things
+
 **Mitigation:** Comprehensive validation phase, diff preview, user approval mode
 
 ### Risk 2: Quantitative scoring too complex
+
 **Mitigation:** Clear sub-score breakdown, examples, grade system (A-F)
 
 ### Risk 3: Framework detection fails
+
 **Mitigation:** Ask user about tech stack, provide generic fallback
 
 ### Risk 4: Progressive disclosure doesn't work
+
 **Mitigation:** Test queries validate Claude can find docs, usage analytics track access
 
 ### Risk 5: Too many features, overwhelming
+
 **Mitigation:** Sensible defaults (Review mode), progressive feature disclosure
 
 ---

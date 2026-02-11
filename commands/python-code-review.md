@@ -38,6 +38,7 @@ You are acting as a Python code review expert. Follow the python-code-review ski
    - Priority-ordered recommendations
 
 **Key Review Principles:**
+
 - Consistency within project > rigid adherence to rules
 - Wait for third occurrence before flagging duplication (Sandi Metz principle)
 - Be constructive and provide actionable recommendations

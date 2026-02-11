@@ -48,6 +48,7 @@ Exception: Only when Rails genuinely doesn't provide the functionality
 ## Rails 8 Defaults
 
 **Use these (Rails 8 built-in):**
+
 - Solid Queue (background jobs, not Sidekiq)
 - Solid Cache (caching, not Redis)
 - Solid Cable (WebSockets, not Redis)
@@ -62,12 +63,14 @@ Exception: Only when Rails genuinely doesn't provide the functionality
 #### Structure and Organization
 
 **Order of elements:**
+
 1. Class-level declarations (`include`, `before_action`, `layout`, etc.)
 2. Public action methods (in RESTful order when possible: index, show, new, create, edit, update, destroy)
 3. `private` keyword
 4. Private helper methods
 
 **Example:**
+
 ```ruby
 class CardsController < ApplicationController
   include FilterScoped
@@ -98,6 +101,7 @@ end
 #### Controller Conventions
 
 **Use concerns for shared behavior:**
+
 - Concerns live in `app/controllers/concerns/`
 - Use for setting up scoped resources (e.g., `CardScoped`, `BoardScoped`)
 - Use for cross-cutting concerns (e.g., `Authentication`, `Authorization`)
@@ -107,6 +111,7 @@ end
 Create RESTful controllers prolifically. Each action gets focused context.
 
 **Anti-pattern:**
+
 ```ruby
 class MessagesController < ApplicationController
   def index
@@ -120,6 +125,7 @@ end
 ```
 
 **Rails Way:**
+
 ```ruby
 class MessagesController < ApplicationController
   def index
@@ -141,8 +147,10 @@ end
 ```
 
 **Resource-oriented design:**
+
 - Model actions as CRUD operations on resources
 - When an action doesn't fit standard CRUD, introduce a new resource rather than custom actions
+
   ```ruby
   # Bad
   resources :cards do
@@ -156,8 +164,10 @@ end
   ```
 
 **Call model methods directly:**
+
 - Controllers should call model APIs, not extract logic
 - Keep business logic in models, not controllers
+
   ```ruby
   # Good
   def create
@@ -170,8 +180,10 @@ end
   ```
 
 **Parameter handling:**
+
 - Use `params.expect` (Rails 8) for strong parameters
 - Define param methods in private section
+
   ```ruby
   private
     def card_params
@@ -180,8 +192,10 @@ end
   ```
 
 **Instance variable setup:**
+
 - Use `before_action` callbacks for setting instance variables
 - Define setup methods in private section
+
   ```ruby
   before_action :set_board, only: %i[ create ]
 
@@ -196,6 +210,7 @@ end
 #### Structure and Organization
 
 **Order of elements:**
+
 1. Concerns (via `include`)
 2. Associations (`belongs_to`, `has_many`, etc.)
 3. Attachments and rich text
@@ -207,6 +222,7 @@ end
 9. Private methods
 
 **Example:**
+
 ```ruby
 class Card < ApplicationRecord
   include Closeable, Golden, Taggable
@@ -244,13 +260,16 @@ end
 #### Model Conventions
 
 **Heavy use of concerns:**
+
 - Shared concerns in `app/models/concerns/` (e.g., `Searchable`, `Eventable`)
 - Model-specific concerns in `app/models/model_name/` (e.g., `Card::Golden`, `Board::Publishable`)
 - Concerns encapsulate related behavior (associations, scopes, methods)
 
 **Rich domain models:**
+
 - Models contain business logic, not just data access
 - Methods should be intention-revealing
+
   ```ruby
   # Good
   def gild
@@ -268,9 +287,11 @@ end
   ```
 
 **Scopes for queries:**
+
 - Define common queries as scopes
 - Chain scopes for complex queries
 - Use lambda syntax for all scopes
+
   ```ruby
   scope :latest, -> { order last_active_at: :desc, id: :desc }
   scope :closed, -> { joins(:closure) }
@@ -278,7 +299,9 @@ end
   ```
 
 **Use defaults for associations:**
+
 - Leverage `default:` option for automatic assignment
+
   ```ruby
   belongs_to :account, default: -> { board.account }
   belongs_to :creator, class_name: "User", default: -> { Current.user }
@@ -312,6 +335,7 @@ end
 #### Controller Concerns
 
 **Structure:**
+
 ```ruby
 module CardScoped
   extend ActiveSupport::Concern
@@ -332,12 +356,14 @@ end
 ```
 
 **Patterns:**
+
 - Use `extend ActiveSupport::Concern`
 - Use `included do` block for callbacks and helpers
 - Methods are private unless explicitly needed as helpers
 - Can define `class_methods` block for class-level extensions
 
 **When to use:**
+
 - Setting up scoped resources (e.g., `@card`, `@board`)
 - Shared authentication/authorization logic
 - Cross-cutting presentation concerns (e.g., `TurboFlash`)
@@ -345,6 +371,7 @@ end
 #### Model Concerns
 
 **Structure for shared concerns:**
+
 ```ruby
 module Searchable
   extend ActiveSupport::Concern
@@ -366,6 +393,7 @@ end
 ```
 
 **Structure for model-specific concerns:**
+
 ```ruby
 module Card::Golden
   extend ActiveSupport::Concern
@@ -390,12 +418,14 @@ end
 ```
 
 **When to use:**
+
 - Encapsulate related associations, scopes, and methods
 - Keep primary model file focused and readable
 - Shared behavior across multiple models (in `app/models/concerns/`)
 - Model-specific behavior that deserves its own file (in `app/models/model_name/`)
 
 **Concern organization:**
+
 - Model-specific concerns: `app/models/model_name/feature.rb` (e.g., `Card::Golden`)
 - Shared concerns: `app/models/concerns/feature.rb` (e.g., `Searchable`)
 - Each concern should have a clear, focused purpose
@@ -405,6 +435,7 @@ end
 Keep models focused. Use concerns for shared behavior.
 
 **When service objects ARE appropriate:**
+
 - Complex multi-model transactions
 - External API integrations with significant logic
 - Business processes that don't map to a single model
@@ -413,11 +444,13 @@ Keep models focused. Use concerns for shared behavior.
 - Parsing or transformation logic
 
 **When to use models + concerns instead:**
+
 - Single model operations (create, update, delete)
 - Shared behavior across models
 - Standard CRUD with callbacks
 
 **Structure:**
+
 ```ruby
 class Signup
   include ActiveModel::Model
@@ -454,13 +487,16 @@ end
 ```
 
 **Location:**
+
 - Place in `app/models/` directory (not a separate `services/` directory)
 - They are domain objects, not a special "service layer"
 
 **Patterns:**
+
 - Use `ActiveModel::Model` for form-like objects
 - Private `initialize` when using factory methods
 - Class methods for factory patterns when appropriate
+
   ```ruby
   class Notifier
     class << self
@@ -483,6 +519,7 @@ Classes and methods must follow the step-down rule—code reads like a narrative
 **Why:** Developers read code top-down. Force them to jump around and they lose context.
 
 **Pattern:**
+
 ```ruby
 class ArticlePublisher
   def publish(article)
@@ -515,6 +552,7 @@ end
 Read the `publish` method first—you understand what happens. Details follow below.
 
 **Anti-pattern:**
+
 ```ruby
 class ArticlePublisher
   private
@@ -584,6 +622,7 @@ This combines with the step-down rule: public methods first, then private method
 ### Conditional Returns
 
 **Prefer expanded conditionals over guard clauses:**
+
 ```ruby
 # Good
 def todos_for_new_group
@@ -603,8 +642,10 @@ end
 ```
 
 **Exception:** Use guard clauses when:
+
 - The return is at the very beginning of the method
 - The main method body is non-trivial (several lines)
+
   ```ruby
   def after_recorded_as_commit(recording)
     return if recording.parent.was_created?
@@ -620,6 +661,7 @@ end
 ### Visibility Modifiers
 
 **No newline under visibility modifiers, indent content under them:**
+
 ```ruby
 class SomeClass
   def public_method
@@ -638,6 +680,7 @@ end
 ```
 
 **For modules with only private methods:**
+
 ```ruby
 module SomeModule
   private
@@ -668,6 +711,7 @@ Don't add microservices, Redis clusters, message queues, or GraphQL prematurely.
 ## Quick Decision Trees
 
 **Should I create a service object?**
+
 - Single model operation? Use model + callbacks
 - Multiple models in transaction? Service object OK
 - External API integration? Service object OK
@@ -675,6 +719,7 @@ Don't add microservices, Redis clusters, message queues, or GraphQL prematurely.
 - Otherwise? Use model methods or concern
 
 **Should I create a new controller?**
+
 - One of 7 REST actions? Add to existing controller
 - State/filter of resource (drafts, archived)? Create nested controller
 - Operating on relationship (like, bookmark)? Create singular resource controller
@@ -683,6 +728,7 @@ Don't add microservices, Redis clusters, message queues, or GraphQL prematurely.
 ## Solid Stack Quick Reference
 
 **Solid Queue (Background Jobs):**
+
 ```ruby
 class ReportJob < ApplicationJob
   queue_as :default
@@ -696,6 +742,7 @@ ReportJob.perform_later(current_user.id)
 ```
 
 **Solid Cache:**
+
 ```ruby
 Rails.cache.fetch(["product", id, "stats"], expires_in: 1.hour) do
   expensive_calculation
@@ -703,6 +750,7 @@ end
 ```
 
 **Authentication Generator:**
+
 ```bash
 bin/rails generate authentication
 ```
@@ -712,8 +760,10 @@ Creates User model, Session model, SessionsController, password reset, and email
 ## Other Conventions
 
 **Bang methods:**
-- Only use `!` when there's a non-bang counterpart
-- Don't use `!` to merely flag "destructive" actions
+
+- Only use **!** when there's a non-bang counterpart
+- Don't use **!** to merely flag "destructive" actions
+
   ```ruby
   # Good (has both versions)
   def save / save!
@@ -723,8 +773,10 @@ Creates User model, Session model, SessionsController, password reset, and email
   ```
 
 **Custom errors:**
+
 - Rarely needed - prefer standard Ruby/Rails exceptions
 - When needed, define inline in the class that uses them
+
   ```ruby
   class Webhook::Delivery
     class ResponseTooLarge < StandardError; end
@@ -737,6 +789,7 @@ Creates User model, Session model, SessionsController, password reset, and email
   ```
 
 **Current context:**
+
 - Use `Current` attributes for request-scoped values
 - Common: `Current.user`, `Current.account`, `Current.identity`
 
@@ -763,5 +816,5 @@ When writing new code, verify:
 
 ## Additional Reference
 
-- Rails Doctrine: https://rubyonrails.org/doctrine
-- Rails 8 Release Notes: https://guides.rubyonrails.org/8_0_release_notes.html
+- Rails Doctrine: <https://rubyonrails.org/doctrine>
+- Rails 8 Release Notes: <https://guides.rubyonrails.org/8_0_release_notes.html>

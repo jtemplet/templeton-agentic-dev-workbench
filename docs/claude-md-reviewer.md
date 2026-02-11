@@ -7,6 +7,7 @@ An advanced agent for optimizing CLAUDE.md and AGENTS.md files based on research
 The `claude-md-reviewer` agent analyzes AI agent configuration files and provides quantitative optimization recommendations with optional auto-refactoring.
 
 **Key Features:**
+
 - 🎯 Quantitative health scoring (0-100)
 - 📊 Token waste analysis with concrete impact estimates
 - 🤖 Auto-refactoring with validation
@@ -18,11 +19,12 @@ The `claude-md-reviewer` agent analyzes AI agent configuration files and provide
 
 ### Basic Review (Recommendations Only)
 
-```
+```text
 "Review our CLAUDE.md and provide optimization recommendations"
 ```
 
 The agent will:
+
 1. Calculate health score (0-100)
 2. Identify token waste
 3. Detect anti-patterns
@@ -31,11 +33,12 @@ The agent will:
 
 ### Auto-Refactor Mode
 
-```
+```text
 "Auto-refactor CLAUDE.md using progressive disclosure"
 ```
 
 The agent will:
+
 1. Analyze current state
 2. Create docs/ directory structure
 3. Move content to appropriate files
@@ -45,11 +48,12 @@ The agent will:
 
 ### Monitor Mode
 
-```
+```text
 "Set up CI/CD hook to prevent CLAUDE.md regression"
 ```
 
 The agent will:
+
 1. Generate pre-commit hook
 2. Set validation thresholds
 3. Create monitoring guidelines
@@ -57,6 +61,7 @@ The agent will:
 ## Operating Modes
 
 ### Mode 1: Review (Default)
+
 - Analyze and score
 - Provide recommendations
 - Show impact estimates
@@ -65,6 +70,7 @@ The agent will:
 **Use when:** You want to understand issues before making changes
 
 ### Mode 2: Refactor
+
 - Perform analysis
 - Auto-implement changes
 - Validate everything
@@ -73,6 +79,7 @@ The agent will:
 **Use when:** You trust the analysis and want fast results
 
 ### Mode 3: Monitor
+
 - Track changes over time
 - Alert on regression
 - Generate analytics
@@ -83,7 +90,7 @@ The agent will:
 
 The agent calculates a 0-100 health score based on four components:
 
-```
+```text
 Health Score = (
   Token Efficiency × 0.35 +
   Instruction Budget × 0.25 +
@@ -93,22 +100,26 @@ Health Score = (
 ```
 
 ### Token Efficiency (35% weight)
+
 - **Target:** ~180 tokens (45 lines × 4 tokens/line)
 - **Calculation:** min(100, (ideal_tokens / actual_tokens) × 100)
 - **Why:** Every token loads on every request
 
 ### Instruction Budget (25% weight)
+
 - **Target:** ≤20 instructions in root file
 - **Calculation:** max(0, 100 - ((instruction_count - 20) × 5))
 - **Why:** LLMs can follow ~150-200 instructions total, Claude Code uses ~50
 
 ### Staleness Risk (20% weight)
+
 - **Penalties:**
   - File paths: -10 points each
   - Code snippets: -15 points each
 - **Why:** Stale documentation poisons context
 
 ### Progressive Disclosure (20% weight)
+
 - **Calculation:** (referenced_docs / total_content_areas) × 100
 - **Why:** Task-specific content should load on-demand
 
@@ -118,12 +129,14 @@ Health Score = (
 ## Health Score: 12/100 (Grade F)
 
 Breakdown:
+
 - Token Efficiency: 16/100 → 5.6 points (1104 tokens vs 180 ideal)
 - Instruction Budget: 25/100 → 6.3 points (35 instructions vs 20 target)
 - Staleness Risk: 0/100 → 0.0 points (8 file paths, 2 code snippets)
 - Progressive Disclosure: 0/100 → 0.0 points (no separate docs/)
 
 After Optimization: 100/100 (Grade A+)
+
 - Lines: 276 → 45 (83% reduction)
 - Tokens: 1,104 → 180 (924 tokens saved per request)
 - Instructions: 35 → 8 (77% reduction)
@@ -149,6 +162,7 @@ The agent recommends extracting content to separate files:
 The agent detects your project type and provides tailored recommendations:
 
 **Next.js Project:**
+
 ```markdown
 ✅ Detected: Next.js 15 with App Router
 💡 Reference official Next.js docs for routing patterns
@@ -156,12 +170,14 @@ The agent detects your project type and provides tailored recommendations:
 ```
 
 **Nx Monorepo:**
+
 ```markdown
 ✅ Detected: Nx workspace with 8 apps, 12 libraries
 📋 Recommended structure:
-   - root/CLAUDE.md → Workspace overview
-   - apps/*/CLAUDE.md → App-specific guidance
-   - libs/*/CLAUDE.md → Library conventions
+
+- root/CLAUDE.md → Workspace overview
+- apps/*/CLAUDE.md → App-specific guidance
+- libs/*/CLAUDE.md → Library conventions
 ```
 
 ## Validation & Testing
@@ -202,10 +218,12 @@ MAX_TOKENS=500
 ## Research Foundation
 
 Based on research from:
+
 - **aihero.dev:** [A Complete Guide To AGENTS.md](https://www.aihero.dev/a-complete-guide-to-agents-md)
 - **humanlayer.dev:** [Writing a Good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md)
 
 Key principles:
+
 - LLMs are stateless (context matters every time)
 - Instruction budget is limited (~150-200 total)
 - Stale documentation poisons context
@@ -215,21 +233,27 @@ Key principles:
 ## Advanced Features
 
 ### Codebase Alignment Verification
+
 Checks documented claims against actual code:
+
 - Verifies tech stack mentions
 - Validates build commands exist
 - Detects file path 404s
 - Compares documented patterns vs reality
 
 ### Team Collaboration
+
 For multi-developer teams:
+
 - Identifies conflicting opinions
 - Facilitates consensus
 - Generates team guidelines
 - Creates onboarding checklists
 
 ### Usage Analytics
+
 Tracks which docs Claude actually loads:
+
 - High-value files (frequently accessed)
 - Low-value files (rarely accessed)
 - Recommendations for consolidation
@@ -245,6 +269,7 @@ Tracks which docs Claude actually loads:
 **Overall Confidence: 82%** (weighted by impact)
 
 The agent implements research-backed best practices with:
+
 - High confidence improvements (85-95%): Core analysis, quantification, validation
 - Medium confidence improvements (70-80%): Team features, export formats
 - Low confidence improvements (60-70%): Watch mode, pattern library

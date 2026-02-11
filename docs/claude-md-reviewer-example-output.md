@@ -1,4 +1,5 @@
 # CLAUDE.md Optimization Report - Example Output
+
 Generated: 2026-01-24 (Sample output from improved claude-md-reviewer agent)
 
 ---
@@ -10,6 +11,7 @@ Generated: 2026-01-24 (Sample output from improved claude-md-reviewer agent)
 **Recommendation:** Extract 83% of content to progressive disclosure. Current file wastes ~924 tokens per request with plugin development documentation that's irrelevant to most tasks.
 
 **Quick Stats:**
+
 - Lines: 276 → 45 (83% reduction)
 - Tokens: 1,104 → 180 (83% reduction)
 - Instructions: 35 → 8 (77% reduction)
@@ -20,7 +22,7 @@ Generated: 2026-01-24 (Sample output from improved claude-md-reviewer agent)
 
 ### 1. Health Score Breakdown
 
-```
+```text
 Total Score: 12/100 (Grade F)
 
 Components:
@@ -47,6 +49,7 @@ Calculation Details:
 **Problem:** Lines 56-243 contain comprehensive plugin development manual (187 lines). This includes creating skills, agents, commands, and common tasks - irrelevant when fixing Python bugs or reviewing Rails code.
 
 **Impact:**
+
 - Wastes ~748 tokens on every request
 - Consumes 37% of instruction budget
 - Distracts agent with irrelevant context
@@ -56,8 +59,10 @@ Calculation Details:
 
 **Recommendation:**
 Extract to `docs/PLUGIN_DEVELOPMENT.md`. In root CLAUDE.md, replace with:
+
 ```markdown
 ## Plugin Development
+
 For guidance on creating skills, agents, or commands, see docs/PLUGIN_DEVELOPMENT.md
 ```
 
@@ -68,14 +73,17 @@ For guidance on creating skills, agents, or commands, see docs/PLUGIN_DEVELOPMEN
 #### Issue #2: Stale Documentation Risk (Severity: 8/10)
 
 **Problem:** Lines 179-195 list registered components explicitly:
+
 ```markdown
 **Registered Skills:**
+
 - `python-code-review` - PEP 8 and Google Style Guide reviews
 - `rails-code-review` - Rails 8-aware systematic code review
 ...
 ```
 
 **Impact:**
+
 - High staleness risk - list becomes outdated as components change
 - Wastes ~100 tokens on information Claude auto-discovers
 - Poisons context with potentially wrong component names
@@ -85,6 +93,7 @@ For guidance on creating skills, agents, or commands, see docs/PLUGIN_DEVELOPMEN
 
 **Recommendation:**
 Delete entirely. Claude discovers components via:
+
 - File system exploration (agents/, skills/ directories)
 - Skill tool autocomplete
 - Command suggestions
@@ -98,6 +107,7 @@ Delete entirely. Claude discovers components via:
 **Problem:** Lines 126-171 document Python, Rails, and Terraform workflows. When working on Python, the 45 lines about Rails/Terraform are pure noise (and vice versa).
 
 **Impact:**
+
 - Wastes ~180 tokens depending on context
 - 33% of file is context-irrelevant most of the time
 - Violates progressive disclosure principle
@@ -107,15 +117,18 @@ Delete entirely. Claude discovers components via:
 
 **Recommendation:**
 Extract to language-specific files:
-```
+
+```text
 docs/PYTHON_WORKFLOWS.md    (18 lines → 72 tokens)
 docs/RAILS_WORKFLOWS.md     (24 lines → 96 tokens)
 docs/TERRAFORM_WORKFLOWS.md (6 lines → 24 tokens)
 ```
 
 Reference in root:
+
 ```markdown
 ## Language Workflows
+
 - Python: See docs/PYTHON_WORKFLOWS.md
 - Rails: See docs/RAILS_WORKFLOWS.md
 - Terraform: See docs/TERRAFORM_WORKFLOWS.md
@@ -132,12 +145,15 @@ Reference in root:
 **Current State:** Lines 10-54 explain plugin structure, component relationships, and architecture.
 
 **Better Approach:** This is excellent for *humans* reading the repo, but Claude discovers structure through file system exploration. Consider:
+
 ```markdown
 ## Architecture
+
 This plugin provides agents, skills, and commands. See docs/ARCHITECTURE.md for detailed structure.
 ```
 
 **Benefits:**
+
 - Saves ~176 tokens (44 lines)
 - Architecture docs available when needed
 - Humans can still read detailed version
@@ -156,6 +172,7 @@ This plugin provides agents, skills, and commands. See docs/ARCHITECTURE.md for 
 ## Session Completion
 
 Before ending any work session:
+
 1. File issues for remaining work
 2. Run quality gates (tests, linters)
 3. Update issue status
@@ -165,6 +182,7 @@ Work is NOT complete until pushed to remote.
 ```
 
 **Benefits:**
+
 - Saves ~80 tokens
 - Keeps critical reminder visible
 - Detailed workflow available on-demand
@@ -176,15 +194,18 @@ Work is NOT complete until pushed to remote.
 ### 4. Codebase Analysis
 
 **Verified Alignment:**
+
 - ✅ "Personal Claude Code plugin repository" → Confirmed by directory structure
 - ✅ "Python and Ruby/Rails development" → Found skills/ for both languages
 - ✅ Uses br (beads_rust) for issue tracking → Detected .beads/ directory
 
 **Contradictions Detected:**
+
 - None found (good alignment between documentation and reality)
 
 **Staleness Risks:**
-```
+
+```text
 ⚠️  Line 30: References agents/rails-code-reviewer.md → ✅ File exists
 ⚠️  Line 179-195: Lists 6 skills, 3 agents, 3 commands
     → Actual: 6 skills ✅, 4 agents ⚠️ (missing claude-md-reviewer), 3 commands ✅
@@ -199,85 +220,112 @@ Work is NOT complete until pushed to remote.
 **Files to Create:**
 
 #### `docs/PLUGIN_DEVELOPMENT.md` (~187 lines)
+
 ```markdown
 # Plugin Development Guide
 
 ## Plugin Structure
+
 [Content from lines 11-54]
 
 ## Creating New Skills
+
 [Content from lines 58-82]
 
 ## Creating New Agents
+
 [Content from lines 84-111]
 
 ## Creating New Commands
+
 [Content from lines 113-122]
 
 ## Common Tasks
+
 [Content from lines 221-243]
 ```
+
 **Token savings:** ~748 tokens
 
 ---
 
 #### `docs/PYTHON_WORKFLOWS.md` (~18 lines)
+
 ```markdown
 # Python Development Workflows
 
 ## Code Review
+
 Use `/python-code-review` or the `python-code-review` skill:
+
 - Checks PEP 8 and Google Python Style Guide compliance
 - Reviews security, performance, and maintainability
 
 ## Feature Development
+
 Use the `python-feature-developer` agent:
+
 - Follows Sandi Metz principles via `templeton-python-style` skill
 - 4-phase workflow: discovery → implementation → simplification → linting
 
 ## Code Simplification
+
 Use the `code-simplifier` agent:
+
 - Works with both Python and Ruby/Rails
 - Applies language-specific style guides automatically
 - Reduces complexity while preserving functionality
 ```
+
 **Token savings:** ~72 tokens (when working on Rails/Terraform)
 
 ---
 
 #### `docs/RAILS_WORKFLOWS.md` (~24 lines)
+
 ```markdown
 # Rails Development Workflows
 
 ## Code Review
+
 Use `/rails-code-review` or the `rails-code-reviewer` agent:
+
 - Rails 8-aware with modern Hotwire/Turbo patterns
 - Security-first approach with pragmatic severity assessment
 - Understands `where.missing`, `broadcast_refresh_to`, Solid Stack patterns
 
 ## Testing
+
 Use the `templeton-rspec-style` skill:
+
 - Opinionated RSpec style
 - Request specs over controller specs
 - Context-driven organization
 
 ## Conventions
+
 Use the `rails-conventions` skill:
+
 - Enforces Rails 8 conventions and best practices
 - Ensures idiomatic Rails patterns
 
 ## Common Commands
-# Running tests
+
+## Running tests
+
 bundle exec rspec
 
-# Running code review
-git diff main...HEAD  # See changes to be reviewed
+## Running code review
+
+git diff main...HEAD # See changes to be reviewed
 ```
+
 **Token savings:** ~96 tokens (when working on Python/Terraform)
 
 ---
 
 #### `docs/BEADS_WORKFLOW.md` (~28 lines)
+
 ```markdown
 # Session Completion Workflow (br/bv Integration)
 
@@ -289,22 +337,28 @@ git diff main...HEAD  # See changes to be reviewed
 2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
+
    ```bash
    git pull --rebase
    br sync --flush-only
    git push
    git status  # MUST show "up to date with origin"
+
+```text
    ```
+
 5. **Clean up** - Clear stashes, prune remote branches
 6. **Verify** - All changes committed AND pushed
 7. **Hand off** - Provide context for next session
 
 ## Critical Rules
+
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
-```
+
+```text
 **Token savings:** ~100 tokens (loaded only when managing sessions)
 
 ---
@@ -335,6 +389,7 @@ Style is enforced through:
 ```
 
 ⚠️ **Warning: Registered component lists**
+
 - Plugin manifest handles registration, not CLAUDE.md
 - Remove explicit lists to prevent staleness
 
@@ -394,6 +449,7 @@ This is a personal Claude Code plugin repository - an agentic development workbe
 ## Available Tools
 
 This plugin provides agents, skills, and commands for:
+
 - **Python development:** `/python-code-review`, `python-feature-developer` agent
 - **Rails development:** `/rails-code-review`, `rails-code-reviewer` agent
 - **Code simplification:** `code-simplifier` agent (Python & Rails)
@@ -401,6 +457,7 @@ This plugin provides agents, skills, and commands for:
 ## Code Style
 
 Style is enforced through:
+
 - **Linters:** Use pre-commit hooks (Black, Rubocop, ESLint)
 - **Skills:** Load on-demand via Skill tool
   - Python: `templeton-python-style` (Sandi Metz principles)
@@ -410,6 +467,7 @@ Style is enforced through:
 ## Progressive Disclosure
 
 For detailed guidance:
+
 - **Plugin development** (creating skills/agents/commands): docs/PLUGIN_DEVELOPMENT.md
 - **Python workflows:** docs/PYTHON_WORKFLOWS.md
 - **Rails workflows:** docs/RAILS_WORKFLOWS.md
@@ -419,6 +477,7 @@ For detailed guidance:
 ## Session Completion
 
 Before ending any work session:
+
 1. File issues for remaining work
 2. Run quality gates (tests, linters)
 3. Update issue status
@@ -437,42 +496,42 @@ Work is NOT complete until successfully pushed to remote.
 ### Section: Design Principles
 
 ┌─────────────────────────────────┬─────────────────────────────────┐
-│ BEFORE (45 lines, 180 tokens)   │ AFTER (12 lines, 48 tokens)     │
+│ BEFORE (45 lines, 180 tokens) │ AFTER (12 lines, 48 tokens) │
 ├─────────────────────────────────┼─────────────────────────────────┤
 │ ## Key Design Principles        │ ## Key Design Principles        │
-│                                 │                                 │
-│ ### Verification-First Approach │ **Verification-First:** Before  │
-│                                 │ flagging code, check tests pass,│
-│ Before flagging code as         │ verify framework version. If    │
+│ │ │
+│ ### Verification-First Approach │ **Verification-First:** Before │
+│ │ flagging code, check tests pass,│
+│ Before flagging code as │ verify framework version. If    │
 │ problematic:                    │ tests pass, maximum severity    │
-│ 1. Check if tests pass          │ is MEDIUM.                      │
-│ 2. Verify Rails/Python version  │                                 │
-│ 3. Understand modern patterns   │ **Pragmatic Over Pure:** Context│
-│ 4. Confirm issue exists         │ matters - working non-standard  │
-│                                 │ code beats non-working standard.│
-│ **Rule:** If tests pass and code│                                 │
-│ works, maximum severity is      │ **Agent Integration:** Agents   │
-│ MEDIUM.                         │ reference skills, provide output│
-│                                 │ formats, include checklists.    │
-│ ### Pragmatic Over Pure         │                                 │
-│                                 │                                 │
-│ Working non-standard code is    │                                 │
-│ better than non-working standard│                                 │
-│ code. Context matters -         │                                 │
-│ understand framework conventions│                                 │
-│ before suggesting changes.      │                                 │
-│                                 │                                 │
-│ ### Agent Integration           │                                 │
-│                                 │                                 │
-│ Agents should:                  │                                 │
-│ - Reference existing skills     │                                 │
-│   (don't duplicate knowledge)   │                                 │
-│ - Provide concrete output       │                                 │
-│   formats with examples         │                                 │
-│ - Include quality checklists    │                                 │
-│   for consistency               │                                 │
-│ - Define clear integration      │                                 │
-│   points with other tools       │                                 │
+│ 1. Check if tests pass │ is MEDIUM. │
+│ 2. Verify Rails/Python version │ │
+│ 3. Understand modern patterns │ **Pragmatic Over Pure:** Context│
+│ 4. Confirm issue exists │ matters - working non-standard │
+│ │ code beats non-working standard.│
+│ **Rule:** If tests pass and code│ │
+│ works, maximum severity is │ **Agent Integration:** Agents │
+│ MEDIUM. │ reference skills, provide output│
+│ │ formats, include checklists.    │
+│ ### Pragmatic Over Pure │ │
+│ │ │
+│ Working non-standard code is    │ │
+│ better than non-working standard│ │
+│ code. Context matters - │ │
+│ understand framework conventions│ │
+│ before suggesting changes. │ │
+│ │ │
+│ ### Agent Integration │ │
+│ │ │
+│ Agents should: │ │
+│ - Reference existing skills │ │
+│ (don't duplicate knowledge) │ │
+│ - Provide concrete output │ │
+│ formats with examples │ │
+│ - Include quality checklists    │ │
+│ for consistency │ │
+│ - Define clear integration │ │
+│ points with other tools │ │
 └─────────────────────────────────┴─────────────────────────────────┘
 
 ✅ Tokens saved: 132 (~73% reduction)
@@ -487,22 +546,27 @@ Work is NOT complete until successfully pushed to remote.
 Run these queries after refactoring to verify progressive disclosure works:
 
 ### Test 1: Python Workflow Discovery
+
 **Query:** "Review this Python code for PEP 8 compliance"
 **Expected:** Claude discovers and loads `docs/PYTHON_WORKFLOWS.md`
 **Verification:** Check Claude's response mentions templeton-python-style skill
 
 ### Test 2: Plugin Development Discovery
+
 **Query:** "Help me create a new skill for Terraform validation"
 **Expected:** Claude discovers and loads `docs/PLUGIN_DEVELOPMENT.md`
 **Verification:** Response includes skill creation structure
 
 ### Test 3: Rails Workflow Discovery
+
 **Query:** "Review this Rails controller for security issues"
 **Expected:** Claude discovers and loads `docs/RAILS_WORKFLOWS.md`
 **Verification:** Response references rails-code-reviewer agent
 
 ### Test 4: Link Resolution
+
 **Test:** Manually verify all progressive disclosure links:
+
 ```bash
 ls docs/PLUGIN_DEVELOPMENT.md  # Should exist
 ls docs/PYTHON_WORKFLOWS.md    # Should exist
@@ -525,6 +589,7 @@ ls docs/BEADS_WORKFLOW.md      # Should exist
 ### Automated Setup (Optional)
 
 After refactoring:
+
 - [ ] Install pre-commit hook for CLAUDE.md size checking
 - [ ] Set up usage analytics to track progressive disclosure effectiveness
 - [ ] Generate team guidelines for maintaining optimization

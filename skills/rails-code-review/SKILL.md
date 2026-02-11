@@ -10,6 +10,7 @@ description: Use when reviewing Rails 8 code before merge or PR - systematic tec
 Systematic framework for reviewing Ruby on Rails 8 code focusing on security, conventions, performance, and maintainability. Prioritizes issues by impact (Critical → High → Medium → Low) and provides actionable fixes.
 
 **Core principles:**
+
 1. **Verify before flagging** - If tests pass, verify claims before marking as issues
 2. **Security first** - Actual vulnerabilities over theoretical concerns
 3. **Pragmatic over pure** - Working non-standard code > Non-working standard code
@@ -18,6 +19,7 @@ Systematic framework for reviewing Ruby on Rails 8 code focusing on security, co
 ## When to Use
 
 **Use this skill when:**
+
 - Reviewing code before merging to main branch
 - Creating or reviewing pull requests
 - Performing pre-deployment code audits
@@ -26,6 +28,7 @@ Systematic framework for reviewing Ruby on Rails 8 code focusing on security, co
 - Optimizing Rails application performance
 
 **Don't use this for:**
+
 - Initial exploratory coding (too early)
 - Non-Rails Ruby code
 - Infrastructure/deployment configs (use other skills)
@@ -67,6 +70,7 @@ grep "rails " Gemfile.lock | head -1
 ```
 
 **Pre-review checklist:**
+
 - [ ] Tests are passing (if not, that's your first issue)
 - [ ] You have explicit BASE and HEAD commit SHAs
 - [ ] You've reviewed the actual diff, not speculated about code
@@ -92,6 +96,7 @@ Review changes in this exact order to catch critical issues first:
 #### A. Security (CRITICAL PRIORITY)
 
 **Check for:**
+
 - [ ] XSS vulnerabilities in HAML/ERB rendering
 - [ ] Unsafe string interpolation or `html_safe` usage
 - [ ] `raw()` method calls without sanitization
@@ -102,6 +107,7 @@ Review changes in this exact order to catch critical issues first:
 - [ ] Missing authorization checks in public controllers
 
 **Common vulnerabilities:**
+
 ```ruby
 # ❌ BAD: XSS vulnerability
 = raw(@user.bio)
@@ -134,6 +140,7 @@ end
 #### B. Rails Conventions & Best Practices (HIGH PRIORITY)
 
 **Check for:**
+
 - [ ] Following "The Rails 8 Way" patterns
 - [ ] Using Solid Stack over external dependencies
 - [ ] Proper Hotwire/Turbo usage (not custom JavaScript)
@@ -144,6 +151,7 @@ end
 - [ ] Following ActiveRecord conventions
 
 **Rails 8 Modern Patterns (Don't flag these as issues):**
+
 ```ruby
 # ✅ CORRECT: Rails 8 implicit Turbo Stream responses
 def update
@@ -168,6 +176,7 @@ end
 ```
 
 **Anti-patterns to flag:**
+
 ```ruby
 # ❌ BAD: Custom JavaScript when Hotwire works
 <%= link_to "Delete", user_path(@user),
@@ -199,6 +208,7 @@ end
 #### C. Performance & Optimization (HIGH PRIORITY)
 
 **Check for:**
+
 - [ ] N+1 query problems (missing `includes`, `preload`, `eager_load`)
 - [ ] Opportunities for caching or memoization
 - [ ] Unnecessary database queries in loops
@@ -208,6 +218,7 @@ end
 - [ ] Large payload responses
 
 **Performance issues:**
+
 ```ruby
 # ❌ BAD: N+1 query
 @users.each do |user|
@@ -231,6 +242,7 @@ redirect_to users_path, notice: "Created successfully"
 #### D. Code Duplication (MEDIUM PRIORITY)
 
 **Check for:**
+
 - [ ] Repeated code blocks → extract to partials
 - [ ] Repeated styling patterns → create shared component classes
 - [ ] Duplicate logic → move to helpers, concerns, or decorators
@@ -238,6 +250,7 @@ redirect_to users_path, notice: "Created successfully"
 - [ ] Repeated queries → extract to scopes or query objects
 
 **DRY opportunities:**
+
 ```haml
 -# ❌ BAD: Repeated partial code
 - @users.each do |user|
@@ -258,6 +271,7 @@ redirect_to users_path, notice: "Created successfully"
 #### E. CSS & Styling (LOW PRIORITY)
 
 **Check for:**
+
 - [ ] Using Tailwind v4 syntax only
 - [ ] No custom CSS (utility-first approach)
 - [ ] Redundant or conflicting Tailwind classes
@@ -267,6 +281,7 @@ redirect_to users_path, notice: "Created successfully"
 - [ ] Consistent spacing and sizing patterns
 
 **Styling issues:**
+
 ```haml
 -# ❌ BAD: Conflicting classes
 .flex.block.p-4.p-6
@@ -294,6 +309,7 @@ redirect_to users_path, notice: "Created successfully"
 #### F. Bugs & Logic Issues (ALL PRIORITIES)
 
 **Check for:**
+
 - [ ] Logic errors or incorrect conditional logic
 - [ ] Missing nil/null checks
 - [ ] Missing error handling for external calls
@@ -304,6 +320,7 @@ redirect_to users_path, notice: "Created successfully"
 - [ ] Methods that should return booleans but raise exceptions
 
 **Common issues:**
+
 ```ruby
 # ❌ BAD: Using bang method without error handling
 def assign(document, requirement)
@@ -332,12 +349,14 @@ end
 ```
 
 **Note:** Specifically exclude:
+
 - Accessibility issues (not a concern per project requirements)
 - ARIA attributes (not a concern per project requirements)
 
 #### G. Browser Compatibility (LOW PRIORITY)
 
 **Check for:**
+
 - [ ] CSS properties requiring vendor prefixes
 - [ ] JavaScript features needing polyfills
 - [ ] Browser-specific CSS quirks
@@ -411,6 +430,7 @@ def problematic_method
   # ...
 end
 ```
+```
 
 **Why It Matters:**
 
@@ -432,7 +452,9 @@ end
 bundle exec rspec spec/path/spec.rb
 # Expected: all tests pass
 ```
-```
+
+
+```text
 
 **Complete example:**
 
@@ -482,7 +504,9 @@ end
 bundle exec rspec spec/requests/public/deals/documents/requirements_spec.rb
 # Add test case for unauthorized access attempt
 ```
-```
+
+
+```text
 
 ### Step 5: Summary Report
 
@@ -550,7 +574,9 @@ bundle exec rspec
 bundle exec rubocop
 bundle exec brakeman
 ```
-```
+
+
+```text
 
 ---
 
@@ -631,12 +657,14 @@ bundle exec brakeman
    ```
 
 2. **where.missing Syntax** (Rails 7+)
+
    ```ruby
    # Modern, readable, preferred
    scope :unassigned, -> { where.missing(:assignment) }
    ```
 
 3. **Concerns in Model Subdirectories**
+
    ```ruby
    # Valid pattern: app/models/document/fulfillable.rb
    class Document
@@ -647,6 +675,7 @@ bundle exec brakeman
    ```
 
 4. **broadcast_refresh_to for Simple Updates**
+
    ```ruby
    # Valid for public views - intentional full page morph
    broadcast_refresh_to(@deal)
@@ -662,6 +691,7 @@ bundle exec brakeman
 ## Integration
 
 **Use with slash commands:**
+
 ```bash
 /rails-code-review  # Triggers this skill automatically
 ```
@@ -671,6 +701,7 @@ After running automated code review, use this skill as a second pass for
 Rails-specific patterns and conventions that generic reviewers might miss.
 
 **Workflow:**
+
 1. Get explicit commit range: `BASE_SHA..HEAD_SHA`
 2. Run pre-validation: tests pass? Rails version?
 3. Review diff only (not entire codebase)

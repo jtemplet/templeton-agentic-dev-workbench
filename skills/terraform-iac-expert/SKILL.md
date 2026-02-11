@@ -1,15 +1,16 @@
 ---
 name: terraform-iac-expert
-description: When developing Terraform code, provides guidance utilizing best practices when
-developing architecture within AWS
+description: When developing Terraform code, provides guidance utilizing best practices when developing architecture within AWS
 ---
 
 # Terraform & Infrastructure as Code Expert
 
 ## Overview
+
 This skill transforms Claude into a senior staff-level DevOps Engineer with 10+ years of FAANG experience, specializing in Terraform and Infrastructure as Code across AWS, Azure, and GCP.
 
 ## When to Use This Skill
+
 - Writing or reviewing Terraform configurations
 - Designing cloud infrastructure
 - Creating reusable Terraform modules
@@ -20,6 +21,7 @@ This skill transforms Claude into a senior staff-level DevOps Engineer with 10+ 
 ## Core Expertise
 
 ### Architecture Philosophy
+
 - Infrastructure as Code (IaC) first approach
 - Modular, reusable, and maintainable infrastructure
 - Security by default with least privilege access
@@ -27,6 +29,7 @@ This skill transforms Claude into a senior staff-level DevOps Engineer with 10+ 
 - Environment isolation and workspace management
 
 ### Key Principles
+
 1. **Modularity**: Break infrastructure into logical, reusable modules
 2. **Immutability**: Treat infrastructure as immutable; replace rather than modify
 3. **Version Control**: Everything in Git with semantic versioning
@@ -36,7 +39,8 @@ This skill transforms Claude into a senior staff-level DevOps Engineer with 10+ 
 ## Terraform Best Practices
 
 ### Code Organization
-```
+
+```text
 project/
 ├── environments/
 │   ├── dev/
@@ -53,6 +57,7 @@ project/
 ```
 
 ### File Structure Standards
+
 - `main.tf`: Primary resource definitions
 - `variables.tf`: Input variable declarations with validation
 - `outputs.tf`: Output values for module consumers
@@ -62,6 +67,7 @@ project/
 - `data.tf`: Data source queries
 
 ### Code Quality
+
 - Always run `terraform fmt` before committing
 - Use `terraform validate` to catch syntax errors
 - Implement `tflint` or `terrascan` for additional validation
@@ -69,6 +75,7 @@ project/
 - Set up pre-commit hooks for automated checks
 
 ### Variable Management
+
 ```hcl
 variable "environment" {
   description = "Environment name (dev, staging, prod)"
@@ -93,6 +100,7 @@ variable "instance_count" {
 ```
 
 ### State Management
+
 - **Always** use remote backends (S3, Azure Blob, GCS, Terraform Cloud)
 - Enable state locking (DynamoDB for S3, native for others)
 - Enable encryption at rest for state files
@@ -112,6 +120,7 @@ terraform {
 ```
 
 ### Provider Version Locking
+
 ```hcl
 terraform {
   required_version = ">= 1.6.0"
@@ -132,7 +141,9 @@ terraform {
 ## Module Development
 
 ### Module Structure
+
 Every module should have:
+
 - Clear, single responsibility
 - Well-defined inputs with validation
 - Documented outputs
@@ -141,6 +152,7 @@ Every module should have:
 - Comprehensive README.md
 
 ### Module Versioning
+
 - Use semantic versioning (MAJOR.MINOR.PATCH)
 - Tag releases in Git
 - Document breaking changes in CHANGELOG.md
@@ -158,6 +170,7 @@ module "vpc" {
 ```
 
 ### Module Outputs
+
 ```hcl
 output "vpc_id" {
   description = "The ID of the VPC"
@@ -173,6 +186,7 @@ output "private_subnet_ids" {
 ## Security Practices
 
 ### Secrets Management
+
 - **NEVER** hardcode secrets or credentials
 - Use AWS Secrets Manager, Azure Key Vault, or GCP Secret Manager
 - Use environment variables for CI/CD pipelines
@@ -194,6 +208,7 @@ output "db_connection_string" {
 ```
 
 ### Resource Security
+
 - Enable encryption by default (at rest and in transit)
 - Use private subnets for backend resources
 - Implement least privilege IAM policies
@@ -202,6 +217,7 @@ output "db_connection_string" {
 - Enable MFA for sensitive operations
 
 ### Tagging Strategy
+
 ```hcl
 locals {
   common_tags = {
@@ -229,6 +245,7 @@ resource "aws_instance" "web" {
 ## Error Handling
 
 ### Conditional Resources
+
 ```hcl
 resource "aws_instance" "optional" {
   count = var.create_instance ? 1 : 0
@@ -239,6 +256,7 @@ resource "aws_instance" "optional" {
 ```
 
 ### Null Checks and Defaults
+
 ```hcl
 locals {
   vpc_id = var.vpc_id != null ? var.vpc_id : aws_vpc.main[0].id
@@ -248,6 +266,7 @@ locals {
 ```
 
 ### Dependency Management
+
 ```hcl
 resource "aws_eip" "nat" {
   depends_on = [aws_internet_gateway.main]
@@ -260,6 +279,7 @@ resource "aws_eip" "nat" {
 ## Testing Strategy
 
 ### Unit Testing with Terratest
+
 ```go
 // Example Terratest structure
 func TestTerraformVPC(t *testing.T) {
@@ -276,6 +296,7 @@ func TestTerraformVPC(t *testing.T) {
 ```
 
 ### Validation Tests
+
 - Syntax validation: `terraform validate`
 - Formatting: `terraform fmt -check`
 - Security scanning: `tfsec`, `checkov`, `terrascan`
@@ -285,6 +306,7 @@ func TestTerraformVPC(t *testing.T) {
 ## CI/CD Integration
 
 ### GitHub Actions Example
+
 ```yaml
 name: Terraform CI
 
@@ -328,6 +350,7 @@ jobs:
 ```
 
 ### GitLab CI Example
+
 ```yaml
 stages:
   - validate
@@ -371,6 +394,7 @@ apply:
 ## Performance Optimization
 
 ### Resource Targeting
+
 ```bash
 # Apply changes to specific resources
 terraform apply -target=module.vpc -target=aws_instance.web
@@ -380,6 +404,7 @@ terraform plan -target=module.database
 ```
 
 ### Parallelism Control
+
 ```bash
 # Increase parallelism for faster operations
 terraform apply -parallelism=20
@@ -389,6 +414,7 @@ terraform apply -parallelism=5
 ```
 
 ### Provider Caching
+
 ```bash
 # Set plugin cache directory
 export TF_PLUGIN_CACHE_DIR="$HOME/.terraform.d/plugin-cache"
@@ -396,6 +422,7 @@ mkdir -p $TF_PLUGIN_CACHE_DIR
 ```
 
 ### Efficient Loops
+
 ```hcl
 # Prefer for_each over count for maps
 resource "aws_instance" "servers" {
@@ -422,6 +449,7 @@ resource "aws_subnet" "private" {
 ## Cloud-Specific Patterns
 
 ### AWS Best Practices
+
 - Use VPC endpoints for AWS services
 - Implement multi-AZ deployments
 - Use Auto Scaling Groups for resilience
@@ -429,6 +457,7 @@ resource "aws_subnet" "private" {
 - Use Systems Manager for parameter storage
 
 ### Azure Best Practices
+
 - Use Resource Groups for logical organization
 - Implement Azure Policy for governance
 - Use Managed Identities for authentication
@@ -436,6 +465,7 @@ resource "aws_subnet" "private" {
 - Use Azure Key Vault for secrets
 
 ### GCP Best Practices
+
 - Use Projects for isolation
 - Implement Organization Policies
 - Use Service Accounts with minimal permissions
@@ -445,17 +475,21 @@ resource "aws_subnet" "private" {
 ## Documentation Standards
 
 ### Module README Template
+
 ```markdown
 # Module Name
 
 ## Overview
+
 Brief description of what the module does.
 
 ## Requirements
+
 - Terraform >= 1.6.0
 - AWS Provider >= 5.0
 
 ## Usage
+
 ```hcl
 module "example" {
   source = "./modules/example"
@@ -464,20 +498,25 @@ module "example" {
   environment = "prod"
 }
 ```
+```
 
 ## Inputs
+
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|----------|
 | name | Resource name | string | n/a | yes |
 
 ## Outputs
+
 | Name | Description |
 |------|-------------|
 | id | Resource ID |
 
 ## Examples
+
 See `examples/` directory for complete examples.
-```
+
+```text
 
 ## Common Patterns
 
@@ -501,6 +540,7 @@ resource "aws_security_group" "main" {
 ```
 
 ### Data Source Queries
+
 ```hcl
 data "aws_ami" "ubuntu" {
   most_recent = true
@@ -519,6 +559,7 @@ data "aws_ami" "ubuntu" {
 ```
 
 ### Locals for Computed Values
+
 ```hcl
 locals {
   # Compute subnet CIDR blocks
@@ -549,6 +590,7 @@ locals {
 ## Troubleshooting Guide
 
 ### Common Issues
+
 1. **State Lock**: Check DynamoDB/blob storage for stuck locks
 2. **Provider Version Conflicts**: Update version constraints
 3. **Circular Dependencies**: Refactor with explicit `depends_on`
@@ -556,6 +598,7 @@ locals {
 5. **Large State Files**: Consider splitting into multiple states
 
 ### Debugging Commands
+
 ```bash
 # Enable detailed logging
 export TF_LOG=DEBUG
@@ -584,7 +627,9 @@ terraform state rm aws_instance.web
 ```
 
 ## Communication Style
+
 When working with Major Domo:
+
 - Address them as "Major Domo"
 - Be direct and technical - assume senior-level understanding
 - Explain reasoning behind architectural decisions
@@ -593,6 +638,7 @@ When working with Major Domo:
 - Include relevant documentation and examples
 
 ## Key References
+
 - [Terraform Registry](https://registry.terraform.io/)
 - [Terraform Best Practices](https://www.terraform-best-practices.com/)
 - [AWS Terraform Modules](https://github.com/terraform-aws-modules)
@@ -604,6 +650,7 @@ When working with Major Domo:
 ## Advanced Topics
 
 ### Terraform Workspaces
+
 ```bash
 # Create and switch to workspace
 terraform workspace new dev
@@ -623,6 +670,7 @@ resource "aws_instance" "web" {
 ```
 
 ### State Management Commands
+
 ```bash
 # Pull remote state locally
 terraform state pull > terraform.tfstate.backup
@@ -638,6 +686,7 @@ terraform state replace-provider hashicorp/aws registry.terraform.io/hashicorp/a
 ```
 
 ### Remote Backend Migration
+
 ```hcl
 # Step 1: Configure new backend
 terraform {
