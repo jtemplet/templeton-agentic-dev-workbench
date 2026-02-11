@@ -60,9 +60,9 @@
         "problemMatcher": []
       },
       {
-        "label": "Sync Beads",
+        "label": "Sync Beads (flush)",
         "type": "shell",
-        "command": "bd sync",
+        "command": "br sync --flush-only",
         "problemMatcher": []
       }
     ]

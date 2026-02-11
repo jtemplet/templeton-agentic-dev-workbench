@@ -2,8 +2,10 @@
 # Git Attributes for Claude Code Plugin Repository
 # ============================================================================
 
-# Beads: Custom merge driver for issue tracking
-.beads/issues.jsonl merge=beads
+# Beads (br): JSONL files use union merge to preserve lines from both sides
+# This prevents conflicts on append-only issue tracking files
+.beads/issues.jsonl merge=union
+.beads/interactions.jsonl merge=union
 
 # ============================================================================
 # Line Ending Normalization (cross-platform consistency)
@@ -59,5 +61,5 @@ IMPROVEMENTS.md linguist-documentation
 templeton-agentic-dev-workbench.code-workspace export-ignore
 .DS_Store export-ignore
 
-# Beads issue tracking (internal tool)
+# Beads (br) issue tracking (internal tool)
 .beads/ export-ignore

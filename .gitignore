@@ -23,3 +23,15 @@ npm-debug.log*
 tmp/
 temp/
 *.tmp
+
+# Beads (br) local files - DB and runtime artifacts are local-only
+.beads/beads.db
+.beads/beads.db-*
+.beads/.exclusive-lock
+.beads/daemon.log
+.beads/.sync.lock
+.beads/.local_version
+.beads/sync_base.jsonl
+
+# Beads Viewer (bv) cache
+.bv/

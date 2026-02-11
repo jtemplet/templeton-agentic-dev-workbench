@@ -150,7 +150,7 @@ This plugin provides agents, skills, and commands. See docs/ARCHITECTURE.md for 
 
 **Current State:** Lines 252-276 contain detailed "Landing the Plane" workflow with bash commands (25 lines).
 
-**Better Approach:** The reminder is valuable, but beads-specific steps could move to `docs/BEADS_WORKFLOW.md`:
+**Better Approach:** The reminder is valuable, but br-specific steps could move to `docs/BEADS_WORKFLOW.md`:
 
 ```markdown
 ## Session Completion
@@ -178,7 +178,7 @@ Work is NOT complete until pushed to remote.
 **Verified Alignment:**
 - ✅ "Personal Claude Code plugin repository" → Confirmed by directory structure
 - ✅ "Python and Ruby/Rails development" → Found skills/ for both languages
-- ✅ Uses beads for issue tracking → Detected .beads/ directory
+- ✅ Uses br (beads_rust) for issue tracking → Detected .beads/ directory
 
 **Contradictions Detected:**
 - None found (good alignment between documentation and reality)
@@ -279,19 +279,19 @@ git diff main...HEAD  # See changes to be reviewed
 
 #### `docs/BEADS_WORKFLOW.md` (~28 lines)
 ```markdown
-# Session Completion Workflow (Beads Integration)
+# Session Completion Workflow (br/bv Integration)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
 
 ## Mandatory Workflow
 
-1. **File issues for remaining work** - Create beads issues for anything that needs follow-up
+1. **File issues for remaining work** - Use `br create` for anything that needs follow-up
 2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
+   br sync --flush-only
    git push
    git status  # MUST show "up to date with origin"
    ```
