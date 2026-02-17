@@ -201,6 +201,20 @@ git diff main...HEAD  # See changes to be reviewed
 - Checks for security and best practices
 - Validates resource configurations
 
+### Ideation & Planning
+
+**Idea Generation:** Use `/idea-wizard` or the `idea-wizard` skill
+
+- Generates 30 improvement ideas for the current project
+- Critically evaluates each, rejects weak candidates
+- Distills to top 5 with confidence scores and actionable plans
+
+**Decision Records:** Use `/adr` or the `architecture-decision-record` skill
+
+- Records architectural decisions with context and rationale
+- Tracks options considered and trade-offs
+- Saves to `docs/decisions/NNNN-<topic>.md`
+
 ### Multi-Language Reviews
 
 **Auto-Detecting Review:** Use `/code-review` or the `code-reviewer` agent
@@ -225,6 +239,8 @@ git diff main...HEAD  # See changes to be reviewed
 - `templeton-swift-style` - Swift/iOS with Sandi Metz principles and protocol-oriented design
 - `terraform-iac-expert` - Infrastructure as Code reviews
 - `fizzy-style` - Vanilla Rails conventions for the Fizzy codebase
+- `idea-wizard` - Generate 30 ideas, evaluate, distill to top 5
+- `architecture-decision-record` - Record decisions with context, options, and rationale
 
 **Registered Agents:**
 
@@ -244,6 +260,8 @@ git diff main...HEAD  # See changes to be reviewed
 - `/terraform-review` - Terraform/IaC review
 - `/review-claude-md` - CLAUDE.md optimization review
 - `/validate-plugin` - Check plugin integrity and cross-references
+- `/idea-wizard` - Generate and evaluate improvement ideas
+- `/adr` - Record an architectural decision
 
 ## Key Design Principles
 
