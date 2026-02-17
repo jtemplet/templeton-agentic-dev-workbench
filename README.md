@@ -1,22 +1,24 @@
 # templeton-agentic-dev-workbench
 
-Custom skills for Claude Code. Part of the [agent-marketplace](https://github.com/jtemplet/agent-marketplace).
+Custom skills for Claude Code. Part of the [templeton-agentic-marketplace](https://github.com/jtemplet/templeton-agentic-marketplace).
 
 ## Installation
 
 ```bash
 # Register marketplace
-/plugin marketplace add jtemplet/agent-marketplace
+/plugin marketplace add jtemplet/templeton-agentic-marketplace
 
 # Install this plugin
-/plugin install templeton-agentic-dev-workbench@agent-marketplace
+/plugin install templeton-agentic-dev-workbench@templeton-agentic-marketplace
 ```
 
 ## Skills
 
 ### rails-code-review
 
-Systematic technique for comprehensive Rails 8 code reviews covering security vulnerabilities (XSS, SQL injection), Rails conventions, Hotwire/Turbo patterns, performance optimization, and DRY principles with priority-based issue categorization.
+Systematic technique for comprehensive Rails 8 code reviews covering security
+vulnerabilities (XSS, SQL injection), Rails conventions, Hotwire/Turbo patterns,
+performance optimization, and DRY principles with priority-based issue categorization.
 
 **Use when:**
 
@@ -24,13 +26,15 @@ Systematic technique for comprehensive Rails 8 code reviews covering security vu
 - Performing security audits
 - Validating Rails 8 conventions and Hotwire patterns
 
-**Output:** Prioritized list of issues with location, problem, fix, and verification steps.
+**Output:** Prioritized list of issues with location, problem, fix, and verification
+steps.
 
 See [SKILL.md](./skills/rails-code-review/SKILL.md) for full documentation.
 
 ### templeton-rspec-style
 
-Opinionated RSpec testing style for Rails applications emphasizing request specs, clean test organization, and DRY principles.
+Opinionated RSpec testing style for Rails applications emphasizing request specs, clean
+ test organization, and DRY principles.
 
 **Use when:**
 
@@ -51,7 +55,8 @@ See [SKILL.md](./skills/templeton-rspec-style/SKILL.md) for full documentation.
 
 ### terraform-iac-expert
 
-Senior staff-level DevOps expertise for Terraform and Infrastructure as Code across AWS, Azure, and GCP with 10+ years of FAANG experience.
+Senior staff-level DevOps expertise for Terraform and Infrastructure as Code across AWS,
+Azure, and GCP with 10+ years of FAANG experience.
 
 **Use when:**
 
@@ -74,7 +79,8 @@ See [SKILL.md](./skills/terraform-iac-expert/SKILL.md) for full documentation.
 
 ### python-code-review
 
-Comprehensive Python code review following PEP 8 and Google Python Style Guide standards, with emphasis on security, type hints, and best practices.
+Comprehensive Python code review following PEP 8 and Google Python Style Guide
+standards, with emphasis on security, type hints, and best practices.
 
 **Use when:**
 
@@ -91,13 +97,15 @@ Comprehensive Python code review following PEP 8 and Google Python Style Guide s
 - Prioritize: Critical (security/bugs) > High (readability) > Medium (style) > Low (nitpicks)
 - Focus on changes being made, not rewriting entire codebase
 
-**Output:** Structured review with severity levels, specific line numbers, before/after code examples, and rationale for each issue.
+**Output:** Structured review with severity levels, specific line numbers, before/after
+ code examples, and rationale for each issue.
 
 See [SKILL.md](./skills/python-code-review/SKILL.md) for full documentation.
 
 ### templeton-python-style
 
-Write or refactor Python code following Sandi Metz's object-oriented design principles from "Practical Object-Oriented Design in Ruby" (POODR), adapted for Python.
+Write or refactor Python code following Sandi Metz's object-oriented design principles
+ from "Practical Object-Oriented Design in Ruby" (POODR), adapted for Python.
 
 **Use when:**
 
@@ -116,13 +124,16 @@ Write or refactor Python code following Sandi Metz's object-oriented design prin
 - Tell, Don't Ask (avoid deep attribute chaining)
 - Shallow inheritance (1-2 levels), prefer composition
 
-**Output:** TRUE code (Transparent, Reasonable, Usable, Exemplary) with proper messaging, dependency injection, and clear responsibilities.
+**Output:** TRUE code (Transparent, Reasonable, Usable, Exemplary) with proper
+messaging, dependency injection, and clear responsibilities.
 
 See [SKILL.md](./skills/templeton-python-style/SKILL.md) for full documentation.
 
 ### rails-conventions
 
-Comprehensive Rails 8 conventions and best practices guide. Enforces "The Rails 8 Way": convention over configuration, Solid Stack over external dependencies, and Hotwire over React.
+Comprehensive Rails 8 conventions and best practices guide. Enforces "The Rails 8 Way":
+ convention over configuration, Solid Stack over external dependencies, and Hotwire
+ over React.
 
 **Use when:**
 
@@ -156,7 +167,8 @@ See [SKILL.md](./skills/rails-conventions/SKILL.md) for full documentation.
 
 ### code-simplifier
 
-Language-agnostic code simplification agent for Python and Ruby/Rails. Enhances code clarity and maintainability while preserving exact functionality.
+Language-agnostic code simplification agent for Python and Ruby/Rails. Enhances code
+ clarity and maintainability while preserving exact functionality.
 
 **Use when:**
 
@@ -183,13 +195,16 @@ Language-agnostic code simplification agent for Python and Ruby/Rails. Enhances 
 
 ### rails-code-reviewer
 
-Specialized subagent for comprehensive Rails 8 code reviews. Loads the rails-code-review skill and executes systematic review workflow.
+Specialized subagent for comprehensive Rails 8 code reviews. Loads the
+rails-code-review skill and executes systematic review workflow.
 
 **Use via:** Manual invocation or Task tool (when registered as subagent type)
 
 ### python-feature-developer
 
-Guided Python feature development agent that leads through a 4-phase workflow: discovery, implementation, simplification, and linting. Uses the templeton-python-style skill for implementation guidance.
+Guided Python feature development agent that leads through a 4-phase workflow:
+discovery, implementation, simplification, and linting. Uses the templeton-python-style
+skill for implementation guidance.
 
 **Triggers on:**
 
@@ -204,28 +219,36 @@ Guided Python feature development agent that leads through a 4-phase workflow: d
 3. **Simplification** - Refines code while preserving readability
 4. **Linting** - Applies ruff for PEP8/Google Python Style compliance
 
-**Output:** Production-ready Python code written to files with type hints, docstrings, and error handling
+**Output:** Production-ready Python code written to files with type hints, docstrings,
+and error handling
 
-### rework-coding-style
+### code-reviewer
 
-Language-aware agent for applying opinionated coding style conventions. Detects code language and invokes the appropriate style skill.
+Universal code review agent that auto-detects languages and dispatches to the correct
+review skill.
 
 **Use when:**
 
-- Applying templeton style to Python code
-- Styling Rails/Ruby code to follow conventions
-- Standardizing code across multiple files
-- Reworking code after feature implementation
+- Reviewing changes that span multiple languages
+- You want auto-detection instead of picking a language-specific command
+- Reviewing a branch before merge
 
 **Approach:**
 
-- Python: Invokes `templeton-python-style` skill
-- Ruby/Rails: Invokes `rails-conventions` skill
-- Detects language from file extension and context
+- Python -> `python-code-review` skill
+- Ruby/Rails -> `rails-code-review` skill
+- Swift/iOS -> `templeton-swift-style` skill
+- Terraform -> `terraform-iac-expert` skill
 
-**Output:** Styled code with clear summary of conventions applied
+**Output:** Consolidated review report with severity, location, and fixes per language
 
 ## Commands
+
+### /code-review
+
+Auto-detecting code review across all supported languages.
+
+**Usage:** `/code-review` - Detects languages and applies correct skills
 
 ### /rails-code-review
 
@@ -235,13 +258,16 @@ One-command trigger for instant Rails code reviews.
 
 ### /python-code-review
 
-One-command trigger for comprehensive Python code reviews following PEP 8 and Google Style Guide.
+One-command trigger for comprehensive Python code reviews following PEP 8 and Google
+ Style Guide.
 
-**Usage:** `/python-code-review` - Automatically loads skill and executes systematic review
+**Usage:** `/python-code-review` - Automatically loads skill and executes systematic
+review
 
 ### /python-feature-dev
 
-Guided Python feature development with discovery, implementation, simplification, and linting phases.
+Guided Python feature development with discovery, implementation, simplification, and
+linting phases.
 
 **Usage:**
 
@@ -250,13 +276,33 @@ Guided Python feature development with discovery, implementation, simplification
 
 **Result:** Invokes python-feature-developer agent for structured workflow
 
+### /swift-code-review
+
+Swift/iOS code review following Sandi Metz principles and protocol-oriented design.
+
+**Usage:** `/swift-code-review` - Loads templeton-swift-style skill and reviews changes
+
+### /terraform-review
+
+Terraform/IaC review for security, best practices, and module design.
+
+**Usage:** `/terraform-review` - Loads terraform-iac-expert skill and reviews changes
+
+### /validate-plugin
+
+Plugin integrity checker that validates cross-references between agents, skills, and
+commands.
+
+**Usage:** `/validate-plugin` - Checks structural integrity and reports issues
+
 ## System Architecture
 
 The workbench uses a three-layer architecture:
 
 - **Commands** (e.g., `/rails-code-review`) provide quick access triggers
 - **Agents** (e.g., `rails-code-reviewer`) define workflows and processes
-- **Skills** (e.g., `rails-code-review`) contain systematic techniques and best practices
+- **Skills** (e.g., `rails-code-review`) contain systematic techniques and best
+- practices
 
 This layered approach ensures consistency, maintainability, and flexibility.
 
