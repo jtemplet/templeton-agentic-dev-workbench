@@ -222,27 +222,33 @@ skill for implementation guidance.
 **Output:** Production-ready Python code written to files with type hints, docstrings,
 and error handling
 
-### rework-coding-style
+### code-reviewer
 
-Language-aware agent for applying opinionated coding style conventions. Detects code
-language and invokes the appropriate style skill.
+Universal code review agent that auto-detects languages and dispatches to the correct
+review skill.
 
 **Use when:**
 
-- Applying templeton style to Python code
-- Styling Rails/Ruby code to follow conventions
-- Standardizing code across multiple files
-- Reworking code after feature implementation
+- Reviewing changes that span multiple languages
+- You want auto-detection instead of picking a language-specific command
+- Reviewing a branch before merge
 
 **Approach:**
 
-- Python: Invokes `templeton-python-style` skill
-- Ruby/Rails: Invokes `rails-conventions` skill
-- Detects language from file extension and context
+- Python -> `python-code-review` skill
+- Ruby/Rails -> `rails-code-review` skill
+- Swift/iOS -> `templeton-swift-style` skill
+- Terraform -> `terraform-iac-expert` skill
 
-**Output:** Styled code with clear summary of conventions applied
+**Output:** Consolidated review report with severity, location, and fixes per language
 
 ## Commands
+
+### /code-review
+
+Auto-detecting code review across all supported languages.
+
+**Usage:** `/code-review` - Detects languages and applies correct skills
 
 ### /rails-code-review
 
@@ -269,6 +275,25 @@ linting phases.
 - `/python-feature-dev` - Interactive mode (prompts for feature description)
 
 **Result:** Invokes python-feature-developer agent for structured workflow
+
+### /swift-code-review
+
+Swift/iOS code review following Sandi Metz principles and protocol-oriented design.
+
+**Usage:** `/swift-code-review` - Loads templeton-swift-style skill and reviews changes
+
+### /terraform-review
+
+Terraform/IaC review for security, best practices, and module design.
+
+**Usage:** `/terraform-review` - Loads terraform-iac-expert skill and reviews changes
+
+### /validate-plugin
+
+Plugin integrity checker that validates cross-references between agents, skills, and
+commands.
+
+**Usage:** `/validate-plugin` - Checks structural integrity and reports issues
 
 ## System Architecture
 

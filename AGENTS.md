@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a personal Claude Code plugin repository - an agentic development workbench containing custom agents, skills, and commands for Python and Ruby/Rails development.
+This is a personal Claude Code plugin repository - an agentic development workbench containing custom agents, skills, and commands for Python, Ruby/Rails, Swift/iOS, and Terraform development.
 
 ## Architecture
 
@@ -185,13 +185,29 @@ bundle exec rspec
 git diff main...HEAD  # See changes to be reviewed
 ```
 
+### Swift/iOS Development
+
+**Code Review:** Use `/swift-code-review` or the `templeton-swift-style` skill
+
+- Sandi Metz principles adapted for Swift
+- Protocol-oriented design over class inheritance
+- TRUE code (Transparent, Reasonable, Usable, Exemplary)
+
 ### Infrastructure as Code
 
-**Terraform Review:** Use the `terraform-iac-expert` skill
+**Terraform Review:** Use `/terraform-review` or the `terraform-iac-expert` skill
 
 - Reviews Terraform configurations
 - Checks for security and best practices
 - Validates resource configurations
+
+### Multi-Language Reviews
+
+**Auto-Detecting Review:** Use `/code-review` or the `code-reviewer` agent
+
+- Detects languages from changed files automatically
+- Dispatches to the correct skill per language
+- Produces a single consolidated review report
 
 ## Plugin Configuration
 
@@ -206,19 +222,28 @@ git diff main...HEAD  # See changes to be reviewed
 - `templeton-rspec-style` - Opinionated RSpec testing patterns
 - `rails-conventions` - Rails conventions and best practices
 - `templeton-python-style` - Python style preferences (Sandi Metz principles)
+- `templeton-swift-style` - Swift/iOS with Sandi Metz principles and protocol-oriented design
 - `terraform-iac-expert` - Infrastructure as Code reviews
+- `fizzy-style` - Vanilla Rails conventions for the Fizzy codebase
 
 **Registered Agents:**
 
+- `code-reviewer` - Auto-detecting code review (dispatches to correct skill per language)
 - `code-simplifier` - Language-agnostic code simplification (Python & Ruby/Rails)
 - `python-feature-developer` - Guided Python feature development
 - `rails-code-reviewer` - Comprehensive Rails code review workflow
+- `claude-md-reviewer` - CLAUDE.md optimization with quantitative scoring
 
 **Registered Commands:**
 
+- `/code-review` - Auto-detecting code review across all languages
 - `/python-code-review` - Quick Python code review
 - `/python-feature-dev` - Start Python feature development
 - `/rails-code-review` - Quick Rails code review
+- `/swift-code-review` - Swift/iOS code review
+- `/terraform-review` - Terraform/IaC review
+- `/review-claude-md` - CLAUDE.md optimization review
+- `/validate-plugin` - Check plugin integrity and cross-references
 
 ## Key Design Principles
 
@@ -272,10 +297,11 @@ Agents should:
 ## Notes
 
 - This is a personal development workbench, not a production system
-- Focus is on Python and Ruby/Rails development
+- Focus is on Python, Ruby/Rails, Swift/iOS, and Terraform development
 - Skills encode proven techniques to prevent repeating solved problems
 - Agents provide consistent, structured workflows
 - Commands provide quick access to common operations
+- Use `/validate-plugin` to check plugin integrity after making changes
 
 ## Issue Tracking (br + bv)
 

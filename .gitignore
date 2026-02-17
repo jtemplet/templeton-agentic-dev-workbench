@@ -34,3 +34,6 @@ temp/
 
 # Beads Viewer (bv) cache
 .bv/
+
+# Backup skills
+skills/rails-conventions-BAK/
