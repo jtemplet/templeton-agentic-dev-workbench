@@ -23,17 +23,14 @@ tmp/
 temp/
 *.tmp
 
-# Beads (br) local files - DB and runtime artifacts are local-only
-.beads/beads.db
-.beads/beads.db-*
-.beads/.exclusive-lock
+# Beads (br) - runtime artifacts handled by .beads/.gitignore
+# Only need to ignore files not covered there
 .beads/daemon.log
-.beads/.sync.lock
 .beads/.local_version
-.beads/sync_base.jsonl
 
-# Beads Viewer (bv) cache
-.bv/
+# Beads Viewer (bv) - track workspace config, ignore cache
+.bv/*
+!.bv/workspace.yml
 
 # Backup skills
 skills/rails-conventions-BAK/
