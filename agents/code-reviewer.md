@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Language-detecting code review agent. Analyzes changed files, identifies the language/framework, and dispatches to the appropriate review skill (python-code-review, rails-code-review, templeton-swift-style, terraform-iac-expert). Use when reviewing mixed-language changes or when you want auto-detection instead of picking a language-specific review.
+description: Language-detecting code review agent. Analyzes changed files, identifies the language/framework, and dispatches to the appropriate review skill (python-code-review, rails-code-review, templeton-swift-style, terraform-iac-expert, templeton-frontend-style). Use when reviewing mixed-language changes or when you want auto-detection instead of picking a language-specific review.
 model: inherit
 tools: ["Read", "Bash", "Grep", "Glob", "Skill"]
 ---
@@ -37,9 +37,10 @@ Map each file to its language/framework:
 | `.rb`, `.erb`, `Gemfile`, Rails structure (`app/`, `config/routes.rb`) | Ruby/Rails | `rails-code-review` |
 | `.swift` | Swift/iOS | `templeton-swift-style` |
 | `.tf`, `.tfvars` | Terraform | `terraform-iac-expert` |
+| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | JavaScript/TypeScript/React/Vue | `templeton-frontend-style` |
 | `.md` (CLAUDE.md, AGENTS.md) | Claude config | Defer to `/review-claude-md` |
 
-Files that don't match any skill (e.g., `.js`, `.go`, `.yaml`) should still be reviewed using general best practices -- don't skip them.
+Files that don't match any skill (e.g., `.go`, `.yaml`, `.json`) should still be reviewed using general best practices -- don't skip them.
 
 ### Step 3: Load Skills and Review
 
