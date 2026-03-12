@@ -44,14 +44,17 @@ technical constraints, business requirements, and prior decisions that apply.
 ## Options Considered
 
 ### Option A: <name>
+
 - **Pros:** ...
 - **Cons:** ...
 
 ### Option B: <name>
+
 - **Pros:** ...
 - **Cons:** ...
 
 ### Option C: <name> (if applicable)
+
 - **Pros:** ...
 - **Cons:** ...
 
@@ -75,6 +78,7 @@ positive and negative consequences. Be honest about trade-offs.
 ## Superseding Decisions
 
 When a decision replaces a previous one:
+
 1. Create the new ADR with its own number
 2. Update the old ADR's status to `Superseded by [NNNN]`
 3. Reference the old ADR in the new one's Context section

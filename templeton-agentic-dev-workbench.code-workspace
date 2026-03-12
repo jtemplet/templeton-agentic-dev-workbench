@@ -18,6 +18,7 @@
       "**/.beads": true,
       "**/__pycache__": true,
       "**/*.pyc": true,
+      ".rumdl_cache": true,
       ".session-handoff.md": true
     },
 

@@ -27,9 +27,9 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 **Example Flow:**
 
 1. User invokes `/rails-code-review` command
-2. Command loads `agents/rails-code-reviewer.md` workflow
-3. Agent uses `skills/rails-code-review/SKILL.md` for systematic review technique
-4. Output follows agent's specified format
+2. Command loads `rails-code-review` skill via the Skill tool
+3. Skill defines the systematic review technique
+4. Output follows the skill's specified format
 
 ### Agent Architecture
 
@@ -158,7 +158,7 @@ description: One-line description
 
 ### Rails Development
 
-**Code Review:** Use `/rails-code-review` or the `rails-code-reviewer` agent
+**Code Review:** Use `/rails-code-review` or `/code-review` (auto-detects Rails)
 
 - Rails 8-aware with modern Hotwire/Turbo patterns
 - Security-first approach with pragmatic severity assessment
@@ -233,6 +233,24 @@ git diff main...HEAD  # See changes to be reviewed
 - Tracks options considered and trade-offs
 - Saves to `docs/decisions/NNNN-<topic>.md`
 
+### Workflow Pipelines
+
+**Pipeline A - Business Planning:**
+
+`/business-ideas` → pick an idea → `/plan-feature <idea>` → `/review-plan docs/plans/...` → `/plan-to-beads docs/plans/...`
+
+- **Business Ideas:** Analyzes the project's business model, generates 15 revenue-focused candidates, critically evaluates, presents top 10
+- **Plan Feature:** Explores the codebase, drafts a structured implementation plan, writes to `docs/plans/feature-plan-<name>.md`
+- **Review Plan:** Evaluates the plan across 6 dimensions (completeness, feasibility, scope, risks, dependencies, actionability), renders a verdict
+- **Plan to Beads:** Decomposes the plan into `br` issues with dependency graph, confirms with user before creating
+
+**Pipeline B - Code Quality:**
+
+`/fresh-eyes-cr` → `/quality-gates`
+
+- **Fresh Eyes CR:** Auto-detects changed files, reads full files for context, finds and fixes bugs directly
+- **Quality Gates:** Runs tests, linting, type checks, documentation freshness, and security scan with pass/fail/skip per gate
+
 ### Multi-Language Reviews
 
 **Auto-Detecting Review:** Use `/code-review` or the `code-reviewer` agent
@@ -260,15 +278,20 @@ git diff main...HEAD  # See changes to be reviewed
 - `fizzy-style` - Vanilla Rails conventions for the Fizzy codebase
 - `idea-wizard` - Generate 30 ideas, evaluate, distill to top 5
 - `architecture-decision-record` - Record decisions with context, options, and rationale
+- `business-ideas` - Analyze business model and surface 10 revenue-focused feature ideas
+- `plan-review` - Fresh-eyes plan review for completeness, feasibility, and gaps
 
 **Registered Agents:**
 
 - `code-reviewer` - Auto-detecting code review (dispatches to correct skill per language)
 - `code-simplifier` - Language-agnostic code simplification (Python & Ruby/Rails)
 - `python-feature-developer` - Guided Python feature development
-- `rails-code-reviewer` - Comprehensive Rails code review workflow
 - `frontend-code-reviewer` - Comprehensive frontend code review (JS/TS/React/Vue)
 - `claude-md-reviewer` - CLAUDE.md optimization with quantitative scoring
+- `feature-planner` - Generates detailed implementation plans written to docs/plans/
+- `plan-to-beads` - Decomposes feature plans into br issues with dependencies
+- `fresh-eyes-reviewer` - Reviews and fixes code with fresh eyes
+- `diagnostician` - Investigates bugs thoroughly before any fix is attempted
 
 **Registered Commands:**
 
@@ -283,6 +306,13 @@ git diff main...HEAD  # See changes to be reviewed
 - `/validate-plugin` - Check plugin integrity and cross-references
 - `/idea-wizard` - Generate and evaluate improvement ideas
 - `/adr` - Record an architectural decision
+- `/business-ideas` - Analyze business model, surface 10 revenue-focused feature ideas
+- `/plan-feature` - Generate a detailed implementation plan for a feature
+- `/review-plan` - Fresh-eyes review of a feature plan
+- `/plan-to-beads` - Decompose a feature plan into br issues with dependencies
+- `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
+- `/quality-gates` - Run tests, linting, type checks, docs, and security scan
+- `/diagnose` - Investigate a bug thoroughly before attempting any fix
 
 ## Key Design Principles
 
@@ -402,7 +432,7 @@ bv --robot-suggest                   # Duplicates, missing deps, label assignmen
 **MANDATORY WORKFLOW:**
 
 1. **File issues for remaining work** - Use `br create` for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
+2. **Run quality gates** (if code changed) - Use `/quality-gates` to run tests, linters, type checks, doc freshness, and security scan
 3. **Update issue status** - `br close` finished work, `br update` in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
 
