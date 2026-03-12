@@ -193,6 +193,24 @@ git diff main...HEAD  # See changes to be reviewed
 - Protocol-oriented design over class inheritance
 - TRUE code (Transparent, Reasonable, Usable, Exemplary)
 
+### Frontend Development
+
+**Code Review:** Use `/frontend-code-review` or the `frontend-code-reviewer` agent
+
+- JavaScript/TypeScript, React, and Vue code reviews
+- Sandi Metz principles adapted for frontend
+- Focuses on separation of concerns (logic vs presentation)
+- Checks component design, TypeScript usage, and modern patterns
+- Validates proper hook/composable patterns
+
+**Style Guide:** Use the `templeton-frontend-style` skill
+
+- TRUE components (Transparent, Reasonable, Usable, Exemplary)
+- Wait for duplication before abstracting
+- Small, focused components (~100-150 lines)
+- Extract business logic to custom hooks (React) or composables (Vue)
+- Composition over props explosion
+
 ### Infrastructure as Code
 
 **Terraform Review:** Use `/terraform-review` or the `terraform-iac-expert` skill
@@ -237,6 +255,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `rails-conventions` - Rails conventions and best practices
 - `templeton-python-style` - Python style preferences (Sandi Metz principles)
 - `templeton-swift-style` - Swift/iOS with Sandi Metz principles and protocol-oriented design
+- `templeton-frontend-style` - JavaScript/TypeScript/React/Vue with Sandi Metz principles
 - `terraform-iac-expert` - Infrastructure as Code reviews
 - `fizzy-style` - Vanilla Rails conventions for the Fizzy codebase
 - `idea-wizard` - Generate 30 ideas, evaluate, distill to top 5
@@ -248,6 +267,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `code-simplifier` - Language-agnostic code simplification (Python & Ruby/Rails)
 - `python-feature-developer` - Guided Python feature development
 - `rails-code-reviewer` - Comprehensive Rails code review workflow
+- `frontend-code-reviewer` - Comprehensive frontend code review (JS/TS/React/Vue)
 - `claude-md-reviewer` - CLAUDE.md optimization with quantitative scoring
 
 **Registered Commands:**
@@ -257,6 +277,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `/python-feature-dev` - Start Python feature development
 - `/rails-code-review` - Quick Rails code review
 - `/swift-code-review` - Swift/iOS code review
+- `/frontend-code-review` - Frontend code review (JS/TS/React/Vue)
 - `/terraform-review` - Terraform/IaC review
 - `/review-claude-md` - CLAUDE.md optimization review
 - `/validate-plugin` - Check plugin integrity and cross-references
