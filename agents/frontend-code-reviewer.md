@@ -1,7 +1,8 @@
 ---
 name: frontend-code-reviewer
 description: Specialized subagent for comprehensive frontend code reviews (JavaScript/TypeScript/React/Vue) focusing on component design, logic separation, TypeScript usage, and modern frontend patterns. Uses the templeton-frontend-style skill.
-Context: When reviewing frontend code before merge or PR. Or investigating code quality in JavaScript/TypeScript/React/Vue applications. Or validating frontend architecture patterns and component design.
+model: inherit
+tools: ["Read", "Bash", "Grep", "Glob", "Skill"]
 ---
 
 ## Agent Instructions
