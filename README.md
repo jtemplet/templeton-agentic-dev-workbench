@@ -1,6 +1,6 @@
 # templeton-agentic-dev-workbench
 
-Personal Claude Code plugin — an agentic development workbench with custom agents, skills, and commands for Python, Ruby/Rails, Swift/iOS, and Terraform development.
+Personal Claude Code plugin — an agentic development workbench with custom agents, skills, and commands for Python, Ruby/Rails, JavaScript/TypeScript/React/Vue, Swift/iOS, and Terraform development.
 
 ## Installation
 
@@ -50,6 +50,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `/python-code-review` | Python review (PEP 8, Google Style Guide) |
 | `/rails-code-review` | Rails 8 review (security, conventions, Hotwire) |
 | `/swift-code-review` | Swift/iOS review (Sandi Metz, protocol-oriented design) |
+| `/frontend-code-review` | Frontend review (JS/TS/React/Vue, component design, patterns) |
 | `/terraform-review` | Terraform/IaC review (security, best practices, modules) |
 | `/review-claude-md` | Review and optimize CLAUDE.md/AGENTS.md files |
 
@@ -77,6 +78,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `rails-conventions` | Rails 8 Way conventions and best practices |
 | `templeton-python-style` | Python style (Sandi Metz principles adapted for Python) |
 | `templeton-swift-style` | Swift style (Sandi Metz, protocol-oriented design) |
+| `templeton-frontend-style` | Frontend style (JS/TS/React/Vue, Sandi Metz principles) |
 | `terraform-iac-expert` | Terraform/IaC expertise across AWS, Azure, GCP |
 | `fizzy-style` | Vanilla Rails conventions for the Fizzy codebase |
 | `idea-wizard` | Structured ideation: generate, evaluate, distill |
@@ -91,6 +93,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `code-reviewer` | Auto-detects languages, dispatches to correct review skill |
 | `code-simplifier` | Simplifies Python/Ruby code while preserving functionality |
 | `python-feature-developer` | Guided 4-phase Python feature development |
+| `frontend-code-reviewer` | Frontend code review (JS/TS/React/Vue) |
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
 | `feature-planner` | Explores codebase, drafts structured plans to `docs/plans/` |
 | `plan-to-beads` | Decomposes plans into `br` issues with dependency graph |
