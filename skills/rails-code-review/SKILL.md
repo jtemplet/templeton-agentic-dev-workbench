@@ -453,7 +453,6 @@ bundle exec rspec spec/path/spec.rb
 # Expected: all tests pass
 ```
 
-
 ```text
 
 **Complete example:**
@@ -504,7 +503,6 @@ end
 bundle exec rspec spec/requests/public/deals/documents/requirements_spec.rb
 # Add test case for unauthorized access attempt
 ```
-
 
 ```text
 
@@ -574,7 +572,6 @@ bundle exec rspec
 bundle exec rubocop
 bundle exec brakeman
 ```
-
 
 ```text
 

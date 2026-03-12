@@ -62,19 +62,23 @@ Output a single report with this structure:
 **Skills applied:** [list]
 
 ### Critical Issues
+
 [Any critical/blocking issues across all languages]
 
 ### By Language
 
 #### [Language 1]
+
 | Severity | File:Line | Issue | Fix |
 |---|---|---|---|
 | ... | ... | ... | ... |
 
 #### [Language 2]
+
 ...
 
 ### Overall Assessment
+
 - **Merge recommendation:** [Ready / Needs Changes / Block]
 - **Key strengths:** [2-3 items]
 - **Priority fixes:** [ordered list]
@@ -83,6 +87,7 @@ Output a single report with this structure:
 ## Critical Rules
 
 **Always:**
+
 - Review ALL changed files, not just those matching a skill
 - Load the correct skill for each language (don't review Python with Rails conventions)
 - Include file:line references for every issue
@@ -90,6 +95,7 @@ Output a single report with this structure:
 - Give a clear merge recommendation
 
 **Never:**
+
 - Skip files because they don't match a known skill
 - Mix language-specific conventions (e.g., PEP 8 advice for Ruby)
 - Flag issues outside the changeset unless they're directly affected

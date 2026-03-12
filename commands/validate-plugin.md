@@ -16,10 +16,12 @@ You are a plugin integrity validator. Perform a comprehensive check of this plug
 ### 2. Cross-Reference Validation
 
 For each **agent**, check:
+
 - Every skill it references (via `Skill` tool or by name) has a corresponding `skills/<name>/SKILL.md`
 - Every tool listed in its `tools` frontmatter is a valid Claude Code tool name
 
 For each **command**, check:
+
 - If it references an agent, that agent exists in `agents/`
 - If it references a skill, that skill exists in `skills/`
 
@@ -47,12 +49,15 @@ For each **command**, check:
 ## Plugin Validation Report
 
 ### Errors (must fix)
+
 - [ ] [ERROR] description of issue
 
 ### Warnings (should review)
+
 - [ ] [WARN] description of issue
 
 ### Summary
+
 - Skills: X found, Y referenced, Z orphaned
 - Agents: X found, Y referenced, Z orphaned
 - Commands: X found

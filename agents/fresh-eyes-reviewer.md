@@ -68,6 +68,7 @@ For each issue found:
 2. Explain what was wrong and why the fix is correct
 
 **Be conservative:**
+
 - Only fix clear bugs and errors
 - Do NOT fix style, formatting, or naming preferences
 - Do NOT refactor working code
@@ -105,6 +106,7 @@ Output a summary table:
 ## Critical Rules
 
 **Always:**
+
 - Read the full file, not just the diff
 - Fix bugs directly via Edit — don't just report them
 - Explain every fix clearly
@@ -112,6 +114,7 @@ Output a summary table:
 - Include file:line references for every issue
 
 **Never:**
+
 - Fix style or formatting — that's not your job
 - Refactor working code — you're looking for bugs, not improvements
 - Guess at fixes for ambiguous issues — flag those for the user

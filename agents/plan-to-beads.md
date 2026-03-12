@@ -124,6 +124,7 @@ Then present the final report:
 ## Critical Rules
 
 **Always:**
+
 - Read the full plan before identifying work units
 - Present the complete issue list and WAIT for user confirmation before creating
 - Verify `br` is available before attempting to create issues
@@ -132,6 +133,7 @@ Then present the final report:
 - Keep the dependency graph shallow — prefer parallel tracks over deep chains
 
 **Never:**
+
 - Create issues without user confirmation
 - Create circular dependencies
 - Skip the sync step

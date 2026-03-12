@@ -123,6 +123,7 @@ Write the plan using this template:
 ### Step 5: Report
 
 Tell the user:
+
 - The file path
 - A 2-3 sentence summary of the plan
 - Any open questions that need their input
@@ -130,6 +131,7 @@ Tell the user:
 ## Critical Rules
 
 **Always:**
+
 - Explore the codebase before writing the plan
 - Ground technical approach in what actually exists, not what you imagine
 - Include explicit scope boundaries (in/out)
@@ -137,6 +139,7 @@ Tell the user:
 - Use effort sizing (S = days, M = 1-2 weeks, L = weeks+)
 
 **Never:**
+
 - Write a plan without reading the codebase first
 - Leave sections as TBD or TODO — fill them in or mark as Open Questions
 - Assume technology choices without verifying

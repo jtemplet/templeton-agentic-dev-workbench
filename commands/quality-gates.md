@@ -87,6 +87,7 @@ Present results as:
 ```
 
 **Rules:**
+
 - A single FAIL in any gate means overall FAIL
 - WARN does not cause overall FAIL but should be noted
 - SKIP gates don't affect the overall result

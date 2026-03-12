@@ -44,6 +44,7 @@ Based on the evidence, propose **2-3 hypotheses** for the root cause. For each:
 - Describe what you would expect to find if this hypothesis is correct
 
 **Rules for hypotheses:**
+
 - Must be specific and falsifiable ("the auth token is expired" not "something is wrong with auth")
 - Must be grounded in evidence you've already collected
 - Should cover different categories (e.g., one code bug, one config issue, one data issue)
@@ -102,6 +103,7 @@ Output the final diagnosis:
 ## Critical Rules
 
 **Always:**
+
 - Gather evidence BEFORE forming hypotheses
 - Test every hypothesis — don't just pick the first plausible one
 - Include file:line references for all findings
@@ -109,6 +111,7 @@ Output the final diagnosis:
 - Recommend a fix but do NOT implement it
 
 **Never:**
+
 - Jump to a fix without testing hypotheses
 - Settle on the first hypothesis without considering alternatives
 - Ignore contradictory evidence
