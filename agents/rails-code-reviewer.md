@@ -1,7 +1,8 @@
 ---
 name: rails-code-reviewer
 description: Specialized subagent for comprehensive Rails 8 code reviews focusing on security, conventions, performance, and maintainability. Uses the rails-code-review skill systematically.
-Context: When reviewing Rails code before merge or PR. Or investigating security vulnerabilities in Rails code. Or validating Rails 8 conventions and Hotwire patterns.
+model: inherit
+tools: ["Read", "Bash", "Grep", "Glob", "Skill"]
 ---
 
 ## Agent Instructions
