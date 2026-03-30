@@ -40,6 +40,12 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 |---|---|
 | `/diagnose <bug>` | Investigate thoroughly before fixing — gather evidence, test hypotheses, present root cause |
 
+### Product Research
+
+| Command | What it does |
+|---|---|
+| `/product-analysis <product>` | Objective product analysis — features, pricing, competitors, pain points, market capture |
+
 ## Commands
 
 ### Code Review
@@ -99,6 +105,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `plan-to-beads` | Decomposes plans into `br` issues with dependency graph |
 | `fresh-eyes-reviewer` | Reviews changed code for bugs, fixes them directly |
 | `diagnostician` | Read-only investigation — evidence, hypotheses, root cause |
+| `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
 
 ## Architecture
 

@@ -292,6 +292,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `plan-to-beads` - Decomposes feature plans into br issues with dependencies
 - `fresh-eyes-reviewer` - Reviews and fixes code with fresh eyes
 - `diagnostician` - Investigates bugs thoroughly before any fix is attempted
+- `product-analyst` - Objective product analysis (features, pricing, competitors, pain points, market capture)
 
 **Registered Commands:**
 
@@ -313,6 +314,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan
 - `/diagnose` - Investigate a bug thoroughly before attempting any fix
+- `/product-analysis` - Generate an objective product analysis document
 
 ## Key Design Principles
 
