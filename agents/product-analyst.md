@@ -44,7 +44,10 @@ Use multiple targeted searches. Do not rely on a single query. Example searches:
 - `"<product> market share"`
 - `"<product> alternatives"`
 - `"<product> complaints" OR "frustrations" OR "problems" OR "issues"`
-- `"<product> review" site:reddit.com OR site:g2.com OR site:trustpilot.com`
+- `"<product> review" site:reddit.com OR site:g2.com OR site:capterra.com`
+- `"<product>" site:news.ycombinator.com`
+- `"<product> app store reviews"` or `"<product>" site:apps.apple.com`
+- `"<product>" site:play.google.com reviews`
 
 Fetch product pages, review sites, and comparison articles for deeper detail when search snippets are insufficient.
 
