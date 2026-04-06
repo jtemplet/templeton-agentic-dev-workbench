@@ -48,6 +48,59 @@ While reading, identify:
 - **Connections** — how this relates to existing wiki content
 - **Contradictions** — where this source disagrees with existing wiki pages
 
+### Step 2b: Assess Study Quality
+
+Before discussing with the user, evaluate the methodological rigor and potential biases of the source. This assessment should inform how much weight you give the findings.
+
+**Funding and Conflicts of Interest:**
+- Who funded the research? (government grant, industry sponsor, foundation, authors' institution)
+- Do the authors disclose any conflicts of interest?
+- Is the funder's interest aligned with a particular outcome?
+- Rate funding bias risk: **Low** (independent/government) | **Medium** (mixed/unclear) | **High** (industry-funded with aligned interests)
+
+**Study Design:**
+- What type of study is this? (RCT, cohort, case-control, cross-sectional, meta-analysis, systematic review, case study, opinion/commentary)
+- Is it experimental or observational?
+- Is there a control group? If not, why not, and how does this affect interpretation?
+- Is blinding used? (single-blind, double-blind, triple-blind, open-label) — note that double-blind is the gold standard for eliminating bias
+- Is randomization used? If so, how was it implemented?
+- Rate study design: **Strong** | **Moderate** | **Weak** — based on position in the evidence hierarchy (meta-analysis > RCT > cohort > case-control > case series > opinion)
+
+**Sample:**
+- What is the sample size (n)?
+- Is the sample size justified with a power calculation?
+- How was the sample recruited? Is it representative of the population the findings are generalized to?
+- Are there important demographic limitations (age, sex, geography, socioeconomic status)?
+- What is the response/dropout rate, and could attrition bias the results?
+- Rate sample quality: **Strong** (n ≥ 1000, representative, low attrition) | **Moderate** | **Weak** (small n, convenience sample, high dropout)
+
+**Statistical and Methodological Rigor:**
+- Are effect sizes reported alongside p-values or confidence intervals?
+- Are multiple comparisons corrected for?
+- Is the statistical method appropriate for the data type?
+- Are confounders identified and controlled for?
+- Are limitations acknowledged honestly?
+
+**Peer Review and Publication:**
+- Is the source peer-reviewed? Published in a reputable journal?
+- Has it been replicated or contradicted by other studies?
+- Is this a preprint (not yet peer-reviewed)?
+
+**Overall Validity Assessment:**
+
+Produce a short verdict using this format:
+
+```
+Validity: [High / Moderate / Low / Unclear]
+- Study design: [type + rating]
+- Sample: [n=X, rating]
+- Blinding: [yes/no/partial, type]
+- Funding: [funder name/type, bias risk]
+- Key caveats: [1–3 bullet points on the most important limitations]
+```
+
+This validity assessment is NOT a reason to dismiss the source — it is context for interpreting the findings. A small, industry-funded study may still surface a real signal; a large RCT may have design flaws. The goal is calibrated skepticism.
+
 ### Step 3: Discuss Key Points with the User
 
 Present a structured briefing to the user:
@@ -62,6 +115,14 @@ Present a structured briefing to the user:
 1. ...
 2. ...
 3. ...
+
+### Study Quality Assessment
+**Validity:** [High / Moderate / Low / Unclear]
+- **Study design:** [type + rating]
+- **Sample:** [n=X, rating]
+- **Blinding:** [type or none]
+- **Funding:** [funder, bias risk]
+- **Key caveats:** [1–3 most important limitations]
 
 ### Entities Identified
 - [Entity] — brief description
@@ -78,6 +139,7 @@ Present a structured briefing to the user:
 
 Then ask the user:
 
+- Given the study quality, how much weight do you want to give these findings?
 - What should be emphasized or de-emphasized?
 - Are there specific entities or concepts to focus on?
 - Any connections to their broader vault they want captured?
@@ -104,12 +166,20 @@ authors: [<author names>]
 year: <publication year>
 url: <if available>
 doi: <if available>
+funding: <funder name or "not disclosed">
+funding_bias_risk: <low|medium|high|unclear>
+study_design: <RCT|cohort|case-control|cross-sectional|meta-analysis|systematic-review|case-study|opinion|other>
+sample_size: <n=X or "N/A">
+blinding: <double-blind|single-blind|open-label|not-applicable|not-reported>
+validity: <high|moderate|low|unclear>
 last_updated: <today>
 related_notes: []
 ---
 ```
 
-Include sections: Key Takeaways, Summary, Methodology, Key Findings, Relevance, Quotes, Questions.
+Include sections: Key Takeaways, Study Quality Assessment, Summary, Methodology, Key Findings, Relevance, Quotes, Questions.
+
+The **Study Quality Assessment** section must include the full validity verdict from Step 2b — study design, sample size, blinding, funding source and bias risk, and key caveats. This section should always be visible so future readers calibrate their trust in the findings appropriately.
 
 Incorporate the user's emphasis guidance from Step 3.
 
@@ -201,6 +271,8 @@ When new information contradicts existing wiki content:
 **Always:**
 
 - Read the entire source document before summarizing
+- Assess study quality (funding, design, sample, blinding) before discussing with the user
+- Include the validity assessment in the briefing and the source summary page
 - Discuss key points with the user before writing wiki pages
 - Wait for user input after the briefing — do not skip the discussion
 - Use `[[wikilinks]]` for all internal references
@@ -223,6 +295,9 @@ When new information contradicts existing wiki content:
 Before reporting completion, verify:
 
 - [ ] Source was read in full
+- [ ] Study quality assessed: funding source, study design, sample size, blinding
+- [ ] Validity verdict included in briefing AND source summary page
+- [ ] Source summary frontmatter includes validity metadata fields
 - [ ] Key points were discussed with the user and their guidance incorporated
 - [ ] Source summary page created with complete frontmatter and all sections
 - [ ] All significant entities and concepts have wiki pages (created or updated)
