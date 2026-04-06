@@ -293,6 +293,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `fresh-eyes-reviewer` - Reviews and fixes code with fresh eyes
 - `diagnostician` - Investigates bugs thoroughly before any fix is attempted
 - `product-analyst` - Objective product analysis (features, pricing, competitors, pain points, market capture)
+- `research-ingest` - Ingests new sources into the Research wiki — reads, discusses key points, generates summaries, creates entity/concept pages, updates index and log
 
 **Registered Commands:**
 
@@ -315,6 +316,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan
 - `/diagnose` - Investigate a bug thoroughly before attempting any fix
 - `/product-analysis` - Generate an objective product analysis document
+- `/research-ingest` - Ingest a new source into the Research wiki
 
 ## Key Design Principles
 
