@@ -46,6 +46,12 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 |---|---|
 | `/product-analysis <product>` | Objective product analysis — features, pricing, competitors, pain points, market capture |
 
+### Design & UX
+
+| Command | What it does |
+|---|---|
+| `/ux-audit <app-url>` | Playwright-driven UX audit grounded in AGENTS.md, severity-ranked report focused on clutter and cognitive load, saved to `docs/ux-audits/` |
+
 ## Commands
 
 ### Code Review
@@ -106,6 +112,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `fresh-eyes-reviewer` | Reviews changed code for bugs, fixes them directly |
 | `diagnostician` | Read-only investigation — evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
+| `ux-product-designer` | UX audit of a running app via Playwright, grounded in AGENTS.md, severity-ranked report focused on clutter and cognitive load |
 
 ## Architecture
 
