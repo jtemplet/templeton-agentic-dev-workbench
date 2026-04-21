@@ -44,13 +44,15 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 
 | Command | What it does |
 |---|---|
-| `/product-analysis <product>` | Objective product analysis — features, pricing, competitors, pain points, market capture |
+| `/product-analysis <product>` | Objective product analysis: features, pricing, competitors, pain points, market capture |
+| `/research-ingest` | Ingest a new source into the Research wiki: read, discuss, summarize, create entity/concept pages |
 
 ### Design & UX
 
 | Command | What it does |
 |---|---|
-| `/ux-audit <app-url>` | Playwright-driven UX audit grounded in AGENTS.md, severity-ranked report focused on clutter and cognitive load, saved to `docs/ux-audits/` |
+| `/ux-audit <app-url>` | Playwright-driven UX audit of a web app, evaluates 7 dimensions (accessibility, design system, IA, interaction, content, emotional design, cognitive load), report saved to `docs/ux-audits/` |
+| `/ux-audit-ios <app-name>` | iOS Simulator UX audit via `xcrun simctl`, tests Dynamic Type / Dark Mode / accessibility settings, evaluates same 7 dimensions against Apple HIG, report saved to `docs/ux-audits/` |
 
 ## Commands
 
@@ -112,7 +114,9 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `fresh-eyes-reviewer` | Reviews changed code for bugs, fixes them directly |
 | `diagnostician` | Read-only investigation — evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
-| `ux-product-designer` | UX audit of a running app via Playwright, grounded in AGENTS.md, severity-ranked report focused on clutter and cognitive load |
+| `research-ingest` | Ingests sources into Research wiki: reads, discusses, generates summaries and entity/concept pages |
+| `ux-product-designer` | UX audit of a web app via Playwright, 7-dimension evaluation with severity-ranked report |
+| `ux-product-designer-ios` | UX audit of an iOS app via Simulator, tests Dynamic Type / Dark Mode / accessibility, 7-dimension evaluation against Apple HIG |
 
 ## Architecture
 

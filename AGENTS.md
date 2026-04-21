@@ -294,7 +294,8 @@ git diff main...HEAD  # See changes to be reviewed
 - `diagnostician` - Investigates bugs thoroughly before any fix is attempted
 - `product-analyst` - Objective product analysis (features, pricing, competitors, pain points, market capture)
 - `research-ingest` - Ingests new sources into the Research wiki — reads, discusses key points, generates summaries, creates entity/concept pages, updates index and log
-- `ux-product-designer` - Senior product designer that conducts a UX audit of a running app via Playwright, grounded in AGENTS.md context, and produces a severity-ranked report focused on clutter and cognitive load
+- `ux-product-designer` - Senior product designer that conducts a UX audit of a running web app via Playwright, grounded in AGENTS.md context, and produces a severity-ranked report across 7 design dimensions
+- `ux-product-designer-ios` - Senior product designer that conducts a UX audit of an iOS app in the Simulator via xcrun simctl, tests Dynamic Type / Dark Mode / accessibility settings, and produces a severity-ranked report against Apple HIG standards
 
 **Registered Commands:**
 
@@ -318,7 +319,8 @@ git diff main...HEAD  # See changes to be reviewed
 - `/diagnose` - Investigate a bug thoroughly before attempting any fix
 - `/product-analysis` - Generate an objective product analysis document
 - `/research-ingest` - Ingest a new source into the Research wiki
-- `/ux-audit` - Conduct a UX audit of a running app (Playwright-driven), report saved to `docs/ux-audits/`
+- `/ux-audit` - Conduct a UX audit of a running web app (Playwright-driven), report saved to `docs/ux-audits/`
+- `/ux-audit-ios` - Conduct a UX audit of an iOS app in the Simulator (xcrun simctl-driven), report saved to `docs/ux-audits/`
 
 ## Key Design Principles
 
