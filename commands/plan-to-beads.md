@@ -3,9 +3,11 @@ description: "Decompose a feature plan into br (beads_rust) issues with dependen
 argument-hint: "[path-to-plan-file]"
 ---
 
-Use the `plan-to-beads` agent to decompose a feature plan into trackable `br` issues.
+Use the `plan-to-beads` skill to decompose a feature plan into trackable `br` issues.
 
-The agent will:
+The decomposition operates from the `project-manager` role: a project manager who keeps the dependency graph shallow, makes each issue self-contained, and refuses to create issues without explicit confirmation. Refer to `agents/project-manager.md` for the role's beliefs and judgment principles.
+
+The skill will:
 
 1. Read the plan file (or search `docs/plans/` if no path given)
 2. Identify natural work units from milestones and components
@@ -14,4 +16,4 @@ The agent will:
 5. Create issues with `br create`, wire dependencies with `br dep add`
 6. Run `br sync --flush-only` and report the final state
 
-If no argument is provided, list available plans in `docs/plans/` and ask which to decompose.
+If no argument is provided, the skill will list available plans in `docs/plans/` and ask which to decompose.

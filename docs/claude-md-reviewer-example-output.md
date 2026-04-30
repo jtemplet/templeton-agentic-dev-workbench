@@ -263,17 +263,17 @@ Use `/python-code-review` or the `python-code-review` skill:
 
 ## Feature Development
 
-Use the `python-feature-developer` agent:
+Use the `software-engineer` agent + `feature-development` skill:
 
-- Follows Sandi Metz principles via `templeton-python-style` skill
-- 4-phase workflow: discovery → implementation → simplification → linting
+- Loads `templeton-python-style` skill for Python style decisions
+- 4-phase workflow: discovery, implementation, simplification, linting
 
 ## Code Simplification
 
-Use the `code-simplifier` agent:
+Use the `software-engineer` agent + `code-simplify` skill:
 
-- Works with both Python and Ruby/Rails
-- Applies language-specific style guides automatically
+- Works across Python, Ruby/Rails, Frontend, Swift
+- Loads the matching language style skill automatically
 - Reduces complexity while preserving functionality
 ```
 
@@ -450,9 +450,9 @@ This is a personal Claude Code plugin repository - an agentic development workbe
 
 This plugin provides agents, skills, and commands for:
 
-- **Python development:** `/python-code-review`, `python-feature-developer` agent
-- **Rails development:** `/rails-code-review`, `rails-code-reviewer` agent
-- **Code simplification:** `code-simplifier` agent (Python & Rails)
+- **Python development:** `/python-code-review`, `software-engineer` agent + `feature-development` skill
+- **Rails development:** `/rails-code-review`, `code-reviewer` agent + `rails-code-review` skill
+- **Code simplification:** `software-engineer` agent + `code-simplify` skill (Python, Rails, Frontend, Swift)
 
 ## Code Style
 

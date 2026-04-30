@@ -145,15 +145,16 @@ description: One-line description
 - Checks PEP 8 and Google Python Style Guide compliance
 - Reviews security, performance, and maintainability
 
-**Feature Development:** Use the `python-feature-developer` agent
+**Feature Development:** Use `/python-feature-dev` or the `software-engineer` agent + `feature-development` skill
 
-- Follows Sandi Metz principles via `templeton-python-style` skill
-- 4-phase workflow: discovery → implementation → simplification → linting
+- 4-phase workflow: discovery, implementation, simplification, linting
+- Loads `templeton-python-style` for Python file style decisions
+- Runs `ruff` for linting
 
-**Code Simplification:** Use the `code-simplifier` agent
+**Code Simplification:** Use the `software-engineer` agent + `code-simplify` skill
 
-- Works with both Python and Ruby/Rails
-- Applies language-specific style guides automatically
+- Works across Python, Ruby/Rails, Frontend, Swift
+- Loads the matching language style skill automatically
 - Reduces complexity while preserving functionality
 
 ### Rails Development
@@ -195,9 +196,10 @@ git diff main...HEAD  # See changes to be reviewed
 
 ### Frontend Development
 
-**Code Review:** Use `/frontend-code-review` or the `frontend-code-reviewer` agent
+**Code Review:** Use `/frontend-code-review` (frontend-scoped shortcut for `/code-review`)
 
-- JavaScript/TypeScript, React, and Vue code reviews
+- Loads the `templeton-frontend-style` skill from the `code-reviewer` agent
+- JavaScript/TypeScript, React, and Vue code reviews (read-only)
 - Sandi Metz principles adapted for frontend
 - Focuses on separation of concerns (logic vs presentation)
 - Checks component design, TypeScript usage, and modern patterns
@@ -237,11 +239,11 @@ git diff main...HEAD  # See changes to be reviewed
 
 **Pipeline A - Business Planning:**
 
-`/business-ideas` → pick an idea → `/plan-feature <idea>` → `/review-plan docs/plans/...` → `/plan-to-beads docs/plans/...`
+`/business-ideas` → pick an idea → `/plan-feature <idea>` → `/plan-review docs/plans/...` → `/plan-to-beads docs/plans/...`
 
 - **Business Ideas:** Analyzes the project's business model, generates 15 revenue-focused candidates, critically evaluates, presents top 10
 - **Plan Feature:** Explores the codebase, drafts a structured implementation plan, writes to `docs/plans/feature-plan-<name>.md`
-- **Review Plan:** Evaluates the plan across 6 dimensions (completeness, feasibility, scope, risks, dependencies, actionability), renders a verdict
+- **Plan Review:** Evaluates the plan across 6 dimensions (completeness, feasibility, scope, risks, dependencies, actionability), renders a verdict
 - **Plan to Beads:** Decomposes the plan into `br` issues with dependency graph, confirms with user before creating
 
 **Pipeline B - Code Quality:**
@@ -280,20 +282,25 @@ git diff main...HEAD  # See changes to be reviewed
 - `architecture-decision-record` - Record decisions with context, options, and rationale
 - `business-ideas` - Analyze business model and surface 10 revenue-focused feature ideas
 - `plan-review` - Fresh-eyes plan review for completeness, feasibility, and gaps
+- `aso-audit` - App Store Optimization audit across 10 weighted factors with ASO Score Card and prioritized action plan
+- `ux-audit` - Web UX audit via Playwright across 7 design dimensions with severity-ranked report
+- `ux-audit-ios` - iOS UX audit via Simulator with Dynamic Type / Dark Mode / Bold Text testing against Apple HIG
+- `code-simplify` - Language-agnostic simplification workflow that loads the matching language style skill
+- `fresh-eyes-review` - Bug-and-correctness pass over recently changed code, fixes issues directly
+- `feature-development` - 4-phase guided implementation (discovery, implementation, simplification, linting), language-agnostic
+- `plan-to-beads` - Decompose a feature plan into br (beads_rust) issues with dependencies
+- `research-ingest` - Ingest a new source into the Research wiki, with study quality assessment and cross-referencing
 
 **Registered Agents:**
 
-- `code-reviewer` - Auto-detecting code review (dispatches to correct skill per language)
-- `code-simplifier` - Language-agnostic code simplification (Python & Ruby/Rails)
-- `python-feature-developer` - Guided Python feature development
-- `frontend-code-reviewer` - Comprehensive frontend code review (JS/TS/React/Vue)
+- `code-reviewer` - Auto-detecting code review (dispatches to correct skill per language); read-only role
+- `software-engineer` - Editing role for code work (simplify, fix bugs, implement features); routes to the right skill based on user intent
 - `claude-md-reviewer` - CLAUDE.md optimization with quantitative scoring
 - `feature-planner` - Generates detailed implementation plans written to docs/plans/
-- `plan-to-beads` - Decomposes feature plans into br issues with dependencies
-- `fresh-eyes-reviewer` - Reviews and fixes code with fresh eyes
+- `project-manager` - Decomposes feature plans into br issues with dependencies (uses `plan-to-beads` skill)
 - `diagnostician` - Investigates bugs thoroughly before any fix is attempted
 - `product-analyst` - Objective product analysis (features, pricing, competitors, pain points, market capture)
-- `research-ingest` - Ingests new sources into the Research wiki — reads, discusses key points, generates summaries, creates entity/concept pages, updates index and log
+- `research-librarian` - Ingests new sources into the Research wiki, reads, discusses key points, generates summaries, creates entity/concept pages, updates index and log (uses `research-ingest` skill)
 - `ux-product-designer` - Senior product designer that conducts a UX audit of a running web app via Playwright, grounded in AGENTS.md context, and produces a severity-ranked report across 7 design dimensions
 - `ux-product-designer-ios` - Senior product designer that conducts a UX audit of an iOS app in the Simulator via xcrun simctl, tests Dynamic Type / Dark Mode / accessibility settings, and produces a severity-ranked report against Apple HIG standards
 
@@ -312,7 +319,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `/adr` - Record an architectural decision
 - `/business-ideas` - Analyze business model, surface 10 revenue-focused feature ideas
 - `/plan-feature` - Generate a detailed implementation plan for a feature
-- `/review-plan` - Fresh-eyes review of a feature plan
+- `/plan-review` - Fresh-eyes review of a feature plan
 - `/plan-to-beads` - Decompose a feature plan into br issues with dependencies
 - `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan
@@ -321,6 +328,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `/research-ingest` - Ingest a new source into the Research wiki
 - `/ux-audit` - Conduct a UX audit of a running web app (Playwright-driven), report saved to `docs/ux-audits/`
 - `/ux-audit-ios` - Conduct a UX audit of an iOS app in the Simulator (xcrun simctl-driven), report saved to `docs/ux-audits/`
+- `/aso-audit` - App Store Optimization audit across 10 weighted factors with ASO Score Card and prioritized action plan, report saved to `docs/aso-audits/`
 
 ## Key Design Principles
 

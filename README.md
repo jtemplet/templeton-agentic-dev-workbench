@@ -16,13 +16,13 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 
 ### Pipeline A — Business Planning
 
-`/business-ideas` → `/plan-feature <idea>` → `/review-plan` → `/plan-to-beads`
+`/business-ideas` → `/plan-feature <idea>` → `/plan-review` → `/plan-to-beads`
 
 | Command | What it does |
 |---|---|
 | `/business-ideas` | Analyze business model, surface 10 revenue-focused feature ideas |
 | `/plan-feature <idea>` | Explore codebase, draft structured plan to `docs/plans/` |
-| `/review-plan <path>` | Evaluate plan across 6 dimensions, render verdict |
+| `/plan-review <path>` | Evaluate plan across 6 dimensions, render verdict |
 | `/plan-to-beads <path>` | Decompose plan into `br` issues with dependency graph |
 
 ### Pipeline B — Code Quality
@@ -53,6 +53,12 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 |---|---|
 | `/ux-audit <app-url>` | Playwright-driven UX audit of a web app, evaluates 7 dimensions (accessibility, design system, IA, interaction, content, emotional design, cognitive load), report saved to `docs/ux-audits/` |
 | `/ux-audit-ios <app-name>` | iOS Simulator UX audit via `xcrun simctl`, tests Dynamic Type / Dark Mode / accessibility settings, evaluates same 7 dimensions against Apple HIG, report saved to `docs/ux-audits/` |
+
+### App Store Optimization
+
+| Command | What it does |
+|---|---|
+| `/aso-audit [app-id]` | ASO health audit across 10 weighted factors (title, subtitle, keyword field, description, screenshots, preview video, ratings, icon, keyword rankings, conversion signals), produces an ASO Score Card and prioritized action plan, report saved to `docs/aso-audits/` |
 
 ## Commands
 
@@ -99,22 +105,27 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `architecture-decision-record` | ADR format with context, options, and rationale |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis |
 | `plan-review` | 6-dimension plan evaluation (completeness, feasibility, scope, risks, deps, actionability) |
+| `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan |
+| `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report |
+| `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG |
+| `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill |
+| `fresh-eyes-review` | Bug-and-correctness pass over recently changed code, fixes issues directly |
+| `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
+| `plan-to-beads` | Decompose a feature plan into `br` issues with dependency graph |
+| `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing |
 
 ## Agents
 
 | Agent | Description |
 |---|---|
-| `code-reviewer` | Auto-detects languages, dispatches to correct review skill |
-| `code-simplifier` | Simplifies Python/Ruby code while preserving functionality |
-| `python-feature-developer` | Guided 4-phase Python feature development |
-| `frontend-code-reviewer` | Frontend code review (JS/TS/React/Vue) |
+| `code-reviewer` | Auto-detects languages, dispatches to correct review skill (read-only) |
+| `software-engineer` | Editing role for code work; routes to code-simplify, fresh-eyes-review, or feature-development based on intent |
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
 | `feature-planner` | Explores codebase, drafts structured plans to `docs/plans/` |
-| `plan-to-beads` | Decomposes plans into `br` issues with dependency graph |
-| `fresh-eyes-reviewer` | Reviews changed code for bugs, fixes them directly |
+| `project-manager` | Decomposes plans into `br` issues with dependency graph (uses `plan-to-beads` skill) |
 | `diagnostician` | Read-only investigation — evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
-| `research-ingest` | Ingests sources into Research wiki: reads, discusses, generates summaries and entity/concept pages |
+| `research-librarian` | Ingests sources into Research wiki: reads, assesses study quality, generates summaries and entity/concept pages (uses `research-ingest` skill) |
 | `ux-product-designer` | UX audit of a web app via Playwright, 7-dimension evaluation with severity-ranked report |
 | `ux-product-designer-ios` | UX audit of an iOS app via Simulator, tests Dynamic Type / Dark Mode / accessibility, 7-dimension evaluation against Apple HIG |
 
@@ -152,6 +163,36 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 3. Register in AGENTS.md
 
 Run `/validate-plugin` after changes to verify integrity.
+
+## Migration: 1.6 to 1.7
+
+Version 1.7 aligns the plugin around the rule **agent = role (noun), skill = action**. The result is fewer agents, more skills, and clearer ownership: agents define *who* is doing the work and *what they refuse to do*; skills define *how* the work is done.
+
+**Removed agents (work absorbed elsewhere):**
+
+| Removed | Replacement |
+|---|---|
+| `code-simplifier` | `software-engineer` agent + `code-simplify` skill |
+| `fresh-eyes-reviewer` | `software-engineer` agent + `fresh-eyes-review` skill |
+| `python-feature-developer` | `software-engineer` agent + `feature-development` skill (now language-agnostic) |
+| `frontend-code-reviewer` | `code-reviewer` agent + `templeton-frontend-style` skill |
+
+**Renamed agents:**
+
+| Old | New |
+|---|---|
+| `plan-to-beads` (agent) | `project-manager` (the `plan-to-beads` *skill* now holds the workflow) |
+| `research-ingest` (agent) | `research-librarian` (the `research-ingest` *skill* now holds the workflow) |
+
+**Renamed commands:**
+
+| Old | New |
+|---|---|
+| `/review-plan` | `/plan-review` (matches the existing `plan-review` skill) |
+
+**For installed users:** run `/plugin update` (or reinstall) to pick up the changes. Active sessions referencing old agent names by `subagent_type` (via the Task tool) will fail until restart; the slash commands all still work the same way from the user's perspective.
+
+**For scripts that reference agent names directly:** update your `subagent_type` calls per the tables above. There is no compatibility shim.
 
 ## License
 

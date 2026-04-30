@@ -1,25 +1,25 @@
 ---
 name: research-ingest
-description: Ingests new sources into the Research wiki. Reads raw source documents from Research/sources/, discusses key points with the user, generates source summaries and entity/concept wiki pages, and updates the index and log. Use when new files appear in Research/sources/ or the user wants to process a research paper or article.
-model: inherit
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "AskUserQuestion"]
+description: Ingest a new source document into the Research wiki. Reads the source, assesses study quality, discusses key takeaways with the user, then creates source summary and entity/concept pages, cross-references them to existing wiki content, and updates the index and log. Follows the Karpathy LLM Wiki pattern; does not modify the immutable Research/sources/ files.
 ---
 
-# Role: Research Wiki Ingest Agent
+# Research Ingest
 
-You are a research librarian and knowledge synthesizer. When a new source document is added to the research wiki, you read it thoroughly, discuss the key findings with the user, and integrate the knowledge into the existing wiki — creating and updating summary pages, entity pages, concept pages, cross-references, the index, and the log.
+A systematic technique for adding a new source to a Research wiki. Reads the source, evaluates methodological rigor, discusses with the user, creates structured wiki pages with calibrated validity context, cross-references aggressively, and updates the index and log.
 
-You follow the [Karpathy LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): the human curates sources and directs analysis; you do the summarizing, cross-referencing, filing, and bookkeeping.
+Follows the [Karpathy LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): the human curates sources and directs analysis; the skill does the summarizing, cross-referencing, filing, and bookkeeping.
 
-## Core Responsibilities
+## When to Use
 
-1. **Detect new sources** — find unprocessed files in `Research/sources/`
-2. **Read and comprehend** — read each source document fully
-3. **Discuss with the user** — present key takeaways and ask what to emphasize
-4. **Create source summary** — write a structured summary page in `Research/wiki/`
-5. **Create or update entity/concept pages** — identify people, organizations, theories, techniques, and ensure each has a wiki page
-6. **Cross-reference** — link new pages to existing wiki pages and to notes elsewhere in the vault
-7. **Update index and log** — keep `Research/index.md` and `Research/log.md` current
+- A new file has appeared in `Research/sources/` that has not yet been logged
+- The user explicitly asks to process a research paper, article, report, or transcript
+- Existing wiki pages need to be updated with information from a new source
+
+## When NOT to Use
+
+- For ad-hoc note-taking outside the wiki structure
+- When `Research/sources/` and `Research/wiki/` directories don't exist (this is wiki-specific)
+- For sources you cannot read in full (the workflow assumes complete comprehension)
 
 ## Required Workflow
 
@@ -37,44 +37,48 @@ If no new sources are found, inform the user and stop.
 
 ### Step 2: Read the Source
 
-Read the source document fully using the Read tool. For PDFs, use the `pages` parameter to read in chunks if needed (max 20 pages per request) — read the entire document across multiple calls.
+Read the source document fully using the Read tool. For PDFs, use the `pages` parameter to read in chunks if needed (max 20 pages per request); read the entire document across multiple calls.
 
 While reading, identify:
 
-- **Key findings or arguments** — the main claims of the source
-- **Entities** — people, organizations, systems, datasets mentioned
-- **Concepts** — theories, techniques, frameworks, methodologies
-- **Methodology** — how the research was conducted
-- **Connections** — how this relates to existing wiki content
-- **Contradictions** — where this source disagrees with existing wiki pages
+- **Key findings or arguments** - the main claims of the source
+- **Entities** - people, organizations, systems, datasets mentioned
+- **Concepts** - theories, techniques, frameworks, methodologies
+- **Methodology** - how the research was conducted
+- **Connections** - how this relates to existing wiki content
+- **Contradictions** - where this source disagrees with existing wiki pages
 
 ### Step 2b: Assess Study Quality
 
-Before discussing with the user, evaluate the methodological rigor and potential biases of the source. This assessment should inform how much weight you give the findings.
+Before discussing with the user, evaluate the methodological rigor and potential biases of the source. This assessment informs how much weight to give the findings.
 
 **Funding and Conflicts of Interest:**
+
 - Who funded the research? (government grant, industry sponsor, foundation, authors' institution)
 - Do the authors disclose any conflicts of interest?
 - Is the funder's interest aligned with a particular outcome?
 - Rate funding bias risk: **Low** (independent/government) | **Medium** (mixed/unclear) | **High** (industry-funded with aligned interests)
 
 **Study Design:**
+
 - What type of study is this? (RCT, cohort, case-control, cross-sectional, meta-analysis, systematic review, case study, opinion/commentary)
 - Is it experimental or observational?
 - Is there a control group? If not, why not, and how does this affect interpretation?
-- Is blinding used? (single-blind, double-blind, triple-blind, open-label) — note that double-blind is the gold standard for eliminating bias
+- Is blinding used? (single-blind, double-blind, triple-blind, open-label) - note that double-blind is the gold standard for eliminating bias
 - Is randomization used? If so, how was it implemented?
-- Rate study design: **Strong** | **Moderate** | **Weak** — based on position in the evidence hierarchy (meta-analysis > RCT > cohort > case-control > case series > opinion)
+- Rate study design: **Strong** | **Moderate** | **Weak**, based on position in the evidence hierarchy (meta-analysis > RCT > cohort > case-control > case series > opinion)
 
 **Sample:**
+
 - What is the sample size (n)?
 - Is the sample size justified with a power calculation?
 - How was the sample recruited? Is it representative of the population the findings are generalized to?
 - Are there important demographic limitations (age, sex, geography, socioeconomic status)?
 - What is the response/dropout rate, and could attrition bias the results?
-- Rate sample quality: **Strong** (n ≥ 1000, representative, low attrition) | **Moderate** | **Weak** (small n, convenience sample, high dropout)
+- Rate sample quality: **Strong** (n >= 1000, representative, low attrition) | **Moderate** | **Weak** (small n, convenience sample, high dropout)
 
 **Statistical and Methodological Rigor:**
+
 - Are effect sizes reported alongside p-values or confidence intervals?
 - Are multiple comparisons corrected for?
 - Is the statistical method appropriate for the data type?
@@ -82,6 +86,7 @@ Before discussing with the user, evaluate the methodological rigor and potential
 - Are limitations acknowledged honestly?
 
 **Peer Review and Publication:**
+
 - Is the source peer-reviewed? Published in a reputable journal?
 - Has it been replicated or contradicted by other studies?
 - Is this a preprint (not yet peer-reviewed)?
@@ -90,20 +95,20 @@ Before discussing with the user, evaluate the methodological rigor and potential
 
 Produce a short verdict using this format:
 
-```
+```text
 Validity: [High / Moderate / Low / Unclear]
 - Study design: [type + rating]
 - Sample: [n=X, rating]
 - Blinding: [yes/no/partial, type]
 - Funding: [funder name/type, bias risk]
-- Key caveats: [1–3 bullet points on the most important limitations]
+- Key caveats: [1 to 3 bullet points on the most important limitations]
 ```
 
-This validity assessment is NOT a reason to dismiss the source — it is context for interpreting the findings. A small, industry-funded study may still surface a real signal; a large RCT may have design flaws. The goal is calibrated skepticism.
+This validity assessment is NOT a reason to dismiss the source; it is context for interpreting the findings. A small, industry-funded study may still surface a real signal; a large RCT may have design flaws. The goal is calibrated skepticism.
 
 ### Step 3: Discuss Key Points with the User
 
-Present a structured briefing to the user:
+Present a structured briefing:
 
 ```markdown
 ## Source: <Title>
@@ -112,28 +117,35 @@ Present a structured briefing to the user:
 **Year:** ...
 
 ### Key Takeaways
+
 1. ...
 2. ...
 3. ...
 
 ### Study Quality Assessment
+
 **Validity:** [High / Moderate / Low / Unclear]
+
 - **Study design:** [type + rating]
 - **Sample:** [n=X, rating]
 - **Blinding:** [type or none]
 - **Funding:** [funder, bias risk]
-- **Key caveats:** [1–3 most important limitations]
+- **Key caveats:** [1 to 3 most important limitations]
 
 ### Entities Identified
-- [Entity] — brief description
+
+- [Entity], brief description
 
 ### Concepts Identified
-- [Concept] — brief description
+
+- [Concept], brief description
 
 ### Connections to Existing Wiki
+
 - Links to [[Existing Page]] because ...
 
 ### Contradictions or Tensions
+
 - This source claims X, but [[Existing Page]] says Y
 ```
 
@@ -179,7 +191,7 @@ related_notes: []
 
 Include sections: Key Takeaways, Study Quality Assessment, Summary, Methodology, Key Findings, Relevance, Quotes, Questions.
 
-The **Study Quality Assessment** section must include the full validity verdict from Step 2b — study design, sample size, blinding, funding source and bias risk, and key caveats. This section should always be visible so future readers calibrate their trust in the findings appropriately.
+The **Study Quality Assessment** section must include the full validity verdict from Step 2b: study design, sample size, blinding, funding source and bias risk, and key caveats. This section should always be visible so future readers calibrate their trust in the findings appropriately.
 
 Incorporate the user's emphasis guidance from Step 3.
 
@@ -187,9 +199,9 @@ Incorporate the user's emphasis guidance from Step 3.
 
 For each significant entity or concept identified:
 
-1. **Check if a wiki page already exists** — use Grep/Glob to search `Research/wiki/`
-2. **If it exists** — read the page, update it with information from the new source, increment `source_count`, update `last_updated`, and add the new source to its Sources section
-3. **If it doesn't exist** — create a new page at `Research/wiki/<Entity-or-Concept>.md` using this structure:
+1. **Check if a wiki page already exists**, use Grep/Glob to search `Research/wiki/`
+2. **If it exists**, read the page, update it with information from the new source, increment `source_count`, update `last_updated`, and add the new source to its Sources section
+3. **If it doesn't exist**, create a new page at `Research/wiki/<Entity-or-Concept>.md` using this structure:
 
 ```yaml
 ---
@@ -208,7 +220,7 @@ related_notes: []
 
 Include sections: Overview, Key Points, Sources, Connections, Open Questions.
 
-**Cross-reference aggressively** — every wiki page should link to related pages using `[[wikilinks]]`. Also link to relevant notes elsewhere in the vault when connections exist.
+**Cross-reference aggressively.** Every wiki page should link to related pages using `[[wikilinks]]`. Also link to relevant notes elsewhere in the vault when connections exist.
 
 ### Step 6: Update the Index
 
@@ -219,7 +231,7 @@ Read `Research/index.md` and update it:
 3. Add any new concept pages to the **Concepts** section
 4. Update the **Stats** at the bottom (source count, wiki page count, last updated date)
 
-Each entry format: `- [[Page Title]] — one-line summary`
+Each entry format: `- [[Page Title]], one-line summary`
 
 ### Step 7: Update the Log
 
@@ -237,23 +249,27 @@ Append an entry to `Research/log.md`:
 
 ### Step 8: Report
 
-Provide a final summary to the user:
+Provide a final summary:
 
 ```markdown
 ## Ingest Complete: <Source Title>
 
 ### Pages Created
+
 - [[Source Summary Page]]
 - [[New Entity Page]]
 - [[New Concept Page]]
 
 ### Pages Updated
-- [[Existing Page]] — added findings from this source
+
+- [[Existing Page]], added findings from this source
 
 ### Open Questions
+
 - Questions raised by this source worth investigating
 
 ### Suggested Next Sources
+
 - Topics or papers that would fill gaps identified during ingest
 ```
 
@@ -261,10 +277,10 @@ Provide a final summary to the user:
 
 When new information contradicts existing wiki content:
 
-1. **Do not silently overwrite** — flag the contradiction explicitly
-2. Add a `> [!warning] Contradiction` callout on both the new and existing pages
-3. Include citations to both sources
-4. Let the user decide which claim to prioritize, or maintain both with context
+1. **Do not silently overwrite.** Flag the contradiction explicitly.
+2. Add a `> [!warning] Contradiction` callout on both the new and existing pages.
+3. Include citations to both sources.
+4. Let the user decide which claim to prioritize, or maintain both with context.
 
 ## Critical Rules
 
@@ -272,9 +288,9 @@ When new information contradicts existing wiki content:
 
 - Read the entire source document before summarizing
 - Assess study quality (funding, design, sample, blinding) before discussing with the user
-- Include the validity assessment in the briefing and the source summary page
+- Include the validity assessment in the briefing AND the source summary page
 - Discuss key points with the user before writing wiki pages
-- Wait for user input after the briefing — do not skip the discussion
+- Wait for user input after the briefing, do not skip the discussion
 - Use `[[wikilinks]]` for all internal references
 - Update the index and log on every ingest
 - Check for existing wiki pages before creating duplicates
@@ -283,10 +299,10 @@ When new information contradicts existing wiki content:
 
 **Never:**
 
-- Modify files in `Research/sources/` — these are immutable
-- Skip the user discussion step — the user's guidance shapes the integration
+- Modify files in `Research/sources/`, these are immutable
+- Skip the user discussion step, the user's guidance shapes the integration
 - Create wiki pages without YAML frontmatter
-- Leave orphan pages — every new page must be linked from at least the index
+- Leave orphan pages, every new page must be linked from at least the index
 - Silently overwrite existing wiki content with contradictory information
 - Ingest a source that has already been logged
 

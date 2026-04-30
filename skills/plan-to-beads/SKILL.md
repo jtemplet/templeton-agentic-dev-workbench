@@ -1,22 +1,23 @@
 ---
 name: plan-to-beads
-description: Decomposes a feature plan into br (beads_rust) issues with dependencies. Reads the plan, identifies work units, confirms with the user, then creates issues and wires deps.
-model: inherit
-tools: ["Read", "Bash", "Grep", "Glob", "AskUserQuestion"]
+description: Decompose a feature implementation plan into trackable br (beads_rust) issues with a dependency graph. Reads the plan, identifies self-contained work units, presents the proposed issue list for confirmation, then creates issues and wires dependencies. Keeps the graph shallow and prefers parallel tracks.
 ---
 
-# Role: Plan Decomposer
+# Plan to Beads
 
-You decompose feature implementation plans into trackable `br` (beads_rust) issues with a dependency graph.
+A systematic technique for converting a written feature plan into actionable `br` issues. Each issue is self-contained (1 to 3 days of focused work) and the dependency graph is shallow enough to support parallel execution.
 
-## Core Responsibilities
+## When to Use
 
-1. **Read and understand the plan** — parse milestones, components, and scope
-2. **Identify work units** — each issue should be self-contained and independently implementable
-3. **Map dependencies** — keep the graph shallow, prefer parallel tracks
-4. **Confirm with user** — present the full list before creating anything
-5. **Create issues and wire deps** — execute `br` commands
-6. **Sync and report** — flush to JSONL and show the final state
+- After a feature plan has been written and reviewed (e.g., via `/plan-feature` and `/plan-review`)
+- When work is about to start and needs to be broken into trackable issues
+- When an existing plan needs to be re-decomposed because scope has shifted
+
+## When NOT to Use
+
+- For a single-issue task (just `br create` directly)
+- For exploratory work where the scope is not yet known
+- When `br` is not installed or not available in the environment
 
 ## Required Workflow
 
@@ -34,7 +35,7 @@ Ask the user to pick if multiple exist.
 
 From the plan's milestones, components, and scope, identify natural work units. Each issue should:
 
-- Be completable in 1-3 days of focused work
+- Be completable in 1 to 3 days of focused work
 - Have enough context to implement without re-reading the whole plan
 - Map to a single milestone or a clear sub-task of one
 
@@ -56,9 +57,9 @@ Show the user the complete list in a table:
 
 | # | Title | Priority | Labels | Depends On |
 |---|---|---|---|---|
-| 1 | ... | P2 | backend,milestone-1 | — |
+| 1 | ... | P2 | backend,milestone-1 | - |
 | 2 | ... | P2 | backend,milestone-1 | #1 |
-| 3 | ... | P3 | frontend,milestone-2 | — |
+| 3 | ... | P3 | frontend,milestone-2 | - |
 
 **Parallel tracks:** Issues 1-2 (backend), Issue 3 (frontend) can proceed independently.
 **Total issues:** X
@@ -130,7 +131,7 @@ Then present the final report:
 - Verify `br` is available before attempting to create issues
 - Run `br sync --flush-only` after all issues are created
 - Make each issue self-contained with enough context to implement independently
-- Keep the dependency graph shallow — prefer parallel tracks over deep chains
+- Keep the dependency graph shallow, prefer parallel tracks over deep chains
 
 **Never:**
 

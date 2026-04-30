@@ -1,45 +1,41 @@
 ---
-description: Perform comprehensive frontend code review (JavaScript/TypeScript/React/Vue) following Sandi Metz principles
+description: "Frontend code review (JS/TS/React/Vue) following Sandi Metz principles, focused on changed frontend files"
 ---
 
-You are acting as a frontend code review expert. Follow the frontend-code-reviewer agent workflow:
+Use the `templeton-frontend-style` skill to review changed frontend code.
 
-**Required workflow:**
+The review operates from the `code-reviewer` role: a read-only reviewer that detects languages and applies the matching style skill. Refer to `agents/code-reviewer.md` for the role's principles. This command is a frontend-scoped shortcut to `/code-review`; it focuses the review on JavaScript / TypeScript / React / Vue files in the diff.
 
-1. Load the templeton-frontend-style skill using the Skill tool
-2. Get the git diff between current branch and main for JS/TS/JSX/TSX/Vue files
-3. Execute systematic review following the skill's priority order:
-   - Separation of Concerns (CRITICAL) - Logic mixed in components, business logic in UI
-   - Component Design (HIGH) - Size, single responsibility, premature abstraction
-   - TypeScript Usage (HIGH) - Type safety, `any` usage, proper interfaces
-   - Frontend Patterns (MEDIUM) - Hooks/composables, state management, composition
-   - Code Style (MEDIUM) - Naming, organization, console.logs
-   - Testing (MEDIUM) - Test coverage for logic, proper mocking
+**Workflow:**
 
-4. Document every issue using the skill's output format:
-   - Category & Priority
-   - Location (file:line)
-   - Problem description with code
-   - Why it matters (impact on maintainability/testability)
-   - Concrete fix with before/after (using ❌ and ✅)
-   - Verification steps
+1. Get the git diff for `.js`, `.jsx`, `.ts`, `.tsx`, and `.vue` files between the current branch and main
+2. Load the `templeton-frontend-style` skill via the Skill tool
+3. Review in the skill's priority order:
+   - **Separation of Concerns (CRITICAL)** - Logic mixed in components, business logic in UI
+   - **Component Design (HIGH)** - Size, single responsibility, premature abstraction
+   - **TypeScript Usage (HIGH)** - Type safety, `any` usage, proper interfaces
+   - **Frontend Patterns (MEDIUM)** - Hooks/composables, state management, composition
+   - **Code Style (MEDIUM)** - Naming, organization, console.logs
+   - **Testing (MEDIUM)** - Test coverage for logic, proper mocking
 
-5. Provide summary with:
+4. Document every issue with: Category, Priority, Location (file:line), Problem (with code), Why it matters, Concrete fix (before/after), Verification steps
+
+5. Provide a summary with:
    - Issues by priority (table)
    - Critical actions required
    - Positive findings (what was done well)
-   - Overall assessment with ratings for: Code Quality, Type Safety, Architecture, Testability
+   - Overall assessment (Code Quality, Type Safety, Architecture, Testability)
    - Merge recommendation with effort estimate
 
-**Key Review Principles:**
+**Key principles:**
 
-- Follow Sandi Metz principles: Wait for third occurrence before flagging duplication
-- Components should be small and focused (~100-150 lines)
+- Wait for the third occurrence before flagging duplication (Sandi Metz)
+- Components should be small and focused (~100 to 150 lines)
 - Extract business logic to custom hooks (React) or composables (Vue)
 - Prefer composition over props explosion
-- Use TypeScript properly - avoid `any`, define interfaces
+- Use TypeScript properly: avoid `any`, define interfaces
 - Focus on separation of concerns before style issues
 - Be constructive and provide actionable recommendations
 - Prioritize: Critical (architecture) > High (design/types) > Medium (patterns) > Low (style)
 
-**Output must follow the exact format specified in the frontend-code-reviewer agent.**
+This is a read-only review. To fix issues directly, follow up with `/fresh-eyes-cr` (uses `software-engineer` role with Edit access).
