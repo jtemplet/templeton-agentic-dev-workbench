@@ -51,17 +51,7 @@ Custom agents for agentic development workflows.
 
 ---
 
-### rails-code-reviewer
-
-**Purpose:** Comprehensive Rails 8 code review
-
-**Key Features:**
-
-- Security-first approach with pragmatic severity
-- Modern patterns (Hotwire, Turbo, Solid Stack)
-- Verification-first methodology
-
----
+> For the full agent and skill list, see `AGENTS.md` (root) and `README.md`. This file documents only the agents that have extended notes worth keeping outside the manifest.
 
 ## Creating New Agents
 

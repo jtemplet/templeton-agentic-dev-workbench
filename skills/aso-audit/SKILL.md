@@ -214,9 +214,9 @@ Weights below are the relative importance of each factor. Apply only the rows ap
 
 ## Key Principles
 
-- **Score honestly** — a 5/10 with clear reasoning is more useful than an inflated 8/10
-- **Prioritize by impact, not effort** — quick wins come first only when they meaningfully move the score
-- **Justify every score** — one line per factor explaining the rating, so the user can act on it
-- **Platform-aware** — never penalize an Android app for lacking a subtitle, or an iOS app for keyword density patterns specific to Google Play
-- **Cite the data** — when scoring, reference the actual metadata or competitor evidence, not generic guidance
-- **Recommend specifics** — say "change subtitle from X to Y" instead of "improve subtitle"
+- **Score honestly**: a 5/10 with clear reasoning is more useful than an inflated 8/10
+- **Prioritize by impact, not effort**: quick wins come first only when they meaningfully move the score
+- **Justify every score**: one line per factor explaining the rating, so the user can act on it
+- **Platform-aware**: never penalize an Android app for lacking a subtitle, or an iOS app for keyword density patterns specific to Google Play
+- **Cite the data**: when scoring, reference the actual metadata or competitor evidence, not generic guidance
+- **Recommend specifics**: say "change subtitle from X to Y" instead of "improve subtitle"
