@@ -1,7 +1,7 @@
 {
   "name": "templeton-agentic-dev-workbench",
-  "version": "1.6.0",
-  "description": "Personal agentic development workbench with Python/Ruby/Frontend coding styles, code review agents, feature development, ideation, and ASO audit tools",
+  "version": "1.7.0",
+  "description": "Personal agentic development workbench with role-named agents (software-engineer, code-reviewer, project-manager, research-librarian, ux-product-designer) backed by action-named skills for code, planning, research, design, and ASO work",
   "author": {
     "name": "Jason Templeton",
     "email": "jtemple77@gmail.com"

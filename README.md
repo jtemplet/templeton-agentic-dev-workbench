@@ -164,6 +164,36 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 
 Run `/validate-plugin` after changes to verify integrity.
 
+## Migration: 1.6 to 1.7
+
+Version 1.7 aligns the plugin around the rule **agent = role (noun), skill = action**. The result is fewer agents, more skills, and clearer ownership: agents define *who* is doing the work and *what they refuse to do*; skills define *how* the work is done.
+
+**Removed agents (work absorbed elsewhere):**
+
+| Removed | Replacement |
+|---|---|
+| `code-simplifier` | `software-engineer` agent + `code-simplify` skill |
+| `fresh-eyes-reviewer` | `software-engineer` agent + `fresh-eyes-review` skill |
+| `python-feature-developer` | `software-engineer` agent + `feature-development` skill (now language-agnostic) |
+| `frontend-code-reviewer` | `code-reviewer` agent + `templeton-frontend-style` skill |
+
+**Renamed agents:**
+
+| Old | New |
+|---|---|
+| `plan-to-beads` (agent) | `project-manager` (the `plan-to-beads` *skill* now holds the workflow) |
+| `research-ingest` (agent) | `research-librarian` (the `research-ingest` *skill* now holds the workflow) |
+
+**Renamed commands:**
+
+| Old | New |
+|---|---|
+| `/review-plan` | `/plan-review` (matches the existing `plan-review` skill) |
+
+**For installed users:** run `/plugin update` (or reinstall) to pick up the changes. Active sessions referencing old agent names by `subagent_type` (via the Task tool) will fail until restart; the slash commands all still work the same way from the user's perspective.
+
+**For scripts that reference agent names directly:** update your `subagent_type` calls per the tables above. There is no compatibility shim.
+
 ## License
 
 MIT License
