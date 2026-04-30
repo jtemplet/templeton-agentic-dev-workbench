@@ -239,11 +239,11 @@ git diff main...HEAD  # See changes to be reviewed
 
 **Pipeline A - Business Planning:**
 
-`/business-ideas` → pick an idea → `/plan-feature <idea>` → `/review-plan docs/plans/...` → `/plan-to-beads docs/plans/...`
+`/business-ideas` → pick an idea → `/plan-feature <idea>` → `/plan-review docs/plans/...` → `/plan-to-beads docs/plans/...`
 
 - **Business Ideas:** Analyzes the project's business model, generates 15 revenue-focused candidates, critically evaluates, presents top 10
 - **Plan Feature:** Explores the codebase, drafts a structured implementation plan, writes to `docs/plans/feature-plan-<name>.md`
-- **Review Plan:** Evaluates the plan across 6 dimensions (completeness, feasibility, scope, risks, dependencies, actionability), renders a verdict
+- **Plan Review:** Evaluates the plan across 6 dimensions (completeness, feasibility, scope, risks, dependencies, actionability), renders a verdict
 - **Plan to Beads:** Decomposes the plan into `br` issues with dependency graph, confirms with user before creating
 
 **Pipeline B - Code Quality:**
@@ -288,6 +288,8 @@ git diff main...HEAD  # See changes to be reviewed
 - `code-simplify` - Language-agnostic simplification workflow that loads the matching language style skill
 - `fresh-eyes-review` - Bug-and-correctness pass over recently changed code, fixes issues directly
 - `feature-development` - 4-phase guided implementation (discovery, implementation, simplification, linting), language-agnostic
+- `plan-to-beads` - Decompose a feature plan into br (beads_rust) issues with dependencies
+- `research-ingest` - Ingest a new source into the Research wiki, with study quality assessment and cross-referencing
 
 **Registered Agents:**
 
@@ -295,10 +297,10 @@ git diff main...HEAD  # See changes to be reviewed
 - `software-engineer` - Editing role for code work (simplify, fix bugs, implement features); routes to the right skill based on user intent
 - `claude-md-reviewer` - CLAUDE.md optimization with quantitative scoring
 - `feature-planner` - Generates detailed implementation plans written to docs/plans/
-- `plan-to-beads` - Decomposes feature plans into br issues with dependencies
+- `project-manager` - Decomposes feature plans into br issues with dependencies (uses `plan-to-beads` skill)
 - `diagnostician` - Investigates bugs thoroughly before any fix is attempted
 - `product-analyst` - Objective product analysis (features, pricing, competitors, pain points, market capture)
-- `research-ingest` - Ingests new sources into the Research wiki — reads, discusses key points, generates summaries, creates entity/concept pages, updates index and log
+- `research-librarian` - Ingests new sources into the Research wiki, reads, discusses key points, generates summaries, creates entity/concept pages, updates index and log (uses `research-ingest` skill)
 - `ux-product-designer` - Senior product designer that conducts a UX audit of a running web app via Playwright, grounded in AGENTS.md context, and produces a severity-ranked report across 7 design dimensions
 - `ux-product-designer-ios` - Senior product designer that conducts a UX audit of an iOS app in the Simulator via xcrun simctl, tests Dynamic Type / Dark Mode / accessibility settings, and produces a severity-ranked report against Apple HIG standards
 
@@ -317,7 +319,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `/adr` - Record an architectural decision
 - `/business-ideas` - Analyze business model, surface 10 revenue-focused feature ideas
 - `/plan-feature` - Generate a detailed implementation plan for a feature
-- `/review-plan` - Fresh-eyes review of a feature plan
+- `/plan-review` - Fresh-eyes review of a feature plan
 - `/plan-to-beads` - Decompose a feature plan into br issues with dependencies
 - `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan

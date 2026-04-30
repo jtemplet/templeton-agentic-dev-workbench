@@ -16,13 +16,13 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 
 ### Pipeline A — Business Planning
 
-`/business-ideas` → `/plan-feature <idea>` → `/review-plan` → `/plan-to-beads`
+`/business-ideas` → `/plan-feature <idea>` → `/plan-review` → `/plan-to-beads`
 
 | Command | What it does |
 |---|---|
 | `/business-ideas` | Analyze business model, surface 10 revenue-focused feature ideas |
 | `/plan-feature <idea>` | Explore codebase, draft structured plan to `docs/plans/` |
-| `/review-plan <path>` | Evaluate plan across 6 dimensions, render verdict |
+| `/plan-review <path>` | Evaluate plan across 6 dimensions, render verdict |
 | `/plan-to-beads <path>` | Decompose plan into `br` issues with dependency graph |
 
 ### Pipeline B — Code Quality
@@ -111,6 +111,8 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill |
 | `fresh-eyes-review` | Bug-and-correctness pass over recently changed code, fixes issues directly |
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
+| `plan-to-beads` | Decompose a feature plan into `br` issues with dependency graph |
+| `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing |
 
 ## Agents
 
@@ -120,10 +122,10 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `software-engineer` | Editing role for code work; routes to code-simplify, fresh-eyes-review, or feature-development based on intent |
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
 | `feature-planner` | Explores codebase, drafts structured plans to `docs/plans/` |
-| `plan-to-beads` | Decomposes plans into `br` issues with dependency graph |
+| `project-manager` | Decomposes plans into `br` issues with dependency graph (uses `plan-to-beads` skill) |
 | `diagnostician` | Read-only investigation — evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
-| `research-ingest` | Ingests sources into Research wiki: reads, discusses, generates summaries and entity/concept pages |
+| `research-librarian` | Ingests sources into Research wiki: reads, assesses study quality, generates summaries and entity/concept pages (uses `research-ingest` skill) |
 | `ux-product-designer` | UX audit of a web app via Playwright, 7-dimension evaluation with severity-ranked report |
 | `ux-product-designer-ios` | UX audit of an iOS app via Simulator, tests Dynamic Type / Dark Mode / accessibility, 7-dimension evaluation against Apple HIG |
 
