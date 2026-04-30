@@ -54,6 +54,12 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `/ux-audit <app-url>` | Playwright-driven UX audit of a web app, evaluates 7 dimensions (accessibility, design system, IA, interaction, content, emotional design, cognitive load), report saved to `docs/ux-audits/` |
 | `/ux-audit-ios <app-name>` | iOS Simulator UX audit via `xcrun simctl`, tests Dynamic Type / Dark Mode / accessibility settings, evaluates same 7 dimensions against Apple HIG, report saved to `docs/ux-audits/` |
 
+### App Store Optimization
+
+| Command | What it does |
+|---|---|
+| `/aso-audit [app-id]` | ASO health audit across 10 weighted factors (title, subtitle, keyword field, description, screenshots, preview video, ratings, icon, keyword rankings, conversion signals), produces an ASO Score Card and prioritized action plan, report saved to `docs/aso-audits/` |
+
 ## Commands
 
 ### Code Review
@@ -99,6 +105,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `architecture-decision-record` | ADR format with context, options, and rationale |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis |
 | `plan-review` | 6-dimension plan evaluation (completeness, feasibility, scope, risks, deps, actionability) |
+| `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan |
 
 ## Agents
 

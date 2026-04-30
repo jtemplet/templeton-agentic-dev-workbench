@@ -280,6 +280,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `architecture-decision-record` - Record decisions with context, options, and rationale
 - `business-ideas` - Analyze business model and surface 10 revenue-focused feature ideas
 - `plan-review` - Fresh-eyes plan review for completeness, feasibility, and gaps
+- `aso-audit` - App Store Optimization audit across 10 weighted factors with ASO Score Card and prioritized action plan
 
 **Registered Agents:**
 
@@ -321,6 +322,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `/research-ingest` - Ingest a new source into the Research wiki
 - `/ux-audit` - Conduct a UX audit of a running web app (Playwright-driven), report saved to `docs/ux-audits/`
 - `/ux-audit-ios` - Conduct a UX audit of an iOS app in the Simulator (xcrun simctl-driven), report saved to `docs/ux-audits/`
+- `/aso-audit` - App Store Optimization audit across 10 weighted factors with ASO Score Card and prioritized action plan, report saved to `docs/aso-audits/`
 
 ## Key Design Principles
 
