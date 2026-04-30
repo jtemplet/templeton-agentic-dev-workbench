@@ -95,7 +95,7 @@ Before discussing with the user, evaluate the methodological rigor and potential
 
 Produce a short verdict using this format:
 
-```
+```text
 Validity: [High / Moderate / Low / Unclear]
 - Study design: [type + rating]
 - Sample: [n=X, rating]
@@ -125,6 +125,7 @@ Present a structured briefing:
 ### Study Quality Assessment
 
 **Validity:** [High / Moderate / Low / Unclear]
+
 - **Study design:** [type + rating]
 - **Sample:** [n=X, rating]
 - **Blinding:** [type or none]

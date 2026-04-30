@@ -17,6 +17,7 @@ The skill will:
 6. Write a severity-ranked report to `docs/ux-audits/<YYYY-MM-DD>-<app>.md` with screenshots under `docs/ux-audits/<slug>/screenshots/`
 
 **Prerequisites:**
+
 - iOS Simulator must be booted with the target app running
 - Boot a simulator: `xcrun simctl boot <device-id>` or launch from Xcode
 

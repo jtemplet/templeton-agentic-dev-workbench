@@ -19,7 +19,7 @@ The skill will:
 
 **Usage examples:**
 
-```
+```text
 /research-ingest
 /research-ingest Research/sources/attention-is-all-you-need.pdf
 /research-ingest Research/sources/scaling-laws-for-neural-lms.md

@@ -144,6 +144,7 @@ The skill explicitly delegates to style skills rather than restating their rules
 5. Update `AGENTS.md`, `README.md`, `docs/AGENTS.md`.
 
 **Verification:**
+
 - `/fresh-eyes-cr` on a small uncommitted change - confirm it loads `fresh-eyes-review` and edits files.
 - `/python-feature-dev "add a CLI argument parser"` - confirm 4-phase workflow runs.
 - `/frontend-code-review` on a frontend file change - confirm it routes through `code-reviewer` and uses `templeton-frontend-style`.
@@ -161,6 +162,7 @@ The skill explicitly delegates to style skills rather than restating their rules
 5. Update `AGENTS.md`, `README.md`, `docs/AGENTS.md`.
 
 **Verification:**
+
 - `/plan-to-beads docs/plans/<existing-plan>.md` - confirm it decomposes into `br` issues.
 - `/research-ingest` - confirm it processes a source from `Research/sources/`.
 - `/plan-review docs/plans/agent-naming-consolidation.md` - confirm the rename works and the skill loads.

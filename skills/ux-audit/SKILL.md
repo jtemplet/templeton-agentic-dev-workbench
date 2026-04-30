@@ -103,6 +103,7 @@ Test at three breakpoints minimum:
 3. Mobile: `browser_resize` to ~390x844
 
 For each:
+
 - Screenshot the landing page and the most critical screen of the primary flow
 - Assess: what adapts, what collapses, what disappears, what breaks?
 - Note touch target sizing (minimum 44x44 CSS pixels per WCAG 2.5.8)
@@ -111,6 +112,7 @@ For each:
 **2f. Console and network**
 
 Capture `browser_console_messages` and `browser_network_requests`. Flag:
+
 - JavaScript errors visible to the user (broken interactions)
 - Failed network requests (missing images, broken API calls)
 - Mixed content warnings
@@ -219,6 +221,7 @@ Save to `docs/ux-audits/<slug>.md`. Reference screenshots with relative paths (e
 ## 2. Five-Second Test
 
 What the landing page communicates before any interaction:
+
 - **Can I tell what this does?** Yes/No + explanation
 - **Is the primary action obvious?** Yes/No + explanation
 - **What emotion does this evoke?** <describe>
@@ -238,6 +241,7 @@ For each issue:
 (Group by severity: Critical, High, Medium, Low. Within each, order by impact on the primary workflow.)
 
 **Severity definitions:**
+
 - **Critical:** Blocks the primary workflow, breaks trust, or excludes users (accessibility failure)
 - **High:** Significantly degrades the experience or causes measurable confusion/abandonment
 - **Medium:** Noticeable friction that doesn't block completion but erodes quality
@@ -259,6 +263,7 @@ Rate each dimension on a 5-point scale with brief justification:
 | **Overall** | **/5** | |
 
 **Scoring guide:**
+
 - 5: Exceptional, sets the standard (Apple, Stripe level)
 - 4: Strong, minor polish needed
 - 3: Adequate, noticeable gaps but functional
@@ -304,6 +309,7 @@ For each, tie to a specific issue from section 3:
 ## 8. Quick Wins
 
 Bulleted list of high-impact, low-effort changes. Each must:
+
 - Name the specific element or screen
 - Describe the exact change
 - Explain the expected improvement
@@ -313,6 +319,7 @@ These should be concrete enough for a developer to implement without further des
 ## 9. Strategic Observations
 
 Optional but valuable. 1 to 3 paragraphs on higher-level patterns:
+
 - Is the product trying to do too many things?
 - Is there a fundamental IA or conceptual problem?
 - What would the Apple / Airbnb / Stripe version of this product prioritize differently?
@@ -331,6 +338,7 @@ Report the file path back to the user.
 ## Critical Rules
 
 **Always:**
+
 - Read AGENTS.md before evaluating. Context is non-negotiable.
 - Form a design hypothesis before evaluating. Without one, findings lack a frame.
 - Evaluate all seven dimensions explicitly. Partial audits are rejected.
@@ -345,6 +353,7 @@ Report the file path back to the user.
 - Close the browser when done.
 
 **Never:**
+
 - Evaluate the app in a vacuum. If context is missing, ask.
 - Give generic advice ("improve the UX", "make it more intuitive", "consider accessibility").
 - Recommend additions when removing or simplifying would solve the problem.

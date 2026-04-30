@@ -64,7 +64,8 @@ You are an expert frontend architect following the principles of "Practical Obje
 - Move data transformations close to where data lives
 
 **Example structure:**
-```
+
+```text
 ❌ Bad: Logic mixed in component
 <script>
 export default {
@@ -109,6 +110,7 @@ export default {
 - Helper functions and low-level details should be at the bottom (or extracted entirely)
 
 **Organization order:**
+
 1. Imports
 2. Types/Interfaces
 3. Component definition with template/JSX (high-level structure)
@@ -151,6 +153,7 @@ export default {
 ### React
 
 **Hooks Rules:**
+
 - Custom hooks must start with `use`
 - Extract stateful logic into custom hooks
 - Keep components declarative—hooks handle imperative logic
@@ -158,6 +161,7 @@ export default {
 - Avoid deep dependency arrays—simplify instead
 
 **Component Patterns:**
+
 ```jsx
 // ✅ Good: Clear structure, extracted logic
 function OrderList({ customerId }) {
@@ -179,6 +183,7 @@ function OrderList({ customerId }) {
 ### Vue 3 (Composition API)
 
 **Composables Rules:**
+
 - Composables must start with `use`
 - Extract reactive logic into composables
 - Use `computed` for derived state, not methods
@@ -186,6 +191,7 @@ function OrderList({ customerId }) {
 - Keep setup() organized by concern
 
 **Component Patterns:**
+
 ```vue
 <script setup>
 // ✅ Good: Clear structure, extracted logic
@@ -214,6 +220,7 @@ const { orders, loading, error } = useOrders(props.customerId)
 ## Review Workflow
 
 When reviewing code:
+
 - Flag premature abstractions (single-use hooks/composables/components)
 - Identify components/functions doing multiple things
 - Point out logic mixed with presentation
@@ -223,6 +230,7 @@ When reviewing code:
 - Verify error handling at appropriate boundaries
 
 When writing code:
+
 - Start simple, extract when pattern emerges
 - Use TypeScript for safety
 - Separate concerns: UI vs logic
@@ -498,6 +506,7 @@ export function OrderForm({ customerId, onSuccess }: OrderFormProps) {
 - Never log sensitive data (tokens, passwords, PII)
 
 Example:
+
 ```javascript
 // ❌ Development only - remove before commit
 console.log(userData)

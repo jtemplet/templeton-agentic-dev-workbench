@@ -86,11 +86,14 @@ Output a structured summary:
 #### Change 1: [Short title]
 
 **Before:**
+
 ```[lang]
 [before code]
 ```
+```
 
 **After:**
+
 ```[lang]
 [after code]
 ```
@@ -102,7 +105,8 @@ Output a structured summary:
 - [ ] All tests pass
 - [ ] Behavior unchanged
 - [ ] [Other relevant checks]
-```
+
+```text
 
 ## Universal Simplification Principles
 

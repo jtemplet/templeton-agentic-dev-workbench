@@ -148,6 +148,7 @@ For each configuration, capture the primary screen and the most critical screen 
 **2e. Device size evaluation**
 
 If time permits and the user can switch simulators, request screenshots from:
+
 - iPhone SE (small: 375x667) - does the layout compress gracefully?
 - iPhone 16 Pro Max (large: 430x932) - is the extra space used well or just padded?
 - iPad (if applicable) - does the app use split view, sidebars, or just scale up the phone layout?
@@ -157,6 +158,7 @@ If switching simulators is impractical, note it as a limitation and evaluate bas
 **2f. System integration checks**
 
 Ask the user to verify (or capture evidence of):
+
 - Permission request dialogs: when do they appear? Is there a pre-permission screen explaining why?
 - Notification appearance (if applicable)
 - Share sheet integration (if applicable)
@@ -269,6 +271,7 @@ Save to `docs/ux-audits/<slug>.md`. Reference screenshots with relative paths (e
 ## 2. First Impression
 
 What the landing screen communicates before any interaction:
+
 - **Can I tell what this does?** Yes/No + explanation
 - **Is the primary action obvious?** Yes/No + explanation
 - **Does it feel native?** Yes/No + explanation (system components, navigation patterns, platform conventions)
@@ -290,6 +293,7 @@ For each issue:
 (Group by severity: Critical, High, Medium, Low. Within each, order by impact on the primary workflow.)
 
 **Severity definitions:**
+
 - **Critical:** Blocks the primary workflow, breaks trust, or excludes users (accessibility failure, data loss risk)
 - **High:** Significantly degrades the experience or violates core HIG principles in a way users will notice
 - **Medium:** Noticeable friction that doesn't block completion but erodes perceived quality
@@ -311,6 +315,7 @@ Rate each dimension on a 5-point scale with brief justification:
 | **Overall** | **/5** | |
 
 **Scoring guide:**
+
 - 5: Apple-quality. Could be featured in an HIG case study
 - 4: Strong, minor polish needed
 - 3: Adequate, noticeable gaps but functional
@@ -333,25 +338,30 @@ This section is mandatory and must be substantive. For each key screen:
 Dedicated section documenting how the app responds to system accessibility settings:
 
 ### Dynamic Type
+
 - **Default size:** <observations>
 - **Extra Large:** <observations, screenshot reference>
 - **Accessibility XXXL:** <observations, screenshot reference>
 - **Verdict:** full support / partial support / broken
 
 ### Dark Mode
+
 - **Observations:** <what adapts, what doesn't>
 - **Screenshot:** <reference>
 - **Verdict:** full support / partial / hardcoded colors found
 
 ### Bold Text / Increased Contrast
+
 - **Observations:** <does the app respond?>
 - **Verdict:** supported / not supported
 
 ### Touch Targets
+
 - **Minimum observed:** <estimate in points>
 - **Problem areas:** <specific elements below 44pt>
 
 ### Dark Pattern Check
+
 - **Result:** clean / issues found
 - **Details:** <if issues found>
 
@@ -370,6 +380,7 @@ For each, tie to a specific issue from section 3:
 ## 8. Quick Wins
 
 Bulleted list of high-impact, low-effort changes. Each must:
+
 - Name the specific screen or element
 - Describe the exact change
 - Explain the expected improvement
@@ -379,6 +390,7 @@ These should be concrete enough for a developer to implement without further des
 ## 9. Strategic Observations
 
 Optional but valuable. 1 to 3 paragraphs on higher-level patterns:
+
 - Is the app fighting the platform or embracing it?
 - Is there a fundamental navigation or conceptual problem?
 - What would Apple's design team do differently?
@@ -388,6 +400,7 @@ Optional but valuable. 1 to 3 paragraphs on higher-level patterns:
 ## 10. Untested Areas
 
 List anything that could not be tested in this session:
+
 - States that couldn't be triggered
 - Features that require real data or accounts
 - Haptic feedback (not verifiable from screenshots)
@@ -409,6 +422,7 @@ Report the file path back to the user.
 ## Critical Rules
 
 **Always:**
+
 - Read AGENTS.md before evaluating. Context is non-negotiable.
 - Form a design hypothesis before evaluating. Without one, findings lack a frame.
 - Evaluate all seven dimensions explicitly. Partial audits are rejected.
@@ -425,6 +439,7 @@ Report the file path back to the user.
 - Reset simulator appearance settings when done.
 
 **Never:**
+
 - Evaluate the app in a vacuum. If context is missing, ask.
 - Give generic advice ("improve the UX", "make it more intuitive", "follow HIG").
 - Recommend additions when removing or simplifying would solve the problem.
