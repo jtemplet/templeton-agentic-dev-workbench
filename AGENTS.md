@@ -251,6 +251,12 @@ git diff main...HEAD  # See changes to be reviewed
 - **Fresh Eyes CR:** Auto-detects changed files, reads full files for context, finds and fixes bugs directly
 - **Quality Gates:** Runs tests, linting, type checks, documentation freshness, and security scan with pass/fail/skip per gate
 
+**Pipeline C - Workflow Optimization:**
+
+`/workflow-audit` → implement top changes → `/quality-gates`
+
+- **Workflow Audit:** Reads 20+ recent session transcripts, compares agent config against actual behavior, classifies friction by root cause, produces a ranked report at `docs/retro-<YYYY-MM-DD>.md` with copy-paste ready fixes and `br create` tickets for the top 3 items
+
 ### Multi-Language Reviews
 
 **Auto-Detecting Review:** Use `/code-review` or the `code-reviewer` agent
@@ -296,6 +302,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `research-ingest` - Ingests new sources into the Research wiki — reads, discusses key points, generates summaries, creates entity/concept pages, updates index and log
 - `ux-product-designer` - Senior product designer that conducts a UX audit of a running web app via Playwright, grounded in AGENTS.md context, and produces a severity-ranked report across 7 design dimensions
 - `ux-product-designer-ios` - Senior product designer that conducts a UX audit of an iOS app in the Simulator via xcrun simctl, tests Dynamic Type / Dark Mode / accessibility settings, and produces a severity-ranked report against Apple HIG standards
+- `workflow-auditor` - Analyzes 20+ session transcripts, classifies friction patterns, produces ranked optimization report with copy-paste fixes and issue tickets
 
 **Registered Commands:**
 
@@ -321,6 +328,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `/research-ingest` - Ingest a new source into the Research wiki
 - `/ux-audit` - Conduct a UX audit of a running web app (Playwright-driven), report saved to `docs/ux-audits/`
 - `/ux-audit-ios` - Conduct a UX audit of an iOS app in the Simulator (xcrun simctl-driven), report saved to `docs/ux-audits/`
+- `/workflow-audit` - Conduct a workflow optimization audit of recent sessions, report saved to `docs/retro-<YYYY-MM-DD>.md`
 
 ## Key Design Principles
 
