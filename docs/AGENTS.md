@@ -38,25 +38,16 @@ Custom agents for agentic development workflows.
 
 ---
 
-### code-simplifier
+### software-engineer
 
-**Purpose:** Simplify Python and Ruby/Rails code while preserving functionality
+**Purpose:** Editing role for code work (simplify, fix bugs, implement features); routes to the appropriate skill based on user intent
 
-**Key Features:**
+**Skills it composes:**
 
-- Language-agnostic approach with language-specific style guides
-- Reduces complexity and improves clarity
-- Applies templeton-python-style or rails-conventions automatically
-
----
-
-### python-feature-developer
-
-**Purpose:** Guided Python feature development with Sandi Metz principles
-
-**Workflow:**
-
-1. Discovery → 2. Implementation → 3. Simplification → 4. Linting
+- `code-simplify` skill - Simplification across all supported languages
+- `fresh-eyes-review` skill - Bug-and-correctness pass on changed code
+- `feature-development` skill - 4-phase guided implementation (discovery, implementation, simplification, linting)
+- Loads the matching language style skill (`templeton-python-style`, `templeton-frontend-style`, `templeton-swift-style`, `rails-conventions`) automatically
 
 ---
 

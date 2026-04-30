@@ -33,7 +33,7 @@ For each **command**, check:
 
 ### 4. Frontmatter Consistency
 
-- Check that agent `name` fields match their filename (e.g., `code-simplifier.md` should have `name: code-simplifier`)
+- Check that agent `name` fields match their filename (e.g., `software-engineer.md` should have `name: software-engineer`)
 - Check that skill `name` fields match their directory name
 - Flag any missing required frontmatter fields
 

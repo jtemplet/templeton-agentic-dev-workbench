@@ -108,19 +108,19 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan |
 | `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report |
 | `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG |
+| `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill |
+| `fresh-eyes-review` | Bug-and-correctness pass over recently changed code, fixes issues directly |
+| `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
 
 ## Agents
 
 | Agent | Description |
 |---|---|
-| `code-reviewer` | Auto-detects languages, dispatches to correct review skill |
-| `code-simplifier` | Simplifies Python/Ruby code while preserving functionality |
-| `python-feature-developer` | Guided 4-phase Python feature development |
-| `frontend-code-reviewer` | Frontend code review (JS/TS/React/Vue) |
+| `code-reviewer` | Auto-detects languages, dispatches to correct review skill (read-only) |
+| `software-engineer` | Editing role for code work; routes to code-simplify, fresh-eyes-review, or feature-development based on intent |
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
 | `feature-planner` | Explores codebase, drafts structured plans to `docs/plans/` |
 | `plan-to-beads` | Decomposes plans into `br` issues with dependency graph |
-| `fresh-eyes-reviewer` | Reviews changed code for bugs, fixes them directly |
 | `diagnostician` | Read-only investigation — evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
 | `research-ingest` | Ingests sources into Research wiki: reads, discusses, generates summaries and entity/concept pages |

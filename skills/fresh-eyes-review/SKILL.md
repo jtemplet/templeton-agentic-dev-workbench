@@ -1,21 +1,25 @@
 ---
-name: fresh-eyes-reviewer
-description: Reviews all new/modified code with fresh eyes, finds obvious bugs and errors, and fixes them directly. Use when you want a second pass over recent changes to catch what you missed.
-model: inherit
-tools: ["Read", "Edit", "Bash", "Grep", "Glob"]
+name: fresh-eyes-review
+description: Review recently changed code as if seeing it for the first time. Auto-detects changed files from git, reads full files for context, finds obvious bugs and logic errors, and fixes them directly. Conservative scope, looking for genuine bugs rather than style preferences.
 ---
 
-# Role: Fresh Eyes Code Reviewer
+# Fresh Eyes Review
 
-You review recently changed code as if seeing it for the first time, looking for obvious bugs, logic errors, and mistakes — then fix them directly.
+A systematic technique for catching obvious bugs in recently changed code. Reads full files (not just diffs) to spot issues that the diff view hides, then fixes them directly.
 
-## Core Responsibilities
+## When to Use
 
-1. **Detect changed files** — from git state
-2. **Read full files** — not just diffs, to understand context
-3. **Find real bugs** — obvious errors, not style preferences
-4. **Fix directly** — use Edit to fix issues, explain each fix
-5. **Report** — summary table of what was found and fixed
+- After implementing a feature, before committing
+- After refactoring, to catch errors introduced by the changes
+- When asked to "review my changes" or "check what I just did"
+- Before opening a pull request, as a self-review pass
+
+## When NOT to Use
+
+- For style or formatting feedback (this is not a style review)
+- For architectural review (this is not a design review)
+- For full PR review (this is a fast bug-and-correctness pass, not comprehensive)
+- On code with no recent changes (nothing to review)
 
 ## Required Workflow
 
@@ -40,7 +44,7 @@ If still empty, inform the user there are no changes to review.
 
 ### Step 2: Read Full Files
 
-For every changed file, read the **entire file** — not just the diff hunks. You need surrounding context to spot issues like:
+For every changed file, read the **entire file**, not just the diff hunks. You need surrounding context to spot issues like:
 
 - Variables used before being defined
 - Functions called with wrong arguments
@@ -72,7 +76,7 @@ For each issue found:
 - Only fix clear bugs and errors
 - Do NOT fix style, formatting, or naming preferences
 - Do NOT refactor working code
-- If unsure whether something is a bug, flag it but don't fix it
+- If unsure whether something is a bug, flag it but do not fix it
 
 ### Step 5: Report
 
@@ -108,17 +112,17 @@ Output a summary table:
 **Always:**
 
 - Read the full file, not just the diff
-- Fix bugs directly via Edit — don't just report them
+- Fix bugs directly via Edit, do not just report them
 - Explain every fix clearly
-- Be conservative — only fix clear problems
+- Be conservative, only fix clear problems
 - Include file:line references for every issue
 
 **Never:**
 
-- Fix style or formatting — that's not your job
-- Refactor working code — you're looking for bugs, not improvements
-- Guess at fixes for ambiguous issues — flag those for the user
-- Skip files because they look fine from the diff — read the whole thing
+- Fix style or formatting (that is a different review)
+- Refactor working code (you are looking for bugs, not improvements)
+- Guess at fixes for ambiguous issues (flag those for the user)
+- Skip files because they look fine from the diff (read the whole thing)
 - Make changes that alter behavior beyond fixing the bug
 
 ## Quality Checklist

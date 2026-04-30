@@ -145,15 +145,16 @@ description: One-line description
 - Checks PEP 8 and Google Python Style Guide compliance
 - Reviews security, performance, and maintainability
 
-**Feature Development:** Use the `python-feature-developer` agent
+**Feature Development:** Use `/python-feature-dev` or the `software-engineer` agent + `feature-development` skill
 
-- Follows Sandi Metz principles via `templeton-python-style` skill
-- 4-phase workflow: discovery → implementation → simplification → linting
+- 4-phase workflow: discovery, implementation, simplification, linting
+- Loads `templeton-python-style` for Python file style decisions
+- Runs `ruff` for linting
 
-**Code Simplification:** Use the `code-simplifier` agent
+**Code Simplification:** Use the `software-engineer` agent + `code-simplify` skill
 
-- Works with both Python and Ruby/Rails
-- Applies language-specific style guides automatically
+- Works across Python, Ruby/Rails, Frontend, Swift
+- Loads the matching language style skill automatically
 - Reduces complexity while preserving functionality
 
 ### Rails Development
@@ -195,9 +196,10 @@ git diff main...HEAD  # See changes to be reviewed
 
 ### Frontend Development
 
-**Code Review:** Use `/frontend-code-review` or the `frontend-code-reviewer` agent
+**Code Review:** Use `/frontend-code-review` (frontend-scoped shortcut for `/code-review`)
 
-- JavaScript/TypeScript, React, and Vue code reviews
+- Loads the `templeton-frontend-style` skill from the `code-reviewer` agent
+- JavaScript/TypeScript, React, and Vue code reviews (read-only)
 - Sandi Metz principles adapted for frontend
 - Focuses on separation of concerns (logic vs presentation)
 - Checks component design, TypeScript usage, and modern patterns
@@ -283,17 +285,17 @@ git diff main...HEAD  # See changes to be reviewed
 - `aso-audit` - App Store Optimization audit across 10 weighted factors with ASO Score Card and prioritized action plan
 - `ux-audit` - Web UX audit via Playwright across 7 design dimensions with severity-ranked report
 - `ux-audit-ios` - iOS UX audit via Simulator with Dynamic Type / Dark Mode / Bold Text testing against Apple HIG
+- `code-simplify` - Language-agnostic simplification workflow that loads the matching language style skill
+- `fresh-eyes-review` - Bug-and-correctness pass over recently changed code, fixes issues directly
+- `feature-development` - 4-phase guided implementation (discovery, implementation, simplification, linting), language-agnostic
 
 **Registered Agents:**
 
-- `code-reviewer` - Auto-detecting code review (dispatches to correct skill per language)
-- `code-simplifier` - Language-agnostic code simplification (Python & Ruby/Rails)
-- `python-feature-developer` - Guided Python feature development
-- `frontend-code-reviewer` - Comprehensive frontend code review (JS/TS/React/Vue)
+- `code-reviewer` - Auto-detecting code review (dispatches to correct skill per language); read-only role
+- `software-engineer` - Editing role for code work (simplify, fix bugs, implement features); routes to the right skill based on user intent
 - `claude-md-reviewer` - CLAUDE.md optimization with quantitative scoring
 - `feature-planner` - Generates detailed implementation plans written to docs/plans/
 - `plan-to-beads` - Decomposes feature plans into br issues with dependencies
-- `fresh-eyes-reviewer` - Reviews and fixes code with fresh eyes
 - `diagnostician` - Investigates bugs thoroughly before any fix is attempted
 - `product-analyst` - Objective product analysis (features, pricing, competitors, pain points, market capture)
 - `research-ingest` - Ingests new sources into the Research wiki — reads, discusses key points, generates summaries, creates entity/concept pages, updates index and log
