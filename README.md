@@ -106,6 +106,8 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis |
 | `plan-review` | 6-dimension plan evaluation (completeness, feasibility, scope, risks, deps, actionability) |
 | `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan |
+| `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report |
+| `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG |
 
 ## Agents
 

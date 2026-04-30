@@ -281,6 +281,8 @@ git diff main...HEAD  # See changes to be reviewed
 - `business-ideas` - Analyze business model and surface 10 revenue-focused feature ideas
 - `plan-review` - Fresh-eyes plan review for completeness, feasibility, and gaps
 - `aso-audit` - App Store Optimization audit across 10 weighted factors with ASO Score Card and prioritized action plan
+- `ux-audit` - Web UX audit via Playwright across 7 design dimensions with severity-ranked report
+- `ux-audit-ios` - iOS UX audit via Simulator with Dynamic Type / Dark Mode / Bold Text testing against Apple HIG
 
 **Registered Agents:**
 
