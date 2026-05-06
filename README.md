@@ -40,6 +40,18 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 |---|---|
 | `/diagnose <bug>` | Investigate thoroughly before fixing — gather evidence, test hypotheses, present root cause |
 
+### Pipeline C — Product Strategy
+
+`/competitive-analysis` → `/product-research` → `/product-roadmap` → `/product-brief <feature>` → `/ab-test-design <hypothesis>`
+
+| Command | What it does |
+|---|---|
+| `/competitive-analysis` | Deep competitor teardown with positioning map, moat analysis, trajectory mapping, and feature gap analysis |
+| `/product-research` | Synthesize user signals by segment into ranked opportunities using JTBD, anti-jobs, and evidence-weighted scoring |
+| `/product-roadmap` | Prioritized roadmap with themes, capacity modeling, bet classification, and Now/Next/Later sequencing |
+| `/product-brief <feature>` | PM-to-engineering handoff: problem, success metrics, scope (MVP + full vision), acceptance criteria |
+| `/ab-test-design <hypothesis>` | Complete experiment spec with metrics, sample size, rollout plan, guardrails, and decision criteria |
+
 ### Product Research
 
 | Command | What it does |
@@ -113,6 +125,12 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
 | `plan-to-beads` | Decompose a feature plan into `br` issues with dependency graph |
 | `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing |
+| `competitive-analysis` | Competitor teardown with positioning map, moat analysis, trajectory, and feature gaps |
+| `ab-test-design` | A/B test design with hypothesis, metrics, sample size, rollout plan, and decision criteria |
+| `product-research` | User signal synthesis by segment using JTBD, anti-jobs, and evidence-weighted opportunity scoring |
+| `product-roadmap` | Roadmap with themes, capacity modeling, bet classification, and Now/Next/Later sequencing |
+| `product-brief` | PM-to-engineering handoff: problem, metrics, scope, acceptance criteria, experiment tie-in |
+| `agentic-clean-code` | Clean Code + POODR principles for agentic systems: tool design, prompt architecture, orchestration, naming, testability |
 
 ## Agents
 
@@ -128,6 +146,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `research-librarian` | Ingests sources into Research wiki: reads, assesses study quality, generates summaries and entity/concept pages (uses `research-ingest` skill) |
 | `ux-product-designer` | UX audit of a web app via Playwright, 7-dimension evaluation with severity-ranked report |
 | `ux-product-designer-ios` | UX audit of an iOS app via Simulator, tests Dynamic Type / Dark Mode / accessibility, 7-dimension evaluation against Apple HIG |
+| `product-manager` | Senior/Staff PM routing agent; dispatches to competitive-analysis, ab-test-design, product-research, product-roadmap, and product-brief skills |
 
 ## Architecture
 

@@ -221,6 +221,53 @@ git diff main...HEAD  # See changes to be reviewed
 - Checks for security and best practices
 - Validates resource configurations
 
+### Agentic Systems
+
+**Design & Review:** Use the `agentic-clean-code` skill
+
+- Clean Code (Uncle Bob) and POODR (Sandi Metz) principles transposed to the agentic context
+- Covers tool design (SRP, explicit contracts, idempotency, no surprise side effects)
+- Covers prompt architecture (small prompts, no implicit state, context objects)
+- Covers orchestration (separation of planning from execution, explicit agent boundaries, fail-loud error policies)
+- Includes a smell checklist for reviewing agents, tools, and prompts before ship
+
+### Product Management
+
+**Competitive Analysis:** Use `/competitive-analysis` or the `competitive-analysis` skill
+
+- Deep competitor teardown with positioning maps
+- Feature gap analysis (table-stakes, differentiation, over-investment)
+- Strategic recommendations with priority actions
+
+**A/B Test Design:** Use `/ab-test-design` or the `ab-test-design` skill
+
+- Complete experiment spec with hypothesis, metrics, sample size
+- Guardrails, stopping rules, and pre-registered analysis plan
+- Decision framework for every possible outcome
+
+**Product Research:** Use `/product-research` or the `product-research` skill
+
+- Synthesizes user signals into Jobs-to-Be-Done
+- Opportunity scoring (Importance + Importance - Satisfaction)
+- Ranked feature concepts with validation approaches
+
+**Product Roadmap:** Use `/product-roadmap` or the `product-roadmap` skill
+
+- Theme-based prioritization with ICE scoring
+- Now/Next/Later time horizons with dependencies
+- Explicit "not doing" list to prevent scope creep
+
+**Product Brief:** Use `/product-brief` or the `product-brief` skill
+
+- PM-to-engineering handoff document
+- Problem statement, success metrics, scope (MVP + full vision)
+- Acceptance criteria and experiment tie-in
+
+**Product Analysis:** Use `/product-analysis` or the `product-analyst` agent
+
+- Objective product analysis (features, pricing, competitors, pain points)
+- Market capture and positioning assessment
+
 ### Ideation & Planning
 
 **Idea Generation:** Use `/idea-wizard` or the `idea-wizard` skill
@@ -246,7 +293,17 @@ git diff main...HEAD  # See changes to be reviewed
 - **Plan Review:** Evaluates the plan across 6 dimensions (completeness, feasibility, scope, risks, dependencies, actionability), renders a verdict
 - **Plan to Beads:** Decomposes the plan into `br` issues with dependency graph, confirms with user before creating
 
-**Pipeline B - Code Quality:**
+**Pipeline B - Product Strategy:**
+
+`/competitive-analysis` → `/product-research` → `/product-roadmap` → `/product-brief <feature>` → `/ab-test-design <hypothesis>`
+
+- **Competitive Analysis:** Researches competitors, builds positioning map with moat analysis, identifies feature gaps and trajectory
+- **Product Research:** Synthesizes user signals by segment into Jobs-to-Be-Done, scores opportunities with evidence weighting
+- **Product Roadmap:** Prioritizes features into themes with capacity modeling, bet classification, and Now/Next/Later horizons
+- **Product Brief:** For a prioritized feature, writes the PM-to-engineering handoff with problem, metrics, scope, and acceptance criteria
+- **A/B Test Design:** For any feature hypothesis, produces a complete experiment spec with rollout plan
+
+**Pipeline C - Code Quality:**
 
 `/fresh-eyes-cr` → `/quality-gates`
 
@@ -290,6 +347,12 @@ git diff main...HEAD  # See changes to be reviewed
 - `feature-development` - 4-phase guided implementation (discovery, implementation, simplification, linting), language-agnostic
 - `plan-to-beads` - Decompose a feature plan into br (beads_rust) issues with dependencies
 - `research-ingest` - Ingest a new source into the Research wiki, with study quality assessment and cross-referencing
+- `competitive-analysis` - Deep competitor teardown with positioning map, moat analysis, trajectory mapping, and feature gap analysis
+- `ab-test-design` - Rigorous A/B test design with hypothesis, metrics, sample size, rollout plan, guardrails, and decision criteria
+- `product-research` - Synthesize user signals by segment into ranked opportunities using JTBD, anti-jobs, and evidence-weighted opportunity scoring
+- `product-roadmap` - Prioritized roadmap with themes, capacity modeling, bet classification, Now/Next/Later sequencing, and dependencies
+- `product-brief` - PM-to-engineering handoff with problem statement, success metrics, scope (MVP + full vision), acceptance criteria, and experiment tie-in
+- `agentic-clean-code` - Clean Code and POODR principles transposed to agentic systems (tool design, prompt architecture, orchestration, naming, testability) for designing or reviewing agents, tools, and prompts
 
 **Registered Agents:**
 
@@ -303,6 +366,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `research-librarian` - Ingests new sources into the Research wiki, reads, discusses key points, generates summaries, creates entity/concept pages, updates index and log (uses `research-ingest` skill)
 - `ux-product-designer` - Senior product designer that conducts a UX audit of a running web app via Playwright, grounded in AGENTS.md context, and produces a severity-ranked report across 7 design dimensions
 - `ux-product-designer-ios` - Senior product designer that conducts a UX audit of an iOS app in the Simulator via xcrun simctl, tests Dynamic Type / Dark Mode / accessibility settings, and produces a severity-ranked report against Apple HIG standards
+- `product-manager` - Senior/Staff PM who routes to competitive analysis, A/B test design, product research, and roadmap skills
 
 **Registered Commands:**
 
@@ -329,6 +393,11 @@ git diff main...HEAD  # See changes to be reviewed
 - `/ux-audit` - Conduct a UX audit of a running web app (Playwright-driven), report saved to `docs/ux-audits/`
 - `/ux-audit-ios` - Conduct a UX audit of an iOS app in the Simulator (xcrun simctl-driven), report saved to `docs/ux-audits/`
 - `/aso-audit` - App Store Optimization audit across 10 weighted factors with ASO Score Card and prioritized action plan, report saved to `docs/aso-audits/`
+- `/competitive-analysis` - Deep competitor analysis with positioning map, moat analysis, and gap analysis
+- `/ab-test-design` - Design a rigorous A/B test for a feature hypothesis
+- `/product-research` - Synthesize user signals into ranked product opportunities
+- `/product-roadmap` - Build a prioritized product roadmap with themes and sequencing
+- `/product-brief` - Write a product brief (PM-to-engineering handoff) for a feature
 
 ## Key Design Principles
 

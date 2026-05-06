@@ -503,6 +503,8 @@ module "example" {
 
 ```text
 
+```text
+
 ## Inputs
 
 | Name | Description | Type | Default | Required |
