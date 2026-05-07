@@ -163,7 +163,6 @@ Pair with `/loop` to run on a schedule:
 | `ux-product-designer` | UX audit of a web app via Playwright, 7-dimension evaluation with severity-ranked report |
 | `ux-product-designer-ios` | UX audit of an iOS app via Simulator, tests Dynamic Type / Dark Mode / accessibility, 7-dimension evaluation against Apple HIG |
 | `product-manager` | Senior/Staff PM routing agent; dispatches to competitive-analysis, ab-test-design, product-research, product-roadmap, and product-brief skills |
-| `pr-maintainer` | Keeps the current branch's PR rebased and green; detects the actual base branch, rebases with `--force-with-lease`, fixes CI within PR file scope; safe to run on a loop |
 
 ## Architecture
 

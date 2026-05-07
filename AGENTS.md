@@ -320,7 +320,7 @@ git diff main...HEAD  # See changes to be reviewed
 
 ### PR Maintenance
 
-**Keep a PR Green:** Use `/pr-maintain` or the `pr-maintainer` agent
+**Keep a PR Green:** Use `/pr-maintain` or the `pr-maintenance` skill directly
 
 - Detects the PR's actual base branch from GitHub (not hardcoded `origin/main`), so stacked PRs work
 - Rebases with `git push --force-with-lease` (never plain `--force`)
@@ -387,7 +387,6 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `ux-product-designer` - Senior product designer that conducts a UX audit of a running web app via Playwright, grounded in AGENTS.md context, and produces a severity-ranked report across 7 design dimensions
 - `ux-product-designer-ios` - Senior product designer that conducts a UX audit of an iOS app in the Simulator via xcrun simctl, tests Dynamic Type / Dark Mode / accessibility settings, and produces a severity-ranked report against Apple HIG standards
 - `product-manager` - Senior/Staff PM who routes to competitive analysis, A/B test design, product research, and roadmap skills
-- `pr-maintainer` - Keeps the current branch's PR rebased and green; detects the actual base branch, rebases with force-with-lease, fixes CI within PR file scope; safe to run on a loop
 
 **Registered Commands:**
 
