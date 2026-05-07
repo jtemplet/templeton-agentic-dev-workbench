@@ -318,6 +318,25 @@ git diff main...HEAD  # See changes to be reviewed
 - Dispatches to the correct skill per language
 - Produces a single consolidated review report
 
+### PR Maintenance
+
+**Keep a PR Green:** Use `/pr-maintain` or the `pr-maintainer` agent
+
+- Detects the PR's actual base branch from GitHub (not hardcoded `origin/main`), so stacked PRs work
+- Rebases with `git push --force-with-lease` (never plain `--force`)
+- AI-assisted conflict resolution with hard-stops on migrations, lockfiles, and secrets
+- Fixes failing required CI checks with edits scoped to files already in the PR diff
+- Never modifies test assertions in files that were not already in the PR diff (prevents masking real failures)
+- Idempotent per iteration, safe to run on a loop
+
+**Running on a loop:**
+
+```
+/loop 6h /pr-maintain
+```
+
+Each iteration reports rebase status, CI status, files touched, and any manual actions the user needs to take.
+
 ## Plugin Configuration
 
 ### Manifest File
@@ -353,6 +372,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `product-roadmap` - Prioritized roadmap with themes, capacity modeling, bet classification, Now/Next/Later sequencing, and dependencies
 - `product-brief` - PM-to-engineering handoff with problem statement, success metrics, scope (MVP + full vision), acceptance criteria, and experiment tie-in
 - `agentic-clean-code` - Clean Code and POODR principles transposed to agentic systems (tool design, prompt architecture, orchestration, naming, testability) for designing or reviewing agents, tools, and prompts
+- `pr-maintenance` - Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop
 
 **Registered Agents:**
 
@@ -367,6 +387,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `ux-product-designer` - Senior product designer that conducts a UX audit of a running web app via Playwright, grounded in AGENTS.md context, and produces a severity-ranked report across 7 design dimensions
 - `ux-product-designer-ios` - Senior product designer that conducts a UX audit of an iOS app in the Simulator via xcrun simctl, tests Dynamic Type / Dark Mode / accessibility settings, and produces a severity-ranked report against Apple HIG standards
 - `product-manager` - Senior/Staff PM who routes to competitive analysis, A/B test design, product research, and roadmap skills
+- `pr-maintainer` - Keeps the current branch's PR rebased and green; detects the actual base branch, rebases with force-with-lease, fixes CI within PR file scope; safe to run on a loop
 
 **Registered Commands:**
 
@@ -398,6 +419,7 @@ git diff main...HEAD  # See changes to be reviewed
 - `/product-research` - Synthesize user signals into ranked product opportunities
 - `/product-roadmap` - Build a prioritized product roadmap with themes and sequencing
 - `/product-brief` - Write a product brief (PM-to-engineering handoff) for a feature
+- `/pr-maintain` - Keep the current branch's PR rebased on its parent and passing CI; one iteration per invocation, safe to pair with `/loop`
 
 ## Key Design Principles
 

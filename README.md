@@ -38,7 +38,21 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 
 | Command | What it does |
 |---|---|
-| `/diagnose <bug>` | Investigate thoroughly before fixing — gather evidence, test hypotheses, present root cause |
+| `/diagnose <bug>` | Investigate thoroughly before fixing, gather evidence, test hypotheses, present root cause |
+
+### PR Maintenance
+
+Keep a long-lived PR rebased on its parent branch and green on CI. Detects the PR's actual base from GitHub (so stacked PRs work), rebases with `--force-with-lease`, and applies minimal CI fixes scoped to files already in the PR diff.
+
+| Command | What it does |
+|---|---|
+| `/pr-maintain` | One maintenance iteration: detect base branch, rebase, resolve conflicts, push with lease, diagnose and fix failing required CI checks, report |
+
+Pair with `/loop` to run on a schedule:
+
+```
+/loop 6h /pr-maintain
+```
 
 ### Pipeline C — Product Strategy
 
@@ -98,6 +112,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 
 | Command | Description |
 |---|---|
+| `/pr-maintain` | Keep the current branch's PR rebased on its parent and passing CI; safe to pair with `/loop` |
 | `/validate-plugin` | Check plugin integrity and cross-references |
 
 ## Skills
@@ -131,6 +146,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `product-roadmap` | Roadmap with themes, capacity modeling, bet classification, and Now/Next/Later sequencing |
 | `product-brief` | PM-to-engineering handoff: problem, metrics, scope, acceptance criteria, experiment tie-in |
 | `agentic-clean-code` | Clean Code + POODR principles for agentic systems: tool design, prompt architecture, orchestration, naming, testability |
+| `pr-maintenance` | Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop |
 
 ## Agents
 
@@ -147,6 +163,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `ux-product-designer` | UX audit of a web app via Playwright, 7-dimension evaluation with severity-ranked report |
 | `ux-product-designer-ios` | UX audit of an iOS app via Simulator, tests Dynamic Type / Dark Mode / accessibility, 7-dimension evaluation against Apple HIG |
 | `product-manager` | Senior/Staff PM routing agent; dispatches to competitive-analysis, ab-test-design, product-research, product-roadmap, and product-brief skills |
+| `pr-maintainer` | Keeps the current branch's PR rebased and green; detects the actual base branch, rebases with `--force-with-lease`, fixes CI within PR file scope; safe to run on a loop |
 
 ## Architecture
 
