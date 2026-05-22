@@ -10,10 +10,10 @@ The decomposition operates from the `project-manager` role: a project manager wh
 The skill will:
 
 1. Read the plan file (or search `docs/plans/` if no path given)
-2. Identify natural work units from milestones and components
+2. Identify natural work units, articulate Marr Levels 1 (Why) and 2 (How) for each, and audit every bead before presenting
 3. Map the dependency graph (preferring parallel tracks)
-4. **Present the full issue list and wait for your confirmation**
-5. Create issues with `br create`, wire dependencies with `br dep add`
+4. **Present the full issue list, including each bead's Why and How, and wait for your confirmation**
+5. Create issues with `br create -d <body>`, wire dependencies with `br dep add`
 6. Run `br sync --flush-only` and report the final state
 
 If no argument is provided, the skill will list available plans in `docs/plans/` and ask which to decompose.

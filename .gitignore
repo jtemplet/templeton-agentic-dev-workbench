@@ -34,3 +34,6 @@ temp/
 
 # Backup skills
 skills/rails-conventions-BAK/
+
+# Agent tool worktree isolation (ephemeral, local-only)
+.worktrees/

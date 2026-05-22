@@ -290,8 +290,8 @@ git diff main...HEAD  # See changes to be reviewed
 
 - **Business Ideas:** Analyzes the project's business model, generates 15 revenue-focused candidates, critically evaluates, presents top 10
 - **Plan Feature:** Explores the codebase, drafts a structured implementation plan, writes to `docs/plans/feature-plan-<name>.md`
-- **Plan Review:** Evaluates the plan across 6 dimensions (completeness, feasibility, scope, risks, dependencies, actionability), renders a verdict
-- **Plan to Beads:** Decomposes the plan into `br` issues with dependency graph, confirms with user before creating
+- **Plan Review:** Evaluates the plan across 7 dimensions (completeness, feasibility, scope, risks, dependencies, MECE, actionability), runs a MECE audit for overlaps and gaps, renders a verdict
+- **Plan to Beads:** Decomposes the plan into `br` issues with dependency graph, articulates Marr Levels 1 (Why) and 2 (How) per bead, audits each, then confirms with user before creating
 
 **Pipeline B - Product Strategy:**
 
@@ -357,14 +357,14 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `idea-wizard` - Generate 30 ideas, evaluate, distill to top 5
 - `architecture-decision-record` - Record decisions with context, options, and rationale
 - `business-ideas` - Analyze business model and surface 10 revenue-focused feature ideas
-- `plan-review` - Fresh-eyes plan review for completeness, feasibility, and gaps
+- `plan-review` - Fresh-eyes plan review for completeness, feasibility, MECE adherence, and gaps
 - `aso-audit` - App Store Optimization audit across 10 weighted factors with ASO Score Card and prioritized action plan
 - `ux-audit` - Web UX audit via Playwright across 7 design dimensions with severity-ranked report
 - `ux-audit-ios` - iOS UX audit via Simulator with Dynamic Type / Dark Mode / Bold Text testing against Apple HIG
 - `code-simplify` - Language-agnostic simplification workflow that loads the matching language style skill
 - `fresh-eyes-review` - Bug-and-correctness pass over recently changed code, fixes issues directly
 - `feature-development` - 4-phase guided implementation (discovery, implementation, simplification, linting), language-agnostic
-- `plan-to-beads` - Decompose a feature plan into br (beads_rust) issues with dependencies
+- `plan-to-beads` - Decompose a feature plan into br (beads_rust) issues with dependencies, auditing each bead against Marr Levels 1 (Why) and 2 (How) before creation
 - `research-ingest` - Ingest a new source into the Research wiki, with study quality assessment and cross-referencing
 - `competitive-analysis` - Deep competitor teardown with positioning map, moat analysis, trajectory mapping, and feature gap analysis
 - `ab-test-design` - Rigorous A/B test design with hypothesis, metrics, sample size, rollout plan, guardrails, and decision criteria
@@ -380,7 +380,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `software-engineer` - Editing role for code work (simplify, fix bugs, implement features); routes to the right skill based on user intent
 - `claude-md-reviewer` - CLAUDE.md optimization with quantitative scoring
 - `feature-planner` - Generates detailed implementation plans written to docs/plans/
-- `project-manager` - Decomposes feature plans into br issues with dependencies (uses `plan-to-beads` skill)
+- `project-manager` - Decomposes feature plans into br issues with dependencies, ensuring each bead carries Marr Levels 1 and 2 (uses `plan-to-beads` skill)
 - `diagnostician` - Investigates bugs thoroughly before any fix is attempted
 - `product-analyst` - Objective product analysis (features, pricing, competitors, pain points, market capture)
 - `research-librarian` - Ingests new sources into the Research wiki, reads, discusses key points, generates summaries, creates entity/concept pages, updates index and log (uses `research-ingest` skill)
@@ -404,7 +404,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/business-ideas` - Analyze business model, surface 10 revenue-focused feature ideas
 - `/plan-feature` - Generate a detailed implementation plan for a feature
 - `/plan-review` - Fresh-eyes review of a feature plan
-- `/plan-to-beads` - Decompose a feature plan into br issues with dependencies
+- `/plan-to-beads` - Decompose a feature plan into br issues with dependencies, with a Marr Levels 1-2 audit on each bead
 - `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan
 - `/diagnose` - Investigate a bug thoroughly before attempting any fix
