@@ -22,7 +22,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 |---|---|
 | `/business-ideas` | Analyze business model, surface 10 revenue-focused feature ideas |
 | `/plan-feature <idea>` | Explore codebase, draft structured plan to `docs/plans/` |
-| `/plan-review <path>` | Evaluate plan across 6 dimensions, render verdict |
+| `/plan-review <path>` | Evaluate plan across 7 dimensions (incl. MECE audit), render verdict |
 | `/plan-to-beads <path>` | Decompose plan into `br` issues with dependency graph |
 
 ### Pipeline B — Code Quality
@@ -131,7 +131,7 @@ Pair with `/loop` to run on a schedule:
 | `idea-wizard` | Structured ideation: generate, evaluate, distill |
 | `architecture-decision-record` | ADR format with context, options, and rationale |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis |
-| `plan-review` | 6-dimension plan evaluation (completeness, feasibility, scope, risks, deps, actionability) |
+| `plan-review` | 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability) |
 | `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan |
 | `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report |
 | `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG |
@@ -198,36 +198,6 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 3. Register in AGENTS.md
 
 Run `/validate-plugin` after changes to verify integrity.
-
-## Migration: 1.6 to 1.7
-
-Version 1.7 aligns the plugin around the rule **agent = role (noun), skill = action**. The result is fewer agents, more skills, and clearer ownership: agents define *who* is doing the work and *what they refuse to do*; skills define *how* the work is done.
-
-**Removed agents (work absorbed elsewhere):**
-
-| Removed | Replacement |
-|---|---|
-| `code-simplifier` | `software-engineer` agent + `code-simplify` skill |
-| `fresh-eyes-reviewer` | `software-engineer` agent + `fresh-eyes-review` skill |
-| `python-feature-developer` | `software-engineer` agent + `feature-development` skill (now language-agnostic) |
-| `frontend-code-reviewer` | `code-reviewer` agent + `templeton-frontend-style` skill |
-
-**Renamed agents:**
-
-| Old | New |
-|---|---|
-| `plan-to-beads` (agent) | `project-manager` (the `plan-to-beads` *skill* now holds the workflow) |
-| `research-ingest` (agent) | `research-librarian` (the `research-ingest` *skill* now holds the workflow) |
-
-**Renamed commands:**
-
-| Old | New |
-|---|---|
-| `/review-plan` | `/plan-review` (matches the existing `plan-review` skill) |
-
-**For installed users:** run `/plugin update` (or reinstall) to pick up the changes. Active sessions referencing old agent names by `subagent_type` (via the Task tool) will fail until restart; the slash commands all still work the same way from the user's perspective.
-
-**For scripts that reference agent names directly:** update your `subagent_type` calls per the tables above. There is no compatibility shim.
 
 ## License
 
