@@ -404,7 +404,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/business-ideas` - Analyze business model, surface 10 revenue-focused feature ideas
 - `/plan-feature` - Generate a detailed implementation plan for a feature
 - `/plan-review` - Fresh-eyes review of a feature plan
-- `/plan-to-beads` - Decompose a feature plan into br issues with dependencies, with a Marr Levels 1-2 audit on each bead
+- `/plan-to-beads` - Decompose a feature plan into br issues with dependencies; each bead audited for Why (L1), How (L2), and Done when (acceptance criteria) before creation
 - `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan
 - `/diagnose` - Investigate a bug thoroughly before attempting any fix
