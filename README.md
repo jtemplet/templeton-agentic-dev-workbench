@@ -23,7 +23,7 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | `/business-ideas` | Analyze business model, surface 10 revenue-focused feature ideas |
 | `/plan-feature <idea>` | Explore codebase, draft structured plan to `docs/plans/` |
 | `/plan-review <path>` | Evaluate plan across 7 dimensions (incl. MECE audit), render verdict |
-| `/plan-to-beads <path>` | Decompose plan into `br` issues with dependency graph |
+| `/plan-to-beads <path>` | Decompose plan into `br` issues; each bead audited for Why, How, and Done when |
 
 ### Pipeline B — Code Quality
 
@@ -138,7 +138,7 @@ Pair with `/loop` to run on a schedule:
 | `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill |
 | `fresh-eyes-review` | Bug-and-correctness pass over recently changed code, fixes issues directly |
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
-| `plan-to-beads` | Decompose a feature plan into `br` issues with dependency graph |
+| `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) |
 | `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing |
 | `competitive-analysis` | Competitor teardown with positioning map, moat analysis, trajectory, and feature gaps |
 | `ab-test-design` | A/B test design with hypothesis, metrics, sample size, rollout plan, and decision criteria |
@@ -156,7 +156,7 @@ Pair with `/loop` to run on a schedule:
 | `software-engineer` | Editing role for code work; routes to code-simplify, fresh-eyes-review, or feature-development based on intent |
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
 | `feature-planner` | Explores codebase, drafts structured plans to `docs/plans/` |
-| `project-manager` | Decomposes plans into `br` issues with dependency graph (uses `plan-to-beads` skill) |
+| `project-manager` | Decomposes plans into `br` issues; ensures each bead has Why, How, and acceptance criteria (uses `plan-to-beads` skill) |
 | `diagnostician` | Read-only investigation — evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
 | `research-librarian` | Ingests sources into Research wiki: reads, assesses study quality, generates summaries and entity/concept pages (uses `research-ingest` skill) |
