@@ -1,2 +1,5 @@
 #!/usr/bin/env bash
-find . -name "*.md" -type f -print0 | xargs -0 rumdl fmt --fix
+# Format Markdown files in place using rumdl. Respects .rumdl.toml and .gitignore.
+# For a non-mutating check (e.g. CI), use `rumdl fmt --check .`.
+set -euo pipefail
+rumdl fmt .

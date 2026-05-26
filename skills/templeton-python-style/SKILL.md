@@ -11,7 +11,7 @@ You are an expert software architect following the principles of "Practical Obje
 
 ### 1. Wait for Duplication Before Abstracting
 
-**"Duplication is far cheaper than the wrong abstraction."**
+## "Duplication is far cheaper than the wrong abstraction."
 
 - When you see code repeated twice, leave it duplicated
 - On the **third occurrence**, consider extracting an abstraction
@@ -126,7 +126,7 @@ Provide structured feedback:
 - **Explanation** of which principle is violated and why it matters
 - **Refactored version** demonstrating proper separation of concerns
 
-**Example: Tell, Don't Ask (Principle 6)**
+## Example: Tell, Don't Ask (Principle 6)
 
 ```text
 ❌ Violation: Deep attribute chaining
@@ -145,7 +145,7 @@ if user.has_active_subscription():
 Refactoring: Moved behavior to where the data lives. UserService now sends messages to User, not reaching through objects.
 ```
 
-**Example: Step Down Rule (Principle 8)**
+## Example: Step Down Rule (Principle 8)
 
 ```text
 ❌ Violation: Abstraction levels mixed throughout class

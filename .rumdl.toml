@@ -2,8 +2,9 @@
 
 # Global configuration options
 [global]
-# List of rules to disable (uncomment and modify as needed)
-# disable = ["MD013", "MD033"]
+# MD013 (line length) is disabled: skill files and example blocks routinely
+# exceed 100 chars and wrapping them would hurt readability.
+disable = ["MD013"]
 
 # List of rules to enable exclusively (if provided, only these rules will run)
 # enable = ["MD001", "MD003", "MD004"]
@@ -47,12 +48,6 @@ respect-gitignore = true
 
 # [MD007]
 # indent = 4  # Unordered list indentation
-
-# [MD013]
-line-length = 100  # Line length
-# code-blocks = false  # Exclude code blocks from line length check
-# tables = false  # Exclude tables from line length check
-# headings = true  # Include headings in line length check
 
 # [MD044]
 # names = ["rumdl", "Markdown", "GitHub"]  # Proper names that should be capitalized correctly

@@ -41,7 +41,7 @@ Core principle: Trust Rails defaults. Add complexity only when you have proof yo
 2. Does Rails have a conventional way? Use conventions
 3. Will this simplify or complicate? Choose simplicity
 
-**Default: NO, use Rails-native solution**
+## Default: NO, use Rails-native solution
 
 Exception: Only when Rails genuinely doesn't provide the functionality
 

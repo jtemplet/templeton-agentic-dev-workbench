@@ -476,7 +476,7 @@ resource "aws_subnet" "private" {
 
 ### Module README Template
 
-```markdown
+````markdown
 # Module Name
 
 ## Overview
@@ -498,12 +498,6 @@ module "example" {
   environment = "prod"
 }
 ```
-```
-
-
-```text
-
-```text
 
 ## Inputs
 
@@ -520,12 +514,12 @@ module "example" {
 ## Examples
 
 See `examples/` directory for complete examples.
-
-```text
+````
 
 ## Common Patterns
 
 ### Dynamic Blocks
+
 ```hcl
 resource "aws_security_group" "main" {
   name        = var.name

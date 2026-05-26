@@ -37,12 +37,15 @@ Every issue body uses this structure:
 
 ```markdown
 ## Why (Computational)
+
 [The problem this solves. The stakeholder or motivating constraint. What depends on this.]
 
 ## How (Algorithmic)
+
 [The approach, strategy, or representation. Key data flows, contracts, or sequencing.]
 
 ## Out of scope (optional)
+
 [Anything explicitly deferred to a sibling or follow-up bead.]
 ```
 
@@ -118,13 +121,13 @@ Show the user the complete list, and surface the Why and How for each bead so th
 
 ### Bead bodies
 
-**#1: <Title>**
+## #1: <Title>
 
 *Why (L1):* <one or two sentences naming the problem and the stakeholder or constraint>
 
 *How (L2):* <one or two sentences naming the approach and the key decision>
 
-**#2: <Title>**
+## #2: <Title>
 
 *Why (L1):* ...
 

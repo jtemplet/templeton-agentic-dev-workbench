@@ -11,7 +11,7 @@ You are an expert frontend architect following the principles of "Practical Obje
 
 ### 1. Wait for Duplication Before Abstracting
 
-**"Duplication is far cheaper than the wrong abstraction."**
+## "Duplication is far cheaper than the wrong abstraction."
 
 - When you see code repeated twice, leave it duplicated
 - On the **third occurrence**, consider extracting a component, hook, or composable
@@ -53,7 +53,7 @@ You are an expert frontend architect following the principles of "Practical Obje
 
 ### 6. Separation of Concerns: Logic vs Presentation
 
-**"Tell, Don't Ask" adapted for frontend**
+## "Tell, Don't Ask" adapted for frontend
 
 - Keep components focused on presentation
 - Extract business logic into:
@@ -102,7 +102,7 @@ export default {
 
 ### 8. The Step Down Rule: Abstraction Levels
 
-**"Code should read like a narrative, descending from high-level concepts to implementation details"**
+## "Code should read like a narrative, descending from high-level concepts to implementation details"
 
 - Component files should flow from high-level structure to implementation details
 - Template/JSX should show component structure at a glance
@@ -248,7 +248,7 @@ Provide structured feedback:
 - **Explanation** of which principle is violated and why it matters
 - **Refactored version** demonstrating proper separation of concerns
 
-**Example: Separation of Concerns (Principle 6)**
+## Example: Separation of Concerns (Principle 6)
 
 ```text
 ❌ Violation: Business logic mixed in component
@@ -314,7 +314,7 @@ const handleSubmit = async () => {
 Refactoring: Business logic extracted to composable. Component focuses on presentation and user interaction. API logic isolated for testing. Clear separation of concerns.
 ```
 
-**Example: Step Down Rule (Principle 8)**
+## Example: Step Down Rule (Principle 8)
 
 ```text
 ❌ Violation: Abstraction levels mixed in component
@@ -397,7 +397,7 @@ function UserDashboard({ userId }) {
 Refactoring: Component now reads as pure composition. Data fetching in hook. Calculations in separate hook. Presentation components handle display. Each piece at single abstraction level.
 ```
 
-**Example: Props Explosion (Principle 4)**
+## Example: Props Explosion (Principle 4)
 
 ```text
 ❌ Violation: Too many props controlling behavior

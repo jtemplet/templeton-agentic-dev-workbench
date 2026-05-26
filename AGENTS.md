@@ -1,10 +1,10 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. `CLAUDE.md` re-includes this file with `@AGENTS.md`.
 
 ## Repository Overview
 
-This is a personal Claude Code plugin repository - an agentic development workbench containing custom agents, skills, and commands for Python, Ruby/Rails, Swift/iOS, and Terraform development.
+This is a personal Claude Code plugin repository - an agentic development workbench containing custom agents, skills, and commands for Python, Ruby/Rails, JavaScript/TypeScript (React/Vue), Swift/iOS, and Terraform development.
 
 ## Architecture
 
@@ -331,7 +331,7 @@ git diff main...HEAD  # See changes to be reviewed
 
 **Running on a loop:**
 
-```
+```text
 /loop 6h /pr-maintain
 ```
 

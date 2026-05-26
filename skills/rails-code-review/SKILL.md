@@ -409,11 +409,11 @@ broadcast_refresh_to(@deal)  # Full page morph is valid pattern
 
 ### Step 4: Issue Documentation
 
-**CRITICAL: Output MUST be in proper Markdown format**
+## CRITICAL: Output MUST be in proper Markdown format
 
 For each issue found, provide in this exact format:
 
-```markdown
+````markdown
 ### 🔴 Issue #X: [Short Title]
 
 **Category:** [Security/Rails Conventions/Performance/etc.]
@@ -430,12 +430,6 @@ def problematic_method
   # ...
 end
 ```
-```
-
-
-```text
-
-```text
 
 **Why It Matters:**
 
@@ -457,12 +451,11 @@ end
 bundle exec rspec spec/path/spec.rb
 # Expected: all tests pass
 ```
-
-```text
+````
 
 **Complete example:**
 
-```markdown
+````markdown
 ### 🔴 Issue #1: Missing Authorization in Public Controller
 
 **Category:** Security
@@ -508,14 +501,13 @@ end
 bundle exec rspec spec/requests/public/deals/documents/requirements_spec.rb
 # Add test case for unauthorized access attempt
 ```
-
-```text
+````
 
 ### Step 5: Summary Report
 
 **Output format (must be Markdown):**
 
-```markdown
+````markdown
 # Rails Code Review Report
 
 **Branch:** `feature-branch-name`
@@ -557,12 +549,15 @@ bundle exec rspec spec/requests/public/deals/documents/requirements_spec.rb
 ## Recommendations
 
 ### Immediate (Must Fix)
+
 - [Required fixes]
 
 ### Short Term (Should Fix)
+
 - [Recommended fixes]
 
 ### Long Term (Nice to Have)
+
 - [Optional improvements]
 
 ## Overall Merge Recommendation
@@ -577,8 +572,7 @@ bundle exec rspec
 bundle exec rubocop
 bundle exec brakeman
 ```
-
-```text
+````
 
 ---
 
@@ -587,12 +581,14 @@ bundle exec brakeman
 **Use these strict definitions for priority levels:**
 
 ### CRITICAL
+
 - **Security vulnerabilities:** Actual exploitable XSS, SQL injection, missing authorization
 - **Data loss risks:** Code that could delete or corrupt production data
 - **Broken functionality:** Code that causes 500 errors or breaks core features in production
 - **Examples:** Missing authorization, SQL injection, unhandled exceptions in critical paths
 
 ### HIGH
+
 - **Architecture problems:** Significant deviations from Rails Way that cause maintenance burden
 - **Missing error handling:** No rescue blocks for external calls that could fail
 - **Performance blockers:** N+1 queries in main list views, missing critical indexes
@@ -600,6 +596,7 @@ bundle exec brakeman
 - **Examples:** N+1 queries, missing error handling, incorrect use of Rails patterns
 
 ### MEDIUM
+
 - **Non-standard patterns that work:** Code that functions but doesn't follow conventions
 - **Code duplication:** Repeated patterns that should be extracted
 - **Missing test coverage:** Core logic without tests
@@ -607,6 +604,7 @@ bundle exec brakeman
 - **Examples:** Duplicate code, could use scopes, missing tests for edge cases
 
 ### LOW
+
 - **Code style issues:** Formatting, naming conventions
 - **Optimization opportunities:** Minor performance tweaks
 - **CSS improvements:** Redundant classes, `!important` flags
@@ -620,6 +618,7 @@ bundle exec brakeman
 ## Common Mistakes to Avoid
 
 **When reviewing:**
+
 - ❌ Reviewing line-by-line without understanding context
 - ❌ Flagging non-standard patterns as CRITICAL when they work
 - ❌ Not verifying claims against actual Rails behavior
@@ -630,6 +629,7 @@ bundle exec brakeman
 - ❌ Accepting "it works" without checking security
 
 **When providing feedback:**
+
 - ❌ Vague criticism: "This could be better"
 - ❌ Missing code examples in fixes
 - ❌ Not explaining WHY something is an issue
@@ -639,6 +639,7 @@ bundle exec brakeman
 - ❌ Flagging modern Rails patterns as issues
 
 **When determining severity:**
+
 - ❌ Marking everything as CRITICAL
 - ❌ Calling working non-standard code "broken"
 - ❌ High priority for style issues
@@ -651,6 +652,7 @@ bundle exec brakeman
 **Modern patterns you should NOT flag as issues:**
 
 1. **Implicit Turbo Stream Responses**
+
    ```ruby
    # This works in Rails 8 - no explicit response needed
    def update

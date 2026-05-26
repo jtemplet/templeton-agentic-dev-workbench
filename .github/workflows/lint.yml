@@ -1,0 +1,43 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  markdown:
+    name: Markdown (rumdl)
+    runs-on: ubuntu-latest
+    env:
+      RUMDL_VERSION: v0.2.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache rumdl binary
+        id: cache-rumdl
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/bin/rumdl
+          key: rumdl-${{ env.RUMDL_VERSION }}-linux-x86_64
+
+      - name: Install rumdl
+        if: steps.cache-rumdl.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          url="https://github.com/rvben/rumdl/releases/download/${RUMDL_VERSION}/rumdl-${RUMDL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL "$url" -o /tmp/rumdl.tar.gz
+          tar -xzf /tmp/rumdl.tar.gz -C /tmp
+          mkdir -p ~/.local/bin
+          install -m 0755 /tmp/rumdl ~/.local/bin/rumdl
+
+      - name: Add ~/.local/bin to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Check Markdown formatting
+        run: rumdl fmt --check .

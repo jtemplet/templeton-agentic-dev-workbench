@@ -24,7 +24,7 @@ Safety invariants enforced by the skill:
 
 Pair with the `loop` skill to keep the PR healthy automatically:
 
-```
+```text
 /loop 6h /pr-maintain
 ```
 

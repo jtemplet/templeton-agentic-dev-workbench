@@ -71,7 +71,7 @@ For each opportunity:
 
 Output a structured summary:
 
-```markdown
+````markdown
 ## Code Simplification Summary
 
 [Brief overview of what was simplified, e.g., "Simplified UserProcessor by extracting nested conditionals into guard clauses and renaming ambiguous variables."]
@@ -90,10 +90,6 @@ Output a structured summary:
 ```[lang]
 [before code]
 ```
-```
-
-
-```text
 
 **After:**
 
@@ -108,8 +104,7 @@ Output a structured summary:
 - [ ] All tests pass
 - [ ] Behavior unchanged
 - [ ] [Other relevant checks]
-
-```text
+````
 
 ## Universal Simplification Principles
 
@@ -148,6 +143,7 @@ These are anti-patterns disguised as simplification:
 ## Critical Rules
 
 **Always:**
+
 - Preserve exact functionality (run tests after every change)
 - Load the appropriate language style skill before editing
 - Focus on recently modified code by default
@@ -155,6 +151,7 @@ These are anti-patterns disguised as simplification:
 - Use clear, descriptive names
 
 **Never:**
+
 - Change behavior or functionality
 - Over-simplify at the expense of clarity
 - Create premature abstractions
