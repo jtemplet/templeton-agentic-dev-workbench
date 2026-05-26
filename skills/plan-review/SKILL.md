@@ -21,7 +21,7 @@ Rate each dimension GREEN / YELLOW / RED. Use a comma, semicolon, or parentheses
 | **Risks** | Risks are identified | At least the obvious risks are named | Risk list is thin or surface-level | No risk analysis at all |
 | **Dependencies** | Dependencies are identified and resolvable | All deps named and known to be available | Some deps unclear or potentially blocking | Critical deps missing or unresolvable |
 | **MECE** | Coverage and pairing across the plan (see MECE Audit) | No overlaps; every required pairing covered | 1-2 minor overlaps or gaps, fixable without restructuring | Any major MECE finding (orphan goal, orphan stage, missing rollout/migration, conflicting ownership) |
-| **Actionability** | A developer could start tomorrow | Implementer can begin without questions | Needs 1-2 clarifications first | Too vague to act on without major rework |
+| **Actionability** | A developer could start and know when each stage is done | Implementer can begin without questions; each milestone or stage has verifiable completion conditions | Needs 1-2 clarifications, or 1-2 stages lack verifiable completion conditions | Too vague to act on, or completion conditions are broadly absent |
 
 ## MECE Audit
 
