@@ -1,6 +1,6 @@
 ---
 name: plan-to-beads
-description: Decompose a feature implementation plan into trackable br (beads_rust) issues with a dependency graph. Reads the plan, identifies self-contained work units, presents the proposed issue list for confirmation, then creates issues and wires dependencies. Keeps the graph shallow and prefers parallel tracks.
+description: Decompose a feature implementation plan into trackable br (beads_rust) issues with a dependency graph. Each bead requires Why (Marr L1), How (Marr L2), and Done when (acceptance criteria) before creation. Presents the full list for confirmation, then creates issues and wires dependencies. Keeps the graph shallow and prefers parallel tracks.
 ---
 
 # Plan to Beads
@@ -35,7 +35,7 @@ Every bead must articulate at least **Marr Levels 1 and 2** before it is created
 
 Every issue body uses this structure:
 
-```markdown
+````markdown
 ## Why (Computational)
 
 [The problem this solves. The stakeholder or motivating constraint. What depends on this.]
@@ -44,10 +44,16 @@ Every issue body uses this structure:
 
 [The approach, strategy, or representation. Key data flows, contracts, or sequencing.]
 
+## Done when (Acceptance)
+
+[Specific, verifiable conditions. Two people must be able to agree independently whether each
+criterion is satisfied without asking the author. Prefer observable behavior, named tests,
+or measurable thresholds over subjective judgements.]
+
 ## Out of scope (optional)
 
 [Anything explicitly deferred to a sibling or follow-up bead.]
-```
+````
 
 ### Audit checks
 
@@ -58,8 +64,11 @@ A bead **fails** the audit and must be rewritten when:
 - The How is missing, or is actually Level 3 ("edit `app.py` line 42"). Implementation specifics are not an approach.
 - The How does not constrain the approach. "Implement the middleware" describes nothing.
 - Two beads share the same Why and How. The work-unit boundary is wrong; merge them or sharpen the split.
+- The Done when is absent.
+- The Done when is vague: "it works", "tests pass" (without naming which), "feature is complete", "looks good".
+- The Done when cannot be verified by a second person without asking the author.
 
-A bead **passes** when the Why names a stakeholder or motivating constraint, and the How states an approach with at least one key decision or trade-off.
+A bead **passes** when the Why names a stakeholder or motivating constraint, the How states an approach with at least one key decision or trade-off, and the Done when lists at least one condition a second person could verify independently.
 
 ## Required Workflow
 
@@ -73,7 +82,7 @@ ls -t docs/plans/feature-plan-*.md | head -5
 
 Ask the user to pick if multiple exist.
 
-### Step 2: Extract Work Units, Articulate Levels 1 and 2, and Audit
+### Step 2: Extract Work Units, Articulate Levels 1 and 2, Draft Acceptance Criteria, and Audit
 
 **Re-decomposition check (do this first).** If beads already exist for this plan (search by `plan:<plan-name>` label, or by the plan's filename in issue references), present a diff of new / changed / removed beads against the existing set and require the user's confirmation before any create, update, or close. Do not silently re-create.
 
@@ -95,12 +104,14 @@ For each issue, prepare:
 | **Dependencies** | Which other issues must finish first (by title reference) |
 | **Why (L1: Computational)** | Drafted per the body shape above |
 | **How (L2: Algorithmic)** | Drafted per the body shape above |
+| **Done when (Acceptance)** | Drafted per the body shape above |
 
-Draft Why and How per the body shape, then **run the Marr audit on every bead** using the checks in "The Marr Audit Standard" above:
+Draft Why, How, and Done when per the body shape, then **run the full audit on every bead** using the checks in "The Marr Audit Standard" above:
 
-- Rewrite any bead whose Why or How fails. Do not defer this to the user confirmation gate; weak descriptions waste the user's review time.
+- Rewrite any bead whose Why, How, or Done when fails. Do not defer this to the user confirmation gate; weak descriptions waste the user's review time.
 - Merge two beads if they share the same Why and How. Split one bead if its How actually describes two independent approaches.
 - Stop and ask the user if you cannot articulate a Why for a bead. That usually means it is an implementation detail of another bead, not a real work unit.
+- Stop and ask the user if you cannot write a Done when that a second person could verify. That usually means the bead's scope is unclear or it depends on a judgment call that should be made explicit.
 
 **Derive dependencies from the How.** Where one bead's How references another bead's output (e.g., "consume the new auth middleware"), capture that as a dependency. The How is a source of dep edges, not just a description.
 
@@ -108,9 +119,9 @@ Do not proceed to Step 3 until every bead passes the audit.
 
 ### Step 3: Present and Confirm
 
-Show the user the complete list, and surface the Why and How for each bead so they can verify the audit, not just the metadata:
+Show the user the complete list, and surface the Why, How, and Done when for each bead so they can verify the full audit, not just the metadata:
 
-```markdown
+````markdown
 ## Proposed Issues
 
 | # | Title | Priority | Labels | Depends On |
@@ -127,17 +138,21 @@ Show the user the complete list, and surface the Why and How for each bead so th
 
 *How (L2):* <one or two sentences naming the approach and the key decision>
 
+*Done when:* <bullet list of verifiable conditions>
+
 ## #2: <Title>
 
 *Why (L1):* ...
 
 *How (L2):* ...
 
+*Done when:* ...
+
 **Parallel tracks:** Issues 1-2 (backend), Issue 3 (frontend) can proceed independently.
 **Total issues:** X
-```
+````
 
-**WAIT for user confirmation before proceeding.** The user may want to adjust titles, priorities, dependencies, or the Why/How content. Treat any L1/L2 edit as a re-audit: confirm the rewrite still passes before moving on.
+**WAIT for user confirmation before proceeding.** The user may want to adjust titles, priorities, dependencies, Why/How, or Done when content. Treat any edit as a re-audit: confirm the rewrite still passes before moving on.
 
 ### Step 4: Verify br is Available
 
@@ -149,7 +164,7 @@ If `br` is not found, stop and inform the user.
 
 ### Step 5: Create Issues
 
-For each confirmed issue, pass the Why/How body via `-d` so the Marr content lives in the issue, not just in the proposal:
+For each confirmed issue, pass the full body via `-d` so the Why, How, and Done when all live in the issue:
 
 ```bash
 br create "<Title>" -p <priority> -t task -l "<labels>" -d "$(cat <<'EOF'
@@ -158,6 +173,10 @@ br create "<Title>" -p <priority> -t task -l "<labels>" -d "$(cat <<'EOF'
 
 ## How (Algorithmic)
 <L2 content>
+
+## Done when (Acceptance)
+- <criterion 1>
+- <criterion 2>
 EOF
 )"
 ```
@@ -232,10 +251,11 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 
 - Read the full plan before identifying work units
 - Articulate Marr Level 1 (Why) and Level 2 (How) for every bead before presenting
-- Run the Marr audit on every bead and rewrite failures before the confirmation gate
-- Present the complete issue list, including each bead's Why and How, and WAIT for user confirmation before creating
+- Draft Done when for every bead; each criterion must be verifiable by a second person without asking the author
+- Run the full audit on every bead and rewrite failures before the confirmation gate
+- Present the complete issue list, including each bead's Why, How, and Done when, and WAIT for user confirmation before creating
 - Verify `br` is available before attempting to create issues
-- Pass the Why/How body to `br create` via `-d`; do not strip it to save a line
+- Pass the Why, How, and Done when body to `br create` via `-d`; do not strip any section to save a line
 - Make each issue self-contained with enough context to implement independently
 - Keep the dependency graph shallow, prefer parallel tracks over deep chains
 
@@ -253,7 +273,8 @@ Before reporting completion, verify:
 
 - [ ] All milestones from the plan are covered by at least one issue
 - [ ] Each issue has a clear, action-oriented title
-- [ ] Every issue body uses the `## Why (Computational)` / `## How (Algorithmic)` structure
+- [ ] Every issue body uses the `## Why (Computational)` / `## How (Algorithmic)` / `## Done when (Acceptance)` structure
+- [ ] Every `## Done when` section contains at least one condition a second person could verify independently
 - [ ] Dependencies are correct and acyclic
 - [ ] Longest dependency chain is at most 3 issues; if longer, a parallel split was missed
 - [ ] `br sync --flush-only` was run
