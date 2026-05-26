@@ -331,7 +331,7 @@ git diff main...HEAD  # See changes to be reviewed
 
 **Running on a loop:**
 
-```
+```text
 /loop 6h /pr-maintain
 ```
 

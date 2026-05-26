@@ -50,7 +50,7 @@ Keep a long-lived PR rebased on its parent branch and green on CI. Detects the P
 
 Pair with `/loop` to run on a schedule:
 
-```
+```text
 /loop 6h /pr-maintain
 ```
 

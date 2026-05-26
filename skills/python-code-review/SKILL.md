@@ -34,26 +34,26 @@ When reviewing Python code:
 
 ### 1. Style & Formatting (PEP 8)
 
-**Line Length**
+## Line Length
 
 - Maximum 80 characters (Google)
 - Docstrings/comments: 72 characters max
 - Use implicit line continuation (parentheses/brackets) over backslashes
 
-**Indentation**
+## Indentation
 
 - Always 4 spaces per level, never tabs
 - Continuation lines: align vertically or use 4-space hanging indent
 - Closing brackets: align under first non-whitespace or under opening bracket
 
-**Blank Lines**
+## Blank Lines
 
 - 2 blank lines between top-level functions/classes
 - 1 blank line between methods
 - Sparingly within functions for logical sections
 - No blank line after `def` line
 
-**Whitespace Rules**
+## Whitespace Rules
 
 - No whitespace inside parentheses/brackets/braces: `spam(ham[1], {eggs: 2})`
 - No whitespace before comma/semicolon/colon (except in slices)
@@ -64,13 +64,13 @@ When reviewing Python code:
 - BUT use spaces when combining annotation + default: `def munge(input: AnyStr = None)`
 - Don't align operators vertically across lines (maintenance burden)
 
-**String Quotes**
+## String Quotes
 
 - Be consistent: pick `'` or `"` and stick with it in a file
 - Use the other quote to avoid backslashes: `"He said 'hello'"`
 - Always use `"""` for docstrings (never `'''`)
 
-**Trailing Commas**
+## Trailing Commas
 
 - Recommended for multi-line structures when closing bracket is on new line
 - Mandatory for single-element tuples: `FILES = ('setup.cfg',)`
@@ -85,7 +85,7 @@ When reviewing Python code:
 3. Third-party imports
 4. Local application/library imports
 
-**Import Style**
+## Import Style
 
 - Separate lines: `import os` and `import sys` (not `import os, sys`)
 - Exception: OK to import multiple items from one module: `from subprocess import Popen, PIPE`
@@ -95,14 +95,14 @@ When reviewing Python code:
 - Never use wildcard imports: `from module import *`
 - Import full package paths (Google): `from doctor.who import jodie` not `import jodie`
 
-**Import Format**
+## Import Format
 
 - `import x` for packages and modules
 - `from x import y` where x is package prefix, y is module name
 - `from x import y as z` if y conflicts or is inconveniently long
 - `import y as z` only for standard abbreviations: `import numpy as np`
 
-**Module Dunders**
+## Module Dunders
 
 - After module docstring, before imports (except `__future__`)
 - Order: `__all__`, `__version__`, `__author__`, etc.
@@ -124,14 +124,14 @@ When reviewing Python code:
 | **Local Variables** | `lower_with_under` | `local_var` |
 | **Type Variables** | `_T`, `_P` (leading underscore) | `_T = TypeVar("_T")` |
 
-**Special Prefixes/Suffixes**
+## Special Prefixes/Suffixes
 
 - `_single_leading`: weak "internal use" indicator (not imported by `from M import *`)
 - `single_trailing_`: avoid keyword conflicts (`class_`)
 - `__double_leading`: name mangling in classes (discouraged by Google - impacts testability)
 - `__double_leading_and_trailing__`: magic methods (never invent these)
 
-**Names to Avoid**
+## Names to Avoid
 
 - Never use `l` (lowercase L), `O` (uppercase o), `I` (uppercase i) as single-char names
 - No dashes in any package/module name
@@ -139,7 +139,7 @@ When reviewing Python code:
 - No offensive terms
 - No needless type info: `id_to_name_dict` → `id_to_name`
 
-**Descriptive Names**
+## Descriptive Names
 
 - Names should be descriptive and clear
 - Descriptiveness proportional to scope (wider scope = more descriptive)
@@ -199,7 +199,7 @@ def fetch_data(
 - **Raises**: Document exceptions that callers should handle
 - **Yields**: For generators, document yielded values
 
-**Class Docstrings**
+## Class Docstrings
 
 ```python
 class SampleClass:
@@ -223,7 +223,7 @@ class SampleClass:
         self.eggs = 0
 ```
 
-**Comments**
+## Comments
 
 - Block comments: Full sentences, capitalized, period at end
 - Inline comments: 2+ spaces from code, used sparingly
@@ -233,7 +233,7 @@ class SampleClass:
 - Keep comments up-to-date with code changes!
 - Comments in English unless 120% sure code never read by non-speakers
 
-**Override Methods**
+## Override Methods
 
 - Use `@override` decorator (from `typing_extensions`) when overriding
 - No docstring needed if behavior unchanged
@@ -241,14 +241,14 @@ class SampleClass:
 
 ### 5. Type Hints (PEP 484 + Google)
 
-**Basic Rules**
+## Basic Rules
 
 - Strongly encouraged for function signatures
 - Use for complex functions, public APIs, when types aren't obvious
 - Don't annotate `self` or `cls` (except when needed for proper type info - use `Self`)
 - Don't annotate `__init__` return (always `None`)
 
-**Type Hint Style**
+## Type Hint Style
 
 ```python
 def my_method(
@@ -260,13 +260,13 @@ def my_method(
     ...
 ```
 
-**Modern Syntax (Python 3.10+)**
+## Modern Syntax (Python 3.10+)
 
 - Use `|` for unions: `str | None` (not `Optional[str]` or `Union[str, None]`)
 - Use built-in types: `list[int]`, `dict[str, int]` (not `List[int]`, `Dict[str, int]`)
 - Use `collections.abc` for parameters: `Sequence`, `Mapping` (not concrete types)
 
-**Specific Guidelines**
+## Specific Guidelines
 
 - Use explicit `X | None` not implicit (`a: str = None` is wrong)
 - Specify generic parameters: `list[int]` not bare `list`
@@ -275,7 +275,7 @@ def my_method(
 - Forward references: use `from __future__ import annotations` or string quotes
 - Conditional imports: use `if TYPE_CHECKING:` for type-only imports
 
-**Type Variable Naming**
+## Type Variable Naming
 
 ```python
 _T = TypeVar("_T")  # Good: leading underscore, descriptive
@@ -285,7 +285,7 @@ AddableType = TypeVar("AddableType", int, float, str)  # Good: descriptive
 
 ### 6. Code Quality & Best Practices
 
-**Abstraction and Duplication**
+## Abstraction and Duplication
 
 - "Duplication is far cheaper than the wrong abstraction" (Sandi Metz)
 - Wait for the **third** occurrence before extracting an abstraction
@@ -294,7 +294,7 @@ AddableType = TypeVar("AddableType", int, float, str)  # Good: descriptive
 - Premature abstraction creates rigid, hard-to-change code
 - Don't flag duplication as a problem unless there are 3+ instances or clear benefit to abstracting
 
-**Implicit False (PEP 8)**
+## Implicit False (PEP 8)
 
 ```python
 # Good
@@ -308,7 +308,7 @@ if foo == None:
 if x == False:
 ```
 
-**Comparisons**
+## Comparisons
 
 - Singletons: use `is`/`is not`: `if x is None:`
 - Use `is not` rather than `not ... is`
@@ -316,12 +316,12 @@ if x == False:
 - Type checking: use `isinstance(obj, int)` not `type(obj) is int`
 - String prefixes/suffixes: use `.startswith()`/`.endswith()` not slicing
 
-**Sequences**
+## Sequences
 
 - Use empty sequence truth value: `if seq:` not `if len(seq):`
 - Works for strings, lists, tuples
 
-**Exception Handling**
+## Exception Handling
 
 - Never use bare `except:` (catches SystemExit/KeyboardInterrupt!)
 - Use specific exceptions: `except ValueError:` not `except Exception:`
@@ -331,7 +331,7 @@ if x == False:
 - Derive from `Exception` not `BaseException`
 - Exception names end in `Error` (if they are errors)
 
-**String Formatting**
+## String Formatting
 
 ```python
 # Good - Modern (preferred)
@@ -353,7 +353,7 @@ for last, first in employees:
 employee_table = ''.join(items)
 ```
 
-**Logging**
+## Logging
 
 ```python
 # Good - Use %-style (not f-strings!)
@@ -363,7 +363,7 @@ logger.info('TensorFlow version: %s', tf.__version__)
 logger.info(f'TensorFlow version: {tf.__version__}')
 ```
 
-**Resource Management**
+## Resource Management
 
 ```python
 # Good - Always use context managers
@@ -382,7 +382,7 @@ data = f.read()
 f.close()  # May not run if exception occurs!
 ```
 
-**Function Defaults**
+## Function Defaults
 
 ```python
 # Good - No mutable defaults
@@ -399,7 +399,7 @@ def foo(a, b=[]):
     ...
 ```
 
-**Comprehensions**
+## Comprehensions
 
 ```python
 # Good
@@ -416,7 +416,7 @@ for x in range(10):
             result.append((x, y))
 ```
 
-**Lambdas & Operators**
+## Lambdas & Operators
 
 ```python
 # OK for simple cases
@@ -435,7 +435,7 @@ def complicated(x):
     return x.filter(something).map(another_thing).reduce(final_thing)
 ```
 
-**Statements**
+## Statements
 
 ```python
 # Good
@@ -449,31 +449,31 @@ if foo == 'blah': do_blah_thing()
 do_one(); do_two(); do_three()
 ```
 
-**Return Statements**
+## Return Statements
 
 - Be consistent: all return expressions or all return None
 - Explicit is better: use `return None` not bare `return` if other returns have values
 
-**Properties**
+## Properties
 
 - Use `@property` decorator (not manual descriptors)
 - Only for trivial computations (cheap, straightforward)
 - Don't use for expensive operations or complex logic
 - Don't use just to wrap simple attribute access (make it public)
 
-**Decorators**
+## Decorators
 
 - Use judiciously when clear advantage
 - Never use `@staticmethod` (use module-level function - Google)
 - Use `@classmethod` sparingly (named constructors, class-specific state)
 
-**Global State**
+## Global State
 
 - Avoid mutable global state
 - Module-level constants OK: `MAX_TIMEOUT = 30`
 - Name private globals with leading underscore: `_internal_cache`
 
-**Power Features (Avoid)**
+## Power Features (Avoid)
 
 - No custom metaclasses
 - No bytecode manipulation
@@ -484,7 +484,7 @@ do_one(); do_two(); do_three()
 
 ### 7. Security
 
-**SQL Injection**
+## SQL Injection
 
 ```python
 # Bad - SQL injection risk!
@@ -496,36 +496,36 @@ query = "SELECT * FROM users WHERE id = %s"
 cursor.execute(query, (user_id,))
 ```
 
-**Input Validation**
+## Input Validation
 
 - Validate all external input
 - Use allowlists not denylists
 - Sanitize before using in system commands
 
-**Hardcoded Secrets**
+## Hardcoded Secrets
 
 - Never hardcode passwords, API keys, tokens
 - Use environment variables or secret management
 - Check for: `password = "..."`, `api_key = "..."`, etc.
 
-**Unsafe Functions**
+## Unsafe Functions
 
 - Avoid: `eval()`, `exec()`, `compile()`, `__import__()`
 - Be careful with: `pickle`, `yaml.load()` (use `safe_load`)
 
 ### 8. Performance
 
-**String Concatenation**
+## String Concatenation
 
 - Never use `+` or `+=` in loops (quadratic time!)
 - Use `''.join(items)` or `io.StringIO`
 
-**Generators**
+## Generators
 
 - Use generators for large sequences (memory efficient)
 - Use comprehensions over `map()`/`filter()` with lambda
 
-**Default Iterators**
+## Default Iterators
 
 ```python
 # Good
@@ -540,13 +540,13 @@ for line in afile.readlines():
 
 ### 9. Maintainability
 
-**Function Length**
+## Function Length
 
 - Prefer < 40 lines (Google guideline, not hard limit)
 - Break up long functions unless it harms structure
 - If >40 lines, consider if it can be split
 
-**Main Guard**
+## Main Guard
 
 ```python
 # Good
@@ -566,7 +566,7 @@ if __name__ == '__main__':
     app.run(main)
 ```
 
-**Assertions**
+## Assertions
 
 - Don't use `assert` for critical logic (can be disabled with `-O`)
 - OK for validating test expectations
@@ -648,28 +648,28 @@ Group by category. For each issue:
 
 ## Review Guidelines
 
-**Be Constructive**
+## Be Constructive
 
 - Explain *why* something matters
 - Provide specific, actionable recommendations
 - Include code examples for fixes
 - Acknowledge good practices
 
-**Context Matters**
+## Context Matters
 
 - Consider project conventions
 - Match surrounding code style when editing
 - Balance improvement with backwards compatibility
 - Know when rules have valid exceptions
 
-**Prioritize**
+## Prioritize
 
 1. **Critical**: Security issues, correctness bugs
 2. **High**: Significant readability/maintainability issues
 3. **Medium**: Style violations, minor best practices
 4. **Low**: Nitpicks, suggestions
 
-**Pragmatic Approach**
+## Pragmatic Approach
 
 - Focus on changes being made (not rewriting entire codebase)
 - Suggest incremental improvements
@@ -678,25 +678,25 @@ Group by category. For each issue:
 
 ## Special Cases
 
-**Legacy Code**
+## Legacy Code
 
 - Focus on new/modified code
 - Don't require full refactor to meet standards
 - Suggest incremental modernization
 
-**Mathematical/Scientific Code**
+## Mathematical/Scientific Code
 
 - Short variable names OK if match notation: `i`, `j`, `x`, `y`
 - Reference paper/algorithm in comments
 - Use `# pylint: disable=invalid-name` if needed
 
-**Test Files**
+## Test Files
 
 - PEP 8 compliant names: `test_<method>_<state>`
 - Or legacy style: `testMethodUnderTest_state`
 - Less strict docstring requirements
 
-**Backwards Compatibility**
+## Backwards Compatibility
 
 - Don't break compatibility just to comply with PEP 8
 - Consider deprecation path for API changes

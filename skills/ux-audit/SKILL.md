@@ -44,7 +44,7 @@ Create the output directory: `docs/ux-audits/`. Determine an audit slug: `<YYYY-
 
 Use the Playwright MCP tools to systematically walk the experience. Snapshots (`browser_snapshot`) are for understanding the DOM and accessibility tree. Screenshots (`browser_take_screenshot`) are evidence for the report.
 
-**2a. First impression (5-second test)**
+## 2a. First impression (5-second test)
 
 1. Navigate to the URL
 2. Take a screenshot immediately
@@ -54,7 +54,7 @@ Use the Playwright MCP tools to systematically walk the experience. Snapshots (`
    - What is the visual hierarchy communicating (1st, 2nd, 3rd level)?
    - What emotion does the page evoke?
 
-**2b. Primary workflow walkthrough**
+## 2b. Primary workflow walkthrough
 
 Walk the primary workflow from AGENTS.md end-to-end:
 
@@ -63,7 +63,7 @@ Walk the primary workflow from AGENTS.md end-to-end:
 3. Note: time-to-action (how many clicks/steps to reach the goal), clarity of progress, confidence level at each step
 4. Complete the flow successfully at least once
 
-**2c. Edge cases and error states**
+## 2c. Edge cases and error states
 
 Exercise these systematically:
 
@@ -75,7 +75,7 @@ Exercise these systematically:
 - Back-button behavior (state preservation)
 - At least one alternate or secondary path
 
-**2d. Accessibility pass**
+## 2d. Accessibility pass
 
 Using snapshots and interaction:
 
@@ -94,7 +94,7 @@ Using snapshots and interaction:
    - Disabled state readability
 4. Check `browser_console_messages` for accessibility warnings
 
-**2e. Responsive evaluation**
+## 2e. Responsive evaluation
 
 Test at three breakpoints minimum:
 
@@ -109,7 +109,7 @@ For each:
 - Note touch target sizing (minimum 44x44 CSS pixels per WCAG 2.5.8)
 - Check if horizontal scroll appears where it shouldn't
 
-**2f. Console and network**
+## 2f. Console and network
 
 Capture `browser_console_messages` and `browser_network_requests`. Flag:
 
@@ -128,7 +128,7 @@ When all exploration is complete, call `browser_close`.
 
 For each dimension, evaluate every screen and flow you explored. This is the analytical core of the audit.
 
-**Dimension 1: Accessibility & Inclusivity**
+## Dimension 1: Accessibility & Inclusivity
 
 - Keyboard navigation: can every interactive element be reached and activated?
 - Focus management: is focus visible, logical, and trapped correctly in modals?
@@ -138,7 +138,7 @@ For each dimension, evaluate every screen and flow you explored. This is the ana
 - Touch targets: 44x44 minimum on mobile
 - Motion: any animation that can't be disabled? Flashing content?
 
-**Dimension 2: Design System Coherence**
+## Dimension 2: Design System Coherence
 
 - Typography: how many distinct font sizes, weights, and families? Is there a clear scale (e.g., 12/14/16/20/24/32)?
 - Spacing: consistent rhythm or ad-hoc padding/margins?
@@ -147,7 +147,7 @@ For each dimension, evaluate every screen and flow you explored. This is the ana
 - Iconography: consistent style, size, and meaning?
 - Overall: would a designer say this comes from one coherent system, or several stitched together?
 
-**Dimension 3: Information Architecture**
+## Dimension 3: Information Architecture
 
 - Navigation: is the structure obvious? Can you get to any major feature in 2-3 clicks?
 - Mental model: does the organization match how users think about the domain?
@@ -155,7 +155,7 @@ For each dimension, evaluate every screen and flow you explored. This is the ana
 - Progressive disclosure: is complexity revealed gradually or dumped up front?
 - Breadcrumbs / wayfinding: do you always know where you are?
 
-**Dimension 4: Interaction Design**
+## Dimension 4: Interaction Design
 
 - Feedback: does every user action produce a clear response? (Click, submit, toggle, delete)
 - State communication: can you always tell what state the system is in? (Loading, empty, error, success)
@@ -165,7 +165,7 @@ For each dimension, evaluate every screen and flow you explored. This is the ana
 - Loading perception: skeleton screens vs. spinners vs. blank screens. Is the wait acknowledged?
 - Optimistic UI: where applicable, does the interface respond immediately?
 
-**Dimension 5: Content & Microcopy**
+## Dimension 5: Content & Microcopy
 
 - Labels: specific action verbs ("Save draft" vs. "Submit") or vague ("OK", "Continue")?
 - Error messages: do they explain what happened, why, and how to fix it?
@@ -174,7 +174,7 @@ For each dimension, evaluate every screen and flow you explored. This is the ana
 - Jargon: does copy assume knowledge the target user may not have?
 - Scannability: can users get the gist without reading every word?
 
-**Dimension 6: Emotional Design & Trust**
+## Dimension 6: Emotional Design & Trust
 
 - First impression: does the landing page inspire confidence in the product's quality?
 - Critical moments: during payment, data entry, account creation, is there adequate reassurance?
@@ -183,7 +183,7 @@ For each dimension, evaluate every screen and flow you explored. This is the ana
 - Dark patterns: forced continuity, confirmshaming, hidden costs, trick questions, roach motels, misdirection, bait-and-switch. Flag ANY instance of these.
 - Brand personality: does the experience feel like it was made by people who care, or assembled from templates?
 
-**Dimension 7: Cognitive Load & Clarity**
+## Dimension 7: Cognitive Load & Clarity
 
 This remains the most important dimension. Every screen gets this assessment:
 

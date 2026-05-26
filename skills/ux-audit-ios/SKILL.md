@@ -78,7 +78,7 @@ xcrun simctl io booted screenshot docs/ux-audits/<slug>/screenshots/<filename>.p
 
 Use descriptive, numbered filenames: `01-landing-light.png`, `02-tab-home.png`, `03-signup-form.png`, etc.
 
-**2a. First impression (5-second test)**
+## 2a. First impression (5-second test)
 
 1. Capture the current screen (the app's landing/home state)
 2. Assess from the screenshot alone:
@@ -88,7 +88,7 @@ Use descriptive, numbered filenames: `01-landing-light.png`, `02-tab-home.png`, 
    - What emotion does the screen evoke?
    - Does it feel like a native iOS app or a wrapped web view?
 
-**2b. Primary workflow walkthrough**
+## 2b. Primary workflow walkthrough
 
 Walk the primary workflow from AGENTS.md end-to-end:
 
@@ -98,7 +98,7 @@ Walk the primary workflow from AGENTS.md end-to-end:
 4. Ask the user to complete the flow successfully at least once
 5. After each screen transition, capture and evaluate before requesting the next action
 
-**2c. Edge cases and error states**
+## 2c. Edge cases and error states
 
 Ask the user to trigger these, capturing screenshots of each:
 
@@ -112,7 +112,7 @@ Ask the user to trigger these, capturing screenshots of each:
 
 If a state cannot be triggered, note it as **untested** rather than skipping silently.
 
-**2d. Accessibility configurations**
+## 2d. Accessibility configurations
 
 Test each configuration programmatically, capturing screenshots after each change:
 
@@ -145,7 +145,7 @@ For each configuration, capture the primary screen and the most critical screen 
 - **Dark mode:** Are all elements visible? Any hardcoded colors that don't adapt? Are images/icons legible on dark backgrounds? Is contrast maintained?
 - **Bold text / increased contrast:** Does the app respond? Are boundaries and text clearer?
 
-**2e. Device size evaluation**
+## 2e. Device size evaluation
 
 If time permits and the user can switch simulators, request screenshots from:
 
@@ -155,7 +155,7 @@ If time permits and the user can switch simulators, request screenshots from:
 
 If switching simulators is impractical, note it as a limitation and evaluate based on the current device's screenshots.
 
-**2f. System integration checks**
+## 2f. System integration checks
 
 Ask the user to verify (or capture evidence of):
 
@@ -175,7 +175,7 @@ Keep a running log of (screenshot filename, what it shows, which flow step, whic
 
 For each dimension, evaluate every screen and flow you captured. This is the analytical core of the audit.
 
-**Dimension 1: Accessibility & Inclusivity**
+## Dimension 1: Accessibility & Inclusivity
 
 - Dynamic Type: does the app scale text at all sizes? Layout integrity at XXXL?
 - Touch targets: minimum 44x44pt per Apple HIG (stricter than web's 44x44 CSS px)
@@ -186,7 +186,7 @@ For each dimension, evaluate every screen and flow you captured. This is the ana
 - Reduce Motion: are there animations that might be problematic? (Note: hard to verify from screenshots alone; flag if heavy animations are visible)
 - VoiceOver readiness: are custom controls clearly labeled? Are images decorative or informational? (Inferred from visual inspection; note limitations)
 
-**Dimension 2: Design System Coherence**
+## Dimension 2: Design System Coherence
 
 - SF Symbols: used consistently? Or a mix of SF Symbols and custom icons?
 - System components: UIKit/SwiftUI standard controls where appropriate? Or custom components that fight user expectations?
@@ -196,7 +196,7 @@ For each dimension, evaluate every screen and flow you captured. This is the ana
 - Component consistency: are similar elements (cells, buttons, inputs) rendered the same way across screens?
 - Overall: does this feel like one app or several stitched together?
 
-**Dimension 3: Information Architecture**
+## Dimension 3: Information Architecture
 
 - Tab bar: how many tabs? (HIG recommends 3-5.) Is the primary action accessible from the default tab?
 - Navigation depth: how many levels deep does the hierarchy go? More than 3 levels creates "where am I?" anxiety
@@ -204,7 +204,7 @@ For each dimension, evaluate every screen and flow you captured. This is the ana
 - Back button: does it always work predictably? Is state preserved?
 - Search: is content findable? Is search prominent enough for the content volume?
 
-**Dimension 4: Interaction Design**
+## Dimension 4: Interaction Design
 
 - Gesture vocabulary: does the app use standard iOS gestures (swipe back, pull to refresh, swipe to delete)? Any custom gestures without discoverability cues?
 - Haptic feedback: noted if the user reports it; otherwise flag where haptics would be expected (destructive actions, mode changes, selections)
@@ -214,7 +214,7 @@ For each dimension, evaluate every screen and flow you captured. This is the ana
 - Error recovery: when something fails, is the path back obvious?
 - Destructive actions: confirmation before delete? Can it be undone?
 
-**Dimension 5: Content & Microcopy**
+## Dimension 5: Content & Microcopy
 
 - Labels: specific action verbs or vague ("OK", "Done", "Continue")?
 - Error messages: informative + actionable, or generic ("Something went wrong")?
@@ -223,7 +223,7 @@ For each dimension, evaluate every screen and flow you captured. This is the ana
 - Onboarding copy: respectful of time, or a 5-screen carousel the user will skip?
 - Tone: consistent with brand? Appropriate to the moment?
 
-**Dimension 6: Emotional Design & Trust**
+## Dimension 6: Emotional Design & Trust
 
 - First launch: does the app feel trustworthy and polished from the first screen?
 - Onboarding: does it respect the user's time? Can it be skipped? Does it teach by doing?
@@ -232,7 +232,7 @@ For each dimension, evaluate every screen and flow you captured. This is the ana
 - Dark patterns: forced account creation before value is shown, confirmshaming in cancellation flows, hidden subscription traps, difficulty deleting account. Flag ANY instance.
 - App Store alignment: does the in-app experience match what the App Store listing promises?
 
-**Dimension 7: Cognitive Load & Clarity**
+## Dimension 7: Cognitive Load & Clarity
 
 This remains the most important dimension. Every screen gets this assessment:
 

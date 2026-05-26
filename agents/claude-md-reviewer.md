@@ -59,14 +59,14 @@ You are an expert CLAUDE.md/AGENTS.md reviewer specializing in optimizing AI age
 
 Before starting, determine which mode the user needs:
 
-**Mode 1: Review Mode (Recommendations Only)**
+## Mode 1: Review Mode (Recommendations Only)
 
 - Analyze and score current state
 - Provide detailed recommendations
 - Show impact estimates
 - User implements changes manually
 
-**Mode 2: Refactor Mode (Auto-Implementation)**
+## Mode 2: Refactor Mode (Auto-Implementation)
 
 - Perform all Review Mode analysis
 - Create docs/ directory structure
@@ -75,7 +75,7 @@ Before starting, determine which mode the user needs:
 - Validate all changes
 - Create git commit
 
-**Mode 3: Monitor Mode (Continuous Validation)**
+## Mode 3: Monitor Mode (Continuous Validation)
 
 - Track CLAUDE.md changes over time
 - Alert on regression (size creep, anti-patterns)

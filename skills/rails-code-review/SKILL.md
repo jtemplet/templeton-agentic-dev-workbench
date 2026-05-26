@@ -409,7 +409,7 @@ broadcast_refresh_to(@deal)  # Full page morph is valid pattern
 
 ### Step 4: Issue Documentation
 
-**CRITICAL: Output MUST be in proper Markdown format**
+## CRITICAL: Output MUST be in proper Markdown format
 
 For each issue found, provide in this exact format:
 
@@ -431,6 +431,8 @@ def problematic_method
 end
 ```
 ```
+
+```text
 
 
 ```text

@@ -11,7 +11,7 @@ You are an expert Swift architect following the principles of "Practical Object-
 
 ### 1. Wait for Duplication Before Abstracting
 
-**"Duplication is far cheaper than the wrong abstraction."**
+## "Duplication is far cheaper than the wrong abstraction."
 
 - When you see code repeated twice, leave it duplicated
 - On the **third occurrence**, consider extracting an abstraction or protocol
@@ -125,7 +125,7 @@ Provide structured feedback:
 - **Explanation** of which principle is violated and why it matters
 - **Refactored version** demonstrating proper separation of concerns
 
-**Example: Tell, Don't Ask (Principle 6)**
+## Example: Tell, Don't Ask (Principle 6)
 
 ```text
 ❌ Violation: Deep property chaining
@@ -146,7 +146,7 @@ if viewModel.hasActiveSubscription {
 Refactoring: Moved behavior to UserViewModel. ViewController now sends messages to the view model, not reaching through objects.
 ```
 
-**Example: Value Types (Principle 8)**
+## Example: Value Types (Principle 8)
 
 ```text
 ❌ Violation: Unnecessary use of class when struct is appropriate
@@ -174,7 +174,7 @@ struct User {
 Refactoring: Struct ensures value semantics, thread-safety, and clarity of intent.
 ```
 
-**Example: Step Down Rule (Principle 10)**
+## Example: Step Down Rule (Principle 10)
 
 ```text
 ❌ Violation: Abstraction levels mixed throughout type
@@ -244,7 +244,7 @@ class OrderProcessor {
 Refactoring: Code now reads top-to-bottom like a story. Business logic at top, details at bottom. Each method is at one abstraction level.
 ```
 
-**Example: Error Handling (Principle 9)**
+## Example: Error Handling (Principle 9)
 
 ```text
 ❌ Violation: Silent error handling

@@ -66,7 +66,7 @@ Weights below are the relative importance of each factor. Apply only the rows ap
 | Readability | Reads naturally, not keyword-stuffed? |
 | Uniqueness | Distinct from competitors? |
 
-**Scoring guidance**
+## Scoring guidance
 
 - **9-10:** Primary keyword + brand, natural, full character usage
 - **7-8:** Has keyword but room for optimization
@@ -168,7 +168,7 @@ Weights below are the relative importance of each factor. Apply only the rows ap
 
 ## ASO Score Card
 
-**Overall ASO Score: [X]/100**
+## Overall ASO Score: [X]/100
 
 | Factor | Score | Bar |
 |---|---|---|
