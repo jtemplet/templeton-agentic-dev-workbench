@@ -50,6 +50,12 @@ Every issue body uses this structure:
 criterion is satisfied without asking the author. Prefer observable behavior, named tests,
 or measurable thresholds over subjective judgements.]
 
+## Estimated size
+
+[<files> files, <LOC> LOC, band: Trivial / Target / Stretch. One-sentence justification if Stretch.
+See "The Size Window" for bands. This estimate is also what the loop's diff-budget gate measures
+against; budgeting in advance prevents iteration timeouts.]
+
 ## Out of scope (optional)
 
 [Anything explicitly deferred to a sibling or follow-up bead.]
@@ -69,6 +75,56 @@ A bead **fails** the audit and must be rewritten when:
 - The Done when cannot be verified by a second person without asking the author.
 
 A bead **passes** when the Why names a stakeholder or motivating constraint, the How states an approach with at least one key decision or trade-off, and the Done when lists at least one condition a second person could verify independently.
+
+## The Size Window
+
+Every bead must fit within a diff-size window before it is created. Beads that are too large fail to ship in one autonomous iteration; beads that are too small cost more in branch + review + PR overhead than the change is worth. The window is expressed in two dimensions, files-touched and lines-of-code-changed (insertions + deletions vs the base branch).
+
+| Band | Files | LOC | What it means | Action |
+|---|---|---|---|---|
+| **Trivial** | 1 | < 20 | One-line tweak, typo, single-import fix | Just commit directly; do not file a bead |
+| **Target** | 1 to 5 | 20 to 300 | Reviewable as a small diff (fresh-eyes-review path); fits comfortably in one iteration | This is the goal for every bead |
+| **Stretch** | up to 10 | up to 600 | Reviewable but requires the full code-reviewer; pushes against one-iteration limits | Acceptable with justification |
+| **Too big** | > 10 | > 600 | Either won't finish in one iteration or couples too many concerns | Split before creating |
+| **Hard ceiling** | > 30 | > 2000 | Exceeds the autonomous wrapper's diff-budget defaults (outrigger and similar runners abort here) | Never create |
+
+The target band is calibrated against the common "small diff" threshold in code-review skills (under ~5 files / ~250 LOC reviews fast and lands cleanly). The hard ceiling mirrors outrigger's wrapper defaults (`MAX_FILES_CHANGED=30`, `MAX_LOC_CHANGED=2000`); a bead above that line cannot be shipped autonomously even with full budget.
+
+### Why this matters
+
+A real failure that motivated this rule: bead `outrigger-yov` was a 451-LOC / 6-file port (function + tests + wrapper wire-up + docs). It fit the wrapper's hard budget but did not fit one 20-minute iteration, timing out at step 8 of 14. The agent spent $0.62 making real progress, but the bead could not close autonomously. Two right-sized beads (the port, then wire-up + docs) would have shipped cleanly.
+
+### Anti-patterns that signal a too-big bead
+
+- **Conjunctive titles**: "Port X **and** wire X to callers" / "Add Y **and** migrate existing usages". The conjunction is the split line.
+- **Test code counted separately**: a 150-LOC implementation with 200 LOC of tests is a 350-LOC bead, not a 150-LOC one. Tests are part of the diff.
+- **Documentation as a phase**: if shipping the bead requires non-trivial doc updates (e.g., architecture diagram, README section, CLAUDE.md edits), count those LOC. If they dominate, split the doc work into its own bead.
+- **"Add feature X with full coverage"**: vague scope. Force an estimate; usually decomposes into 2 to 4 right-sized beads.
+- **Single bead, multiple distinct call sites**: "Implement X and update the 8 callers" is 1 + 8 sub-tasks. The first is a bead; the call-site migrations are either one bead (if mechanical) or sibling beads (if each needs judgment).
+
+### Audit checks (size)
+
+A bead **fails** the size audit and must be split when:
+
+- The estimated size is in the "Too big" or "Hard ceiling" band.
+- The title contains a conjunction (`and`, `+`, `plus`, `with`) that names two work units.
+- The How describes two or more distinct approaches or call-site changes that could ship separately.
+- A reviewer reading the Done when cannot tell which acceptance criterion belongs to which work unit (compound scope).
+
+A bead **fails** the size audit and must be merged with a sibling (or just committed) when:
+
+- The estimated size is in the "Trivial" band AND no upstream / downstream work depends on it being a separate trackable unit.
+
+### Estimating size
+
+Estimation is rough; the goal is to spot which band a bead falls in, not to predict to the line. Use whichever of these gives the fastest signal:
+
+1. **Read the How** and count the files or modules it names. If you can name 1 to 5 specific files, you are probably in Target band.
+2. **For ports, refactors, or pattern applications**, look at the source file(s) being ported. Output LOC is usually within 1.5x of input LOC for a faithful port; for a refactor that adds tests, multiply by ~2.
+3. **For greenfield features**, sketch the function or component surface. Each significant function is roughly 30 to 80 LOC; each test typically adds another 30 to 100 LOC.
+4. **When uncertain, round up.** A bead estimated at "300 to 600 LOC" should be treated as 600 (Stretch). If 600 is the upper bound, plan to split.
+
+If you cannot estimate within one band, ask the user to clarify scope or split speculatively. Do not write an estimate of "unknown".
 
 ## Required Workflow
 
@@ -98,20 +154,23 @@ For each issue, prepare:
 
 | Field | Value |
 |---|---|
-| **Title** | Short, action-oriented (e.g., "Add user auth middleware") |
+| **Title** | Short, action-oriented (e.g., "Add user auth middleware"). No conjunctions ("and", "+", "plus") that bundle two work units |
 | **Priority** | 1 (critical) / 2 (high) / 3 (medium) / 4 (low) |
 | **Labels** | Comma-separated, derived from plan (e.g., "backend,auth,milestone-1") |
 | **Dependencies** | Which other issues must finish first (by title reference) |
 | **Why (L1: Computational)** | Drafted per the body shape above |
 | **How (L2: Algorithmic)** | Drafted per the body shape above |
 | **Done when (Acceptance)** | Drafted per the body shape above |
+| **Estimated size** | `<files>` files, `<LOC>` LOC, band: Trivial / Target / Stretch / Too big. See "The Size Window" |
 
-Draft Why, How, and Done when per the body shape, then **run the full audit on every bead** using the checks in "The Marr Audit Standard" above:
+Draft Why, How, Done when, AND the size estimate per the body shape, then **run the full audit on every bead** (Marr audit AND size audit) using the checks in "The Marr Audit Standard" and "The Size Window" above:
 
 - Rewrite any bead whose Why, How, or Done when fails. Do not defer this to the user confirmation gate; weak descriptions waste the user's review time.
 - Merge two beads if they share the same Why and How. Split one bead if its How actually describes two independent approaches.
 - Stop and ask the user if you cannot articulate a Why for a bead. That usually means it is an implementation detail of another bead, not a real work unit.
 - Stop and ask the user if you cannot write a Done when that a second person could verify. That usually means the bead's scope is unclear or it depends on a judgment call that should be made explicit.
+- **Split any bead in the Too-big or Hard-ceiling size band.** Use the anti-pattern checklist in "The Size Window" to find the split line. Re-run the Marr audit on each child bead.
+- **Demote any Trivial-band bead to a direct commit.** Note in the final report which work units were not filed as beads and why.
 
 **Derive dependencies from the How.** Where one bead's How references another bead's output (e.g., "consume the new auth middleware"), capture that as a dependency. The How is a source of dep edges, not just a description.
 
@@ -124,11 +183,11 @@ Show the user the complete list, and surface the Why, How, and Done when for eac
 ````markdown
 ## Proposed Issues
 
-| # | Title | Priority | Labels | Depends On |
-|---|---|---|---|---|
-| 1 | ... | P2 | backend,milestone-1 | - |
-| 2 | ... | P2 | backend,milestone-1 | #1 |
-| 3 | ... | P3 | frontend,milestone-2 | - |
+| # | Title | Priority | Labels | Size (files / LOC, band) | Depends On |
+|---|---|---|---|---|---|
+| 1 | ... | P2 | backend,milestone-1 | 3 / 180, Target | - |
+| 2 | ... | P2 | backend,milestone-1 | 4 / 250, Target | #1 |
+| 3 | ... | P3 | frontend,milestone-2 | 2 / 90, Target | - |
 
 ### Bead bodies
 
@@ -140,6 +199,8 @@ Show the user the complete list, and surface the Why, How, and Done when for eac
 
 *Done when:* <bullet list of verifiable conditions>
 
+*Estimated size:* <files> files, <LOC> LOC, band: <band>. <one-sentence justification if Stretch>
+
 ## #2: <Title>
 
 *Why (L1):* ...
@@ -148,8 +209,11 @@ Show the user the complete list, and surface the Why, How, and Done when for eac
 
 *Done when:* ...
 
+*Estimated size:* ...
+
 **Parallel tracks:** Issues 1-2 (backend), Issue 3 (frontend) can proceed independently.
 **Total issues:** X
+**Trivial work units rolled into direct commits (not filed as beads):** <list, or "none">
 ````
 
 **WAIT for user confirmation before proceeding.** The user may want to adjust titles, priorities, dependencies, Why/How, or Done when content. Treat any edit as a re-audit: confirm the rewrite still passes before moving on.
@@ -252,8 +316,9 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 - Read the full plan before identifying work units
 - Articulate Marr Level 1 (Why) and Level 2 (How) for every bead before presenting
 - Draft Done when for every bead; each criterion must be verifiable by a second person without asking the author
-- Run the full audit on every bead and rewrite failures before the confirmation gate
-- Present the complete issue list, including each bead's Why, How, and Done when, and WAIT for user confirmation before creating
+- Estimate size (files + LOC + band) for every bead before presenting
+- Run the full audit on every bead (Marr AND size) and rewrite, split, or demote failures before the confirmation gate
+- Present the complete issue list, including each bead's Why, How, Done when, AND size estimate, and WAIT for user confirmation before creating
 - Verify `br` is available before attempting to create issues
 - Pass the Why, How, and Done when body to `br create` via `-d`; do not strip any section to save a line
 - Make each issue self-contained with enough context to implement independently
@@ -262,9 +327,9 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 **Never:**
 
 - Create a bead that fails the Marr audit (see "Audit checks" above for the canonical pass/fail criteria)
+- Create a bead that fails the size audit (Too big, Hard ceiling, or Trivial-and-standalone; see "The Size Window")
 - Create issues without user confirmation
 - Create circular dependencies
-- Create issues that are too granular (< 1 hour) or too large (> 1 week)
 - Assume `br` is installed without checking
 
 ## Quality Checklist
@@ -272,9 +337,12 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 Before reporting completion, verify:
 
 - [ ] All milestones from the plan are covered by at least one issue
-- [ ] Each issue has a clear, action-oriented title
+- [ ] Each issue has a clear, action-oriented title with no work-unit-bundling conjunction
 - [ ] Every issue body uses the `## Why (Computational)` / `## How (Algorithmic)` / `## Done when (Acceptance)` structure
 - [ ] Every `## Done when` section contains at least one condition a second person could verify independently
+- [ ] Every bead falls in the Target or Stretch size band (Stretch beads include a one-sentence justification)
+- [ ] No bead is in the Too-big or Hard-ceiling band
+- [ ] Trivial-band work units were demoted to direct commits and listed in the final report
 - [ ] Dependencies are correct and acyclic
 - [ ] Longest dependency chain is at most 3 issues; if longer, a parallel split was missed
 - [ ] `br sync --flush-only` was run
