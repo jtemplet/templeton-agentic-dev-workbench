@@ -90,6 +90,8 @@ Every bead must fit within a diff-size window before it is created. Beads that a
 
 The target band is calibrated against the common "small diff" threshold in code-review skills (under ~5 files / ~250 LOC reviews fast and lands cleanly). The hard ceiling mirrors outrigger's wrapper defaults (`MAX_FILES_CHANGED=30`, `MAX_LOC_CHANGED=2000`); a bead above that line cannot be shipped autonomously even with full budget.
 
+**When dimensions disagree, the worse band wins.** A bead at 8 files / 700 LOC is Too big (LOC dominates), not Stretch. A bead at 12 files / 400 LOC is Too big (files dominates), not Stretch. The "worse" rule is conservative on purpose: a bead that fails on either dimension fails to ship autonomously, so split before creating.
+
 ### Why this matters
 
 A real failure that motivated this rule: bead `outrigger-yov` was a 451-LOC / 6-file port (function + tests + wrapper wire-up + docs). It fit the wrapper's hard budget but did not fit one 20-minute iteration, timing out at step 8 of 14. The agent spent $0.62 making real progress, but the bead could not close autonomously. Two right-sized beads (the port, then wire-up + docs) would have shipped cleanly.
@@ -107,7 +109,7 @@ A real failure that motivated this rule: bead `outrigger-yov` was a 451-LOC / 6-
 A bead **fails** the size audit and must be split when:
 
 - The estimated size is in the "Too big" or "Hard ceiling" band.
-- The title contains a conjunction (`and`, `+`, `plus`, `with`) that names two work units.
+- The title contains a conjunction (`and`, `+`, `plus`, `with`) that names two work units. The conjunction itself is only a hint; the load-bearing rule is "names two work units." A title like "Add user auth middleware **with** rate limiting" is two work units; "Add user auth middleware **with** tests" is one (tests are part of the diff).
 - The How describes two or more distinct approaches or call-site changes that could ship separately.
 - A reviewer reading the Done when cannot tell which acceptance criterion belongs to which work unit (compound scope).
 
@@ -144,7 +146,7 @@ Ask the user to pick if multiple exist.
 
 From the plan's milestones, components, and scope, identify natural work units. Each issue should:
 
-- Be completable in 1 to 3 days of focused work
+- Fall in the Target or Stretch size band (see "The Size Window")
 - Have enough context to implement without re-reading the whole plan
 - Map to a single milestone or a clear sub-task of one
 
@@ -154,7 +156,7 @@ For each issue, prepare:
 
 | Field | Value |
 |---|---|
-| **Title** | Short, action-oriented (e.g., "Add user auth middleware"). No conjunctions ("and", "+", "plus") that bundle two work units |
+| **Title** | Short, action-oriented (e.g., "Add user auth middleware"). No conjunctions ("and", "+", "plus", "with") that bundle two work units |
 | **Priority** | 1 (critical) / 2 (high) / 3 (medium) / 4 (low) |
 | **Labels** | Comma-separated, derived from plan (e.g., "backend,auth,milestone-1") |
 | **Dependencies** | Which other issues must finish first (by title reference) |
@@ -178,7 +180,7 @@ Do not proceed to Step 3 until every bead passes the audit.
 
 ### Step 3: Present and Confirm
 
-Show the user the complete list, and surface the Why, How, and Done when for each bead so they can verify the full audit, not just the metadata:
+Show the user the complete list, and surface the Why, How, Done when, AND Estimated size for each bead so they can verify the full audit, not just the metadata:
 
 ````markdown
 ## Proposed Issues
@@ -241,6 +243,9 @@ br create "<Title>" -p <priority> -t task -l "<labels>" -d "$(cat <<'EOF'
 ## Done when (Acceptance)
 - <criterion 1>
 - <criterion 2>
+
+## Estimated size
+<files> files, <LOC> LOC, band: <band>. <one-sentence justification if Stretch>
 EOF
 )"
 ```
@@ -320,7 +325,7 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 - Run the full audit on every bead (Marr AND size) and rewrite, split, or demote failures before the confirmation gate
 - Present the complete issue list, including each bead's Why, How, Done when, AND size estimate, and WAIT for user confirmation before creating
 - Verify `br` is available before attempting to create issues
-- Pass the Why, How, and Done when body to `br create` via `-d`; do not strip any section to save a line
+- Pass the Why, How, Done when, AND Estimated size body to `br create` via `-d`; do not strip any section to save a line
 - Make each issue self-contained with enough context to implement independently
 - Keep the dependency graph shallow, prefer parallel tracks over deep chains
 
