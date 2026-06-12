@@ -113,6 +113,7 @@ Pair with `/loop` to run on a schedule:
 | Command | Description |
 |---|---|
 | `/bead-audit [id or content]` | Audit bead bodies (Marr, size, type-specific sections); content-vs-structure verdicts, JSON mode, drafts applyable fixes |
+| `/product-surface-docs [dir]` | Build/refresh a MECE/Pyramid product doc tree by surface under docs/products/; surfaces bugs/gaps/debt into a findings ledger |
 | `/pr-maintain` | Keep the current branch's PR rebased on its parent and passing CI; safe to pair with `/loop` |
 | `/validate-plugin` | Check plugin integrity and cross-references |
 
@@ -141,6 +142,7 @@ Pair with `/loop` to run on a schedule:
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
 | `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) |
 | `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards; separates content from structure (format-only issues are auto-fixable), honors native tracker fields, JSON output for backlog grooming |
+| `product-surface-docs` | Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface; grounds claims in code, proactively hunts bugs/gaps/debt into `_findings.md` (cheap capture) and promotes actionable ones into bead-audit-compliant beads, ships a staleness checker (in-repo + multi-repo) |
 | `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing |
 | `competitive-analysis` | Competitor teardown with positioning map, moat analysis, trajectory, and feature gaps |
 | `ab-test-design` | A/B test design with hypothesis, metrics, sample size, rollout plan, and decision criteria |
@@ -165,6 +167,7 @@ Pair with `/loop` to run on a schedule:
 | `ux-product-designer` | UX audit of a web app via Playwright, 7-dimension evaluation with severity-ranked report |
 | `ux-product-designer-ios` | UX audit of an iOS app via Simulator, tests Dynamic Type / Dark Mode / accessibility, 7-dimension evaluation against Apple HIG |
 | `product-manager` | Senior/Staff PM routing agent; dispatches to competitive-analysis, ab-test-design, product-research, product-roadmap, and product-brief skills |
+| `product-cartographer` | Maps a codebase into a MECE/Pyramid `docs/products/` tree and proactively hunts for bugs/gaps/debt, logging each to a ledger and promoting actionable ones into bead-audit-compliant beads; refresh-first (uses `product-surface-docs` skill) |
 
 ## Architecture
 

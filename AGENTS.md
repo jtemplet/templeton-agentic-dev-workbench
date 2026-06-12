@@ -365,6 +365,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `fresh-eyes-review` - Bug-and-correctness pass over recently changed code, fixes issues directly
 - `feature-development` - 4-phase guided implementation (discovery, implementation, simplification, linting), language-agnostic
 - `plan-to-beads` - Decompose a feature plan into br (beads_rust) issues with dependencies, auditing each bead against Marr Levels 1 (Why), 2 (How), and acceptance criteria (Done when) before creation
+- `product-surface-docs` - Generate, refresh, and keep current a MECE/Pyramid-Principle product documentation tree under `docs/products/`, organized by product surface (web/api/iOS/...) and drilling into each surface's capabilities; grounds claims in code, proactively hunts bugs/gaps/debt into a `_findings.md` ledger with stable F-IDs (cheap capture, report everything) and promotes the actionable ones into `bead-audit`-compliant beads, ships a `check_staleness.py` (in-repo + multi-repo) so staleness is a command, and uses progressive disclosure (scripts/ + references/)
 - `bead-audit` - Audit one or more bead issue bodies against the Marr audit, size audit, and type-specific section audit; tracker-agnostic (accepts pasted text, files, or any CLI output) but honors native tracker fields (e.g. `br`'s acceptance_criteria/design/notes); separates content verdict from structure verdict (format-only issues are an auto-fixable REFORMAT, not a FAIL), exempts epics and operational beads from the size band, self-verifies each drafted fix so it re-passes, gates write-back with an `applyable` flag so placeholder-bearing drafts never reach the tracker, and supports a JSON output mode for backlog-scale grooming
 - `research-ingest` - Ingest a new source into the Research wiki, with study quality assessment and cross-referencing
 - `competitive-analysis` - Deep competitor teardown with positioning map, moat analysis, trajectory mapping, and feature gap analysis
@@ -388,6 +389,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `ux-product-designer` - Senior product designer that conducts a UX audit of a running web app via Playwright, grounded in AGENTS.md context, and produces a severity-ranked report across 7 design dimensions
 - `ux-product-designer-ios` - Senior product designer that conducts a UX audit of an iOS app in the Simulator via xcrun simctl, tests Dynamic Type / Dark Mode / accessibility settings, and produces a severity-ranked report against Apple HIG standards
 - `product-manager` - Senior/Staff PM who routes to competitive analysis, A/B test design, product research, and roadmap skills
+- `product-cartographer` - Senior technical product documentarian and auditor who maps a codebase into a MECE/Pyramid `docs/products/` tree and, in the same pass, proactively hunts for bugs/gaps/debt, logging each to a findings ledger (cheap) and promoting the actionable ones into `bead-audit`-compliant beads; refresh-first, with a staleness checker (uses `product-surface-docs` skill)
 
 **Registered Commands:**
 
@@ -406,6 +408,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/plan-feature` - Generate a detailed implementation plan for a feature
 - `/plan-review` - Fresh-eyes review of a feature plan
 - `/plan-to-beads` - Decompose a feature plan into br issues with dependencies; each bead audited for Why (L1), How (L2), and Done when (acceptance criteria) before creation
+- `/product-surface-docs` - Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface, grounded in code, surfacing bugs/gaps/debt into a findings ledger
 - `/bead-audit` - Audit one or more bead bodies; paste content directly, give a file path, or pipe your issue tracker's output - no specific CLI required
 - `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan
