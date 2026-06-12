@@ -32,6 +32,9 @@ temp/
 .bv/*
 !.bv/workspace.yml
 
+# Claude Code session lease files (one per live process holding this dir)
+.in_use/
+
 # Backup skills
 skills/rails-conventions-BAK/
 

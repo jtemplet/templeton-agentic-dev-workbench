@@ -112,6 +112,7 @@ Pair with `/loop` to run on a schedule:
 
 | Command | Description |
 |---|---|
+| `/bead-audit [id or content]` | Audit bead bodies (Marr, size, type-specific sections); content-vs-structure verdicts, JSON mode, drafts applyable fixes |
 | `/pr-maintain` | Keep the current branch's PR rebased on its parent and passing CI; safe to pair with `/loop` |
 | `/validate-plugin` | Check plugin integrity and cross-references |
 
@@ -139,6 +140,7 @@ Pair with `/loop` to run on a schedule:
 | `fresh-eyes-review` | Bug-and-correctness pass over recently changed code, fixes issues directly |
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
 | `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) |
+| `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards; separates content from structure (format-only issues are auto-fixable), honors native tracker fields, JSON output for backlog grooming |
 | `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing |
 | `competitive-analysis` | Competitor teardown with positioning map, moat analysis, trajectory, and feature gaps |
 | `ab-test-design` | A/B test design with hypothesis, metrics, sample size, rollout plan, and decision criteria |

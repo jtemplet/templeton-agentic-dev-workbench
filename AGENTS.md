@@ -365,6 +365,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `fresh-eyes-review` - Bug-and-correctness pass over recently changed code, fixes issues directly
 - `feature-development` - 4-phase guided implementation (discovery, implementation, simplification, linting), language-agnostic
 - `plan-to-beads` - Decompose a feature plan into br (beads_rust) issues with dependencies, auditing each bead against Marr Levels 1 (Why), 2 (How), and acceptance criteria (Done when) before creation
+- `bead-audit` - Audit one or more bead issue bodies against the Marr audit, size audit, and type-specific section audit; tracker-agnostic (accepts pasted text, files, or any CLI output) but honors native tracker fields (e.g. `br`'s acceptance_criteria/design/notes); separates content verdict from structure verdict (format-only issues are an auto-fixable REFORMAT, not a FAIL), exempts epics and operational beads from the size band, self-verifies each drafted fix so it re-passes, gates write-back with an `applyable` flag so placeholder-bearing drafts never reach the tracker, and supports a JSON output mode for backlog-scale grooming
 - `research-ingest` - Ingest a new source into the Research wiki, with study quality assessment and cross-referencing
 - `competitive-analysis` - Deep competitor teardown with positioning map, moat analysis, trajectory mapping, and feature gap analysis
 - `ab-test-design` - Rigorous A/B test design with hypothesis, metrics, sample size, rollout plan, guardrails, and decision criteria
@@ -405,6 +406,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/plan-feature` - Generate a detailed implementation plan for a feature
 - `/plan-review` - Fresh-eyes review of a feature plan
 - `/plan-to-beads` - Decompose a feature plan into br issues with dependencies; each bead audited for Why (L1), How (L2), and Done when (acceptance criteria) before creation
+- `/bead-audit` - Audit one or more bead bodies; paste content directly, give a file path, or pipe your issue tracker's output - no specific CLI required
 - `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan
 - `/diagnose` - Investigate a bug thoroughly before attempting any fix

@@ -33,7 +33,7 @@ Every bead must articulate at least **Marr Levels 1 and 2** before it is created
 
 ### Required body shape
 
-Every issue body uses this structure:
+Every issue body uses this structure. Sections marked with a type tag are required only for beads of that type.
 
 ````markdown
 ## Why (Computational)
@@ -50,6 +50,32 @@ Every issue body uses this structure:
 criterion is satisfied without asking the author. Prefer observable behavior, named tests,
 or measurable thresholds over subjective judgements.]
 
+<!-- Required for type: task, feature, bug -->
+## Acceptance Criteria
+
+[Formal, testable conditions written from the user or system perspective. Use Given/When/Then
+or numbered criteria. These complement Done when by capturing the observable behavior a QA
+reviewer or product owner would check, not just the implementer.]
+
+<!-- Required for type: bug only (in addition to Acceptance Criteria) -->
+## Steps to Reproduce
+
+1. [First step]
+2. [Second step]
+3. ...
+
+**Expected behavior:** [what should happen]
+**Actual behavior:** [what currently happens]
+**Environment / version:** [branch, OS, relevant config, if known]
+
+<!-- Required for type: epic only -->
+## Success Criteria
+
+[High-level outcomes that signal the epic is delivering value. These are business- or
+product-level indicators (e.g., metric thresholds, user capability unlocked, milestone
+reached), not line-by-line implementation checks. Each criterion must be verifiable at
+the epic level by a stakeholder who has not read the child beads.]
+
 ## Estimated size
 
 [<files> files, <LOC> LOC, band: Trivial / Target / Stretch. One-sentence justification if Stretch.
@@ -60,6 +86,28 @@ against; budgeting in advance prevents iteration timeouts.]
 
 [Anything explicitly deferred to a sibling or follow-up bead.]
 ````
+
+### Done when vs. Acceptance Criteria (normative)
+
+`## Done when (Acceptance)` and `## Acceptance Criteria` are **not** duplicates. They sit at different altitudes and a complete task/feature/bug bead has both:
+
+- **Done when (Acceptance)** states the *outcome-level* conditions that mean the work is finished. This is the implementer's definition of done, phrased as observable end states.
+- **Acceptance Criteria** is the *formal, testable checklist* a reviewer or QA walks through to verify those outcomes. Prefer Given/When/Then or a numbered list of concrete, individually-checkable assertions.
+
+Rule of thumb: if you can hand the line to QA and they can mark it pass/fail without interpretation, it belongs in **Acceptance Criteria**. If it describes the end state in the implementer's words, it belongs in **Done when**.
+
+**Worked example** (a "rate-limit failed logins" bead):
+
+```markdown
+## Done when (Acceptance)
+- Repeated failed logins from one source are throttled.
+- The threshold is configurable without a redeploy.
+
+## Acceptance Criteria
+1. Given 5 failed logins in 60s from one IP, When a 6th is attempted, Then the response status is 429.
+2. Given the RATE_LIMIT env var is changed, When config reloads, Then the new limit applies without a process restart.
+3. Given a successful login, When the rolling window elapses, Then the failure counter resets to 0.
+```
 
 ### Audit checks
 
@@ -75,6 +123,20 @@ A bead **fails** the audit and must be rewritten when:
 - The Done when cannot be verified by a second person without asking the author.
 
 A bead **passes** when the Why names a stakeholder or motivating constraint, the How states an approach with at least one key decision or trade-off, and the Done when lists at least one condition a second person could verify independently.
+
+### Type-specific section audit
+
+A bead **fails** and must be fixed when a required section for its type is absent or empty:
+
+- **task, feature, or bug** with no `## Acceptance Criteria` section, or whose Acceptance Criteria are as vague as "it works" or "user can do X" without specifying the observable signal.
+- **bug** with no `## Steps to Reproduce` section, or whose steps cannot be followed by someone unfamiliar with the code (missing preconditions, ambiguous environment, no expected vs. actual contrast).
+- **epic** with no `## Success Criteria` section, or whose Success Criteria list only implementation checks (those belong in child-bead Done when sections, not the epic). Epic Success Criteria must be legible to a product stakeholder who has not read the child beads.
+
+A bead **passes** the type-specific audit when:
+
+- **task/feature**: `## Acceptance Criteria` contains at least one testable, observable condition.
+- **bug**: `## Acceptance Criteria` and `## Steps to Reproduce` are both present; Steps to Reproduce includes expected vs. actual behavior.
+- **epic**: `## Success Criteria` contains at least one outcome-level indicator (metric, capability, milestone) that a non-technical stakeholder could evaluate.
 
 ## The Size Window
 
@@ -157,17 +219,22 @@ For each issue, prepare:
 | Field | Value |
 |---|---|
 | **Title** | Short, action-oriented (e.g., "Add user auth middleware"). No conjunctions ("and", "+", "plus", "with") that bundle two work units |
+| **Type** | `task`, `feature`, `bug`, or `epic`. This determines which type-specific sections are required (see "Type-specific section audit") |
 | **Priority** | 1 (critical) / 2 (high) / 3 (medium) / 4 (low) |
 | **Labels** | Comma-separated, derived from plan (e.g., "backend,auth,milestone-1") |
 | **Dependencies** | Which other issues must finish first (by title reference) |
 | **Why (L1: Computational)** | Drafted per the body shape above |
 | **How (L2: Algorithmic)** | Drafted per the body shape above |
 | **Done when (Acceptance)** | Drafted per the body shape above |
+| **Acceptance Criteria** | Required for task, feature, bug. Testable, observable conditions from a QA or product perspective |
+| **Steps to Reproduce** | Required for bug only. Numbered steps + expected vs. actual behavior |
+| **Success Criteria** | Required for epic only. Outcome-level indicators legible to a product stakeholder |
 | **Estimated size** | `<files>` files, `<LOC>` LOC, band: Trivial / Target / Stretch / Too big. See "The Size Window" |
 
-Draft Why, How, Done when, AND the size estimate per the body shape, then **run the full audit on every bead** (Marr audit AND size audit) using the checks in "The Marr Audit Standard" and "The Size Window" above:
+Draft Why, How, Done when, type-specific sections, AND the size estimate per the body shape, then **run the full audit on every bead** (Marr audit, size audit, AND type-specific section audit) using the checks in "The Marr Audit Standard", "The Size Window", and "Type-specific section audit" above:
 
 - Rewrite any bead whose Why, How, or Done when fails. Do not defer this to the user confirmation gate; weak descriptions waste the user's review time.
+- Draft the type-specific sections for every bead before presenting: `## Acceptance Criteria` for task/feature/bug, `## Steps to Reproduce` for bug, `## Success Criteria` for epic. Rewrite any that are vague or fail the type-specific audit; do not defer to the user confirmation gate.
 - Merge two beads if they share the same Why and How. Split one bead if its How actually describes two independent approaches.
 - Stop and ask the user if you cannot articulate a Why for a bead. That usually means it is an implementation detail of another bead, not a real work unit.
 - Stop and ask the user if you cannot write a Done when that a second person could verify. That usually means the bead's scope is unclear or it depends on a judgment call that should be made explicit.
@@ -180,20 +247,20 @@ Do not proceed to Step 3 until every bead passes the audit.
 
 ### Step 3: Present and Confirm
 
-Show the user the complete list, and surface the Why, How, Done when, AND Estimated size for each bead so they can verify the full audit, not just the metadata:
+Show the user the complete list, and surface the Why, How, Done when, type-specific sections, AND Estimated size for each bead so they can verify the full audit, not just the metadata:
 
 ````markdown
 ## Proposed Issues
 
-| # | Title | Priority | Labels | Size (files / LOC, band) | Depends On |
-|---|---|---|---|---|---|
-| 1 | ... | P2 | backend,milestone-1 | 3 / 180, Target | - |
-| 2 | ... | P2 | backend,milestone-1 | 4 / 250, Target | #1 |
-| 3 | ... | P3 | frontend,milestone-2 | 2 / 90, Target | - |
+| # | Title | Type | Priority | Labels | Size (files / LOC, band) | Depends On |
+|---|---|---|---|---|---|---|
+| 1 | ... | task | P2 | backend,milestone-1 | 3 / 180, Target | - |
+| 2 | ... | bug | P2 | backend,milestone-1 | 4 / 250, Target | #1 |
+| 3 | ... | epic | P3 | frontend,milestone-2 | 2 / 90, Target | - |
 
 ### Bead bodies
 
-## #1: <Title>
+## #1: <Title> (task)
 
 *Why (L1):* <one or two sentences naming the problem and the stakeholder or constraint>
 
@@ -201,15 +268,36 @@ Show the user the complete list, and surface the Why, How, Done when, AND Estima
 
 *Done when:* <bullet list of verifiable conditions>
 
+*Acceptance Criteria:* <testable, observable conditions from a QA or product perspective>
+
 *Estimated size:* <files> files, <LOC> LOC, band: <band>. <one-sentence justification if Stretch>
 
-## #2: <Title>
+## #2: <Title> (bug)
 
 *Why (L1):* ...
 
 *How (L2):* ...
 
 *Done when:* ...
+
+*Acceptance Criteria:* ...
+
+*Steps to Reproduce:*
+1. ...
+2. ...
+**Expected:** ... **Actual:** ...
+
+*Estimated size:* ...
+
+## #3: <Title> (epic)
+
+*Why (L1):* ...
+
+*How (L2):* ...
+
+*Done when:* ...
+
+*Success Criteria:* <outcome-level indicators legible to a product stakeholder>
 
 *Estimated size:* ...
 
@@ -230,7 +318,9 @@ If `br` is not found, stop and inform the user.
 
 ### Step 5: Create Issues
 
-For each confirmed issue, pass the full body via `-d` so the Why, How, and Done when all live in the issue:
+For each confirmed issue, pass the full body via `-d` so the Why, How, Done when, type-specific sections, and Estimated size all live in the issue. Use `-t <type>` to set the bead type (`task`, `feature`, `bug`, or `epic`).
+
+**task or feature:**
 
 ```bash
 br create "<Title>" -p <priority> -t task -l "<labels>" -d "$(cat <<'EOF'
@@ -243,6 +333,65 @@ br create "<Title>" -p <priority> -t task -l "<labels>" -d "$(cat <<'EOF'
 ## Done when (Acceptance)
 - <criterion 1>
 - <criterion 2>
+
+## Acceptance Criteria
+- <testable, observable condition 1>
+- <testable, observable condition 2>
+
+## Estimated size
+<files> files, <LOC> LOC, band: <band>. <one-sentence justification if Stretch>
+EOF
+)"
+```
+
+**bug:**
+
+```bash
+br create "<Title>" -p <priority> -t bug -l "<labels>" -d "$(cat <<'EOF'
+## Why (Computational)
+<L1 content>
+
+## How (Algorithmic)
+<L2 content>
+
+## Done when (Acceptance)
+- <criterion 1>
+- <criterion 2>
+
+## Acceptance Criteria
+- <testable, observable condition 1>
+
+## Steps to Reproduce
+1. <step>
+2. <step>
+
+**Expected behavior:** <what should happen>
+**Actual behavior:** <what currently happens>
+**Environment / version:** <branch, OS, relevant config>
+
+## Estimated size
+<files> files, <LOC> LOC, band: <band>. <one-sentence justification if Stretch>
+EOF
+)"
+```
+
+**epic:**
+
+```bash
+br create "<Title>" -p <priority> -t epic -l "<labels>" -d "$(cat <<'EOF'
+## Why (Computational)
+<L1 content>
+
+## How (Algorithmic)
+<L2 content>
+
+## Done when (Acceptance)
+- <criterion 1>
+- <criterion 2>
+
+## Success Criteria
+- <outcome-level indicator 1>
+- <outcome-level indicator 2>
 
 ## Estimated size
 <files> files, <LOC> LOC, band: <band>. <one-sentence justification if Stretch>
@@ -319,13 +468,15 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 **Always:**
 
 - Read the full plan before identifying work units
+- Assign a type (`task`, `feature`, `bug`, or `epic`) to every bead before drafting its body
 - Articulate Marr Level 1 (Why) and Level 2 (How) for every bead before presenting
 - Draft Done when for every bead; each criterion must be verifiable by a second person without asking the author
+- Draft `## Acceptance Criteria` for every task, feature, and bug bead; draft `## Steps to Reproduce` for every bug bead; draft `## Success Criteria` for every epic bead
 - Estimate size (files + LOC + band) for every bead before presenting
-- Run the full audit on every bead (Marr AND size) and rewrite, split, or demote failures before the confirmation gate
-- Present the complete issue list, including each bead's Why, How, Done when, AND size estimate, and WAIT for user confirmation before creating
+- Run the full audit on every bead (Marr AND size AND type-specific section) and rewrite, split, or demote failures before the confirmation gate
+- Present the complete issue list, including each bead's type, Why, How, Done when, type-specific sections, AND size estimate, and WAIT for user confirmation before creating
 - Verify `br` is available before attempting to create issues
-- Pass the Why, How, Done when, AND Estimated size body to `br create` via `-d`; do not strip any section to save a line
+- Pass the Why, How, Done when, type-specific sections, AND Estimated size body to `br create` via `-d`; do not strip any section to save a line
 - Make each issue self-contained with enough context to implement independently
 - Keep the dependency graph shallow, prefer parallel tracks over deep chains
 
@@ -333,6 +484,7 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 
 - Create a bead that fails the Marr audit (see "Audit checks" above for the canonical pass/fail criteria)
 - Create a bead that fails the size audit (Too big, Hard ceiling, or Trivial-and-standalone; see "The Size Window")
+- Create a bead that fails the type-specific section audit (missing `## Acceptance Criteria` for task/feature/bug, missing `## Steps to Reproduce` for bug, or missing `## Success Criteria` for epic)
 - Create issues without user confirmation
 - Create circular dependencies
 - Assume `br` is installed without checking
@@ -343,8 +495,12 @@ Before reporting completion, verify:
 
 - [ ] All milestones from the plan are covered by at least one issue
 - [ ] Each issue has a clear, action-oriented title with no work-unit-bundling conjunction
+- [ ] Every issue has an explicit type (`task`, `feature`, `bug`, or `epic`)
 - [ ] Every issue body uses the `## Why (Computational)` / `## How (Algorithmic)` / `## Done when (Acceptance)` structure
 - [ ] Every `## Done when` section contains at least one condition a second person could verify independently
+- [ ] Every task, feature, and bug bead includes `## Acceptance Criteria` with at least one testable, observable condition
+- [ ] Every bug bead includes `## Steps to Reproduce` with numbered steps and expected vs. actual behavior
+- [ ] Every epic bead includes `## Success Criteria` with at least one outcome-level indicator legible to a product stakeholder
 - [ ] Every bead falls in the Target or Stretch size band (Stretch beads include a one-sentence justification)
 - [ ] No bead is in the Too-big or Hard-ceiling band
 - [ ] Trivial-band work units were demoted to direct commits and listed in the final report
