@@ -1,185 +1,247 @@
 ---
 name: templeton-python-style
-description: Writes Python domain and application logic in the style of Sandi Metz and Clean Code principles, adapted to Google Python style constraints - emphasizing TRUE code, waiting for duplication, small methods, and composition over inheritance
+description: Writes and reviews Python in the house style - Python-specific deltas on top of the injected universal TRUE-code core (Sandi Metz / Clean Code), emphasizing modules-before-classes, dataclasses/protocols, lazy logging, and modern type hints
 ---
 
-# Role: OOD Expert
+# Templeton Python Style
 
-You are an expert software architect following the principles of "Practical Object-Oriented Design in Ruby" (POODR), adapted for Python. Your goal is to ensure code is Transparent, Reasonable, Usable, and Exemplary (TRUE).
+This skill writes and reviews Python domain and application logic in the house style. It carries only the Python-specific deltas on top of the universal TRUE-code core that is injected separately into every session; it does not restate that core. Use it whenever Python style decisions are in play.
 
-## Core Principles
+## When to Use / When NOT to Use
 
-### 1. Wait for Duplication Before Abstracting
+Use this skill when:
 
-## "Duplication is far cheaper than the wrong abstraction."
+- Writing new Python modules, functions, or classes that should match the house style.
+- Reviewing Python code for style, structure, type hints, logging, and error handling.
+- Refactoring or simplifying existing Python and you need the Python-specific deltas.
 
-- When you see code repeated twice, leave it duplicated
-- On the **third occurrence**, consider extracting an abstraction
-- Premature abstraction creates rigid, hard-to-change code
-- Three instances reveal the true pattern; two might be coincidental
+Do NOT use this skill when:
 
-### 2. Method Size: Small and Focused
+- The file is not Python (use `templeton-frontend-style`, `templeton-swift-style`, or the Rails skills instead).
+- The code is a throwaway script, one-off REPL snippet, or scratch experiment where style is irrelevant.
+- You only need the universal principles; those are already injected and apply on their own.
 
-- Methods should be **small** and **do one thing**
-- No hard line-count limits, but aim for brevity
-- If you can't easily name what a method does, it's doing too much
-- A method should be readable without scrolling
+## Universal Core (injected)
 
-### 3. Class Size: Cohesive Responsibilities
+The universal TRUE-code principles (Transparent, Reasonable, Usable, Exemplary) are injected via `hooks/style-core.md` and are assumed here; this skill does not repeat them. They are: wait for duplication before abstracting; small single-purpose units; simple interfaces (<=4 params, typed param objects); inject dependencies on interfaces; tell-don't-ask; compose over inherit; fail fast with explicit errors; read top-down (step-down rule); let names document. Default posture: correctness > speed, simplicity > cleverness, explicit > magic, start simple.
 
-- Classes should have a single, well-defined responsibility
-- Aim for roughly 100 lines or less as a guideline (not a hard rule)
-- If a class is growing large, look for hidden responsibilities to extract
+## Python Principles
 
-### 4. Parameters: Keep Interfaces Simple
+These are the Python-specific deltas. Each pairs the rule with a concrete BAD -> why -> GOOD fix.
 
-- No more than 4 parameters per method
-- Use Python's `dataclasses`, `TypedDict`, or `NamedTuple` for complex parameter groups
-- Consider builder patterns or configuration objects for complex initialization
+1. Prefer modules before classes. Introduce a class only when state, polymorphism, or lifecycle management genuinely requires it; otherwise group plain functions in a module.
 
-### 5. Dependencies: Inject, Don't Hardcode
+   ```python
+   # BAD: a stateless "service object" wrapping one method
+   class PriceFormatter:
+       def format(self, amount: decimal.Decimal) -> str:
+           return f"${amount:,.2f}"
 
-- Never hardcode class names inside other classes
-- Inject dependencies through `__init__` or method parameters
-- Use protocols or abstract base classes to define contracts
-- This enables testing, flexibility, and future change
+   # why: there is no state, no polymorphism, no lifecycle - the class is ceremony.
 
-### 6. Messaging: Tell, Don't Ask
+   # GOOD: a plain module-level function
+   def format_price(amount: decimal.Decimal) -> str:
+       return f"${amount:,.2f}"
+   ```
 
-- Objects should "Tell, Don't Ask"
-- Avoid deep attribute chaining (e.g., `a.b.c.d`)
-- If you're reaching through objects, you're coupling to internal structure
-- Move the behavior to where the data lives
+2. Use dataclasses, TypedDict, or NamedTuple for complex parameter groups. Bundle related data instead of passing long positional argument lists.
 
-### 7. Inheritance: Shallow and Purposeful
+   ```python
+   # BAD: 5 positional params, easy to transpose
+   def create_user(name, email, age, country, is_admin):
+       ...
 
-- **Deep inheritance is a bug trap**
-- Prefer composition over inheritance
-- Use inheritance only to enforce architectural boundaries or when there's a true "is-a" relationship
-- Keep inheritance hierarchies shallow (1-2 levels maximum)
-- Favor protocols, mixins, or composition for code reuse
+   # why: order-dependent, untyped, and grows worse with each new field.
 
-### 8. The Step Down Rule: Abstraction Levels
+   # GOOD: a typed parameter object
+   @dataclasses.dataclass(frozen=True)
+   class NewUser:
+       name: str
+       email: str
+       age: int
+       country: str
+       is_admin: bool = False
 
-- **Code should read like a narrative, descending from high-level concepts to implementation details**
-- When reading a class or module from top to bottom, each method should be at a similar abstraction level
-- Methods called by a high-level method should be directly below it, at the next level of abstraction
-- Implementation details (low-level operations) should sink to the bottom
-- This creates a readable "story" that stakeholders can follow without jumping between abstraction levels
+   def create_user(user: NewUser) -> User:
+       ...
+   ```
 
-### 9. Errors: Fail Fast, Be Explicit
+3. Use protocols and type hints to express contracts without coupling. Depend on what an object can do, not on a concrete class.
 
-• Prefer exceptions over sentinel values
-• Do not catch broad exceptions unless rethrowing with context
-• Exceptions should add information, not hide the original error
-• Avoid using exceptions for normal control flow
+   ```python
+   # BAD: coupled to a concrete implementation
+   class ReportJob:
+       def __init__(self) -> None:
+           self._store = S3Store()  # hardcoded concrete dependency
 
-### 10. Prefer Modules Before Classes
+   # why: cannot test or swap the store; the job knows too much.
 
-• Use modules as the first unit of abstraction
-• Introduce classes only when state, polymorphism, or lifecycle management is required
-• Many “service objects” can be plain functions grouped by module
+   # GOOD: depend on a Protocol, inject the concrete
+   class BlobStore(Protocol):
+       def put(self, key: str, data: bytes) -> None: ...
 
-**Rule of thumb:**
+   class ReportJob:
+       def __init__(self, store: BlobStore) -> None:
+           self._store = store
+   ```
 
-1. Public API / high-level business logic at the top
-2. Helper methods and intermediate abstractions in the middle
-3. Private implementation details at the bottom
+4. Use parameterized, lazy logging. Pass arguments to the logger; never build the message with an f-string.
 
-This principle makes code self-documenting: you can skim the top methods to understand intent, then read deeper for implementation.
+   ```python
+   # BAD: f-string is evaluated eagerly and collapses structure
+   logger.info(f"Processing order {order_id}")
 
-## Review Workflow
+   # why: defeats lazy evaluation and loses structured logging fields.
 
-- When asked to write code, follow these principles
-- When reviewing code:
-  - Flag premature abstractions (look for single-use abstractions)
-  - Identify methods that do multiple things
-  - Point out deep inheritance or attribute chaining
-  - Suggest refactoring that separates concerns
-- Prioritize "Duck Typing"—focus on what an object *does* rather than what it *is*
-- Use Python's type hints and protocols to document contracts without coupling to implementations
-- When refactoring, explain what flexibility is gained and what complexity is introduced.
+   # GOOD: parameterized, lazy
+   logger.info("Processing order %s", order_id)
+   ```
 
-## Output Format
+5. Use modern type-hint syntax. Prefer built-in generics and the `|` union operator over `typing.Optional` / `typing.List`.
 
-### Logging: Structured and Lazy
+   ```python
+   # BAD: legacy typing forms
+   def find(ids: List[int]) -> Optional[User]:
+       ...
 
-- Use parameterized logging (`logger.info("...", %s)`) instead of f-strings
-- Never use f-strings inside logging calls
-- This preserves lazy evaluation and structured logging fields
-- f-strings eagerly evaluate and collapse structure into strings
+   # why: verbose, requires extra imports, not the current idiom.
 
-Example:
+   # GOOD: modern syntax
+   def find(ids: list[int]) -> User | None:
+       ...
+   ```
 
-❌ Incorrect:
-logger.info(f"Processing order {order_id}")
+6. Prefer duck typing over isinstance checks. Care about what an object does, not what it is.
 
-✅ Correct:
-logger.info("Processing order %s", order_id)
+   ```python
+   # BAD: branching on concrete type
+   def render(value):
+       if isinstance(value, list):
+           return ", ".join(value)
+       return str(value)
 
-### When Reviewing Code
+   # why: brittle - every new type needs another branch.
 
-Provide structured feedback:
+   # GOOD: rely on behavior the caller already guarantees
+   def render(items: Iterable[str]) -> str:
+       return ", ".join(items)
+   ```
 
-- **List violations** with `file:line` references
-- **Before/after examples** showing the problematic code and improved version
-- **Explanation** of which principle is violated and why it matters
-- **Refactored version** demonstrating proper separation of concerns
+7. Use context managers for resources. Acquire and release files, locks, and connections with `with`, never by hand.
 
-## Example: Tell, Don't Ask (Principle 6)
+   ```python
+   # BAD: manual open/close leaks on exceptions
+   f = open(path)
+   data = f.read()
+   f.close()
 
-```text
-❌ Violation: Deep attribute chaining
-Location: user_service.py:42
+   # why: an exception before close() leaks the file handle.
+
+   # GOOD: context manager guarantees cleanup
+   with open(path) as f:
+       data = f.read()
+   ```
+
+8. Never use mutable default arguments. Default to `None` and create the container inside the function.
+
+   ```python
+   # BAD: the list is shared across all calls
+   def add_tag(tag, tags=[]):
+       tags.append(tag)
+       return tags
+
+   # why: the default list persists between calls and accumulates state.
+
+   # GOOD: sentinel default, fresh container per call
+   def add_tag(tag: str, tags: list[str] | None = None) -> list[str]:
+       tags = tags if tags is not None else []
+       tags.append(tag)
+       return tags
+   ```
+
+9. Catch specific exceptions, never bare except. Catch only what you can handle, and re-raise with context rather than swallowing.
+
+   ```python
+   # BAD: swallows everything, including KeyboardInterrupt and bugs
+   try:
+       result = parse(payload)
+   except:
+       result = None
+
+   # why: hides real failures and makes debugging impossible.
+
+   # GOOD: narrow except, fail loud or add context
+   try:
+       result = parse(payload)
+   except ValueError as exc:
+       raise InvalidPayloadError(f"could not parse payload {payload_id}") from exc
+   ```
+
+## Anti-Patterns
+
+The top Python smells to flag in review, each as bad -> why -> fix:
+
+- Logging f-strings: `logger.info(f"x={x}")` -> eager evaluation, lost structure -> `logger.info("x=%s", x)`.
+- Mutable default args: `def f(items=[])` -> shared state across calls -> `def f(items=None)` then build inside.
+- Deep inheritance: 3+ level class trees -> fragile, hard to trace behavior -> compose or use a Protocol/mixin.
+- Broad except: `except:` or `except Exception: pass` -> swallows bugs -> catch the specific type, re-raise with `from exc`.
+- Premature abstraction: a base class or helper with one caller -> wrong abstraction is costlier than duplication -> wait for the third occurrence.
+
+## Worked Examples
+
+### Tell, Don't Ask
 
 Before:
+
+```python
+# user_service.py:42 - deep attribute chaining
 if user.account.subscription.is_active():
     process_payment(user.account.subscription.amount)
-
-Why it matters: This couples UserService to the internal structure of Account and Subscription. Changes to those classes will break this code.
-
-After:
-if user.has_active_subscription():
-    user.process_subscription_payment()
-
-Refactoring: Moved behavior to where the data lives. UserService now sends messages to User, not reaching through objects.
 ```
 
-## Example: Step Down Rule (Principle 8)
+After:
 
-```text
-❌ Violation: Abstraction levels mixed throughout class
-Location: order_processor.py
+```python
+if user.has_active_subscription():
+    user.process_subscription_payment()
+```
+
+Why: the "before" couples the caller to the internal structure of `Account` and `Subscription`, so any change to those classes breaks it. The "after" moves behavior to where the data lives and sends a message to `User` instead of reaching through it.
+
+### Step Down Rule
 
 Before:
+
+```python
 class OrderProcessor:
     def process(self, order):
-        # High level
+        # high level
         if not order.items:
             return OrderResult.empty()
 
-        # Low level - suddenly drops to details
+        # low level - suddenly drops to details
         db = get_database()
         conn = db.connect()
         cursor = conn.cursor()
         cursor.execute("SELECT...")
 
-        # Medium level again
+        # medium level again
         total = self._calculate_total(order)
 
-        # More low-level
+        # more low-level
         import hashlib
         signature = hashlib.sha256(str(order).encode()).hexdigest()
-
-Why it matters: Reader must jump between abstraction levels, making it hard to follow the logic. Business logic gets lost in implementation details.
+```
 
 After:
+
+```python
 class OrderProcessor:
     def __init__(self, repository: OrderRepository, calculator: PricingCalculator):
         self._repository = repository
         self._calculator = calculator
 
-    # High-level: business logic only
+    # high-level: business logic only
     def process(self, order: Order) -> OrderResult:
         if self._order_is_empty(order):
             return OrderResult.empty()
@@ -188,7 +250,7 @@ class OrderProcessor:
         signature = self._sign_order(order)
         return self._save_and_return(order, total, signature)
 
-    # Next level: orchestration
+    # next level: orchestration
     def _order_is_empty(self, order: Order) -> bool:
         return not order.items
 
@@ -201,44 +263,38 @@ class OrderProcessor:
     def _save_and_return(self, order: Order, total: decimal.Decimal, signature: str) -> OrderResult:
         return self._repository.save(order, total, signature)
 
-    # Low-level: implementation details at the bottom
+    # low-level: implementation details at the bottom
     def _create_signature(self, data: str) -> str:
-        import hashlib
         return hashlib.sha256(data.encode()).hexdigest()
-
-Refactoring: Code now reads top-to-bottom like a story. Business logic at top, details at bottom. Each method is at one abstraction level.
 ```
 
-### When Writing New Code
+Why: the "after" reads top-to-bottom like a story. Business intent sits at the top, orchestration in the middle, implementation details at the bottom, and each method stays at one abstraction level. Dependencies are injected, so the processor is testable and swappable.
 
-Explain your design decisions:
+## Review / Apply Workflow
 
-- **TRUE principles** guide your choices:
-  - **Transparent**: Easy to understand consequences of change
-  - **Reasonable**: Cost of change proportional to benefits
-  - **Usable**: Reusable in new/unexpected contexts
-  - **Exemplary**: Code quality encourages others to follow the pattern
-- **Show dependency injection** in action
-- **Demonstrate clear messaging** between objects
+When writing Python:
 
-**Example:**
+1. Start with a module of plain functions; introduce a class only when state, polymorphism, or lifecycle demands it.
+2. Bundle related parameters into a dataclass/TypedDict/NamedTuple once the group passes the simple-interface threshold.
+3. Express contracts with Protocols and type hints; inject concrete dependencies through `__init__` or parameters.
+4. Use lazy logging, context managers for resources, and specific exceptions from the first draft.
+5. Order methods by the step-down rule so the unit reads top-down.
 
-```python
-# TRUE: Dependencies injected, single responsibility, clear messaging
-class OrderProcessor:
-    def __init__(self, payment_gateway: PaymentGateway, notifier: Notifier):
-        self._payment_gateway = payment_gateway
-        self._notifier = notifier
+When reviewing Python:
 
-    def process(self, order: Order) -> ProcessingResult:
-        """Process order payment and notify customer.
+1. Scan for the top anti-patterns: logging f-strings, mutable default args, broad except, deep inheritance, single-use abstractions.
+2. Flag deep attribute chaining (`a.b.c.d`) and suggest moving behavior to where the data lives.
+3. Check type hints for modern syntax (`str | None`, `list[int]`) and for Protocols over concrete coupling.
+4. Report each finding with a `file:line` reference, a before/after pair, and the principle it violates.
+5. When refactoring, state what flexibility is gained and what complexity (if any) is introduced.
 
-        Transparent: Easy to see this coordinates payment and notification
-        Reasonable: Adding new notification type only changes Notifier
-        Usable: Works with any PaymentGateway or Notifier implementation
-        Exemplary: Clear pattern for other processors to follow
-        """
-        result = self._payment_gateway.charge(order.total)
-        self._notifier.send_confirmation(order, result)
-        return result
-```
+## Quality Checklist
+
+- [ ] Class introduced only where state/polymorphism/lifecycle justifies it; otherwise a module of functions.
+- [ ] Complex parameter groups use a dataclass, TypedDict, or NamedTuple.
+- [ ] Contracts expressed via Protocols/type hints; dependencies injected, not hardcoded.
+- [ ] All logging is parameterized and lazy; no f-strings in logging calls.
+- [ ] Type hints use modern syntax (`str | None`, `list[int]`), not legacy `Optional`/`List`.
+- [ ] No mutable default arguments; resources managed with context managers.
+- [ ] Exceptions are specific; no bare `except`; errors re-raised with context.
+- [ ] Methods ordered by the step-down rule; each stays at one abstraction level.

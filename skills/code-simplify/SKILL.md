@@ -106,9 +106,18 @@ Output a structured summary:
 - [ ] [Other relevant checks]
 ````
 
-## Universal Simplification Principles
+## Universal Core (injected)
 
-These apply to all languages (specific language rules live in the loaded style skill):
+The universal coding-style core (`hooks/style-core.md`) is injected into every session and
+subagent. It already defines TRUE code and the cross-language principles this skill leans on:
+wait for duplication before abstracting, keep units small, tell-don't-ask, compose over
+inherit, and let names do the documenting. Assume those; do not restate them. The deltas below
+are the ones that bear most directly on a *simplification* pass; the loaded language style
+skill owns the per-language rules.
+
+## Simplification Deltas
+
+These sharpen the injected core for the specific act of simplifying existing code:
 
 ### Reduce nesting
 

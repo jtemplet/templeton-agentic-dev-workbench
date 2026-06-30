@@ -1,158 +1,215 @@
 ---
 name: templeton-swift-style
-description: Writes Swift in the style of Sandi Metz/Uncle Bob - emphasizing TRUE code, waiting for duplication, small methods, composition over inheritance, and protocol-oriented design. Use this skill when reviewing or writing iOS code following principled object-oriented design.
+description: Writes and reviews Swift/iOS in the house style (protocol-oriented, value-type-first, TRUE code). Use when writing or reviewing Swift code.
 ---
 
-# Role: Swift Architecture Expert
+# Templeton Swift Style
 
-You are an expert Swift architect following the principles of "Practical Object-Oriented Design" (POODR), adapted for Swift and iOS development. Your goal is to ensure code is Transparent, Reasonable, Usable, and Exemplary (TRUE).
+Writes and reviews Swift/iOS code in the house style: protocol-oriented, value-type-first, and TRUE (Transparent, Reasonable, Usable, Exemplary). This skill carries only the Swift-specific deltas layered on top of the universal style core; it does not restate the universal principles.
 
-## Core Principles
+## When to Use / When NOT to Use
 
-### 1. Wait for Duplication Before Abstracting
+Use when:
 
-## "Duplication is far cheaper than the wrong abstraction."
+- Writing new Swift types, view models, or SwiftUI views in the house style.
+- Reviewing Swift/iOS code for design quality (protocol orientation, value semantics, error handling, concurrency).
+- Refactoring Swift toward value types, composition, and explicit errors.
 
-- When you see code repeated twice, leave it duplicated
-- On the **third occurrence**, consider extracting an abstraction or protocol
-- Premature abstraction creates rigid, hard-to-change code
-- Three instances reveal the true pattern; two might be coincidental
-- Swift's protocol system makes this easy—use it at the right time
+Do NOT use when:
 
-### 2. Method Size: Small and Focused
+- The code is not Swift (use the matching language style skill instead).
+- Reviewing generated or vendored Swift (e.g. `*.generated.swift`, protobuf output, third-party `Pods/`).
+- Hacking in a throwaway playground or one-off script where production design rigor is overhead.
 
-- Methods should be **small** and **do one thing**
-- No hard line-count limits, but aim for brevity
-- If you can't easily name what a method does, it's doing too much
-- A method should be readable without scrolling
-- Swift's trailing closure syntax and chaining methods can obscure size—be cautious
+## Universal Core (injected)
 
-### 3. Type Size: Cohesive Responsibilities
+The universal "TRUE code" definition and the 9 language-agnostic principles (wait for duplication, small single-purpose units, simple interfaces, dependency injection, tell-don't-ask, compose over inherit, fail fast, step-down reading order, self-documenting names) are injected separately from `hooks/style-core.md` and apply here unchanged. This skill does not repeat them; the sections below add only what is specific to Swift.
 
-- Types (structs, classes, enums) should have a single, well-defined responsibility
-- Aim for roughly 100 lines or less as a guideline (not a hard rule)
-- If a type is growing large, look for hidden responsibilities to extract
-- Swift's composition capabilities (structs, protocols, extensions) make splitting easy
+## Swift Principles
 
-### 4. Parameters: Keep Interfaces Simple
+1. **Default to value types; reach for a class only with a reason.** Use `struct`/`enum` unless you need reference semantics: shared mutable state, object identity, `class`-only framework requirements (`NSObject`, `ObservableObject`), or deinit lifecycle.
 
-- No more than 4 parameters per method
-- Use structs or `OptionSet` for complex parameter groups
-- Consider builder patterns for complex initialization
-- Prefer immutable structs over parameter objects when possible
-- Avoid `Bool` trap: never use multiple boolean parameters (use an enum or struct)
+   ```swift
+   // BAD
+   class User {
+       var name: String
+       var email: String
+       init(name: String, email: String) { self.name = name; self.email = email }
+   }
+   ```
 
-### 5. Dependencies: Inject, Don't Hardcode
+   Why: `User` has no identity, no shared mutation, and no deinit needs. A class adds reference semantics, aliasing bugs, and avoidable retain-cycle risk.
 
-- Never hardcode type names inside other types
-- Inject dependencies through `init` or method parameters using protocols
-- Use protocols to define contracts, not concrete types
-- This enables testing, flexibility, and future change
-- Avoid singletons and global state—pass dependencies explicitly
+   ```swift
+   // GOOD
+   struct User {
+       let name: String
+       let email: String
+   }
+   ```
 
-### 6. Messaging: Tell, Don't Ask
+2. **Make protocols the primary abstraction, not class inheritance.** Model capabilities as protocols and compose conformances; do not build base classes to share behavior.
 
-- Types should "Tell, Don't Ask"
-- Avoid deep property chaining (e.g., `user.account.subscription.isActive`)
-- If you're reaching through objects, you're coupling to internal structure
-- Move the behavior to where the data lives
-- In iOS: request data/actions from view models, don't ask for internal state
+   ```swift
+   // BAD
+   class BaseRepository { func save() { /* shared persistence */ } }
+   class UserRepository: BaseRepository { /* + user logic */ }
+   ```
 
-### 7. Inheritance vs. Composition
+   Why: A base class hard-couples subclasses to shared internals and forces a single hierarchy. Tests cannot substitute behavior cleanly.
 
-- **Avoid deep inheritance hierarchies** (a bug trap in Swift)
-- Prefer composition: combine small types and protocols
-- Use inheritance only for true "is-a" relationships (rare in iOS)
-- Protocols are Swift's primary abstraction tool
-- Extensions can add behavior to types without coupling; use wisely
-- Value types (structs) are preferred over reference types (classes) unless mutation is necessary
+   ```swift
+   // GOOD
+   protocol Repository { func save() throws }
+   struct UserRepository: Repository {
+       let store: PersistenceStore   // injected
+       func save() throws { try store.persist() }
+   }
+   ```
 
-### 8. Value Types vs. Reference Types
+3. **Avoid the Bool trap.** Never expose two or more boolean parameters; model intent with an `enum`, a typed options `struct`, or `OptionSet`.
 
-- Prefer structs (value types) by default
-- Use classes only when you need reference semantics (shared mutable state, identity)
-- Value types are thread-safe, predictable, and encourage composition
-- Be careful with reference cycles when using classes with captured self
-- Consider `weak` and `unowned` only when necessary, and document why
+   ```swift
+   // BAD
+   func loadUsers(animated: Bool, includeArchived: Bool, forceRefresh: Bool) { }
+   loadUsers(animated: true, includeArchived: false, forceRefresh: true) // what is true?
+   ```
 
-### 9. Error Handling: Explicit and Recoverable
+   Why: Boolean call sites are unreadable and trivially transposed, and each new flag doubles the combinations.
 
-- Use `throws` and `Result` types to make errors explicit
-- Avoid `try?` and silent `nil` defaults—force explicit error handling
-- Create custom error types that provide context and recovery options
-- Never silently fail; propagate or handle intentionally
-- Document which methods can throw and what errors they produce
+   ```swift
+   // GOOD
+   struct LoadOptions: OptionSet {
+       let rawValue: Int
+       static let animated      = LoadOptions(rawValue: 1 << 0)
+       static let includeArchived = LoadOptions(rawValue: 1 << 1)
+       static let forceRefresh  = LoadOptions(rawValue: 1 << 2)
+   }
+   func loadUsers(_ options: LoadOptions) { }
+   loadUsers([.animated, .forceRefresh])
+   ```
 
-### 10. The Step Down Rule: Abstraction Levels
+4. **Make errors explicit; never silently nil.** Prefer `throws` (or `Result`) with typed error cases over `try?` that collapses every failure into `nil`.
 
-- **Code should read like a narrative, descending from high-level concepts to implementation details**
-- When reading a type or method from top to bottom, each method should be at a similar abstraction level
-- Public methods and computed properties should be at the top (high-level intent)
-- Helper methods and intermediate abstractions in the middle
-- Private implementation details at the bottom
+   ```swift
+   // BAD
+   func fetchUser(_ id: String) -> User? {
+       try? decoder.decode(User.self, from: data)
+   }
+   ```
 
-**Rule of thumb:**
+   Why: The caller cannot tell "not found" from "decode failed" from "offline." Failures vanish.
 
-1. Public API / high-level business logic at the top
-2. Helper methods, initializers, and intermediate abstractions in the middle
-3. Private implementation details at the bottom
-4. `MARK:` comments can organize sections (use sparingly)
+   ```swift
+   // GOOD
+   enum UserFetchError: Error { case notFound, decoding(Error) }
 
-This principle makes code self-documenting: skim the top methods to understand intent, then read deeper for implementation.
+   func fetchUser(_ id: String) async throws -> User {
+       let (data, response) = try await session.data(from: url(for: id))
+       guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+           throw UserFetchError.notFound
+       }
+       do { return try decoder.decode(User.self, from: data) }
+       catch { throw UserFetchError.decoding(error) }
+   }
+   ```
 
-## Review Workflow
+5. **Use async/await and structured concurrency; manage captures deliberately.** Prefer `async`/`await` over completion handlers, isolate UI state with `@MainActor`, and write an explicit capture list with a one-line reason whenever you capture `self`.
 
-- When asked to write code, follow these principles
-- When reviewing code:
-  - Flag premature abstractions (look for single-use protocols or structs)
-  - Identify methods that do multiple things or have unclear names
-  - Point out deep property chaining or property accessors chained together
-  - Watch for inappropriate use of classes when structs suffice
-  - Suggest composition patterns instead of inheritance
-  - Flag singletons and global state—prefer dependency injection
-  - Check error handling: are errors handled or silently swallowed?
-- Prioritize protocol-oriented design—focus on what a type *does* rather than what it *is*
-- Use Swift's type system to encode contracts and prevent invalid states
+   ```swift
+   // BAD
+   func refresh() {
+       service.load { result in
+           self.items = result   // strong capture; leaks if service retains the closure
+       }
+   }
+   ```
 
-## Output Format
+   Why: An undocumented strong `self` capture in a retained closure creates a retain cycle and hides the threading contract.
 
-### When Reviewing Code
+   ```swift
+   // GOOD
+   @MainActor
+   func refresh() async throws {
+       let result = try await service.load()
+       self.items = result   // structured await; no escaping closure, no cycle
+   }
+   // When a closure must escape, justify the capture:
+   // [weak self] in  // view may be deallocated before the callback fires
+   ```
 
-Provide structured feedback:
+6. **Keep SwiftUI views thin; push logic into view models.** Views render state and forward intent. Put business logic and mutable state in an `ObservableObject` view model with `@Published` properties, and extract subviews before a `body` grows unreadable.
 
-- **List violations** with `file:line` references
-- **Before/after examples** showing the problematic code and improved version
-- **Explanation** of which principle is violated and why it matters
-- **Refactored version** demonstrating proper separation of concerns
+   ```swift
+   // BAD
+   struct OrderView: View {
+       @State private var items: [Item] = []
+       var body: some View {
+           VStack {
+               // 120 lines: networking, total math, formatting, and layout inline
+           }
+       }
+   }
+   ```
 
-## Example: Tell, Don't Ask (Principle 6)
+   Why: Business logic embedded in `body` is untestable, re-runs on every render, and bloats the view past readability.
 
-```text
-❌ Violation: Deep property chaining
-Location: UserViewController.swift:42
+   ```swift
+   // GOOD
+   @MainActor
+   final class OrderViewModel: ObservableObject {
+       @Published private(set) var rows: [OrderRow] = []
+       func load() async { /* fetch + map to rows */ }
+   }
+
+   struct OrderView: View {
+       @StateObject var model: OrderViewModel
+       var body: some View {
+           List(model.rows) { OrderRowView(row: $0) }
+               .task { await model.load() }
+       }
+   }
+   ```
+
+7. **Use extensions to organize by responsibility, never to hide size.** Split conformances and cohesive helpers into extensions for readability, but moving 200 lines into an extension does not reduce the type's responsibilities.
+
+   ```swift
+   // BAD
+   extension OrderProcessor {
+       // 200 lines of unrelated networking, pricing, and formatting
+       // hidden in an extension so the main type "looks small"
+   }
+   ```
+
+   Why: An extension changes file layout, not coupling. A type doing five jobs across five extensions is still a type doing five jobs.
+
+   ```swift
+   // GOOD
+   extension OrderProcessor: Equatable { /* just the conformance */ }
+   extension OrderProcessor {
+       // cohesive pricing helpers, all one abstraction level
+   }
+   // Genuinely separate responsibilities become their own injected types.
+   ```
+
+## Anti-Patterns
+
+Each smell below shows bad, why it hurts, and the correction.
+
+- **Class where a struct fits.** Bad: a `class` model with stored `let`s and no identity. Why: needless reference semantics and aliasing/retain-cycle risk. Fix: make it a `struct` (see Principle 1).
+- **Deep inheritance.** Bad: `class C: B`, `class B: A` sharing behavior through three levels. Why: fragile base class, single rigid hierarchy, hard to test. Fix: model capabilities as protocols and compose (Principle 2).
+- **Bool-param trap.** Bad: `configure(animated: true, secure: false)`. Why: unreadable call sites and combinatorial explosion. Fix: an `enum`, options `struct`, or `OptionSet` (Principle 3).
+- **Silent `try?`.** Bad: `let user = try? decode(...)` discarding the error. Why: every distinct failure becomes an indistinguishable `nil`. Fix: `throws` with typed error cases (Principle 4).
+- **Singletons / global mutable state.** Bad: `NetworkManager.shared` referenced directly inside a type. Why: hidden dependency, unmockable, cross-test contamination. Fix: inject the dependency through `init` behind a protocol.
+- **Fat SwiftUI view.** Bad: networking, computation, and formatting inline in `body`. Why: untestable, re-runs every render, unreadable. Fix: move logic to an `ObservableObject` view model and extract subviews (Principle 6).
+
+## Worked Examples
+
+### Value type: class to struct (full before/after)
 
 Before:
-if viewModel.user.account.subscription.isActive {
-    processPayment(viewModel.user.account.subscription.amount)
-}
 
-Why it matters: This couples UserViewController to the internal structure of User, Account, and Subscription. Changes to those types will break this code.
-
-After:
-if viewModel.hasActiveSubscription {
-    viewModel.processSubscriptionPayment()
-}
-
-Refactoring: Moved behavior to UserViewModel. ViewController now sends messages to the view model, not reaching through objects.
-```
-
-## Example: Value Types (Principle 8)
-
-```text
-❌ Violation: Unnecessary use of class when struct is appropriate
-Location: User.swift:10
-
-Before:
+```swift
 class User {
     var name: String
     var email: String
@@ -162,31 +219,50 @@ class User {
         self.email = email
     }
 }
-
-Why it matters: User is immutable (no setters), has no shared state, and no identity. Using a class creates unnecessary reference semantics and potential memory issues.
+```
 
 After:
+
+```swift
 struct User {
     let name: String
     let email: String
 }
-
-Refactoring: Struct ensures value semantics, thread-safety, and clarity of intent.
 ```
 
-## Example: Step Down Rule (Principle 10)
+Why: `User` is immutable, has no identity, and shares no state. A `struct` gives value semantics, thread-safety, and free `Equatable`/`Hashable` synthesis, and removes reference-cycle risk.
 
-```text
-❌ Violation: Abstraction levels mixed throughout type
-Location: OrderProcessor.swift
+### Tell, don't ask: stop reaching through objects
 
 Before:
+
+```swift
+// UserViewController.swift
+if viewModel.user.account.subscription.isActive {
+    processPayment(viewModel.user.account.subscription.amount)
+}
+```
+
+After:
+
+```swift
+if viewModel.hasActiveSubscription {
+    viewModel.processSubscriptionPayment()
+}
+```
+
+Why: The chain couples the controller to the internal shape of `User`, `Account`, and `Subscription`; any of those changing breaks the controller. Moving the behavior onto the view model leaves the controller sending one message.
+
+### Step-down rule: one abstraction level per method
+
+Before:
+
+```swift
 class OrderProcessor {
     func process(order: Order) -> OrderResult {
-        // High level
         guard !order.items.isEmpty else { return OrderResult.empty() }
 
-        // Low level - suddenly drops to details
+        // sudden drop to networking details
         let url = URL(string: "https://api.example.com/orders")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -194,22 +270,20 @@ class OrderProcessor {
         let data = try? JSONEncoder().encode(order)
         let (response, _) = try? URLSession.shared.data(for: request)
 
-        // Medium level again
-        let total = calculateTotal(order)
-
-        // More low-level details
-        let signature = order.description.sha256()
+        let total = calculateTotal(order)          // back to mid level
+        let signature = order.description.sha256()  // low level again
     }
 }
-
-Why it matters: Reader must jump between abstraction levels, making it hard to follow the logic. Business logic gets lost in network and encoding details.
+```
 
 After:
+
+```swift
 class OrderProcessor {
     private let api: OrderAPI
     private let calculator: PricingCalculator
 
-    // High-level: business logic only
+    // High level: business narrative only
     func process(order: Order) async throws -> OrderResult {
         guard !orderIsEmpty(order) else { return OrderResult.empty() }
 
@@ -218,47 +292,35 @@ class OrderProcessor {
         return try await saveAndReturn(order, total: total, signature: signature)
     }
 
-    // Next level: orchestration
-    private func orderIsEmpty(_ order: Order) -> Bool {
-        order.items.isEmpty
-    }
-
-    private func calculateTotal(_ order: Order) -> Decimal {
-        calculator.compute(order)
-    }
-
-    private func signOrder(_ order: Order) -> String {
-        createSignature(order.description)
-    }
-
+    // Mid level: orchestration
+    private func orderIsEmpty(_ order: Order) -> Bool { order.items.isEmpty }
+    private func calculateTotal(_ order: Order) -> Decimal { calculator.compute(order) }
+    private func signOrder(_ order: Order) -> String { createSignature(order.description) }
     private func saveAndReturn(_ order: Order, total: Decimal, signature: String) async throws -> OrderResult {
         try await api.save(order, total: total, signature: signature)
     }
 
-    // Low-level: implementation details at the bottom
-    private func createSignature(_ data: String) -> String {
-        data.sha256()
-    }
+    // Low level: implementation detail
+    private func createSignature(_ data: String) -> String { data.sha256() }
 }
-
-Refactoring: Code now reads top-to-bottom like a story. Business logic at top, details at bottom. Each method is at one abstraction level.
 ```
 
-## Example: Error Handling (Principle 9)
+Why: The reader skims `process` for intent, then descends only as needed. Networking and encoding move behind injected `OrderAPI`/`PricingCalculator`, and silent `try?` is replaced by propagated `throws`.
 
-```text
-❌ Violation: Silent error handling
-Location: NetworkManager.swift:28
+### Error handling: explicit failures over silent nil
 
 Before:
+
+```swift
 func fetchUser(_ id: String) -> User? {
     let result = try? decoder.decode(User.self, from: data)
     return result
 }
-
-Why it matters: Caller can't distinguish between "user doesn't exist" and "parsing failed". Errors are silently swallowed.
+```
 
 After:
+
+```swift
 enum UserFetchError: Error {
     case networkError(URLError)
     case decodingError(DecodingError)
@@ -271,98 +333,52 @@ func fetchUser(_ id: String) async throws -> User {
         throw UserFetchError.userNotFound
     }
     do {
-        return try JSONDecoder().decode(User.self, from: data)
-    } catch {
-        throw UserFetchError.decodingError(error as! DecodingError)
+        return try decoder.decode(User.self, from: data)
+    } catch let error as DecodingError {
+        throw UserFetchError.decodingError(error)
     }
 }
-
-Refactoring: Explicit error types let callers handle different failures appropriately.
 ```
 
-### When Writing New Code
+Why: Typed cases let callers distinguish "not found" from "bad payload" and respond appropriately instead of guessing from a bare `nil`.
 
-Explain your design decisions:
+### Principles at a glance (quick reference)
 
-- **TRUE principles** guide your choices:
-  - **Transparent**: Easy to understand consequences of change
-  - **Reasonable**: Cost of change proportional to benefits
-  - **Usable**: Reusable in new/unexpected contexts
-  - **Exemplary**: Code quality encourages others to follow the pattern
-- **Show dependency injection** in action
-- **Demonstrate clear messaging** between types
-- **Explain value vs. reference** type choice
+| Delta | Goal | Common mistake |
+|-------|------|----------------|
+| Value types first | Predictability, thread-safety | Reaching for `class` by default |
+| Protocol orientation | Composition without hierarchy | Sharing behavior via base classes |
+| No Bool trap | Readable, future-proof call sites | Multiple boolean parameters |
+| Explicit errors | Distinguishable, handleable failures | `try?` collapsing errors to `nil` |
+| Structured concurrency | Safe threading, no leaks | Undocumented strong `self` captures |
+| Thin SwiftUI views | Testable, cheap renders | Business logic inside `body` |
 
-**Example:**
+## Review / Apply Workflow
 
-```swift
-// TRUE: Dependencies injected, single responsibility, clear messaging
-struct OrderProcessor {
-    private let paymentGateway: PaymentGateway
-    private let notifier: OrderNotifier
+When writing Swift:
 
-    init(paymentGateway: PaymentGateway, notifier: OrderNotifier) {
-        self.paymentGateway = paymentGateway
-        self.notifier = notifier
-    }
+1. Choose value vs reference type deliberately; default to `struct`/`enum`.
+2. Express abstractions as protocols and inject collaborators through `init`.
+3. Keep call sites readable: no Bool trap, interfaces within the universal param budget.
+4. Make failure modes explicit with `throws`/typed errors; never swallow with `try?`.
+5. Use `async`/`await` with `@MainActor` for UI state; justify every capture list.
+6. Keep views thin; extract logic into view models and subviews.
 
-    func process(order: Order) async throws -> ProcessingResult {
-        let result = try await paymentGateway.charge(order.total)
+When reviewing Swift:
 
-        try await notifier.sendConfirmation(for: order, result: result)
+1. Read changed files top to bottom for intent before judging details.
+2. Confirm correctness first: if tests pass and behavior is right, cap severity at MEDIUM (verification-first).
+3. Flag the Swift smells in the Anti-Patterns list, each with file:line.
+4. For every flag, give bad -> why -> corrected with the matching principle named.
+5. Separate must-fix design defects from optional polish; do not gold-plate.
 
-        return result
-    }
-}
+## Quality Checklist
 
-// TRUE: Dependencies explicit, responsibilities clear
-// Transparent: See exactly what OrderProcessor does
-// Reasonable: Adding new notification type only changes OrderNotifier
-// Usable: Works with any PaymentGateway or OrderNotifier implementation
-// Exemplary: Clear pattern for other processors to follow
-```
-
-## Swift-Specific Guidance
-
-### Protocols Over Inheritance
-
-- Use protocols to define contracts and enable composition
-- Avoid classes that inherit from other classes; prefer protocol composition
-- Protocol conformance (with extensions) enables code organization without coupling
-
-### Async/Await and Structured Concurrency
-
-- Use `async/await` instead of closures for cleaner control flow
-- Respect Swift's structured concurrency model—don't capture `self` carelessly
-- Use `@MainActor` to enforce thread safety where needed
-- Handle cancellation properly with `Task` and `CancellationError`
-
-### SwiftUI Considerations (if applicable)
-
-- Keep view logic simple; move business logic to view models
-- Use `@State`, `@StateObject`, `@ObservedObject` appropriately
-- Avoid deep view hierarchies; prefer extracted subviews with clear contracts
-- View models should be `ObservableObject` with `@Published` properties—not SwiftUI views
-
-### Extensions: Powerful but Use Carefully
-
-- Use extensions to organize code by responsibility
-- Avoid using extensions to hide complexity (e.g., 200 lines in an extension doesn't make it less complex)
-- Don't extend `Foundation` types in ways that create confusion (e.g., adding behavior unrelated to the type's purpose)
-
----
-
-## Principles at a Glance
-
-| Principle | Goal | Common Mistake |
-|-----------|------|-----------------|
-| Wait for Duplication | Avoid premature abstraction | Extracting a protocol after 2 uses |
-| Small Methods | Single responsibility, clarity | Methods >50 lines that do "one thing" |
-| Type Cohesion | Clear purpose | Types with multiple unrelated responsibilities |
-| Simple Interfaces | Easy to use and change | Methods with 5+ parameters or boolean flags |
-| Dependency Injection | Flexibility and testability | Hardcoded dependencies or singletons |
-| Tell, Don't Ask | Encapsulation and loose coupling | Deep property chaining `a.b.c.d` |
-| Value Types | Predictability, thread-safety | Using classes by default |
-| Error Handling | Explicit, recoverable failures | Silently swallowed errors (`try?`, `.isEmpty`) |
-| Step Down Rule | Readability and narrative flow | Implementation details mixed with intent |
-| Composition > Inheritance | Flexibility without hierarchy | Deep class hierarchies |
+- [ ] Types default to `struct`/`enum`; each `class` has a stated reference-semantics reason.
+- [ ] Abstractions are protocols; collaborators are injected, no direct singletons/global state.
+- [ ] No method exposes two or more boolean parameters.
+- [ ] Errors are explicit (`throws`/typed/`Result`); no silent `try?` discarding failures.
+- [ ] Concurrency is structured; UI mutation is `@MainActor`; every capture list is justified.
+- [ ] SwiftUI views are thin; business logic lives in view models; large bodies are decomposed.
+- [ ] Extensions organize by responsibility and do not mask oversized types.
+- [ ] Each method reads at one abstraction level (step-down rule holds).

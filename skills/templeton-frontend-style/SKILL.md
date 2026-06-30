@@ -1,260 +1,156 @@
 ---
 name: templeton-frontend-style
-description: Writes JavaScript/TypeScript, React, and Vue code in the style of Sandi Metz and Clean Code principles - emphasizing TRUE components, waiting for duplication, small focused functions, and composition over inheritance
+description: Writes and reviews JavaScript/TypeScript, React, and Vue in the house style - TRUE components, frontend-specific deltas (small presentational components, logic in hooks/composables, typed props, no class components) layered on the injected universal style core.
 ---
 
-# Role: Frontend Architecture Expert
+# Frontend Style (JS/TS, React, Vue)
 
-You are an expert frontend architect following the principles of "Practical Object-Oriented Design" (POODR) adapted for modern JavaScript/TypeScript, React, and Vue. Your goal is to ensure code is Transparent, Reasonable, Usable, and Exemplary (TRUE).
+Write and review JavaScript/TypeScript, React, and Vue code in the house style. This skill carries only the frontend-specific deltas (component sizing, props, hooks/composables, state, TypeScript) on top of the universal TRUE-code core that is injected separately. Apply both together.
 
-## Core Principles
+## When to Use / When NOT to Use
 
-### 1. Wait for Duplication Before Abstracting
+Use when:
 
-## "Duplication is far cheaper than the wrong abstraction."
+- Writing or reviewing React (function components, hooks) or Vue 3 (Composition API, composables) code.
+- Authoring or reviewing TypeScript/JavaScript modules that back a UI (state, props, view logic).
+- Refactoring a component that mixes presentation with business logic, has too many props, or drills props through layers.
 
-- When you see code repeated twice, leave it duplicated
-- On the **third occurrence**, consider extracting a component, hook, or composable
-- Premature abstraction creates rigid, hard-to-change code
-- Three instances reveal the true pattern; two might be coincidental
-- Avoid creating "flexible" components that handle every use case with props/slots
+Do NOT use when:
 
-### 2. Component Size: Small and Focused
+- The code is backend-only (Node service logic, API handlers, DB access with no UI concern); use the matching backend style skill instead.
+- The change touches non-JS/TS files (config, CSS-only tweaks, Markdown, infra).
+- The change is a trivial markup or copy tweak with no structural impact.
 
-- Components should be **small** and **do one thing**
-- Aim for roughly 100-150 lines including template/JSX as a guideline (not a hard rule)
-- If you can't easily name what a component does, it's doing too much
-- A component should be readable without scrolling
-- Split large components by responsibility, not by file size alone
+## Universal Core (injected)
 
-### 3. Function Size: Small and Focused
+The universal TRUE-code principles (Transparent, Reasonable, Usable, Exemplary) and the 9 language-agnostic rules (wait for duplication, small single-purpose units, simple interfaces, dependency injection, tell-don't-ask, compose over inherit, fail fast, step-down reading order, names do the documenting) are injected via `hooks/style-core.md` and assumed here. This skill does not repeat them; it only adds the frontend deltas below.
 
-- Functions should be **small** and **do one thing**
-- No hard line-count limits, but aim for brevity
-- If you can't easily name what a function does, it's doing too much
-- Extract complex calculations, side effects, and business logic into named functions
+## Frontend Principles
 
-### 4. Props/Parameters: Keep Interfaces Simple
+1. Keep components small and presentational (~100-150 lines including template/JSX). If you cannot name what a component does in one phrase, split it.
 
-- **React:** No more than 4-5 props per component
-- **Vue:** No more than 4-5 props per component
-- For complex prop groups, use object props with TypeScript interfaces
-- Avoid boolean flags that change behavior drastically—create separate components instead
-- Use composition (slots/children) instead of behavioral props when possible
+   ```tsx
+   // BAD: one component fetches, transforms, and renders (200+ lines)
+   function UserDashboard({ userId }) {
+     const [data, setData] = useState(null)
+     useEffect(() => { fetch(`/api/users/${userId}`).then(/* 30 lines */) }, [userId])
+     return <div>{/* deeply nested inline JSX with calculations */}</div>
+   }
+   // why: reader cannot see structure; fetch + transform + render are tangled.
+   // GOOD: composition only; details live in hooks/children
+   function UserDashboard({ userId }) {
+     const { data, loading } = useUserData(userId)
+     if (loading) return <LoadingSpinner />
+     return <><UserHeader name={data.name} /><OrderList orders={data.orders} /></>
+   }
+   ```
 
-### 5. Dependencies: Inject, Don't Hardcode
+2. Cap props at 4-5; group related props into a typed object; never use behavioral boolean flags. Split into separate components or use composition/slots instead.
 
-- Never hardcode service instances or API clients inside components
-- Inject dependencies through:
-  - **React:** Context, props, or custom hooks
-  - **Vue:** Provide/inject, props, or composables
-- Use dependency injection for services, API clients, and external integrations
-- This enables testing, flexibility, and future change
+   ```tsx
+   // BAD: behavioral flags create combinatorial complexity
+   <DataTable data={users} sortable filterable paginated striped showFooter />
+   // why: 6+ flags multiply states; testing and reasoning explode.
+   // GOOD: distinct components, or composition for the complex case
+   <SortableTable data={users} onSort={handleSort} />
+   <Table data={users}><TableBody striped /><Pagination pageSize={20} /></Table>
+   ```
 
-### 6. Separation of Concerns: Logic vs Presentation
+3. Extract business logic into custom hooks (React) or composables (Vue); keep the component presentational.
 
-## "Tell, Don't Ask" adapted for frontend
+   ```tsx
+   // BAD: API + routing logic inside the component
+   const submit = async () => {
+     const res = await fetch('/api/orders', { method: 'POST', body: JSON.stringify(order) })
+     router.push(`/orders/${(await res.json()).id}`)
+   }
+   // why: cannot test the flow without mounting; mixes UI, network, navigation.
+   // GOOD: logic in a hook, component just wires it
+   const { submitOrder, isSubmitting } = useOrderSubmission()
+   const handleSubmit = () => submitOrder({ customerId, items })
+   ```
 
-- Keep components focused on presentation
-- Extract business logic into:
-  - **React:** Custom hooks (`useOrderProcessing`)
-  - **Vue:** Composables (`useOrderProcessing`)
-  - **Shared:** Service modules, utility functions
-- Avoid components reaching deep into nested state structures
-- Move data transformations close to where data lives
+4. Never write class components for new code; share logic through hooks/composables, not base classes.
 
-**Example structure:**
+   ```tsx
+   // BAD: class component with lifecycle methods for new code
+   class Profile extends React.Component {
+     componentDidMount() { this.load() }
+     render() { return <div>{this.state.name}</div> }
+   }
+   // why: lifecycle methods scatter logic; no easy logic reuse; off-pattern.
+   // GOOD: function component + hook
+   function Profile({ id }) {
+     const { name } = useProfile(id)
+     return <div>{name}</div>
+   }
+   ```
 
-```text
-❌ Bad: Logic mixed in component
-<script>
-export default {
-  methods: {
-    async submitOrder() {
-      // 50 lines of business logic here
-    }
-  }
-}
-</script>
+5. Inject services and clients; do not instantiate them inside components. React: Context, props, or hooks. Vue: provide/inject, props, or composables.
 
-✅ Good: Logic extracted
-<script>
-import { useOrderSubmission } from '@/composables/useOrderSubmission'
+   ```tsx
+   // BAD: component constructs its own client (untestable, coupled)
+   function Orders() { const api = new OrderApiClient(BASE_URL); /* ... */ }
+   // why: cannot swap or mock the client; hidden dependency on global config.
+   // GOOD: receive the dependency
+   function Orders() { const { createOrder } = useOrderApi() /* injected via context */ }
+   ```
 
-export default {
-  setup() {
-    const { submitOrder, isSubmitting } = useOrderSubmission()
-    return { submitOrder, isSubmitting }
-  }
-}
-</script>
-```
+6. Start with local state; lift only when shared; reach for a global store (Pinia/Zustand/Redux) only for shared app state, server-cache, or cross-cutting concerns (auth, theme).
 
-### 7. Composition Over Inheritance
+   ```tsx
+   // BAD: modal open/close pushed into a global Redux slice
+   dispatch(openInviteModal())
+   // why: UI-only state in global store adds boilerplate and coupling.
+   // GOOD: local state, lifted only if a sibling needs it
+   const [isOpen, setIsOpen] = useState(false)
+   ```
 
-- **Never use class-based components** (unless maintaining legacy code)
-- Prefer composition over component inheritance
-- Use composition patterns:
-  - **React:** Composition via children/render props, custom hooks
-  - **Vue:** Slots, composables, renderless components
-- Share logic through hooks/composables, not base classes
-- Build complex UIs by combining simple components
+7. Use TypeScript everywhere; avoid `any` (use `unknown` and narrow); model state with discriminated unions.
 
-### 8. The Step Down Rule: Abstraction Levels
+   ```tsx
+   // BAD: any erases all safety
+   function render(data: any) { return <p>{data.titel}</p> } // typo survives
+   // why: any disables checking; typos and shape errors ship.
+   // GOOD: unknown + narrowing, or a discriminated union for state
+   type State = { status: 'loading' } | { status: 'error'; error: Error } | { status: 'ok'; data: User }
+   ```
 
-## "Code should read like a narrative, descending from high-level concepts to implementation details"
+8. Handle errors at boundaries (React Error Boundaries, Vue `errorCaptured`); do not swallow them silently or use try/catch for control flow.
 
-- Component files should flow from high-level structure to implementation details
-- Template/JSX should show component structure at a glance
-- Computed values, effects, and event handlers should follow
-- Helper functions and low-level details should be at the bottom (or extracted entirely)
+   ```tsx
+   // BAD: error swallowed, user sees nothing, dev sees nothing
+   try { await save() } catch { /* ignore */ }
+   // why: failures vanish; debugging and recovery become impossible.
+   // GOOD: surface and let a boundary catch what is unexpected
+   try { await save() } catch (e) { setError(e instanceof Error ? e : new Error('Save failed')) }
+   ```
 
-**Organization order:**
+9. Remove `console.log` before commit; never log secrets or PII. Use a real logger for production diagnostics.
 
-1. Imports
-2. Types/Interfaces
-3. Component definition with template/JSX (high-level structure)
-4. State declarations
-5. Computed values / derived state
-6. Effects / lifecycle hooks
-7. Event handlers / public methods
-8. Helper functions (consider extracting if more than 2-3)
+   ```javascript
+   // BAD: debug log left in, leaks user data
+   console.log(userData)
+   // why: clutters output, can expose tokens/PII in production consoles.
+   // GOOD: structured logger, no sensitive fields
+   logger.info('User data loaded', { userId: user.id })
+   ```
 
-### 9. State Management: Local First
+## Anti-Patterns
 
-- Start with local component state
-- Lift state only when multiple components need it
-- Avoid global state for UI-only concerns
-- Use global state (Pinia, Zustand, Redux) only for:
-  - Shared application state
-  - Server data caching
-  - Cross-cutting concerns (auth, theme)
-- Prefer composition and props over global state when possible
+- Logic-in-component: business/network logic lives in the component. Why: untestable, couples UI to side effects. Fix: extract to a hook/composable; component stays presentational.
+- Props explosion: a component takes 8-12 props, several behavioral booleans. Why: combinatorial states, hard to test. Fix: split into focused components or compose via slots/children.
+- Prop drilling: a value is threaded through 3+ intermediate components that do not use it. Why: brittle, noisy, refactor-hostile. Fix: Context/provide-inject for cross-cutting values, or composition so the consumer renders where the data lives.
+- Premature "flexible" mega-component: one component built to handle every future case via flags/slots. Why: violates wait-for-duplication; rigid and complex before any real need. Fix: build the concrete case; extract only on the third repetition.
+- Class components for new code: lifecycle-method classes instead of function components. Why: scatters logic, no clean reuse, off the modern path. Fix: function component plus hooks/composables.
+- `any` everywhere: types defaulted to `any` to silence the compiler. Why: erases type safety; typos and shape drift ship. Fix: `unknown` with narrowing, precise interfaces, discriminated unions.
 
-### 10. Errors: Fail Fast, Be Explicit
+## Worked Examples
 
-- Use TypeScript to catch errors at compile time
-- Throw meaningful errors with context
-- Handle errors at boundaries (Error Boundaries in React, errorCaptured in Vue)
-- Don't silence errors—log and handle appropriately
-- Avoid try-catch for flow control
-
-### 11. TypeScript: Leverage the Type System
-
-- Use TypeScript for all new code
-- Define clear interfaces for props, state, and API responses
-- Avoid `any`—use `unknown` when type is truly unknown
-- Use discriminated unions for state machines
-- Prefer interfaces over types for object shapes
-- Let TypeScript infer when obvious; be explicit when helpful
-
-## Framework-Specific Patterns
-
-### React
-
-**Hooks Rules:**
-
-- Custom hooks must start with `use`
-- Extract stateful logic into custom hooks
-- Keep components declarative—hooks handle imperative logic
-- Use `useMemo` and `useCallback` only when profiling shows benefit
-- Avoid deep dependency arrays—simplify instead
-
-**Component Patterns:**
-
-```jsx
-// ✅ Good: Clear structure, extracted logic
-function OrderList({ customerId }) {
-  const { orders, loading, error } = useOrders(customerId)
-
-  if (loading) return <LoadingSpinner />
-  if (error) return <ErrorMessage error={error} />
-
-  return (
-    <ul>
-      {orders.map(order => (
-        <OrderItem key={order.id} order={order} />
-      ))}
-    </ul>
-  )
-}
-```
-
-### Vue 3 (Composition API)
-
-**Composables Rules:**
-
-- Composables must start with `use`
-- Extract reactive logic into composables
-- Use `computed` for derived state, not methods
-- Use `ref` for primitives, `reactive` for objects (or just `ref` for everything)
-- Keep setup() organized by concern
-
-**Component Patterns:**
+Separation of concerns: move logic out of the component into a composable.
 
 ```vue
-<script setup>
-// ✅ Good: Clear structure, extracted logic
-import { useOrders } from '@/composables/useOrders'
-
-const props = defineProps({
-  customerId: { type: String, required: true }
-})
-
-const { orders, loading, error } = useOrders(props.customerId)
-</script>
-
-<template>
-  <LoadingSpinner v-if="loading" />
-  <ErrorMessage v-else-if="error" :error="error" />
-  <ul v-else>
-    <OrderItem
-      v-for="order in orders"
-      :key="order.id"
-      :order="order"
-    />
-  </ul>
-</template>
-```
-
-## Review Workflow
-
-When reviewing code:
-
-- Flag premature abstractions (single-use hooks/composables/components)
-- Identify components/functions doing multiple things
-- Point out logic mixed with presentation
-- Suggest extracting business logic to hooks/composables
-- Check for proper TypeScript usage
-- Look for prop drilling—suggest composition or context instead
-- Verify error handling at appropriate boundaries
-
-When writing code:
-
-- Start simple, extract when pattern emerges
-- Use TypeScript for safety
-- Separate concerns: UI vs logic
-- Inject dependencies
-- Keep components focused and small
-
-## Output Format
-
-### When Reviewing Code
-
-Provide structured feedback:
-
-- **List violations** with `file:line` references
-- **Before/after examples** showing problematic code and improved version
-- **Explanation** of which principle is violated and why it matters
-- **Refactored version** demonstrating proper separation of concerns
-
-## Example: Separation of Concerns (Principle 6)
-
-```text
-❌ Violation: Business logic mixed in component
-Location: OrderForm.vue:45-89
-
-Before:
+<!-- BEFORE: OrderForm.vue - API, totals, and routing all in the component -->
 <script setup>
 const submitOrder = async () => {
   try {
@@ -275,22 +171,20 @@ const submitOrder = async () => {
   }
 }
 </script>
+```
 
-Why it matters: Component is tightly coupled to API implementation. Can't test business logic without mounting component. Violates single responsibility—component handles UI, API, and routing.
-
-After:
+```vue
+<!-- AFTER: logic in a composable, component handles presentation only -->
 <script setup>
 // composables/useOrderSubmission.js
 export function useOrderSubmission() {
   const { createOrder } = useOrderApi()
   const router = useRouter()
-
   const submitOrder = async (orderData) => {
     const order = await createOrder(orderData)
     router.push(`/orders/${order.id}`)
     return order
   }
-
   return { submitOrder }
 }
 
@@ -299,9 +193,7 @@ const props = defineProps({
   items: { type: Array, required: true },
   customerId: { type: String, required: true }
 })
-
 const { submitOrder } = useOrderSubmission()
-
 const handleSubmit = async () => {
   try {
     await submitOrder({ items: props.items, customerId: props.customerId })
@@ -310,168 +202,19 @@ const handleSubmit = async () => {
   }
 }
 </script>
-
-Refactoring: Business logic extracted to composable. Component focuses on presentation and user interaction. API logic isolated for testing. Clear separation of concerns.
 ```
 
-## Example: Step Down Rule (Principle 8)
+Why: the component is tightly coupled to the API, totals math, and routing, so the business flow cannot be tested without mounting it and it violates single responsibility. After extraction the composable owns the flow (testable in isolation), the component owns presentation and user interaction, and dependencies are injected via `useOrderApi`. The result reads top-down and is reusable wherever order submission is needed.
 
-```text
-❌ Violation: Abstraction levels mixed in component
-Location: UserDashboard.tsx:12-85
+A clean React target component, for reference, shows the same separation with typed props and an injected hook:
 
-Before:
-function UserDashboard({ userId }) {
-  const [data, setData] = useState(null)
-
-  // High-level
-  useEffect(() => {
-    // Suddenly drops to low-level fetch details
-    fetch(`/api/users/${userId}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Failed')
-        return res.json()
-      })
-      .then(json => {
-        // Medium-level data transformation
-        const transformed = {
-          name: json.firstName + ' ' + json.lastName,
-          // ... 20 more lines of transformation
-        }
-        setData(transformed)
-      })
-  }, [userId])
-
-  // Rendering mixes high and low levels
-  return (
-    <div>
-      <h1>{data?.name}</h1>
-      {/* Inline complex calculations */}
-      <p>{data?.orders?.filter(o => o.status === 'complete').reduce((sum, o) => sum + o.total, 0)}</p>
-    </div>
-  )
-}
-
-Why it matters: Reader must jump between abstraction levels. Business logic gets lost in implementation details. Component is doing data fetching, transformation, and rendering all in one place.
-
-After:
-// hooks/useUserData.js - Handles data fetching
-function useUserData(userId) {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    loadUserData(userId).then(setData).finally(() => setLoading(false))
-  }, [userId])
-
-  return { data, loading }
-}
-
-// hooks/useUserStats.js - Handles calculations
-function useUserStats(orders) {
-  return useMemo(() => {
-    if (!orders) return null
-    return {
-      totalSpent: calculateTotalSpent(orders),
-      completedCount: countCompleted(orders)
-    }
-  }, [orders])
-}
-
-// UserDashboard.tsx - High-level composition only
-function UserDashboard({ userId }) {
-  const { data, loading } = useUserData(userId)
-  const stats = useUserStats(data?.orders)
-
-  if (loading) return <LoadingSpinner />
-
-  return (
-    <div>
-      <UserHeader name={data.name} />
-      <UserStats stats={stats} />
-      <OrderList orders={data.orders} />
-    </div>
-  )
-}
-
-Refactoring: Component now reads as pure composition. Data fetching in hook. Calculations in separate hook. Presentation components handle display. Each piece at single abstraction level.
-```
-
-## Example: Props Explosion (Principle 4)
-
-```text
-❌ Violation: Too many props controlling behavior
-Location: DataTable.tsx:5
-
-Before:
-<DataTable
-  data={users}
-  sortable={true}
-  filterable={true}
-  paginated={true}
-  pageSize={20}
-  showHeader={true}
-  showFooter={true}
-  striped={true}
-  hoverable={true}
-  onSort={handleSort}
-  onFilter={handleFilter}
-  onPageChange={handlePageChange}
-/>
-
-Why it matters: Component has 12 props—hard to understand, test, and maintain. Boolean flags create combinatorial complexity. Adding features requires more props.
-
-After:
-// Separate components for different use cases
-<SimpleTable data={users} />
-
-<SortableTable
-  data={users}
-  onSort={handleSort}
-/>
-
-<PaginatedTable
-  data={users}
-  pageSize={20}
-  onPageChange={handlePageChange}
-/>
-
-// Or composition for complex cases
-<Table data={users}>
-  <TableHeader />
-  <TableBody striped hoverable />
-  <TableFooter>
-    <Pagination pageSize={20} onChange={handlePageChange} />
-  </TableFooter>
-</Table>
-
-Refactoring: Replaced flag props with composition. Each component does one thing well. Combine components for complex needs. Clear, focused interfaces.
-```
-
-### When Writing New Code
-
-Explain your design decisions:
-
-- **TRUE principles** guide choices:
-  - **Transparent**: Easy to understand what component does and how to change it
-  - **Reasonable**: Cost of change proportional to benefits
-  - **Usable**: Component reusable in new/unexpected contexts
-  - **Exemplary**: Code quality encourages others to follow the pattern
-- **Show separation of concerns**
-- **Demonstrate clear component boundaries**
-- **Use TypeScript for safety and documentation**
-
-**Example:**
-
-```typescript
-// ✅ TRUE: Clear separation, single responsibility, composable
+```tsx
 interface OrderFormProps {
   customerId: string
   onSuccess?: (orderId: string) => void
 }
 
 export function OrderForm({ customerId, onSuccess }: OrderFormProps) {
-  // Logic extracted to custom hook
   const { submitOrder, isSubmitting, error } = useOrderSubmission()
   const [items, setItems] = useState<OrderItem[]>([])
 
@@ -481,13 +224,6 @@ export function OrderForm({ customerId, onSuccess }: OrderFormProps) {
     onSuccess?.(orderId)
   }
 
-  /**
-   * TRUE Component:
-   * - Transparent: Easy to see this is a form that submits orders
-   * - Reasonable: Adding validation only changes this component or the hook
-   * - Usable: Works anywhere you need order submission, customizable via onSuccess
-   * - Exemplary: Clear pattern for other form components
-   */
   return (
     <form onSubmit={handleSubmit}>
       <OrderItemList items={items} onChange={setItems} />
@@ -498,27 +234,34 @@ export function OrderForm({ customerId, onSuccess }: OrderFormProps) {
 }
 ```
 
-## Console Logging: Structured and Production-Safe
+## Review / Apply Workflow
 
-- Remove `console.log` before committing (use linter rules)
-- For debugging during development, use descriptive labels
-- For production logging, use proper logging libraries (e.g., Winston, Pino)
-- Never log sensitive data (tokens, passwords, PII)
+When writing frontend code:
 
-Example:
+1. Start with the concrete case and local state; do not pre-build flexibility.
+2. Type props and state up front; group related props into a typed object.
+3. As soon as business or network logic appears, extract it into a hook/composable so the component stays presentational.
+4. Inject services via Context/hooks (React) or provide-inject/composables (Vue).
+5. Keep the file readable top-down: structure first, then state, derived values, effects, handlers, helpers (extract helpers if more than 2-3).
+6. Remove debug logging before commit.
 
-```javascript
-// ❌ Development only - remove before commit
-console.log(userData)
+When reviewing frontend code:
 
-// ✅ Proper production logging
-logger.info('User data loaded', { userId: user.id, timestamp: Date.now() })
-```
+1. Scan for logic-in-component and prop-explosion first; these are the highest-value fixes.
+2. Flag premature abstractions (single-use hooks/components built "for flexibility").
+3. Trace props for drilling; suggest Context/composition where a value passes through unused.
+4. Check TypeScript usage: no `any`, discriminated unions for state, precise prop types.
+5. Verify errors are handled at a boundary, not swallowed.
+6. Report each finding as bad -> why it matters -> corrected version, with `file:line` references.
 
-## Testing Guidelines
+## Quality Checklist
 
-- Write tests for hooks/composables, not implementation details
-- Test user behavior, not internal state
-- Use Testing Library principles: "The more your tests resemble the way your software is used, the more confidence they can give you"
-- Mock at the boundaries (API calls, external services), not internal functions
-- Keep tests simple and readable—they're documentation
+- [ ] Components are small (~100-150 lines) and presentational; logic lives in hooks/composables.
+- [ ] No component exceeds 4-5 props; related props are grouped into typed objects; no behavioral boolean flags.
+- [ ] No class components in new code; reuse is via hooks/composables.
+- [ ] Services and clients are injected, not instantiated inside components.
+- [ ] State is local by default; global store used only for shared/app/server-cache/cross-cutting state.
+- [ ] TypeScript is used throughout; no `any`; state uses discriminated unions where appropriate.
+- [ ] Errors are handled at boundaries and never silently swallowed.
+- [ ] No leftover `console.log`; no secrets or PII in logs.
+- [ ] File reads top-down from structure to details; no prop drilling.

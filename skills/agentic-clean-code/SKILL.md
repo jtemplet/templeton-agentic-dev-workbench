@@ -1,15 +1,13 @@
---
+---
 name: agentic-clean-code
 description: >
-  Principles for writing clean, elegant, and maintainable agentic code — drawing from
+  Principles for writing clean, elegant, and maintainable agentic code, drawing from
   Uncle Bob's Clean Code and Sandi Metz's POODR, transposed into the agentic programming
-  context. Use this skill whenever you are designing or implementing: multi-agent systems,
+  context. Use this skill whenever you are designing or implementing multi-agent systems,
   tool definitions, orchestration logic, prompt architecture, agent loops, or any code
   where an LLM drives execution. Trigger this skill when the user asks about agentic code
   quality, agent design, clean agent architecture, or how to structure tools and prompts
-
-## well. Also trigger when reviewing or refactoring existing agentic code for clarity
-
+  well. Also trigger when reviewing or refactoring existing agentic code for clarity.
 ---
 
 # Agentic Clean Code
