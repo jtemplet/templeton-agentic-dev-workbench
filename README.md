@@ -184,6 +184,29 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 3. Skill defines the systematic review technique
 4. Output follows the skill's specified format
 
+## Always-On Style Core
+
+This plugin injects a small, universal coding-style core into **every session and every
+spawned subagent** via Claude Code lifecycle hooks (`SessionStart` + `SubagentStart`). The
+model-invoked `style-*` / `review-*` skills still carry the detailed per-language rules; the
+always-on hook just guarantees the universal core (`hooks/style-core.md`) is present even when
+a skill is not loaded and inside subagents that do not inherit the parent's skills. Injected
+text opens with a `<!-- house-style-core: loaded -->` marker so you can see it is active.
+
+**Behavior change on upgrade.** Installing this version makes the style core fire in **every
+session for every project** the plugin is loaded for, including non-coding ones (product,
+research, ASO). This is intentional. Use the off-switch below for sessions where it is noise.
+
+**Off-switch.** Set `TADW_STYLE_CORE=off` (also `0` / `false`), or create a flag file at
+`${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`. Either disables both the session and
+subagent injection.
+
+**Requires `node` on PATH.** The hook runs `node`. If `node` is not on the non-interactive
+shell's PATH (common with `fnm`/`nvm`), the hook silently does nothing and the core is not
+injected (no error, just no marker line). Ensure `node` resolves in a non-interactive shell.
+
+**Test the hooks:** `node hooks/test-hooks.js` (no dependencies, no install).
+
 ## Creating Components
 
 ### New Skill

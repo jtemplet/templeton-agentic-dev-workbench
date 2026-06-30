@@ -341,7 +341,8 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 
 ### Manifest File
 
-`.claude-plugin/plugin.json` defines plugin metadata and component registration:
+`.claude-plugin/plugin.json` defines plugin metadata, component registration, and the
+`hooks` field that wires the always-on style core (see "Always-on style core (hooks)" below):
 
 **Registered Skills:**
 
@@ -424,6 +425,46 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/product-roadmap` - Build a prioritized product roadmap with themes and sequencing
 - `/product-brief` - Write a product brief (PM-to-engineering handoff) for a feature
 - `/pr-maintain` - Keep the current branch's PR rebased on its parent and passing CI; one iteration per invocation, safe to pair with `/loop`
+
+### Always-on style core (hooks)
+
+The plugin ships an always-on coding-style core via Claude Code lifecycle hooks
+(`hooks/style-core-hooks.json`, registered through the `hooks` field in `plugin.json`).
+Unlike the model-invoked style skills, this fires automatically, so the house style is
+present even when the model would not have chosen to load a skill, and even inside spawned
+subagents (which never inherit the parent session's loaded skills).
+
+**What it injects.** The universal, language-agnostic core from `hooks/style-core.md` (TRUE
+code plus nine cross-language principles). The detailed per-language rules stay in the
+on-demand `style-*` and `review-*` skills; only the small universal core is always on.
+
+- **`SessionStart`** injects the core as raw context into every new, resumed, cleared, or
+  compacted session.
+- **`SubagentStart`** re-injects it (JSON-wrapped in `hookSpecificOutput.additionalContext`)
+  into every spawned subagent.
+
+**Observability.** The injected text opens with a marker line
+(`<!-- house-style-core: loaded -->`) so its presence is visible in any session, not only in
+a one-time test.
+
+**Off-switch.** Disable both surfaces with either:
+
+- the environment variable `TADW_STYLE_CORE=off` (also accepts `0` / `false`); it inherits
+  into the subagent hook process, so one setting covers both surfaces, or
+- a persistent flag file at `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`.
+
+**`node` on PATH requirement.** The hook command is literally `node "...";`. If `node` is not
+on the non-interactive shell's PATH (common for `fnm`/`nvm` users), the hook silently no-ops
+and the core is not injected. There is no error; the marker line simply will not appear.
+
+**Blast radius (behavior change).** Declaring `hooks` in `plugin.json` makes these hooks fire
+in **every project** the plugin is loaded for, and (if distributed via the marketplace) for
+**every consumer on upgrade**. The core fires in non-coding sessions too (product, research,
+ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
+and the off-switch is the escape hatch.
+
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) asserts the
+SessionStart raw output, the SubagentStart JSON wrapping, and both off-switch paths.
 
 ## Key Design Principles
 
