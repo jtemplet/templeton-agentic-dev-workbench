@@ -145,7 +145,7 @@ Every bead must fit within a diff-size window before it is created. Beads that a
 | Band | Files | LOC | What it means | Action |
 |---|---|---|---|---|
 | **Trivial** | 1 | < 20 | One-line tweak, typo, single-import fix | Just commit directly; do not file a bead |
-| **Target** | 1 to 5 | 20 to 300 | Reviewable as a small diff (fresh-eyes-review path); fits comfortably in one iteration | This is the goal for every bead |
+| **Target** | 1 to 5 | 20 to 300 | Reviewable as a small diff (review-fresh-eyes path); fits comfortably in one iteration | This is the goal for every bead |
 | **Stretch** | up to 10 | up to 600 | Reviewable but requires the full code-reviewer; pushes against one-iteration limits | Acceptable with justification |
 | **Too big** | > 10 | > 600 | Either won't finish in one iteration or couples too many concerns | Split before creating |
 | **Hard ceiling** | > 30 | > 2000 | Exceeds the autonomous wrapper's diff-budget defaults (outrigger and similar runners abort here) | Never create |

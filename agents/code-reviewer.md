@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Language-detecting code review agent. Analyzes changed files, identifies the language/framework, and dispatches to the appropriate review skill (python-code-review, rails-code-review, templeton-swift-style, terraform-iac-expert, templeton-frontend-style). Use when reviewing mixed-language changes or when you want auto-detection instead of picking a language-specific review.
+description: Language-detecting code review agent. Analyzes changed files, identifies the language/framework, and dispatches to the appropriate review skill (review-python, review-rails, style-swift, terraform-iac-expert, style-frontend). Use when reviewing mixed-language changes or when you want auto-detection instead of picking a language-specific review.
 model: inherit
 tools: ["Read", "Bash", "Grep", "Glob", "Skill"]
 ---
@@ -33,11 +33,11 @@ Map each file to its language/framework:
 
 | Extension / Pattern | Language | Review Skill |
 |---|---|---|
-| `.py` | Python | `python-code-review` |
-| `.rb`, `.erb`, `Gemfile`, Rails structure (`app/`, `config/routes.rb`) | Ruby/Rails | `rails-code-review` |
-| `.swift` | Swift/iOS | `templeton-swift-style` |
+| `.py` | Python | `review-python` |
+| `.rb`, `.erb`, `Gemfile`, Rails structure (`app/`, `config/routes.rb`) | Ruby/Rails | `review-rails` |
+| `.swift` | Swift/iOS | `style-swift` |
 | `.tf`, `.tfvars` | Terraform | `terraform-iac-expert` |
-| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | JavaScript/TypeScript/React/Vue | `templeton-frontend-style` |
+| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | JavaScript/TypeScript/React/Vue | `style-frontend` |
 | `.md` (CLAUDE.md, AGENTS.md) | Claude config | Defer to `/review-claude-md` |
 
 Files that don't match any skill (e.g., `.go`, `.yaml`, `.json`) should still be reviewed using general best practices -- don't skip them.

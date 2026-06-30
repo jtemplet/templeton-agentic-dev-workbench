@@ -1,5 +1,5 @@
 ---
-name: fizzy-style
+name: style-fizzy
 description: Use when writing controllers, models, concerns, or POROs in the Fizzy codebase - enforces Fizzy's vanilla Rails house style and conventions
 ---
 
@@ -17,7 +17,7 @@ Use when:
 
 Do NOT use when:
 
-- Working in a non-Fizzy Rails codebase: use `rails-conventions` instead.
+- Working in a non-Fizzy Rails codebase: use `style-rails` instead.
 - Writing non-Rails Ruby (plain gems, scripts, CLIs): the Fizzy Rails deltas do not apply.
 - Editing generated scaffolding you have been told to leave as-is.
 

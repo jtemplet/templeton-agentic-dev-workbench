@@ -1,5 +1,5 @@
 ---
-name: templeton-rspec-style
+name: style-rspec
 description: Use when writing or reviewing RSpec tests in Rails apps - enforces request specs, let/let!/subject setup, context-driven organization, and DRY conventions
 ---
 

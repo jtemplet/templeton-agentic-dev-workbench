@@ -121,15 +121,15 @@ Pair with `/loop` to run on a schedule:
 
 | Skill | Description |
 |---|---|
-| `python-code-review` | PEP 8 and Google Style Guide review technique |
-| `rails-code-review` | Rails 8 systematic review (security, conventions, performance) |
-| `templeton-rspec-style` | Opinionated RSpec style (request specs, context-driven) |
-| `rails-conventions` | Rails 8 Way conventions and best practices |
-| `templeton-python-style` | Python style (Sandi Metz principles adapted for Python) |
-| `templeton-swift-style` | Swift style (Sandi Metz, protocol-oriented design) |
-| `templeton-frontend-style` | Frontend style (JS/TS/React/Vue, Sandi Metz principles) |
+| `review-python` | PEP 8 and Google Style Guide review technique |
+| `review-rails` | Rails 8 systematic review (security, conventions, performance) |
+| `style-rspec` | Opinionated RSpec style (request specs, context-driven) |
+| `style-rails` | Rails 8 Way conventions and best practices |
+| `style-python` | Python style (Sandi Metz principles adapted for Python) |
+| `style-swift` | Swift style (Sandi Metz, protocol-oriented design) |
+| `style-frontend` | Frontend style (JS/TS/React/Vue, Sandi Metz principles) |
 | `terraform-iac-expert` | Terraform/IaC expertise across AWS, Azure, GCP |
-| `fizzy-style` | Vanilla Rails conventions for the Fizzy codebase |
+| `style-fizzy` | Vanilla Rails conventions for the Fizzy codebase |
 | `idea-wizard` | Structured ideation: generate, evaluate, distill |
 | `architecture-decision-record` | ADR format with context, options, and rationale |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis |
@@ -138,7 +138,7 @@ Pair with `/loop` to run on a schedule:
 | `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report |
 | `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG |
 | `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill |
-| `fresh-eyes-review` | Bug-and-correctness pass over recently changed code, fixes issues directly |
+| `review-fresh-eyes` | Bug-and-correctness pass over recently changed code, fixes issues directly |
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
 | `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) |
 | `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards; separates content from structure (format-only issues are auto-fixable), honors native tracker fields, JSON output for backlog grooming |
@@ -157,7 +157,7 @@ Pair with `/loop` to run on a schedule:
 | Agent | Description |
 |---|---|
 | `code-reviewer` | Auto-detects languages, dispatches to correct review skill (read-only) |
-| `software-engineer` | Editing role for code work; routes to code-simplify, fresh-eyes-review, or feature-development based on intent |
+| `software-engineer` | Editing role for code work; routes to code-simplify, review-fresh-eyes, or feature-development based on intent |
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
 | `feature-planner` | Explores codebase, drafts structured plans to `docs/plans/` |
 | `project-manager` | Decomposes plans into `br` issues; ensures each bead has Why, How, and acceptance criteria (uses `plan-to-beads` skill) |
@@ -180,7 +180,7 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 **Example flow:**
 
 1. User invokes `/rails-code-review` command
-2. Command loads `rails-code-review` skill via the Skill tool
+2. Command loads `review-rails` skill via the Skill tool
 3. Skill defines the systematic review technique
 4. Output follows the skill's specified format
 

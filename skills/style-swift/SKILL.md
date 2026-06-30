@@ -1,5 +1,5 @@
 ---
-name: templeton-swift-style
+name: style-swift
 description: Writes and reviews Swift/iOS in the house style (protocol-oriented, value-type-first, TRUE code). Use when writing or reviewing Swift code.
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: feature-development
-description: Guided 4-phase feature implementation. Asks clarifying questions, implements following language-specific style principles, refines via the code-simplify skill, then runs the language's linter. Detects language and delegates to templeton-python-style, templeton-frontend-style, templeton-swift-style, or rails-conventions for the actual style rules.
+description: Guided 4-phase feature implementation. Asks clarifying questions, implements following language-specific style principles, refines via the code-simplify skill, then runs the language's linter. Detects language and delegates to style-python, style-frontend, style-swift, or style-rails for the actual style rules.
 ---
 
 # Feature Development
@@ -80,10 +80,10 @@ Once requirements are clear, detect the language and load the matching style ski
 
 | Extension | Style Skill |
 |---|---|
-| `.py` | `templeton-python-style` |
-| `.rb`, `.erb`, `.rake` | `rails-conventions` |
-| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `templeton-frontend-style` |
-| `.swift` | `templeton-swift-style` |
+| `.py` | `style-python` |
+| `.rb`, `.erb`, `.rake` | `style-rails` |
+| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `style-frontend` |
+| `.swift` | `style-swift` |
 
 The style skill owns the language-specific principles. This skill owns the *workflow*. Do not restate language rules here.
 

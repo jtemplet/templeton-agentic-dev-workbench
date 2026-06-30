@@ -1,5 +1,5 @@
 ---
-name: python-code-review
+name: review-python
 description: Reviews Python code against PEP 8 and the Google Python Style Guide. Covers style, imports, naming, docstrings, type hints, code quality, security, performance, and maintainability. Use when reviewing, auditing, or checking the quality of Python code.
 ---
 
@@ -19,13 +19,13 @@ Use when:
 Do NOT use when:
 
 - The file is not Python (e.g. Ruby, Swift, JS/TS, Terraform). Dispatch to the matching review skill instead.
-- The request is a design / architecture / object-oriented-design review. Defer to `templeton-python-style`, which owns the house OOD and Python writing style.
+- The request is a design / architecture / object-oriented-design review. Defer to `style-python`, which owns the house OOD and Python writing style.
 - The only findings are auto-formattable nits (line length, spacing, quote consistency) that `black`/`ruff format` already fixes on save. Note the formatter; do not enumerate each nit as a finding.
 - The task is writing new Python from scratch (use `feature-development`) rather than reviewing existing code.
 
 ## Universal Core (injected)
 
-The universal style core (TRUE code plus the 9 universal principles, defined in `hooks/style-core.md`) is injected separately into every session. Do not restate it; assume it. Design-level OOD concerns (single-purpose units, dependency injection, tell-don't-ask, composition over inheritance, rule-of-three abstraction) live in `templeton-python-style`, the companion writing-style skill. This skill adds the PEP 8 / Google Style review specifics on top of that shared foundation.
+The universal style core (TRUE code plus the 9 universal principles, defined in `hooks/style-core.md`) is injected separately into every session. Do not restate it; assume it. Design-level OOD concerns (single-purpose units, dependency injection, tell-don't-ask, composition over inheritance, rule-of-three abstraction) live in `style-python`, the companion writing-style skill. This skill adds the PEP 8 / Google Style review specifics on top of that shared foundation.
 
 ## Review Principles
 
@@ -894,4 +894,4 @@ Before completing the review, verify:
 - [ ] Applied the severity scale, including the rule that passing tests cap non-correctness/non-security issues at MEDIUM.
 - [ ] Output is well-formed Markdown following the Output Format template (Summary, Detailed Findings, Positive Highlights, Recommendations, References, Enforcement Tools).
 - [ ] Every finding has an actionable fix with a concrete code example.
-- [ ] Deferred design-level OOD concerns to `templeton-python-style` rather than duplicating them here.
+- [ ] Deferred design-level OOD concerns to `style-python` rather than duplicating them here.

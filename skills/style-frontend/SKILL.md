@@ -1,5 +1,5 @@
 ---
-name: templeton-frontend-style
+name: style-frontend
 description: Writes and reviews JavaScript/TypeScript, React, and Vue in the house style - TRUE components, frontend-specific deltas (small presentational components, logic in hooks/composables, typed props, no class components) layered on the injected universal style core.
 ---
 

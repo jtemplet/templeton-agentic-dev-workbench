@@ -1,5 +1,5 @@
 ---
-name: templeton-python-style
+name: style-python
 description: Writes and reviews Python in the house style - Python-specific deltas on top of the injected universal TRUE-code core (Sandi Metz / Clean Code), emphasizing modules-before-classes, dataclasses/protocols, lazy logging, and modern type hints
 ---
 
@@ -17,7 +17,7 @@ Use this skill when:
 
 Do NOT use this skill when:
 
-- The file is not Python (use `templeton-frontend-style`, `templeton-swift-style`, or the Rails skills instead).
+- The file is not Python (use `style-frontend`, `style-swift`, or the Rails skills instead).
 - The code is a throwaway script, one-off REPL snippet, or scratch experiment where style is irrelevant.
 - You only need the universal principles; those are already injected and apply on their own.
 

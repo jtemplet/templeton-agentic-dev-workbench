@@ -1,6 +1,6 @@
 ---
 name: code-simplify
-description: Simplify and refine code for clarity, consistency, and maintainability while preserving exact functionality. Detects the language and delegates to the appropriate style skill (templeton-python-style for Python, rails-conventions for Ruby/Rails, templeton-frontend-style for JS/TS, templeton-swift-style for Swift). Focuses on recently modified code unless instructed otherwise.
+description: Simplify and refine code for clarity, consistency, and maintainability while preserving exact functionality. Detects the language and delegates to the appropriate style skill (style-python for Python, style-rails for Ruby/Rails, style-frontend for JS/TS, style-swift for Swift). Focuses on recently modified code unless instructed otherwise.
 ---
 
 # Code Simplification
@@ -40,10 +40,10 @@ Detect by file extension and load the matching style skill via the Skill tool:
 
 | Extension | Style Skill |
 |---|---|
-| `.py` | `templeton-python-style` |
-| `.rb`, `.erb`, `.rake` | `rails-conventions` (or `fizzy-style` if working in the Fizzy codebase) |
-| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `templeton-frontend-style` |
-| `.swift` | `templeton-swift-style` |
+| `.py` | `style-python` |
+| `.rb`, `.erb`, `.rake` | `style-rails` (or `style-fizzy` if working in the Fizzy codebase) |
+| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `style-frontend` |
+| `.swift` | `style-swift` |
 
 The style skill owns the language-specific rules. This skill owns the simplification *process*. Do not restate language rules here.
 

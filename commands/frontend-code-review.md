@@ -2,14 +2,14 @@
 description: "Frontend code review (JS/TS/React/Vue) following Sandi Metz principles, focused on changed frontend files"
 ---
 
-Use the `templeton-frontend-style` skill to review changed frontend code.
+Use the `style-frontend` skill to review changed frontend code.
 
 The review operates from the `code-reviewer` role: a read-only reviewer that detects languages and applies the matching style skill. Refer to `agents/code-reviewer.md` for the role's principles. This command is a frontend-scoped shortcut to `/code-review`; it focuses the review on JavaScript / TypeScript / React / Vue files in the diff.
 
 **Workflow:**
 
 1. Get the git diff for `.js`, `.jsx`, `.ts`, `.tsx`, and `.vue` files between the current branch and main
-2. Load the `templeton-frontend-style` skill via the Skill tool
+2. Load the `style-frontend` skill via the Skill tool
 3. Review in the skill's priority order:
    - **Separation of Concerns (CRITICAL)** - Logic mixed in components, business logic in UI
    - **Component Design (HIGH)** - Size, single responsibility, premature abstraction

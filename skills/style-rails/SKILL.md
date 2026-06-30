@@ -1,5 +1,5 @@
 ---
-name: rails-conventions
+name: style-rails
 description: Use when generating Rails code, evaluating gems, or making Rails architectural decisions - enforces the Rails 8 Way (convention over configuration, Solid Stack over external dependencies, Hotwire)
 ---
 
