@@ -200,7 +200,7 @@ Do not assume any particular CLI is available. If the user provides IDs but no c
 
 For each bead body, extract:
 
-- **Title** - from a `Title:` line, a top-level `# ` heading, or the caller's label
+- **Title** - from a `Title:` line, a top-level `#` heading, or the caller's label
 - **Type** - from a `Type:` line, an annotation, or the caller's statement; default to `task` with a WARN if absent
 - **Sections** - locate each canonical section via "Heading Recognition". Record, per section, the substance found and which heading carried it (canonical / variant / absent)
 
