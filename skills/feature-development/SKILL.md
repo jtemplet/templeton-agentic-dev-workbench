@@ -1,11 +1,19 @@
 ---
 name: feature-development
-description: Guided 4-phase feature implementation. Asks clarifying questions, implements following language-specific style principles, refines via the code-simplify skill, then runs the language's linter. Detects language and delegates to templeton-python-style, templeton-frontend-style, templeton-swift-style, or rails-conventions for the actual style rules.
+description: Guided 4-phase feature implementation. Asks clarifying questions, implements following language-specific style principles, refines via the code-simplify skill, then runs the language's linter. Detects language and delegates to style-python, style-frontend, style-swift, or style-rails for the actual style rules.
 ---
 
 # Feature Development
 
 A structured 4-phase workflow for implementing new features: Discovery, Implementation, Simplification, Linting. Language-agnostic at the workflow level; delegates to language-specific style skills for what good code looks like in each language.
+
+## Universal Core (injected)
+
+The universal coding-style core (`hooks/style-core.md`) is injected into every session and
+subagent, so TRUE code and the cross-language principles (small units, wait for duplication,
+tell-don't-ask, compose over inherit, fail fast, names that document) are already in context
+while you implement. This skill owns the *workflow*; the language style skill loaded in Phase 2
+owns the per-language rules. Do not restate either here.
 
 ## When to Use
 
@@ -72,10 +80,10 @@ Once requirements are clear, detect the language and load the matching style ski
 
 | Extension | Style Skill |
 |---|---|
-| `.py` | `templeton-python-style` |
-| `.rb`, `.erb`, `.rake` | `rails-conventions` |
-| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `templeton-frontend-style` |
-| `.swift` | `templeton-swift-style` |
+| `.py` | `style-python` |
+| `.rb`, `.erb`, `.rake` | `style-rails` |
+| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `style-frontend` |
+| `.swift` | `style-swift` |
 
 The style skill owns the language-specific principles. This skill owns the *workflow*. Do not restate language rules here.
 

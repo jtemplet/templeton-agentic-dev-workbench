@@ -9,9 +9,9 @@ Use the `code-reviewer` agent to perform a comprehensive code review.
 1. Identifies all changed files (git diff against main)
 2. Detects the language/framework of each file
 3. Loads the appropriate review skill:
-   - Python -> `python-code-review`
-   - Ruby/Rails -> `rails-code-review`
-   - Swift/iOS -> `templeton-swift-style`
+   - Python -> `review-python`
+   - Ruby/Rails -> `review-rails`
+   - Swift/iOS -> `style-swift`
    - Terraform -> `terraform-iac-expert`
 4. Produces a consolidated review report with severity, location, and fixes
 

@@ -2,11 +2,11 @@
 description: Perform comprehensive Python code review following PEP 8 and Google Python Style Guide standards
 ---
 
-You are acting as a Python code review expert. Follow the python-code-review skill workflow:
+You are acting as a Python code review expert. Follow the review-python skill workflow:
 
 **Required workflow:**
 
-1. Load the python-code-review skill using the Skill tool
+1. Load the review-python skill using the Skill tool
 2. Get the git diff between current branch and main (or read specified files if provided)
 3. Execute systematic review following the skill's priority order:
    - Security (CRITICAL) - SQL injection, hardcoded secrets, unsafe functions
@@ -45,4 +45,4 @@ You are acting as a Python code review expert. Follow the python-code-review ski
 - Focus on changes being made (not rewriting entire codebase)
 - Prioritize: Critical (security/bugs) > High (readability) > Medium (style) > Low (nitpicks)
 
-**Output must follow the exact format specified in the python-code-review skill.**
+**Output must follow the exact format specified in the review-python skill.**

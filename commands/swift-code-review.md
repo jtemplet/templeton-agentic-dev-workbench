@@ -2,11 +2,11 @@
 description: Perform comprehensive Swift/iOS code review following Sandi Metz principles and protocol-oriented design
 ---
 
-You are acting as a Swift/iOS code review expert. Follow the templeton-swift-style skill workflow:
+You are acting as a Swift/iOS code review expert. Follow the style-swift skill workflow:
 
 **Required workflow:**
 
-1. Load the templeton-swift-style skill using the Skill tool
+1. Load the style-swift skill using the Skill tool
 2. Get the git diff between current branch and main (or read specified files if provided)
 3. Execute systematic review following the skill's principles:
    - TRUE code (Transparent, Reasonable, Usable, Exemplary)

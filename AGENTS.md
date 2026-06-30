@@ -27,7 +27,7 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 **Example Flow:**
 
 1. User invokes `/rails-code-review` command
-2. Command loads `rails-code-review` skill via the Skill tool
+2. Command loads `review-rails` skill via the Skill tool
 3. Skill defines the systematic review technique
 4. Output follows the skill's specified format
 
@@ -53,7 +53,7 @@ Skills are located in `skills/*/SKILL.md` and contain:
 
 Skills can be invoked:
 
-1. Directly: "Use the rails-code-review skill"
+1. Directly: "Use the review-rails skill"
 2. Via commands: `/rails-code-review`
 3. Via agent workflows: Task tool with custom agent
 
@@ -140,7 +140,7 @@ description: One-line description
 
 ### Python Development
 
-**Code Review:** Use `/python-code-review` or the `python-code-review` skill
+**Code Review:** Use `/python-code-review` or the `review-python` skill
 
 - Checks PEP 8 and Google Python Style Guide compliance
 - Reviews security, performance, and maintainability
@@ -148,7 +148,7 @@ description: One-line description
 **Feature Development:** Use `/python-feature-dev` or the `software-engineer` agent + `feature-development` skill
 
 - 4-phase workflow: discovery, implementation, simplification, linting
-- Loads `templeton-python-style` for Python file style decisions
+- Loads `style-python` for Python file style decisions
 - Runs `ruff` for linting
 
 **Code Simplification:** Use the `software-engineer` agent + `code-simplify` skill
@@ -165,13 +165,13 @@ description: One-line description
 - Security-first approach with pragmatic severity assessment
 - Understands `where.missing`, `broadcast_refresh_to`, Solid Stack patterns
 
-**Testing:** Use the `templeton-rspec-style` skill
+**Testing:** Use the `style-rspec` skill
 
 - Opinionated RSpec style
 - Request specs over controller specs
 - Context-driven organization
 
-**Conventions:** Use the `rails-conventions` skill
+**Conventions:** Use the `style-rails` skill
 
 - Enforces Rails 8 conventions and best practices
 - Ensures idiomatic Rails patterns
@@ -188,7 +188,7 @@ git diff main...HEAD  # See changes to be reviewed
 
 ### Swift/iOS Development
 
-**Code Review:** Use `/swift-code-review` or the `templeton-swift-style` skill
+**Code Review:** Use `/swift-code-review` or the `style-swift` skill
 
 - Sandi Metz principles adapted for Swift
 - Protocol-oriented design over class inheritance
@@ -198,14 +198,14 @@ git diff main...HEAD  # See changes to be reviewed
 
 **Code Review:** Use `/frontend-code-review` (frontend-scoped shortcut for `/code-review`)
 
-- Loads the `templeton-frontend-style` skill from the `code-reviewer` agent
+- Loads the `style-frontend` skill from the `code-reviewer` agent
 - JavaScript/TypeScript, React, and Vue code reviews (read-only)
 - Sandi Metz principles adapted for frontend
 - Focuses on separation of concerns (logic vs presentation)
 - Checks component design, TypeScript usage, and modern patterns
 - Validates proper hook/composable patterns
 
-**Style Guide:** Use the `templeton-frontend-style` skill
+**Style Guide:** Use the `style-frontend` skill
 
 - TRUE components (Transparent, Reasonable, Usable, Exemplary)
 - Wait for duplication before abstracting
@@ -341,19 +341,20 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 
 ### Manifest File
 
-`.claude-plugin/plugin.json` defines plugin metadata and component registration:
+`.claude-plugin/plugin.json` defines plugin metadata, component registration, and the
+`hooks` field that wires the always-on style core (see "Always-on style core (hooks)" below):
 
 **Registered Skills:**
 
-- `python-code-review` - PEP 8 and Google Style Guide reviews
-- `rails-code-review` - Rails 8-aware systematic code review
-- `templeton-rspec-style` - Opinionated RSpec testing patterns
-- `rails-conventions` - Rails conventions and best practices
-- `templeton-python-style` - Python style preferences (Sandi Metz principles)
-- `templeton-swift-style` - Swift/iOS with Sandi Metz principles and protocol-oriented design
-- `templeton-frontend-style` - JavaScript/TypeScript/React/Vue with Sandi Metz principles
+- `review-python` - PEP 8 and Google Style Guide reviews
+- `review-rails` - Rails 8-aware systematic code review
+- `style-rspec` - Opinionated RSpec testing patterns
+- `style-rails` - Rails conventions and best practices
+- `style-python` - Python style preferences (Sandi Metz principles)
+- `style-swift` - Swift/iOS with Sandi Metz principles and protocol-oriented design
+- `style-frontend` - JavaScript/TypeScript/React/Vue with Sandi Metz principles
 - `terraform-iac-expert` - Infrastructure as Code reviews
-- `fizzy-style` - Vanilla Rails conventions for the Fizzy codebase
+- `style-fizzy` - Vanilla Rails conventions for the Fizzy codebase
 - `idea-wizard` - Generate 30 ideas, evaluate, distill to top 5
 - `architecture-decision-record` - Record decisions with context, options, and rationale
 - `business-ideas` - Analyze business model and surface 10 revenue-focused feature ideas
@@ -362,7 +363,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `ux-audit` - Web UX audit via Playwright across 7 design dimensions with severity-ranked report
 - `ux-audit-ios` - iOS UX audit via Simulator with Dynamic Type / Dark Mode / Bold Text testing against Apple HIG
 - `code-simplify` - Language-agnostic simplification workflow that loads the matching language style skill
-- `fresh-eyes-review` - Bug-and-correctness pass over recently changed code, fixes issues directly
+- `review-fresh-eyes` - Bug-and-correctness pass over recently changed code, fixes issues directly
 - `feature-development` - 4-phase guided implementation (discovery, implementation, simplification, linting), language-agnostic
 - `plan-to-beads` - Decompose a feature plan into br (beads_rust) issues with dependencies, auditing each bead against Marr Levels 1 (Why), 2 (How), and acceptance criteria (Done when) before creation
 - `product-surface-docs` - Generate, refresh, and keep current a MECE/Pyramid-Principle product documentation tree under `docs/products/`, organized by product surface (web/api/iOS/...) and drilling into each surface's capabilities; grounds claims in code, proactively hunts bugs/gaps/debt into a `_findings.md` ledger with stable F-IDs (cheap capture, report everything) and promotes the actionable ones into `bead-audit`-compliant beads, ships a `check_staleness.py` (in-repo + multi-repo) so staleness is a command, and uses progressive disclosure (scripts/ + references/)
@@ -424,6 +425,46 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/product-roadmap` - Build a prioritized product roadmap with themes and sequencing
 - `/product-brief` - Write a product brief (PM-to-engineering handoff) for a feature
 - `/pr-maintain` - Keep the current branch's PR rebased on its parent and passing CI; one iteration per invocation, safe to pair with `/loop`
+
+### Always-on style core (hooks)
+
+The plugin ships an always-on coding-style core via Claude Code lifecycle hooks
+(`hooks/style-core-hooks.json`, registered through the `hooks` field in `plugin.json`).
+Unlike the model-invoked style skills, this fires automatically, so the house style is
+present even when the model would not have chosen to load a skill, and even inside spawned
+subagents (which never inherit the parent session's loaded skills).
+
+**What it injects.** The universal, language-agnostic core from `hooks/style-core.md` (TRUE
+code plus nine cross-language principles). The detailed per-language rules stay in the
+on-demand `style-*` and `review-*` skills; only the small universal core is always on.
+
+- **`SessionStart`** injects the core as raw context into every new, resumed, cleared, or
+  compacted session.
+- **`SubagentStart`** re-injects it (JSON-wrapped in `hookSpecificOutput.additionalContext`)
+  into every spawned subagent.
+
+**Observability.** The injected text opens with a marker line
+(`<!-- house-style-core: loaded -->`) so its presence is visible in any session, not only in
+a one-time test.
+
+**Off-switch.** Disable both surfaces with either:
+
+- the environment variable `TADW_STYLE_CORE=off` (also accepts `0` / `false`); it inherits
+  into the subagent hook process, so one setting covers both surfaces, or
+- a persistent flag file at `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`.
+
+**`node` on PATH requirement.** The hook command is literally `node "...";`. If `node` is not
+on the non-interactive shell's PATH (common for `fnm`/`nvm` users), the hook silently no-ops
+and the core is not injected. There is no error; the marker line simply will not appear.
+
+**Blast radius (behavior change).** Declaring `hooks` in `plugin.json` makes these hooks fire
+in **every project** the plugin is loaded for, and (if distributed via the marketplace) for
+**every consumer on upgrade**. The core fires in non-coding sessions too (product, research,
+ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
+and the off-switch is the escape hatch.
+
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) asserts the
+SessionStart raw output, the SubagentStart JSON wrapping, and both off-switch paths.
 
 ## Key Design Principles
 

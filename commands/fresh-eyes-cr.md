@@ -2,7 +2,7 @@
 description: "Review all new/modified code with fresh eyes, find and fix obvious bugs and errors"
 ---
 
-Use the `fresh-eyes-review` skill to review all recently changed code.
+Use the `review-fresh-eyes` skill to review all recently changed code.
 
 The review operates from the `software-engineer` role: a working engineer who modifies code carefully, prefers the smallest correct change, and verifies before declaring success. Refer to `agents/software-engineer.md` for the role's beliefs and judgment principles.
 

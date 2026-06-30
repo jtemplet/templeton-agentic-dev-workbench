@@ -109,16 +109,19 @@ Hunting is a first-class objective, run as a deliberate pass. Documenting a surf
 Do not wait to "notice" findings. Execute the probes:
 
 **Bugs (falsify every stated invariant):**
+
 - **Invariant verification.** For every claimed guarantee (tier gate, auth, per-user isolation, idempotency, response casing), grep the code to confirm it is enforced *everywhere*, not just declared once. Canonical find: a "gated" endpoint family with no `require_tier` on some routes.
 - **Boundary handling.** Trace external inputs (sync payloads, webhooks, form data, OAuth callbacks); check null/malformed/oversized handling.
 - **Contract mismatches.** Compare API response shapes against what the client consumes.
 - **Contradiction sweep.** Find code that contradicts a documented behavior or another part of the code.
 
 **Feature gaps (coverage matrices, not vibes):**
+
 - **Persona x JTBD matrix.** For each persona and job-to-be-done in the apex doc, find the surface that serves it. Empty cells are gaps.
 - **Table-stakes check** against category norms and named competitors. **Dangling surfaces:** UI wired to nothing, endpoints with no UI consumer, half-built CRUD. **First-run/empty states** actually built, not just the happy path.
 
 **Feature debt (the incomplete and the stale):**
+
 - **Marker sweep** (`TODO`, `FIXME`, `HACK`, `deprecated`, `legacy`). **Parallel patterns** (unfinished migrations). **Stale framing** (docs/comments/copy that no longer match code). **Under-specified states.** **Convention drift** (a convention enforced on most surfaces but violated on one).
 
 On a refresh, concentrate the hunt on code changed since each doc's `last_reviewed` (the script lists it); new code is the highest-yield place to look.

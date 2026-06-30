@@ -1,25 +1,44 @@
 ---
-name: fresh-eyes-review
-description: Review recently changed code as if seeing it for the first time. Auto-detects changed files from git, reads full files for context, finds obvious bugs and logic errors, and fixes them directly. Conservative scope, looking for genuine bugs rather than style preferences.
+name: review-fresh-eyes
+description: Review recently changed code as if seeing it for the first time. Auto-detects changed files from git, reads full files for context, finds genuine bugs and logic errors, and fixes them directly. Conservative scope: real bugs, not style preferences.
 ---
 
 # Fresh Eyes Review
 
-A systematic technique for catching obvious bugs in recently changed code. Reads full files (not just diffs) to spot issues that the diff view hides, then fixes them directly.
+A conservative bug-and-correctness pass over recently changed code. Reads full files (not just diffs) to spot issues the diff view hides, then fixes genuine bugs directly.
 
-## When to Use
+## When to Use / When NOT to Use
+
+Use when:
 
 - After implementing a feature, before committing
 - After refactoring, to catch errors introduced by the changes
 - When asked to "review my changes" or "check what I just did"
 - Before opening a pull request, as a self-review pass
 
-## When NOT to Use
+Do NOT use when:
 
 - For style or formatting feedback (this is not a style review)
 - For architectural review (this is not a design review)
 - For full PR review (this is a fast bug-and-correctness pass, not comprehensive)
 - On code with no recent changes (nothing to review)
+
+## Universal Core (injected)
+
+The universal style core (`hooks/style-core.md`) defines how code should be written, but this skill deliberately does NOT enforce it. This is a conservative bug-and-correctness pass: it flags and fixes genuine bugs only, never style, formatting, naming, or design. Treat the core as the boundary marker here, not the checklist. If something is merely a style or design deviation rather than a defect, leave it alone.
+
+## Bug Categories
+
+Look for these, in priority order:
+
+| Category | Examples |
+|---|---|
+| **Bugs** | Off-by-one, null/nil dereference, wrong variable name, missing return |
+| **Logic Errors** | Inverted condition, unreachable code, infinite loop potential |
+| **Missing Error Handling** | Unhandled exceptions at system boundaries, missing nil checks on external data |
+| **Copy-Paste Errors** | Duplicated blocks with one not updated, wrong variable in repeated pattern |
+| **Security Issues** | SQL injection, XSS, hardcoded secrets, path traversal |
+| **Confusion** | Variable shadowing, misleading names, dead code that looks active |
 
 ## Required Workflow
 
@@ -53,16 +72,7 @@ For every changed file, read the **entire file**, not just the diff hunks. You n
 
 ### Step 3: Review for Issues
 
-Look for these categories, in priority order:
-
-| Category | Examples |
-|---|---|
-| **Bugs** | Off-by-one, null/nil dereference, wrong variable name, missing return |
-| **Logic Errors** | Inverted condition, unreachable code, infinite loop potential |
-| **Missing Error Handling** | Unhandled exceptions at system boundaries, missing nil checks on external data |
-| **Copy-Paste Errors** | Duplicated blocks with one not updated, wrong variable in repeated pattern |
-| **Security Issues** | SQL injection, XSS, hardcoded secrets, path traversal |
-| **Confusion** | Variable shadowing, misleading names, dead code that looks active |
+Scan each file against the Bug Categories above, in priority order. Assign a severity label (see Severity Scale) to every issue you find.
 
 ### Step 4: Fix Issues Directly
 
@@ -80,21 +90,23 @@ For each issue found:
 
 ### Step 5: Report
 
-Output a summary table:
+Output the summary report (see Output Format).
+
+## Output Format
 
 ```markdown
 ## Fresh Eyes Review
 
 ### Issues Fixed
 
-| File:Line | Category | What Was Wrong | Fix Applied |
-|---|---|---|---|
-| src/auth.py:42 | Bug | Wrong variable `user_id` should be `user.id` | Changed to `user.id` |
-| ... | ... | ... | ... |
+| File:Line | Severity | Category | What Was Wrong | Fix Applied |
+|---|---|---|---|---|
+| src/auth.py:42 | HIGH | Bug | Wrong variable `user_id` should be `user.id` | Changed to `user.id` |
+| ... | ... | ... | ... | ... |
 
 ### Needs Your Input
 
-- [File:Line] [Description of ambiguous issue]
+- [File:Line] [Severity] [Description of ambiguous issue]
 
 ### Clean Files
 
@@ -106,6 +118,17 @@ Output a summary table:
 - Issues fixed: Y
 - Needs input: Z
 ```
+
+## Severity Scale
+
+Label every reported issue with one of these levels:
+
+- **CRITICAL** - Security vulnerability, data loss, or crash on normal input.
+- **HIGH** - Wrong result on a real code path, or an unhandled boundary error.
+- **MEDIUM** - Bug that only triggers on an edge case.
+- **LOW** - Minor or cosmetic correctness nit.
+
+This skill fixes CRITICAL, HIGH, and MEDIUM bugs directly when the fix is unambiguous. Anything ambiguous is flagged for the user instead of guessed at.
 
 ## Critical Rules
 
@@ -132,5 +155,6 @@ Before reporting completion, verify:
 - [ ] All changed files were read in full (not just diffs)
 - [ ] Every fix is genuinely a bug, not a style preference
 - [ ] Every fix is explained with before/after reasoning
+- [ ] Every reported issue carries a severity label
 - [ ] Ambiguous issues are flagged, not silently fixed
 - [ ] Summary table is complete and accurate
