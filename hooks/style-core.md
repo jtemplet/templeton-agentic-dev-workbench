@@ -55,8 +55,15 @@ Every unit you write should be:
    diving into details.
 
 9. **Let names do the documenting.** Choose names that state intent so the code explains
-   itself. Make a name's length match its scope. Reserve comments for *why* (a decision, a
-   tradeoff, a non-obvious constraint), never for *what* the code plainly already says.
+   itself. Make a name's length match its scope. A name that needs a comment to say what it
+   is usually wants to be renamed, not annotated.
+
+10. **Comment only when necessary, and only the why.** Default to no comment: code with
+    clear names and small units needs none. Add one only for what the code cannot say
+    itself - a non-obvious decision, a tradeoff, a workaround, an external constraint. Keep
+    it concise: one tight line beats a paragraph. Never narrate *what* the next line plainly
+    does; a comment that restates the code is noise, and it rots into a lie the moment the
+    code changes and the comment doesn't.
 
 ## Default Posture
 

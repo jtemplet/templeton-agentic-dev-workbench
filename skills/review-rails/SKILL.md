@@ -751,7 +751,7 @@ Use these strict definitions for priority levels.
 - Code style issues: formatting, naming conventions
 - Optimization opportunities: minor performance tweaks
 - CSS improvements: redundant classes, `!important` flags
-- Documentation gaps: missing comments on complex logic
+- Unexplained *why*: a non-obvious decision, tradeoff, or workaround left with no comment (the absence of a comment is only a defect when the reasoning genuinely can't be recovered from the code; do not flag missing comments on self-explanatory code)
 - Examples: CSS important flags, inline styles, could extract constant
 
 If tests pass and the code works, the maximum severity is MEDIUM (a non-standard pattern), not HIGH or CRITICAL.
