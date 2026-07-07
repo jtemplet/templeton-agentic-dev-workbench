@@ -318,6 +318,16 @@ git diff main...HEAD  # See changes to be reviewed
 - Dispatches to the correct skill per language
 - Produces a single consolidated review report
 
+### Project Reporting
+
+**Roadmap Dashboard:** Use `/roadmap-dashboard` or the `roadmap-dashboard` skill directly
+
+- Synthesizes the codebase and the `beads` tracker into a single self-contained interactive HTML dashboard at `docs/roadmap.html`
+- Collects tracker data with a bundled `collect_beads.py` script (refreshes JSONL, normalizes priorities, filters dependency edges to the blocking types, and annotates ready/blocked/blocked_by; always exits 0, emitting an empty shape when no tracker exists)
+- Cross-references code against beads to classify each subsystem as Built / Partial / Stubbed / Planned and compute a blended, defensible completion percentage
+- Renders zero-dependency pure HTML/CSS/vanilla-JS diagrams (architecture current-vs-target, data flow, DB relationships, dependency graph, milestone timeline + risk matrix), a Kanban board, collapsible deep-dives, a sticky TOC, and print CSS
+- Versions the output (`docs/roadmap-vX.Y.html`) instead of overwriting a prior report; marks inferences with `[Inference]` tags and confidence scores
+
 ### PR Maintenance
 
 **Keep a PR Green:** Use `/pr-maintain` or the `pr-maintenance` skill directly
@@ -376,6 +386,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `product-brief` - PM-to-engineering handoff with problem statement, success metrics, scope (MVP + full vision), acceptance criteria, and experiment tie-in
 - `agentic-clean-code` - Clean Code and POODR principles transposed to agentic systems (tool design, prompt architecture, orchestration, naming, testability) for designing or reviewing agents, tools, and prompts
 - `pr-maintenance` - Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop
+- `roadmap-dashboard` - Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` data-collection script and versions the output instead of overwriting
 
 **Registered Agents:**
 
@@ -425,6 +436,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/product-roadmap` - Build a prioritized product roadmap with themes and sequencing
 - `/product-brief` - Write a product brief (PM-to-engineering handoff) for a feature
 - `/pr-maintain` - Keep the current branch's PR rebased on its parent and passing CI; one iteration per invocation, safe to pair with `/loop`
+- `/roadmap-dashboard` - Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker
 
 ### Always-on style core (hooks)
 

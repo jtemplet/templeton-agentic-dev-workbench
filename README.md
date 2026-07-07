@@ -115,6 +115,7 @@ Pair with `/loop` to run on a schedule:
 | `/bead-audit [id or content]` | Audit bead bodies (Marr, size, type-specific sections); content-vs-structure verdicts, JSON mode, drafts applyable fixes |
 | `/product-surface-docs [dir]` | Build/refresh a MECE/Pyramid product doc tree by surface under docs/products/; surfaces bugs/gaps/debt into a findings ledger |
 | `/pr-maintain` | Keep the current branch's PR rebased on its parent and passing CI; safe to pair with `/loop` |
+| `/roadmap-dashboard [jsonl]` | Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker |
 | `/validate-plugin` | Check plugin integrity and cross-references |
 
 ## Skills
@@ -151,6 +152,7 @@ Pair with `/loop` to run on a schedule:
 | `product-brief` | PM-to-engineering handoff: problem, metrics, scope, acceptance criteria, experiment tie-in |
 | `agentic-clean-code` | Clean Code + POODR principles for agentic systems: tool design, prompt architecture, orchestration, naming, testability |
 | `pr-maintenance` | Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop |
+| `roadmap-dashboard` | Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` collector and versions the output |
 
 ## Agents
 

@@ -168,7 +168,9 @@ Fold-in is a first-class outcome because overlapping-but-distinct findings are c
 
 ## Required Workflow
 
-**First stand-up** (greenfield tree):
+**Refresh vs. first stand-up (decide this first).** Before doing anything else, check whether the target tree already exists (`docs/products/product_overview.md`, or any docs under the target dir). **If it exists, the refresh track is the default and mandatory path**, this is the common case and the one a scheduled/weekly run hits. Refresh updates docs in place: preserve human prose and nuance, correct stale facts additively, bump `last_reviewed`, and reconcile findings against the ledger. Only generate a doc from scratch when it does not yet exist (a brand-new surface, capability, or the whole tree on a greenfield repo). Never delete or wholesale-overwrite an existing doc as a way to "regenerate" it.
+
+**First stand-up** (greenfield tree, no docs under the target dir):
 
 1. **Locate/create the tree.** Default `docs/products/`; match the host repo's convention if one exists.
 2. **Discover surfaces** from the codebase (apps/clients, API, CLIs, marketing) using structure and entry points, not guesswork.
@@ -207,6 +209,7 @@ Fold-in is a first-class outcome because overlapping-but-distinct findings are c
 - Suppress a finding to avoid bead-authoring work; capture is Tier 1 and cheap, authoring is Tier 2 and deferred.
 - Create or fold a bead without explicit user confirmation, or create one that fails the `bead-audit` standard.
 - Treat adding frontmatter or correcting a stale fact as "overwriting a human-authored tree." That rule protects human prose and nuance, not the absence of metadata; metadata and factual corrections are always additive.
+- Regenerate an existing tree from scratch, or delete/wholesale-overwrite a doc that already exists. When a tree is present, refresh in place (the default path); a scheduled/weekly run must be non-destructive. Full generation is only for docs that do not yet exist.
 
 ## Quality Checklist
 
