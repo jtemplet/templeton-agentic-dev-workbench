@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-07-08
+
+### Added
+
+- `production-ops` skill and `/prod-ops` command: safely operate the production
+  apps (atlas, meridian, compass, ...) that run as Docker Compose stacks on a
+  single Hetzner VPS, over a two-hop SSH login (`root`, then `su - deploy`).
+  Covers service ops (status, logs, restart, `up -d`, recreate) and PostgreSQL
+  data ops (migrations, backups, one-off data fixes) under strong guardrails:
+  read-only by default, a secret-free `hetzner-prod` SSH alias (no IP in the
+  repo), a mandatory `pg_dump` before any data mutation, transactional one-off
+  writes with a matched row count, verify-after, a written rollback for every
+  risky change, and hard-stops (refuse + escalate) on volume wipes, `prune`,
+  `DROP`/`TRUNCATE`, and `WHERE`-less `UPDATE`/`DELETE`. Host-specific facts are
+  pinned in a single Environment Profile block so the technique stays generic and
+  retargetable.
+
 ## [1.14.0] - 2026-07-07
 
 ### Added

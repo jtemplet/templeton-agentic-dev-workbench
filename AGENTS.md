@@ -387,6 +387,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `agentic-clean-code` - Clean Code and POODR principles transposed to agentic systems (tool design, prompt architecture, orchestration, naming, testability) for designing or reviewing agents, tools, and prompts
 - `pr-maintenance` - Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop
 - `roadmap-dashboard` - Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` data-collection script and versions the output instead of overwriting
+- `production-ops` - Safely operate the production apps (atlas, meridian, compass, ...) as Docker Compose stacks on a single Hetzner VPS over a two-hop SSH login (root, then `su - deploy`); covers service ops and PostgreSQL data ops under strong guardrails (read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes/`prune`/`DROP`/`TRUNCATE`/`WHERE`-less writes)
 
 **Registered Agents:**
 
@@ -437,6 +438,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/product-brief` - Write a product brief (PM-to-engineering handoff) for a feature
 - `/pr-maintain` - Keep the current branch's PR rebased on its parent and passing CI; one iteration per invocation, safe to pair with `/loop`
 - `/roadmap-dashboard` - Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker
+- `/prod-ops` - Safely operate the production apps on the Hetzner VPS over SSH (service ops + PostgreSQL data ops) under strong guardrails; loads the `production-ops` skill
 
 ### Always-on style core (hooks)
 
