@@ -452,14 +452,19 @@ subagents (which never inherit the parent session's loaded skills).
 code plus nine cross-language principles). The detailed per-language rules stay in the
 on-demand `style-*` and `review-*` skills; only the small universal core is always on.
 
-- **`SessionStart`** injects the core as raw context into every new, resumed, cleared, or
-  compacted session.
-- **`SubagentStart`** re-injects it (JSON-wrapped in `hookSpecificOutput.additionalContext`)
-  into every spawned subagent.
+- **`SessionStart`** injects the core plus the response style from
+  `hooks/response-style.md` (respond concisely; suggest a follow-up question only when
+  the answer genuinely raises one; end any response that leaves work open with a
+  "Next actions" section split into "Me (Claude)" and "You") as raw context into
+  every new, resumed, cleared, or compacted session.
+- **`SubagentStart`** re-injects the coding-style core only (JSON-wrapped in
+  `hookSpecificOutput.additionalContext`) into every spawned subagent. The response style
+  is deliberately parent-only: a subagent's final text is consumed by the orchestrator as
+  data, so human-facing response rules would be noise there.
 
-**Observability.** The injected text opens with a marker line
-(`<!-- house-style-core: loaded -->`) so its presence is visible in any session, not only in
-a one-time test.
+**Observability.** Each injected document opens with its own marker line
+(`<!-- house-style-core: loaded -->`, `<!-- house-response-style: loaded -->`) so its
+presence is visible in any session, not only in a one-time test.
 
 **Off-switch.** Disable both surfaces with either:
 
@@ -478,7 +483,8 @@ ASO), because a `SessionStart` hook cannot see the task type; the marker makes i
 and the off-switch is the escape hatch.
 
 **Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) asserts the
-SessionStart raw output, the SubagentStart JSON wrapping, and both off-switch paths.
+SessionStart raw output (both documents present), the SubagentStart JSON wrapping (response
+style absent), and both off-switch paths.
 
 ## Key Design Principles
 

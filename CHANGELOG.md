@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-07-13
+
+### Added
+
+- Always-on response style (`hooks/response-style.md`): the `SessionStart` hook
+  now injects a second document alongside the coding-style core that governs
+  how responses to the user are written. Three rule sets: be concise (lead
+  with the answer, cut narration, selective rather than compressed); suggest
+  one follow-up question ("Worth asking next: ...") only when the answer
+  genuinely raises it, never as a ritual; and end any response that leaves
+  work open with a "Next actions" section split by owner ("Me (Claude)" vs
+  "You"), omitted entirely when nothing is open. Injected
+  into parent sessions only; `SubagentStart` deliberately keeps injecting the
+  coding-style core alone, since a subagent's final text is consumed by the
+  orchestrator as data, not read by a human. Opens with its own
+  `<!-- house-response-style: loaded -->` marker; covered by `test-hooks.js`
+  (present in `SessionStart`, absent in `SubagentStart`); shares the existing
+  off-switch (`TADW_STYLE_CORE=off` / flag file).
+
 ## [1.15.0] - 2026-07-08
 
 ### Added

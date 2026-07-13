@@ -202,6 +202,13 @@ always-on hook just guarantees the universal core (`hooks/style-core.md`) is pre
 a skill is not loaded and inside subagents that do not inherit the parent's skills. Injected
 text opens with a `<!-- house-style-core: loaded -->` marker so you can see it is active.
 
+`SessionStart` additionally injects a response style (`hooks/response-style.md`,
+`<!-- house-response-style: loaded -->` marker): respond concisely, suggest a follow-up
+question only when the answer genuinely raises one, and end any response that leaves work
+open with a "Next actions" section split into "Me (Claude)" and "You". Parent sessions
+only; subagents get the coding-style core alone, since their output goes to the
+orchestrator, not a human.
+
 **Behavior change on upgrade.** Installing this version makes the style core fire in **every
 session for every project** the plugin is loaded for, including non-coding ones (product,
 research, ASO). This is intentional. Use the off-switch below for sessions where it is noise.

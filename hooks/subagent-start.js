@@ -8,6 +8,10 @@
 //
 // The off-switch check MUST run here too - otherwise disabling the session
 // preamble would still inject into every subagent.
+//
+// Deliberately injects the style core ONLY. The response style (conciseness,
+// next-actions sections) is for talking to a human; a subagent's final text is
+// consumed by the orchestrator as data, so those rules would be noise here.
 
 const { isDisabled, writeHookOutput } = require('./runtime');
 const { getStyleCorePreamble } = require('./preamble');
