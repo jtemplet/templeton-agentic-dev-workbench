@@ -4,7 +4,13 @@
 [global]
 # MD013 (line length) is disabled: skill files and example blocks routinely
 # exceed 100 chars and wrapping them would hurt readability.
-disable = ["MD013"]
+#
+# MD041 (first line must be an H1) is disabled: commands and agents must open
+# with YAML frontmatter (`---`), CLAUDE.md opens with an `@AGENTS.md` include,
+# and the bead-audit fixtures open with an HTML-comment Expected block, so a
+# leading H1 is structurally wrong for this repo. `rumdl fmt --check` (what CI
+# runs) never flagged these; this keeps `rumdl check` quiet too.
+disable = ["MD013", "MD041"]
 
 # List of rules to enable exclusively (if provided, only these rules will run)
 # enable = ["MD001", "MD003", "MD004"]
