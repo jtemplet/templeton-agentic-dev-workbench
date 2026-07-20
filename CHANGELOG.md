@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   criteria in discovery.
 - **`/agentic-clean-code` command**, giving the existing `agentic-clean-code`
   skill an entry point instead of leaving it an orphan.
+- **`/bead-audit-all` command**: a bounded, report-only sweep of the whole
+  backlog. Enumerates every bead via `br list --status open --limit 0 --json`,
+  runs the `bead-audit` skill on each exactly once, and prints a ranked
+  health table (worst band first). Distinct from `/goal`, it terminates on its
+  own rather than installing a Stop hook, and never writes back.
 - **Scorecard in `bead-audit`.** An optional weighted 0-100 score, banded
   Poor / Weak / Adequate / Great / Excellent, derived from the existing
   content and structure verdicts and capped so the band can never outrank the

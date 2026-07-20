@@ -425,6 +425,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/plan-to-beads` - Decompose a feature plan into br issues with dependencies; each bead audited for Why (L1), How (L2), and Done when (acceptance criteria) before creation
 - `/product-surface-docs` - Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface, grounded in code, surfacing bugs/gaps/debt into a findings ledger
 - `/bead-audit` - Audit one or more bead bodies; paste content directly, give a file path, or pipe your issue tracker's output - no specific CLI required
+- `/bead-audit-all` - Single-pass, report-only audit of the whole backlog: enumerate every bead via `br`, score each once, report a ranked health table (worst band first). Bounded, not a `/goal` loop
 - `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan
 - `/diagnose` - Investigate a bug thoroughly before attempting any fix

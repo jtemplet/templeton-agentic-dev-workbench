@@ -114,6 +114,7 @@ Pair with `/loop` to run on a schedule:
 | Command | Description |
 |---|---|
 | `/bead-audit [id or content]` | Audit bead bodies (Marr, size, type-specific sections); content-vs-structure verdicts, JSON mode, drafts applyable fixes |
+| `/bead-audit-all [open\|all]` | Single-pass, report-only audit of the whole backlog: score every bead once, ranked health table (worst first) |
 | `/product-surface-docs [dir]` | Build/refresh a MECE/Pyramid product doc tree by surface under docs/products/; surfaces bugs/gaps/debt into a findings ledger |
 | `/pr-maintain` | Keep the current branch's PR rebased on its parent and passing CI; safe to pair with `/loop` |
 | `/roadmap-dashboard [jsonl]` | Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker |
