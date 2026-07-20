@@ -1,6 +1,6 @@
 ---
 name: bead-audit
-description: Audit one or more bead issue bodies against the Marr audit, size audit, and type-specific section audit. Separates a content verdict (is the substance there?) from a structure verdict (is it under the canonical heading or native field?), so a substantively complete bead in the wrong format is an auto-fixable reformat, not a failure. Honors trackers with native fields (e.g. br's acceptance_criteria/design/notes), self-verifies every drafted fix so it re-passes, and gates write-back with an applyable flag so placeholder-bearing drafts never reach the tracker. Supports a machine-readable JSON output mode for backlog-scale grooming.
+description: Audit one or more bead issue bodies against the Marr audit, size audit, and type-specific section audit. Separates a content verdict (is the substance there?) from a structure verdict (is it under the canonical heading or native field?), so a substantively complete bead in the wrong format is an auto-fixable reformat, not a failure. Produces an optional weighted scorecard (0-100, banded Poor/Weak/Adequate/Great/Excellent) derived from the verdicts and capped so the band can never contradict the pass/fail verdict, for ranking a backlog or targeting a quality band. Honors trackers with native fields (e.g. br's acceptance_criteria/design/notes), self-verifies every drafted fix so it re-passes, and gates write-back with an applyable flag so placeholder-bearing drafts never reach the tracker. Supports a machine-readable JSON output mode for backlog-scale grooming.
 ---
 
 # Bead Audit
@@ -21,6 +21,7 @@ This skill is agnostic to the issue tracker. It audits the *text* of a bead body
 - After inheriting a project or picking up someone else's work
 - Before a sprint to verify every in-scope bead is implementation-ready
 - After running `/plan-to-beads` on a modified plan to verify the generated beads meet the bar
+- To rank a backlog by quality, or gate on a target band, using the Scorecard (request a score; use JSON mode for a loop)
 
 ## When NOT to Use
 
@@ -183,6 +184,74 @@ Each bead rolls up to one of three overall states:
 
 A WARN on content (borderline-weak) rolls up to REFORMAT if the author chooses to leave it, or NEEDS WORK if they want it tightened. Treat content WARN as REFORMAT-tier for gating purposes unless the caller asks for strict mode.
 
+## Scorecard
+
+The three-state verdict answers "is this bead done?" The scorecard answers "how close, and which band?" so a caller (a human triaging, or a refinement loop targeting a band) can rank and gate. The score **refines the verdict; it never overrides it.** The bands are constructed so that Excellent is exactly equivalent to PASS.
+
+### The score is derived, never asserted
+
+Every point traces to a verdict this skill already produced in the Audit Dimensions above. You may not assign a score directly, and a report that states a score must show the per-dimension verdicts and the weighted sum beside it, so the arithmetic is checkable. Inflating a score is therefore visible, and (because of the caps below) cannot by itself lift a bead past its verdict ceiling.
+
+### Weights
+
+| Dimension | Weight | Applies to |
+|---|---|---|
+| Why (Computational) | 20 | all types |
+| How (Algorithmic) | 20 | all types |
+| Done when (Acceptance) | 20 | all types |
+| Acceptance Criteria (Success Criteria for `epic`) | 20 | all types |
+| Steps to Reproduce | 10 | `bug` only |
+| Estimated size | 10 | code-bearing beads only |
+| Structure | 10 | all types |
+
+**Content points per dimension:** `pass` earns the full weight, `warn` half, `fail` zero.
+
+**Structure points:** `10 × (canonical required sections ÷ total required sections)`. A section that is `variant` or `absent` is not canonical; a section in its correct native field (per "Trackers with native structured fields") is canonical.
+
+### Renormalization (off the audit's own N/A verdict)
+
+The denominator is the sum of applicable weights, not a fixed 100. A dimension is **excluded from both numerator and denominator whenever this skill's own audit already recorded it N/A** (per the Size Audit's applicability rules: `N/A (umbrella)` for epics, `N/A (operational)` for ops beads, and Steps to Reproduce for any non-bug type). This ties applicability to a verdict the skill computed, not to a fresh type or label guess, so it cannot contradict the Size Audit and cannot be gamed by re-declaring a bead operational at scoring time. When a dimension is dropped, the report must name it and the reason ("size N/A (operational), excluded").
+
+There is no `pass`/`warn`/`fail` for an N/A dimension, so it is never scored zero; it simply leaves the denominator.
+
+### Bands, capped by verdict
+
+Compute the raw score, map it to a band, then take the **lower** of that band and the ceiling implied by the rollup verdict:
+
+| Band | Score |
+|---|---|
+| Excellent | 90-100 |
+| Great | 75-89 |
+| Adequate | 60-74 |
+| Weak | 40-59 |
+| Poor | below 40 |
+
+| Rollup verdict | Condition | Band ceiling |
+|---|---|---|
+| NEEDS WORK | any required-section content `fail` | Weak |
+| REFORMAT (structure) | all content `pass`, any structure `variant`/`absent` | Great |
+| REFORMAT (weak content) | any content `warn`, no content `fail` | Great |
+| REFORMAT (Trivial-band warn) | all content `pass`, structure canonical, size band Trivial | Great |
+| PASS | all content `pass`, all structure `canonical`, size not Trivial | Excellent (no cap) |
+
+The caps exist because the raw score contradicts the verdict at realistic inputs. Worked examples, computed from the weights and rules above:
+
+| Bead state | Raw | Uncapped | Ceiling | Reported |
+|---|---|---|---|---|
+| task, all sections pass, canonical, size Target | 100.0 | Excellent | Excellent | **Excellent** |
+| task, no Acceptance Criteria (content fail) | 78.0 | Great | Weak | **Weak** |
+| task, all content pass, every heading variant | 90.0 | Excellent | Great | **Great** |
+| bug, no Steps to Reproduce (content fail) | 89.4 | Great | Weak | **Weak** |
+| task, all content warn, canonical | 55.0 | Weak | Great | **Weak** |
+| task, all pass, canonical, size Trivial | 95.0 | Excellent | Great | **Great** |
+| epic, all sections pass, size N/A | 100.0 | Excellent | Excellent | **Excellent** |
+
+The lower-of-two rule means a cap only ever pulls a band down (rows 3 and 6); it never lifts one, so a NEEDS WORK bead can never report above Weak no matter how high its raw score (rows 2 and 4). The bug row denominator is 110 (Why+How+Done+AC+Steps+Size = 100, plus Structure 10), and 5 of 6 sections canonical gives structure `10 × 5/6`; recompute it to confirm the skill and the caller agree.
+
+### Scorecard in the report
+
+When a score is requested, extend the per-bead table (Step 4) with a trailing `points` column and print `Score: N/100 → Band` under the Overall line. In JSON mode, add `score` (number) and `band` (string) to each bead object.
+
 ## Required Workflow
 
 ### Step 1: Receive Bead Content
@@ -230,17 +299,25 @@ Default output is human markdown (see "Output Modes" for JSON). For each bead:
 <one sentence: for REFORMAT, what will be reformatted; for NEEDS WORK, the most critical content gap>
 ````
 
+When a score is requested (a caller targeting a band, or a human asking for one), add a trailing `Points` column to the table (the weighted contribution of each dimension, e.g. `20/20`, `10/20`, `size excluded`) and a line under Overall:
+
+```markdown
+Score: N/100 → Band   (denominator D after excluding <named N/A dimensions>)
+```
+
 After all beads:
 
 ````markdown
 ## Audit Summary
 
-| Title | Type | Overall |
-|---|---|---|
-| ... | ... | PASS / REFORMAT / NEEDS WORK |
+| Title | Type | Overall | Score | Band |
+|---|---|---|---|---|
+| ... | ... | PASS / REFORMAT / NEEDS WORK | N/100 | Excellent / Great / ... |
 
 PASS: X   REFORMAT (auto-fixable): Y   NEEDS WORK: Z   (of N total)
 ````
+
+The `Score` and `Band` columns are present only when scoring was requested; omit them for a plain pass/fail audit.
 
 ### Step 5: Offer to Draft Fixes
 
@@ -276,12 +353,17 @@ A draft is `applyable: true` only when (1) and (2) hold and (3) finds no placeho
       "id": "<id or title>",
       "type": "task|feature|bug|epic",
       "overall": "pass|reformat|needs_work",
+      "score": 100,
+      "band": "excellent|great|adequate|weak|poor",
+      "score_denominator": 100,
+      "excluded_dimensions": ["estimated-size"],
       "checks": [
         {
           "dimension": "marr|size|type-specific",
           "check": "why|how|done-when|estimated-size|acceptance-criteria|steps-to-reproduce|success-criteria",
           "content": "pass|warn|fail|n/a",
           "structure": "canonical|variant|absent|n/a",
+          "points": 20,
           "note": "string"
         }
       ],
@@ -299,6 +381,9 @@ Field semantics for a caller (e.g., a `/goal` loop):
 
 - `corrected_body` is the full markdown fix (canonical headings). `null` for PASS beads.
 - `corrected_fields` is the optional native-field breakdown for trackers like `br` (write `acceptance_criteria` to `--acceptance-criteria`, `design` to `--design`, etc., instead of one body blob). Omit or null when the tracker has no native fields.
+- `score`, `band`, `score_denominator`, and `excluded_dimensions` come from the Scorecard. Emit them only when scoring was requested; omit for a plain pass/fail audit. `score` is capped by verdict, so `band` may be lower than the raw `score` alone would imply.
+- `score_denominator` is the sum of the weights of every dimension that applies to the bead, including Structure (weight 10) and, for a `bug`, Steps to Reproduce (weight 10). Do not compute it as "100 minus excluded weights": that is right for a `task`/`feature` (denominator 100) and an `epic` (90, size excluded) but wrong for a `bug`, whose base is 110. Excluding a dimension removes its weight from this sum.
+- Per-check `points` cover only the content dimensions in the `checks` array; they do **not** include the Structure contribution, which is computed once as `10 × (canonical required sections ÷ total required sections)` and is not itself a `checks` entry. The raw numerator is `sum(checks[].points) + structure_points`; `score = round(100 × numerator ÷ score_denominator)`. A consumer recomputing the score must add the structure term separately.
 - **`applyable` is the safety gate.** It is `true` only when the draft passed its Step 6 self-verify AND contains no `[AUTHOR TO COMPLETE]` placeholder. **A caller MUST NOT write back a bead whose `applyable` is `false`.** Doing so degrades the bead into a placeholder-bearing body that looks fixed but re-fails forever.
 - `blocked_on` lists the checks that still need a human (the placeholders). Non-empty implies `applyable: false`.
 

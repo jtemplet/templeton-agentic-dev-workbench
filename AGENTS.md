@@ -230,6 +230,7 @@ git diff main...HEAD  # See changes to be reviewed
 - Covers prompt architecture (small prompts, no implicit state, context objects)
 - Covers orchestration (separation of planning from execution, explicit agent boundaries, fail-loud error policies)
 - Includes a smell checklist for reviewing agents, tools, and prompts before ship
+- Invoke with `/agentic-clean-code [target]`, or let it auto-detect the agent/skill/tool files changed on the branch
 
 ### Product Management
 
@@ -289,8 +290,8 @@ git diff main...HEAD  # See changes to be reviewed
 `/business-ideas` → pick an idea → `/plan-feature <idea>` → `/plan-review docs/plans/...` → `/plan-to-beads docs/plans/...`
 
 - **Business Ideas:** Analyzes the project's business model, generates 15 revenue-focused candidates, critically evaluates, presents top 10
-- **Plan Feature:** Explores the codebase, drafts a structured implementation plan, writes to `docs/plans/feature-plan-<name>.md`
-- **Plan Review:** Evaluates the plan across 7 dimensions (completeness, feasibility, scope, risks, dependencies, MECE, actionability), runs a MECE audit for overlaps and gaps, renders a verdict
+- **Plan Feature:** Explores the codebase, drafts a structured implementation plan with testable acceptance criteria and a per-milestone "Done when", writes to `docs/plans/feature-plan-<name>.md`
+- **Plan Review:** Runs an acceptance-criteria gate (a plan with none, or with only subjective ones, is Actionability RED), evaluates the plan across 7 dimensions (completeness, feasibility, scope, risks, dependencies, MECE, actionability), runs a MECE audit for overlaps and gaps, renders a verdict
 - **Plan to Beads:** Decomposes the plan into `br` issues with dependency graph, articulates Marr Levels 1 (Why) and 2 (How) and acceptance criteria (Done when) per bead, audits each, then confirms with user before creating
 
 **Pipeline B - Product Strategy:**
@@ -368,7 +369,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `idea-wizard` - Generate 30 ideas, evaluate, distill to top 5
 - `architecture-decision-record` - Record decisions with context, options, and rationale
 - `business-ideas` - Analyze business model and surface 10 revenue-focused feature ideas
-- `plan-review` - Fresh-eyes plan review for completeness, feasibility, MECE adherence, and gaps
+- `plan-review` - Fresh-eyes plan review for completeness, feasibility, MECE adherence, and gaps; gates on the presence and testability of acceptance criteria
 - `aso-audit` - App Store Optimization audit across 10 weighted factors with ASO Score Card and prioritized action plan
 - `ux-audit` - Web UX audit via Playwright across 7 design dimensions with severity-ranked report
 - `ux-audit-ios` - iOS UX audit via Simulator with Dynamic Type / Dark Mode / Bold Text testing against Apple HIG
@@ -377,7 +378,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `feature-development` - 4-phase guided implementation (discovery, implementation, simplification, linting), language-agnostic
 - `plan-to-beads` - Decompose a feature plan into br (beads_rust) issues with dependencies, auditing each bead against Marr Levels 1 (Why), 2 (How), and acceptance criteria (Done when) before creation
 - `product-surface-docs` - Generate, refresh, and keep current a MECE/Pyramid-Principle product documentation tree under `docs/products/`, organized by product surface (web/api/iOS/...) and drilling into each surface's capabilities; grounds claims in code, proactively hunts bugs/gaps/debt into a `_findings.md` ledger with stable F-IDs (cheap capture, report everything) and promotes the actionable ones into `bead-audit`-compliant beads, ships a `check_staleness.py` (in-repo + multi-repo) so staleness is a command, and uses progressive disclosure (scripts/ + references/)
-- `bead-audit` - Audit one or more bead issue bodies against the Marr audit, size audit, and type-specific section audit; tracker-agnostic (accepts pasted text, files, or any CLI output) but honors native tracker fields (e.g. `br`'s acceptance_criteria/design/notes); separates content verdict from structure verdict (format-only issues are an auto-fixable REFORMAT, not a FAIL), exempts epics and operational beads from the size band, self-verifies each drafted fix so it re-passes, gates write-back with an `applyable` flag so placeholder-bearing drafts never reach the tracker, and supports a JSON output mode for backlog-scale grooming
+- `bead-audit` - Audit one or more bead issue bodies against the Marr audit, size audit, and type-specific section audit; tracker-agnostic (accepts pasted text, files, or any CLI output) but honors native tracker fields (e.g. `br`'s acceptance_criteria/design/notes); separates content verdict from structure verdict (format-only issues are an auto-fixable REFORMAT, not a FAIL), exempts epics and operational beads from the size band, self-verifies each drafted fix so it re-passes, gates write-back with an `applyable` flag so placeholder-bearing drafts never reach the tracker, and supports a JSON output mode for backlog-scale grooming. Emits an optional weighted scorecard (0-100, banded Poor/Weak/Adequate/Great/Excellent) derived from the verdicts and capped so the band can never outrank the pass/fail verdict, for ranking a backlog or gating on a target band; the rubric ships with a fixture regression suite under `references/fixtures/`
 - `research-ingest` - Ingest a new source into the Research wiki, with study quality assessment and cross-referencing
 - `competitive-analysis` - Deep competitor teardown with positioning map, moat analysis, trajectory mapping, and feature gap analysis
 - `ab-test-design` - Rigorous A/B test design with hypothesis, metrics, sample size, rollout plan, guardrails, and decision criteria
@@ -394,7 +395,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `code-reviewer` - Auto-detecting code review (dispatches to correct skill per language); read-only role
 - `software-engineer` - Editing role for code work (simplify, fix bugs, implement features); routes to the right skill based on user intent
 - `claude-md-reviewer` - CLAUDE.md optimization with quantitative scoring
-- `feature-planner` - Generates detailed implementation plans written to docs/plans/
+- `feature-planner` - Generates detailed implementation plans, each with testable acceptance criteria, written to docs/plans/
 - `project-manager` - Decomposes feature plans into br issues with dependencies, ensuring each bead carries Marr Levels 1 and 2 and acceptance criteria (uses `plan-to-beads` skill)
 - `diagnostician` - Investigates bugs thoroughly before any fix is attempted
 - `product-analyst` - Objective product analysis (features, pricing, competitors, pain points, market capture)
@@ -417,12 +418,14 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/validate-plugin` - Check plugin integrity and cross-references
 - `/idea-wizard` - Generate and evaluate improvement ideas
 - `/adr` - Record an architectural decision
+- `/agentic-clean-code` - Design or review agentic systems (tools, prompts, orchestration) against Clean Code and POODR principles
 - `/business-ideas` - Analyze business model, surface 10 revenue-focused feature ideas
 - `/plan-feature` - Generate a detailed implementation plan for a feature
 - `/plan-review` - Fresh-eyes review of a feature plan
 - `/plan-to-beads` - Decompose a feature plan into br issues with dependencies; each bead audited for Why (L1), How (L2), and Done when (acceptance criteria) before creation
 - `/product-surface-docs` - Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface, grounded in code, surfacing bugs/gaps/debt into a findings ledger
 - `/bead-audit` - Audit one or more bead bodies; paste content directly, give a file path, or pipe your issue tracker's output - no specific CLI required
+- `/bead-audit-all` - Single-pass, report-only audit of the whole backlog: enumerate every bead via `br`, score each once, report a ranked health table (worst band first). Bounded, not a `/goal` loop
 - `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan
 - `/diagnose` - Investigate a bug thoroughly before attempting any fix

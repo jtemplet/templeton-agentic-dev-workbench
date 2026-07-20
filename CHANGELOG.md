@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-07-20
+
+### Added
+
+- **Acceptance criteria enforced across the plan and bead pipeline.** Every
+  plan and bead must now carry testable acceptance criteria, closing a gap
+  where `/plan-feature` could emit a plan with none while `/plan-review` and
+  `/plan-to-beads` required them. `feature-planner` gains an Acceptance
+  Criteria section and a per-milestone "Done when" column; `plan-review` gains
+  an Acceptance Criteria gate that runs before scoring (a plan with none, or
+  only subjective ones, is Actionability RED → Major Rework); `project-manager`
+  gains the matching belief and refusals; `feature-development` captures
+  criteria in discovery.
+- **`/agentic-clean-code` command**, giving the existing `agentic-clean-code`
+  skill an entry point instead of leaving it an orphan.
+- **`/bead-audit-all` command**: a bounded, report-only sweep of the whole
+  backlog. Enumerates every bead via `br list --status open --limit 0 --json`,
+  runs the `bead-audit` skill on each exactly once, and prints a ranked
+  health table (worst band first). Distinct from `/goal`, it terminates on its
+  own rather than installing a Stop hook, and never writes back.
+- **Scorecard in `bead-audit`.** An optional weighted 0-100 score, banded
+  Poor / Weak / Adequate / Great / Excellent, derived from the existing
+  content and structure verdicts and capped so the band can never outrank the
+  pass/fail verdict (Excellent is exactly equivalent to PASS). `score`, `band`,
+  `score_denominator`, and `excluded_dimensions` added to the JSON output. Ships
+  a fixture regression suite under `skills/bead-audit/references/fixtures/`.
+- **ADR 0001: native tracker fields are canonical.** `br`'s `design`, `notes`,
+  and `acceptance_criteria` fields are the canonical home for those sections,
+  not the description body. `plan-to-beads` now writes each section to its
+  native field (create-then-update), so generated beads pass `bead-audit`'s
+  structure check on creation.
+- **`docs/plans/feature-plan-bead-refine.md`**, the plan for a scored backlog
+  refinement loop. Milestone 1 (the scorecard above) shipped; the driver is
+  deferred pending a state-machine respecification of its termination logic.
+
+### Fixed
+
+- `plan-to-beads`: replaced `printf` with quoted heredocs in the `br update`
+  examples, so acceptance criteria containing a literal `%` are no longer
+  silently corrupted; reworked Step 5b to handle the two-call model's
+  created-but-unpopulated failure state without producing duplicate beads.
+- `bead-audit`: corrected the JSON `score_denominator` documentation (a bug's
+  base is 110, not 100) and clarified that per-check `points` exclude the
+  separately-computed structure contribution.
+
+### Changed
+
+- `.beads/.gitignore` excludes `br`'s local `.br_history/`.
+
 ## [1.15.1] - 2026-07-13
 
 ### Added

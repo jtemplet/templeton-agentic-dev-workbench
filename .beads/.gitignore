@@ -9,3 +9,6 @@
 # Temporary
 last-touched
 *.tmp
+
+# br command history (local, per-machine)
+.br_history/

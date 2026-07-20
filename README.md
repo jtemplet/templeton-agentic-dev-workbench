@@ -21,8 +21,8 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | Command | What it does |
 |---|---|
 | `/business-ideas` | Analyze business model, surface 10 revenue-focused feature ideas |
-| `/plan-feature <idea>` | Explore codebase, draft structured plan to `docs/plans/` |
-| `/plan-review <path>` | Evaluate plan across 7 dimensions (incl. MECE audit), render verdict |
+| `/plan-feature <idea>` | Explore codebase, draft structured plan with acceptance criteria to `docs/plans/` |
+| `/plan-review <path>` | Gate on acceptance criteria, evaluate plan across 7 dimensions (incl. MECE audit), render verdict |
 | `/plan-to-beads <path>` | Decompose plan into `br` issues; each bead audited for Why, How, and Done when |
 
 ### Pipeline B — Code Quality
@@ -107,12 +107,14 @@ Pair with `/loop` to run on a schedule:
 | `/python-feature-dev <feature>` | Guided Python feature development (4-phase workflow) |
 | `/idea-wizard` | Generate 30 improvement ideas, evaluate, distill to top 5 |
 | `/adr <topic>` | Record an architectural decision with context and rationale |
+| `/agentic-clean-code [target]` | Design or review agentic code (tools, prompts, orchestration) against Clean Code + POODR |
 
 ### Maintenance
 
 | Command | Description |
 |---|---|
 | `/bead-audit [id or content]` | Audit bead bodies (Marr, size, type-specific sections); content-vs-structure verdicts, JSON mode, drafts applyable fixes |
+| `/bead-audit-all [open\|all]` | Single-pass, report-only audit of the whole backlog: score every bead once, ranked health table (worst first) |
 | `/product-surface-docs [dir]` | Build/refresh a MECE/Pyramid product doc tree by surface under docs/products/; surfaces bugs/gaps/debt into a findings ledger |
 | `/pr-maintain` | Keep the current branch's PR rebased on its parent and passing CI; safe to pair with `/loop` |
 | `/roadmap-dashboard [jsonl]` | Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker |
@@ -140,7 +142,7 @@ Pair with `/loop` to run on a schedule:
 | `idea-wizard` | Structured ideation: generate, evaluate, distill |
 | `architecture-decision-record` | ADR format with context, options, and rationale |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis |
-| `plan-review` | 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability) |
+| `plan-review` | Acceptance-criteria gate + 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability) |
 | `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan |
 | `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report |
 | `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG |
@@ -148,7 +150,7 @@ Pair with `/loop` to run on a schedule:
 | `review-fresh-eyes` | Bug-and-correctness pass over recently changed code, fixes issues directly |
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
 | `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) |
-| `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards; separates content from structure (format-only issues are auto-fixable), honors native tracker fields, JSON output for backlog grooming |
+| `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards; separates content from structure (format-only issues are auto-fixable), honors native tracker fields, optional 0-100 scorecard banded Poor→Excellent and capped by verdict, JSON output for backlog grooming |
 | `product-surface-docs` | Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface; grounds claims in code, proactively hunts bugs/gaps/debt into `_findings.md` (cheap capture) and promotes actionable ones into bead-audit-compliant beads, ships a staleness checker (in-repo + multi-repo) |
 | `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing |
 | `competitive-analysis` | Competitor teardown with positioning map, moat analysis, trajectory, and feature gaps |
@@ -168,7 +170,7 @@ Pair with `/loop` to run on a schedule:
 | `code-reviewer` | Auto-detects languages, dispatches to correct review skill (read-only) |
 | `software-engineer` | Editing role for code work; routes to code-simplify, review-fresh-eyes, or feature-development based on intent |
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
-| `feature-planner` | Explores codebase, drafts structured plans to `docs/plans/` |
+| `feature-planner` | Explores codebase, drafts structured plans with acceptance criteria to `docs/plans/` |
 | `project-manager` | Decomposes plans into `br` issues; ensures each bead has Why, How, and acceptance criteria (uses `plan-to-beads` skill) |
 | `diagnostician` | Read-only investigation — evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
