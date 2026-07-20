@@ -33,7 +33,9 @@ Every bead must articulate at least **Marr Levels 1 and 2** before it is created
 
 ### Required body shape
 
-Every issue body uses this structure. Sections marked with a type tag are required only for beads of that type.
+Every issue carries this set of sections. Sections marked with a type tag are required only for beads of that type.
+
+The headings below define each section's **content and canonical wording**. Where that content is *stored* depends on the tracker: per ADR 0001, a section goes to the tracker's native field when one exists (on `br`: How to `--design`, Done when and Out of scope to `--notes`, Acceptance Criteria to `--acceptance-criteria`), and to the description body otherwise. On a tracker with no native fields, the whole set lives in the body exactly as written here. See Step 5 for the concrete commands.
 
 ````markdown
 ## Why (Computational)
@@ -214,6 +216,13 @@ From the plan's milestones, components, and scope, identify natural work units. 
 
 **Structural check.** Every plan stage maps to at least one bead, and every bead maps back to a stage. Flag orphans on either side before running the Marr audit.
 
+**Inherit acceptance criteria from the plan.** Plans written by `/plan-feature` carry an `## Acceptance Criteria` section and a per-milestone "Done when" column. Trace each plan-level criterion to the bead that satisfies it, and derive that bead's `## Acceptance Criteria` from it rather than inventing a parallel set. Two failure modes to surface at the confirmation gate:
+
+- A plan criterion no bead proves. This is a decomposition gap; add or widen a bead.
+- A bead proving no plan criterion. This is scope the plan never asked for; cut it or confirm it is deliberate.
+
+If the plan has no acceptance criteria at all, say so, author them per bead from the plan's goals and scope, and recommend the user run `/plan-review` on the plan. Do not silently paper over an unprovable plan.
+
 For each issue, prepare:
 
 | Field | Value |
@@ -318,48 +327,45 @@ If `br` is not found, stop and inform the user.
 
 ### Step 5: Create Issues
 
-For each confirmed issue, pass the full body via `-d` so the Why, How, Done when, type-specific sections, and Estimated size all live in the issue. Use `-t <type>` to set the bead type (`task`, `feature`, `bug`, or `epic`).
+**Write each section to its canonical destination.** Per ADR 0001 (`docs/decisions/0001-native-tracker-fields-are-canonical.md`), when the tracker exposes a first-class field for a section, that field is canonical and the description body carries only what has no native slot. `br create` cannot set these fields, so creation is two calls: create, then immediately populate.
+
+| Section | `br` destination |
+|---|---|
+| Why (Computational) | `--description` body |
+| How (Algorithmic) | `--design` |
+| Done when (Acceptance), Out of scope | `--notes` |
+| Acceptance Criteria | `--acceptance-criteria` |
+| Estimated size | `--description` body |
+| Steps to Reproduce, Success Criteria | `--description` body (no native slot) |
+
+Writing everything into `-d` instead produces a bead that fails `bead-audit`'s structure check on day one, which is the defect this ADR exists to fix.
 
 **task or feature:**
 
 ```bash
-br create "<Title>" -p <priority> -t task -l "<labels>" -d "$(cat <<'EOF'
+id=$(br create "<Title>" -p <priority> -t task -l "<labels>" --silent -d "$(cat <<'EOF'
 ## Why (Computational)
 <L1 content>
-
-## How (Algorithmic)
-<L2 content>
-
-## Done when (Acceptance)
-- <criterion 1>
-- <criterion 2>
-
-## Acceptance Criteria
-- <testable, observable condition 1>
-- <testable, observable condition 2>
 
 ## Estimated size
 <files> files, <LOC> LOC, band: <band>. <one-sentence justification if Stretch>
 EOF
-)"
+)")
+
+br update "$id" \
+  --design "<L2 content>" \
+  --notes "$(printf '## Done when (Acceptance)\n- <criterion 1>\n- <criterion 2>')" \
+  --acceptance-criteria "$(printf '1. Given <precondition>, when <action>, then <observable result>.\n2. ...')"
 ```
 
-**bug:**
+**The two calls are not atomic.** If `br update` fails, the bead exists carrying only a Why and a size estimate, which is worse than not creating it. On a failed update, stop and report the bead ID and the missing sections explicitly; do not proceed to the next bead. Treat it as the partial-failure case in Step 5b.
+
+**bug:** same two-call shape. Steps to Reproduce has no native slot, so it stays in the body alongside Why and Estimated size.
 
 ```bash
-br create "<Title>" -p <priority> -t bug -l "<labels>" -d "$(cat <<'EOF'
+id=$(br create "<Title>" -p <priority> -t bug -l "<labels>" --silent -d "$(cat <<'EOF'
 ## Why (Computational)
 <L1 content>
-
-## How (Algorithmic)
-<L2 content>
-
-## Done when (Acceptance)
-- <criterion 1>
-- <criterion 2>
-
-## Acceptance Criteria
-- <testable, observable condition 1>
 
 ## Steps to Reproduce
 1. <step>
@@ -372,34 +378,33 @@ br create "<Title>" -p <priority> -t bug -l "<labels>" -d "$(cat <<'EOF'
 ## Estimated size
 <files> files, <LOC> LOC, band: <band>. <one-sentence justification if Stretch>
 EOF
-)"
+)")
+
+br update "$id" \
+  --design "<L2 content>" \
+  --notes "$(printf '## Done when (Acceptance)\n- <criterion 1>\n- <criterion 2>')" \
+  --acceptance-criteria "$(printf '1. Given <precondition>, when <action>, then <observable result>.')"
 ```
 
-**epic:**
+**epic:** Success Criteria has no native slot, so it stays in the body. Epics carry no size estimate.
 
 ```bash
-br create "<Title>" -p <priority> -t epic -l "<labels>" -d "$(cat <<'EOF'
+id=$(br create "<Title>" -p <priority> -t epic -l "<labels>" --silent -d "$(cat <<'EOF'
 ## Why (Computational)
 <L1 content>
-
-## How (Algorithmic)
-<L2 content>
-
-## Done when (Acceptance)
-- <criterion 1>
-- <criterion 2>
 
 ## Success Criteria
 - <outcome-level indicator 1>
 - <outcome-level indicator 2>
-
-## Estimated size
-<files> files, <LOC> LOC, band: <band>. <one-sentence justification if Stretch>
 EOF
-)"
+)")
+
+br update "$id" \
+  --design "<L2 content>" \
+  --notes "$(printf '## Done when (Acceptance)\n- <criterion 1>\n- <criterion 2>')"
 ```
 
-Capture the issue ID from each creation output. If `br create` exits non-zero, stop and proceed to Step 5b; do not retry blindly.
+Capture the issue ID from each creation output (`--silent` prints only the ID). If either `br create` or its follow-up `br update` exits non-zero, stop and proceed to Step 5b; do not retry blindly.
 
 `br create` defaults the status to `open`. If a bead should start as `deferred` or `in_progress`, pass `-s <status>`.
 
@@ -476,7 +481,7 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 - Run the full audit on every bead (Marr AND size AND type-specific section) and rewrite, split, or demote failures before the confirmation gate
 - Present the complete issue list, including each bead's type, Why, How, Done when, type-specific sections, AND size estimate, and WAIT for user confirmation before creating
 - Verify `br` is available before attempting to create issues
-- Pass the Why, How, Done when, type-specific sections, AND Estimated size body to `br create` via `-d`; do not strip any section to save a line
+- Write every section to its canonical destination per ADR 0001: native tracker fields where they exist (`--design`, `--notes`, `--acceptance-criteria` on `br`), the description body only for sections with no native slot. Never drop a section to save a call
 - Make each issue self-contained with enough context to implement independently
 - Keep the dependency graph shallow, prefer parallel tracks over deep chains
 
@@ -496,7 +501,8 @@ Before reporting completion, verify:
 - [ ] All milestones from the plan are covered by at least one issue
 - [ ] Each issue has a clear, action-oriented title with no work-unit-bundling conjunction
 - [ ] Every issue has an explicit type (`task`, `feature`, `bug`, or `epic`)
-- [ ] Every issue body uses the `## Why (Computational)` / `## How (Algorithmic)` / `## Done when (Acceptance)` structure
+- [ ] Every issue carries Why, How, and Done when, each written to its canonical destination per ADR 0001 (native field where one exists, description body otherwise)
+- [ ] No bead was left in the partial state of a successful `br create` followed by a failed `br update`
 - [ ] Every `## Done when` section contains at least one condition a second person could verify independently
 - [ ] Every task, feature, and bug bead includes `## Acceptance Criteria` with at least one testable, observable condition
 - [ ] Every bug bead includes `## Steps to Reproduce` with numbered steps and expected vs. actual behavior
