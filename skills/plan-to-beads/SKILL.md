@@ -35,24 +35,26 @@ Every bead must articulate at least **Marr Levels 1 and 2** before it is created
 
 Every issue carries this set of sections. Sections marked with a type tag are required only for beads of that type.
 
-The headings below define each section's **content and canonical wording**. Where that content is *stored* depends on the tracker: per ADR 0001, a section goes to the tracker's native field when one exists (on `br`: How to `--design`, Done when and Out of scope to `--notes`, Acceptance Criteria to `--acceptance-criteria`), and to the description body otherwise. On a tracker with no native fields, the whole set lives in the body exactly as written here. See Step 5 for the concrete commands.
+The headings below define each section's **content and canonical wording**. Where that content is *stored* depends on the tracker: per ADR 0001, a section goes to the tracker's native field when one exists (on `br`: How to `--design`, Done when and Out of scope to `--notes`, Acceptance Criteria to `--acceptance-criteria`), and to the description body otherwise. On a tracker with no native fields, the whole set lives in the body exactly as written here.
+
+**This template shows content, not storage. Do not paste it verbatim into `br create -d`.** On `br`, the `→` annotations below say which native field each section belongs in; putting How/Done when/Acceptance Criteria in the description body instead produces a bead that fails `bead-audit`'s structure check on day one. Step 5 has the exact create-then-update commands; follow those, not this block.
 
 ````markdown
-## Why (Computational)
+## Why (Computational)                         <!-- br: --description body -->
 
 [The problem this solves. The stakeholder or motivating constraint. What depends on this.]
 
-## How (Algorithmic)
+## How (Algorithmic)                           <!-- br: --design field, NOT the body -->
 
 [The approach, strategy, or representation. Key data flows, contracts, or sequencing.]
 
-## Done when (Acceptance)
+## Done when (Acceptance)                       <!-- br: --notes field, NOT the body -->
 
 [Specific, verifiable conditions. Two people must be able to agree independently whether each
 criterion is satisfied without asking the author. Prefer observable behavior, named tests,
 or measurable thresholds over subjective judgements.]
 
-<!-- Required for type: task, feature, bug -->
+<!-- Required for type: task, feature, bug. br: --acceptance-criteria field, NOT the body -->
 ## Acceptance Criteria
 
 [Formal, testable conditions written from the user or system perspective. Use Given/When/Then
@@ -354,9 +356,20 @@ EOF
 
 br update "$id" \
   --design "<L2 content>" \
-  --notes "$(printf '## Done when (Acceptance)\n- <criterion 1>\n- <criterion 2>')" \
-  --acceptance-criteria "$(printf '1. Given <precondition>, when <action>, then <observable result>.\n2. ...')"
+  --notes "$(cat <<'EOF'
+## Done when (Acceptance)
+- <criterion 1>
+- <criterion 2>
+EOF
+)" \
+  --acceptance-criteria "$(cat <<'EOF'
+1. Given <precondition>, when <action>, then <observable result>.
+2. ...
+EOF
+)"
 ```
+
+Use the quoted `cat <<'EOF'` heredoc, not `printf`, for these values. Acceptance criteria and Done-when lines routinely contain a literal `%` (for example "95% of requests return 200"), and `printf` would interpret it as a format directive and silently corrupt the text; a quoted heredoc passes every character through verbatim.
 
 **The two calls are not atomic.** If `br update` fails, the bead exists carrying only a Why and a size estimate, which is worse than not creating it. On a failed update, stop and report the bead ID and the missing sections explicitly; do not proceed to the next bead. Treat it as the partial-failure case in Step 5b.
 
@@ -382,8 +395,16 @@ EOF
 
 br update "$id" \
   --design "<L2 content>" \
-  --notes "$(printf '## Done when (Acceptance)\n- <criterion 1>\n- <criterion 2>')" \
-  --acceptance-criteria "$(printf '1. Given <precondition>, when <action>, then <observable result>.')"
+  --notes "$(cat <<'EOF'
+## Done when (Acceptance)
+- <criterion 1>
+- <criterion 2>
+EOF
+)" \
+  --acceptance-criteria "$(cat <<'EOF'
+1. Given <precondition>, when <action>, then <observable result>.
+EOF
+)"
 ```
 
 **epic:** Success Criteria has no native slot, so it stays in the body. Epics carry no size estimate.
@@ -401,7 +422,12 @@ EOF
 
 br update "$id" \
   --design "<L2 content>" \
-  --notes "$(printf '## Done when (Acceptance)\n- <criterion 1>\n- <criterion 2>')"
+  --notes "$(cat <<'EOF'
+## Done when (Acceptance)
+- <criterion 1>
+- <criterion 2>
+EOF
+)"
 ```
 
 Capture the issue ID from each creation output (`--silent` prints only the ID). If either `br create` or its follow-up `br update` exits non-zero, stop and proceed to Step 5b; do not retry blindly.
@@ -410,18 +436,27 @@ Capture the issue ID from each creation output (`--silent` prints only the ID). 
 
 ### Step 5b: Handle Partial Failure
 
-If `br create` exited non-zero before all beads were created, do not proceed to Step 6. Issue creation is a side effect on shared state; the user owns the recovery decision.
+If any `br create` or `br update` exited non-zero before all beads were fully written, do not proceed to Step 6. Issue creation is a side effect on shared state; the user owns the recovery decision.
 
-1. Capture the IDs that were created successfully (with their titles).
-2. Capture the bead that failed and the error message verbatim.
-3. Identify the remaining beads that were never attempted.
+Because each bead is now two calls (create, then populate native fields), a failure lands the beads into one of three states. Classify every bead before presenting:
+
+- **Fully written**: `br create` and its follow-up `br update` both succeeded.
+- **Created but unpopulated**: `br create` succeeded and its `br update` failed. The bead exists in the tracker carrying only a Why and (if applicable) a size estimate; it has no How, Done when, or Acceptance Criteria. This is the failure mode the two-call model introduces, and it is worse than a missing bead because it looks real but fails its own audit.
+- **Never attempted**: neither call ran.
+
+Then:
+
+1. Capture the fully-written IDs (with titles).
+2. Capture every created-but-unpopulated bead: its ID, its title, and the exact `br update` error.
+3. Capture the never-attempted beads.
 4. Present all three lists to the user, then ask which path to take:
 
-   - **Fix and resume**: address the cause of the failure, then re-run Step 5 starting from the failed bead. Successful creates stay in place.
-   - **Delete and retry**: close the partial creates with `br update <id> --status closed` (preferred over a hard delete; preserves the audit trail), fix the cause, then re-run Step 5 with the full list.
-   - **Keep as is**: accept the partial state, file a follow-up bead documenting what's missing, then proceed to Step 6 wiring only the IDs that were created.
+   - **Fix and resume**: address the cause of the failure. For a created-but-unpopulated bead, re-run only its `br update` (not `br create`, which would duplicate it). For a never-attempted bead, run its full two-call sequence. Fully-written beads stay in place.
+   - **Delete and retry**: close the created and created-but-unpopulated beads with `br update <id> --status closed` (preferred over a hard delete; preserves the audit trail), fix the cause, then re-run Step 5 with the full list.
+   - **Keep as is**: accept the partial state, file a follow-up bead documenting what's missing, then proceed to Step 6 wiring only the fully-written IDs. Do not wire a created-but-unpopulated bead into the graph as if it were complete.
 
-5. Do not pick for the user. Wait for an explicit choice before any further `br` command.
+5. Never re-run `br create` for a bead whose create already succeeded; that produces a duplicate title with an empty body. Resume such a bead only through `br update`.
+6. Do not pick for the user. Wait for an explicit choice before any further `br` command.
 
 ### Step 6: Wire Dependencies
 
