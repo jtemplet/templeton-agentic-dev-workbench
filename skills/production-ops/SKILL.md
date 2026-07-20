@@ -449,4 +449,3 @@ Before reporting completion, verify:
 - [ ] Post-change verification passed (services up, logs clean, data check matches intent)
 - [ ] A concrete rollback command is in the report
 - [ ] Session report produced
-```

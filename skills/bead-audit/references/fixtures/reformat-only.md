@@ -16,10 +16,12 @@ project id. Chosen over a global cache because settings change mid-session and a
 scoped memo avoids any invalidation logic.
 
 Done when:
+
 - The settings page issues at most one settings query per request.
 - A settings change is visible on the next request, not stale.
 
 AC:
+
 1. Given the settings page renders, when the query log is inspected, then exactly one settings SELECT appears.
 2. Given a user updates a setting, when they reload, then the new value shows on the next request.
 
