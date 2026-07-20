@@ -21,7 +21,24 @@ Rate each dimension GREEN / YELLOW / RED. Use a comma, semicolon, or parentheses
 | **Risks** | Risks are identified | At least the obvious risks are named | Risk list is thin or surface-level | No risk analysis at all |
 | **Dependencies** | Dependencies are identified and resolvable | All deps named and known to be available | Some deps unclear or potentially blocking | Critical deps missing or unresolvable |
 | **MECE** | Coverage and pairing across the plan (see MECE Audit) | No overlaps; every required pairing covered | 1-2 minor overlaps or gaps, fixable without restructuring | Any major MECE finding (orphan goal, orphan stage, missing rollout/migration, conflicting ownership) |
-| **Actionability** | A developer could start and know when each stage is done | Implementer can begin without questions; each milestone or stage has verifiable completion conditions | Needs 1-2 clarifications, or 1-2 stages lack verifiable completion conditions | Too vague to act on, or completion conditions are broadly absent |
+| **Actionability** | A developer could start, and acceptance criteria prove when the work is done | Acceptance criteria present and testable; each milestone or stage has verifiable completion conditions | Needs 1-2 clarifications, or 1-2 stages lack verifiable completion conditions, or some criteria are subjective | Too vague to act on, or the plan has no acceptance criteria (see the Acceptance Criteria gate) |
+
+## The Acceptance Criteria Gate
+
+Run this before scoring anything else. A plan without acceptance criteria cannot be reviewed for actionability, cannot be decomposed into beads, and cannot be proven done.
+
+**Where to look.** Criteria count toward the gate wherever they appear: under `## Acceptance Criteria`, `Done when`, `Success Criteria`, `Definition of Done`, or as per-milestone completion conditions in the work-breakdown table. Substance beats formatting; criteria in the right shape under a non-canonical heading pass the gate (note the naming as a minor finding).
+
+**The gate fails when any of these hold:**
+
+- No acceptance criteria exist anywhere in the plan, under any heading.
+- Criteria exist but are all subjective: "works well", "is intuitive", "is fast", "users are happy", "tests pass" without naming which.
+- Criteria restate the scope list rather than stating an observable outcome ("build the auth middleware" is a task, not a criterion).
+- A second person could not decide pass/fail on a criterion without asking the author.
+
+**Consequence of a failed gate:** Actionability is RED, which routes to a **Major Rework** verdict. Say so explicitly in the verdict summary and put "add acceptance criteria" at the top of Recommended Changes with a concrete starting draft, not just the instruction to add them.
+
+**Partial coverage is not a gate failure.** If criteria exist and are testable but do not cover every goal or scope item, the gate PASSES. Coverage belongs to MECE ("Acceptance criteria vs. goals"), so route the uncovered goals there as gaps and leave Actionability scored on presence and quality alone. Scoring it in both places would double-count one finding and violate Single bucket per finding.
 
 ## MECE Audit
 
@@ -71,17 +88,23 @@ A MECE finding is **minor** (counts toward YELLOW) when:
 ## Process
 
 1. **Read the plan thoroughly**: understand the full scope and intent.
-2. **Score each dimension**: assign GREEN/YELLOW/RED with a 1-sentence justification.
-3. **Run the MECE audit**: list every overlap and gap explicitly using the categories above; classify each as major or minor.
-4. **Identify other gaps**: non-MECE gaps (e.g., vague language, missing rationale), each with a suggestion for how to fill it.
-5. **Note strengths**: what the plan does well (2-3 items).
-6. **Produce recommended changes**: a prioritized checklist of what to fix before implementation; MECE majors go to the top.
-7. **Render verdict**: Ready / Needs Revision / Major Rework.
+2. **Run the Acceptance Criteria gate**: locate the criteria, judge them testable or not, and record the result. This sets the Actionability floor before any other scoring.
+3. **Score each dimension**: assign GREEN/YELLOW/RED with a 1-sentence justification.
+4. **Run the MECE audit**: list every overlap and gap explicitly using the categories above; classify each as major or minor.
+5. **Identify other gaps**: non-MECE gaps (e.g., vague language, missing rationale), each with a suggestion for how to fill it.
+6. **Note strengths**: what the plan does well (2-3 items).
+7. **Produce recommended changes**: a prioritized checklist of what to fix before implementation; a failed acceptance-criteria gate goes first, then MECE majors.
+8. **Render verdict**: Ready / Needs Revision / Major Rework.
 
 ## Output Format
 
 ```markdown
 ## Plan Review: [Plan Title]
+
+### Acceptance Criteria Gate: [PASS / FAIL]
+
+[Where the criteria live and whether they are testable. On FAIL, name which of the four
+failure conditions triggered it. On PASS with partial coverage, name the uncovered goals.]
 
 ### Dimension Scores
 
@@ -118,7 +141,7 @@ A MECE finding is **minor** (counts toward YELLOW) when:
 
 ### Recommended Changes
 
-- [ ] [Highest priority fix, MECE majors first]
+- [ ] [Highest priority fix: a failed acceptance-criteria gate first, then MECE majors]
 - [ ] ...
 
 ### Verdict: [Ready / Needs Revision / Major Rework]

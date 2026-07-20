@@ -21,8 +21,8 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 | Command | What it does |
 |---|---|
 | `/business-ideas` | Analyze business model, surface 10 revenue-focused feature ideas |
-| `/plan-feature <idea>` | Explore codebase, draft structured plan to `docs/plans/` |
-| `/plan-review <path>` | Evaluate plan across 7 dimensions (incl. MECE audit), render verdict |
+| `/plan-feature <idea>` | Explore codebase, draft structured plan with acceptance criteria to `docs/plans/` |
+| `/plan-review <path>` | Gate on acceptance criteria, evaluate plan across 7 dimensions (incl. MECE audit), render verdict |
 | `/plan-to-beads <path>` | Decompose plan into `br` issues; each bead audited for Why, How, and Done when |
 
 ### Pipeline B — Code Quality
@@ -107,6 +107,7 @@ Pair with `/loop` to run on a schedule:
 | `/python-feature-dev <feature>` | Guided Python feature development (4-phase workflow) |
 | `/idea-wizard` | Generate 30 improvement ideas, evaluate, distill to top 5 |
 | `/adr <topic>` | Record an architectural decision with context and rationale |
+| `/agentic-clean-code [target]` | Design or review agentic code (tools, prompts, orchestration) against Clean Code + POODR |
 
 ### Maintenance
 
@@ -140,7 +141,7 @@ Pair with `/loop` to run on a schedule:
 | `idea-wizard` | Structured ideation: generate, evaluate, distill |
 | `architecture-decision-record` | ADR format with context, options, and rationale |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis |
-| `plan-review` | 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability) |
+| `plan-review` | Acceptance-criteria gate + 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability) |
 | `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan |
 | `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report |
 | `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG |
@@ -168,7 +169,7 @@ Pair with `/loop` to run on a schedule:
 | `code-reviewer` | Auto-detects languages, dispatches to correct review skill (read-only) |
 | `software-engineer` | Editing role for code work; routes to code-simplify, review-fresh-eyes, or feature-development based on intent |
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
-| `feature-planner` | Explores codebase, drafts structured plans to `docs/plans/` |
+| `feature-planner` | Explores codebase, drafts structured plans with acceptance criteria to `docs/plans/` |
 | `project-manager` | Decomposes plans into `br` issues; ensures each bead has Why, How, and acceptance criteria (uses `plan-to-beads` skill) |
 | `diagnostician` | Read-only investigation — evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |

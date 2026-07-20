@@ -43,6 +43,7 @@ Before writing any code, gather complete requirements by asking 3 to 7 focused, 
 - **Errors:** What errors might occur? How should they be handled?
 - **Dependencies:** What existing code, libraries, or services does it interact with?
 - **Context:** Where will this code live? What's the surrounding architecture?
+- **Acceptance criteria:** What observable behavior means this is done? Each condition must be checkable by someone other than you, without asking you.
 
 **Process:**
 
@@ -69,6 +70,10 @@ Before writing any code, gather complete requirements by asking 3 to 7 focused, 
 - Output: [description]
 - Edge cases: [list]
 - Error handling: [approach]
+
+**Acceptance Criteria:**
+1. Given [precondition], when [action], then [observable result].
+2. ...
 
 **Implementation Plan:**
 [2-3 sentence overview of approach]
