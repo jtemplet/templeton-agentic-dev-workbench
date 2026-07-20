@@ -149,7 +149,7 @@ Pair with `/loop` to run on a schedule:
 | `review-fresh-eyes` | Bug-and-correctness pass over recently changed code, fixes issues directly |
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
 | `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) |
-| `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards; separates content from structure (format-only issues are auto-fixable), honors native tracker fields, JSON output for backlog grooming |
+| `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards; separates content from structure (format-only issues are auto-fixable), honors native tracker fields, optional 0-100 scorecard banded Poor→Excellent and capped by verdict, JSON output for backlog grooming |
 | `product-surface-docs` | Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface; grounds claims in code, proactively hunts bugs/gaps/debt into `_findings.md` (cheap capture) and promotes actionable ones into bead-audit-compliant beads, ships a staleness checker (in-repo + multi-repo) |
 | `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing |
 | `competitive-analysis` | Competitor teardown with positioning map, moat analysis, trajectory, and feature gaps |
