@@ -1,7 +1,7 @@
 # Feature Plan: Bead Refinement (scored backlog refinement loop)
 
 **Date:** 2026-07-20
-**Status:** Draft (revision 2, after independent review)
+**Status:** Milestone 1 shipped (scorecard in bead-audit, commit 94b9e22). Milestones 2-4 (the driver) blocked on a state-machine respecification of "Loop state and termination" per two Major Rework reviews; see Open Questions.
 
 ## Summary
 
@@ -244,4 +244,5 @@ The five fixtures, authored as part of milestone 1: `excellent-task`, `reformat-
 
 ## Open Questions
 
-- None. Every decision needed to start milestone 1 is settled.
+- None blocking milestone 1 (shipped).
+- **Before milestone 2 (the driver):** the "Loop state and termination" section must be respecified as an explicit state machine before any code is written. Two independent reviews found the prose version non-exhaustive and self-contradictory: `stalled` and `regression` claim the same state with opposite outcomes (a write that leaves the score unchanged), and a bead whose score *decreases* between iterations reaches none of the three terminal categories. Redefine `regression` as a score that fell, evaluate `stalled` first, and prove exhaustiveness over {score-up, score-down, score-unchanged, not-applyable} with a transition table. Also fold in the round-2 factual fixes: rollback uses `br sync --rebuild` (not `--import-only`), drop `.claude-plugin/plugin.json` from registration scope (skills are auto-discovered), rewrite criterion 15 as `git diff --quiet .beads/issues.jsonl`, and define the content-preservation guard's diff over the union of all four native fields.
