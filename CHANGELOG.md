@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.3] - 2026-07-22
+
+### Fixed
+
+- **The 1.18.2 fence fix was incomplete and left a second bypass open.** It treated any
+  fence-looking line as a toggle, so a ```` block containing a ``` line read as closed. The
+  `## Appendix` heading inside that block was then seen as a real heading, split the document
+  early, and exempted everything after it. A file with `pytest` in its body exited 0 again, the
+  same failure the previous release claimed to fix. Fence matching now follows CommonMark: a block
+  opened with N of a character closes only on a run of at least N of that same character, so a
+  `~~~` line inside a ``` block is correctly treated as content.
+
+### Added
+
+- **A 15-case regression suite for the leak checker** at
+  `skills/style-testing/scripts/test_check_framework_leak.py` (stdlib only, no install, mirroring
+  `hooks/test-hooks.js`). Two bypasses shipped in consecutive releases because this script had no
+  tests and each ad-hoc verification was thrown away. The suite pins both bypasses, the
+  code-comment heading bug, the guard against false-positives on legitimate fenced pseudocode, and
+  asserts the shipped `SKILL.md` satisfies its own checker. Reverting either fence fix now fails
+  the suite.
+
 ## [1.18.2] - 2026-07-22
 
 ### Fixed

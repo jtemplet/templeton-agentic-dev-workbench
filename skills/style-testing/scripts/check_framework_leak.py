@@ -24,7 +24,7 @@ from pathlib import Path
 DEFAULT_SKILL = Path(__file__).resolve().parent.parent / "SKILL.md"
 APPENDIX_HEADING = re.compile(r"^##\s+Appendix\b", re.IGNORECASE)
 FRONTMATTER_FENCE = "---"
-CODE_FENCE = re.compile(r"^\s*(```|~~~)")
+CODE_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 
 
 def fenced_flags(lines: list[str]) -> list[bool]:
@@ -33,15 +33,31 @@ def fenced_flags(lines: list[str]) -> list[bool]:
     Headings are only headings outside a fence. Without this, a code sample
     containing `## Appendix` ends the body early and exempts every real leak
     after it, and a `# Principles` comment satisfies the required-section check.
+
+    Fence matching follows CommonMark: a block opened with N of a character
+    closes only on a run of at least N of that SAME character. Treating any
+    fence-looking line as a toggle is not equivalent, and is itself a bypass:
+    a ```` block containing a ``` line would read as closed, exposing the
+    `## Appendix` inside it as a real heading.
     """
     flags: list[bool] = []
-    inside = False
+    opening: tuple[str, int] | None = None
+
     for line in lines:
-        if CODE_FENCE.match(line):
-            flags.append(True)
-            inside = not inside
+        match = CODE_FENCE.match(line)
+        if not match:
+            flags.append(opening is not None)
             continue
-        flags.append(inside)
+
+        marker = match.group(1)
+        char, length = marker[0], len(marker)
+        if opening is None:
+            opening = (char, length)
+        elif char == opening[0] and length >= opening[1]:
+            opening = None
+        # Any other fence-looking line is content inside the open block.
+        flags.append(True)
+
     return flags
 
 # Substrings that must not appear in the body. Matched case-insensitively.

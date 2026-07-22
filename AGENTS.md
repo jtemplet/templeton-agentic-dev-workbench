@@ -363,7 +363,7 @@ and the table in `README.md`.
 
 - `review-python` - PEP 8 and Google Style Guide reviews
 - `review-rails` - Rails 8-aware systematic code review
-- `style-testing` - Universal, framework-independent test-style core (14 principles, plus a fenced appendix mapping each to its pytest/Vitest/XCTest/Minitest idiom); enforced framework-free by `scripts/check_framework_leak.py`
+- `style-testing` - Universal, framework-independent test-style core (14 principles, plus a fenced appendix mapping each to its pytest/Vitest/XCTest/Minitest idiom); enforced framework-free by `scripts/check_framework_leak.py`, which has its own 15-case regression suite at `scripts/test_check_framework_leak.py` (`python3 skills/style-testing/scripts/test_check_framework_leak.py`)
 - `style-rspec` - RSpec/Rails delta on `style-testing`
 - `style-rails` - Rails conventions and best practices
 - `style-python` - Python style preferences (Sandi Metz principles)
