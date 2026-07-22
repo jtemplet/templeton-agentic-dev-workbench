@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-07-22
+
+### Changed
+
+- **Response style is now a single-source skill.** The always-on response style
+  moved from a hooks-local copy (`hooks/response-style.md`) into a proper skill
+  at `skills/house-response-style/SKILL.md`, and the `SessionStart` hook now
+  reads that file (stripping its YAML frontmatter) as its source. The always-on
+  injection and the new on-demand surface can no longer drift, mirroring the
+  single-source pattern the coding-style core already uses for the `style-*`
+  skills. Parent-session-only injection, the off-switch, the fallback, and the
+  parent-only-not-subagent policy are unchanged.
+
+### Added
+
+- **`/response-style` command and `house-response-style` skill.** The response
+  style is now directly invocable to re-anchor after a compaction or to load the
+  rules inside a subagent (which does not inherit the parent session's injected
+  style). The skill body is more thorough than the prior hooks copy: it states
+  its persistence, grounds the rules in *why* (the answer is the payload, the
+  reader scans rather than parses, structure is a signal), pairs each concise
+  rule with a Bad/Good example, lists escape hatches (explain/walk-me-through,
+  a rule that would delete the answer, destructive actions, real ambiguity), and
+  closes with a pre-send check.
+- `test-hooks.js` now asserts the response-style frontmatter is stripped before
+  injection (no skill frontmatter keys leak into the injected text).
+
 ## [1.16.0] - 2026-07-20
 
 ### Added

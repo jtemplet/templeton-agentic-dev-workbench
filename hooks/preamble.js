@@ -6,15 +6,28 @@
 // the observability marker and the spirit of the doc rather than blanking out.
 //
 // Two documents, two audiences:
-//   style-core.md     - coding style; injected into sessions AND subagents.
-//   response-style.md - how to talk to the user; parent sessions only, because
-//                       subagents report to the orchestrator, not to a human.
+//   style-core.md            - coding style; injected into sessions AND subagents.
+//   house-response-style skill - how to talk to the user; parent sessions only,
+//                       because subagents report to the orchestrator, not a human.
+//
+// The response style is sourced from the skill's SKILL.md (not a hooks-local copy)
+// so the always-on hook and the on-demand /response-style invocation can never
+// drift. Its YAML frontmatter is stripped before injection; style-core.md has
+// none, so it is injected verbatim.
 
 const fs = require('fs');
 const path = require('path');
 
 const STYLE_CORE_PATH = path.join(__dirname, 'style-core.md');
-const RESPONSE_STYLE_PATH = path.join(__dirname, 'response-style.md');
+const RESPONSE_STYLE_PATH = path.join(
+  __dirname,
+  '..',
+  'skills',
+  'house-response-style',
+  'SKILL.md'
+);
+
+const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 
 // Mirrors the opening marker of style-core.md so a degraded run is still
 // observable in-session and still carries the headline principles.
@@ -60,7 +73,8 @@ function getStyleCorePreamble() {
 }
 
 function getResponseStylePreamble() {
-  return readOrFallback(RESPONSE_STYLE_PATH, RESPONSE_FALLBACK);
+  const text = readOrFallback(RESPONSE_STYLE_PATH, RESPONSE_FALLBACK);
+  return text.replace(FRONTMATTER, '');
 }
 
 module.exports = {

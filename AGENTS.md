@@ -389,6 +389,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `pr-maintenance` - Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop
 - `roadmap-dashboard` - Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` data-collection script and versions the output instead of overwriting
 - `production-ops` - Safely operate the production apps (atlas, meridian, compass, ...) as Docker Compose stacks on a single Hetzner VPS over a two-hop SSH login (root, then `su - deploy`); covers service ops and PostgreSQL data ops under strong guardrails (read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes/`prune`/`DROP`/`TRUNCATE`/`WHERE`-less writes)
+- `house-response-style` - The always-on response style as a single-source skill: lead with the answer, cut narration, structure only genuinely multi-part answers, suggest a follow-up only when earned, and end open work with an owner-split "Next actions" section. The `SessionStart` hook reads this file (frontmatter stripped) so the injected style and the on-demand `/response-style` command share one source of truth; carries a "why," Bad/Good pairs, escape hatches, and a pre-send check
 
 **Registered Agents:**
 
@@ -442,6 +443,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/pr-maintain` - Keep the current branch's PR rebased on its parent and passing CI; one iteration per invocation, safe to pair with `/loop`
 - `/roadmap-dashboard` - Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker
 - `/prod-ops` - Safely operate the production apps on the Hetzner VPS over SSH (service ops + PostgreSQL data ops) under strong guardrails; loads the `production-ops` skill
+- `/response-style` - Re-assert the house response style (concise, answer-first, owner-split "Next actions"); loads the `house-response-style` skill to re-anchor after a compaction or inside a subagent
 
 ### Always-on style core (hooks)
 
@@ -455,11 +457,13 @@ subagents (which never inherit the parent session's loaded skills).
 code plus nine cross-language principles). The detailed per-language rules stay in the
 on-demand `style-*` and `review-*` skills; only the small universal core is always on.
 
-- **`SessionStart`** injects the core plus the response style from
-  `hooks/response-style.md` (respond concisely; suggest a follow-up question only when
-  the answer genuinely raises one; end any response that leaves work open with a
-  "Next actions" section split into "Me (Claude)" and "You") as raw context into
-  every new, resumed, cleared, or compacted session.
+- **`SessionStart`** injects the core plus the response style, sourced from the
+  `house-response-style` skill (`skills/house-response-style/SKILL.md`, frontmatter stripped
+  at inject time): respond concisely; suggest a follow-up question only when the answer
+  genuinely raises one; end any response that leaves work open with a "Next actions" section
+  split into "Me (Claude)" and "You". Injected as raw context into every new, resumed,
+  cleared, or compacted session. The same skill backs the on-demand `/response-style`
+  command, so the always-on and invocable surfaces share one source of truth.
 - **`SubagentStart`** re-injects the coding-style core only (JSON-wrapped in
   `hookSpecificOutput.additionalContext`) into every spawned subagent. The response style
   is deliberately parent-only: a subagent's final text is consumed by the orchestrator as
@@ -486,8 +490,8 @@ ASO), because a `SessionStart` hook cannot see the task type; the marker makes i
 and the off-switch is the escape hatch.
 
 **Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) asserts the
-SessionStart raw output (both documents present), the SubagentStart JSON wrapping (response
-style absent), and both off-switch paths.
+SessionStart raw output (both documents present, response style frontmatter stripped), the
+SubagentStart JSON wrapping (response style absent), and both off-switch paths.
 
 ## Key Design Principles
 

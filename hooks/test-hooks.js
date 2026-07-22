@@ -7,6 +7,8 @@
 // Asserts the load-bearing guarantees of the style-core hooks:
 //   1. SessionStart  stdout is the RAW preamble and contains the style-core
 //      marker AND the response-style marker (parent sessions get both docs).
+//      The response style is sourced from the house-response-style SKILL.md, so
+//      its YAML frontmatter must be stripped before injection.
 //   2. SubagentStart stdout parses as JSON and
 //      hookSpecificOutput.additionalContext contains the style-core preamble
 //      + marker, and does NOT contain the response style (orchestrator-facing
@@ -65,6 +67,10 @@ check('SessionStart emits raw preamble with style core and response style', () =
   assert.ok(out.includes('House Coding-Style Core'), 'stdout must contain the core header');
   assert.ok(out.includes(RESPONSE_MARKER), 'stdout must contain the response-style marker');
   assert.ok(out.includes('House Response Style'), 'stdout must contain the response-style header');
+  assert.ok(
+    !out.includes('disable-model-invocation'),
+    'response-style frontmatter must be stripped (no skill frontmatter keys in injected text)'
+  );
   assert.ok(!out.trimStart().startsWith('{'), 'SessionStart stdout must be raw, not JSON');
 });
 
