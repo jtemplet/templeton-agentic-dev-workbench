@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.2] - 2026-07-22
+
+### Fixed
+
+- **`check_framework_leak.py` could be silently disabled by a code fence.** The script split the
+  document at the first line matching `## Appendix` without checking whether that line was inside
+  a fenced code block. A fence containing that heading (entirely plausible in a document that
+  shows its own structure) ended the body early, so every framework token after it was treated as
+  appendix content and exempted. A file containing `pytest` in its body passed the check. The
+  script is now fence-aware.
+- **Required-section detection accepted code comments as headings.** `check_sections` collected
+  every line starting with `#`, which includes shell and Python comments inside fenced examples.
+  A file whose only real heading was the appendix passed the structural check because
+  `# Principles` appeared in a code sample. Headings are now only counted outside fences.
+
+Both bugs shared one root cause and were found by edge-case testing rather than review; the
+regression cases are documented in the fix commit.
+
 ## [1.18.1] - 2026-07-22
 
 ### Fixed

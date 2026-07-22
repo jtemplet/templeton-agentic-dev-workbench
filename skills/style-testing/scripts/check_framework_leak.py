@@ -24,6 +24,25 @@ from pathlib import Path
 DEFAULT_SKILL = Path(__file__).resolve().parent.parent / "SKILL.md"
 APPENDIX_HEADING = re.compile(r"^##\s+Appendix\b", re.IGNORECASE)
 FRONTMATTER_FENCE = "---"
+CODE_FENCE = re.compile(r"^\s*(```|~~~)")
+
+
+def fenced_flags(lines: list[str]) -> list[bool]:
+    """Mark every line that sits inside a fenced code block, fence lines included.
+
+    Headings are only headings outside a fence. Without this, a code sample
+    containing `## Appendix` ends the body early and exempts every real leak
+    after it, and a `# Principles` comment satisfies the required-section check.
+    """
+    flags: list[bool] = []
+    inside = False
+    for line in lines:
+        if CODE_FENCE.match(line):
+            flags.append(True)
+            inside = not inside
+            continue
+        flags.append(inside)
+    return flags
 
 # Substrings that must not appear in the body. Matched case-insensitively.
 BANNED_TOKENS = (
@@ -56,7 +75,9 @@ REQUIRED_APPENDIX_FRAMEWORKS = (
 )
 
 
-def split_document(lines: list[str]) -> tuple[list[str], list[tuple[int, str]], list[str]]:
+def split_document(
+    lines: list[str], fenced: list[bool]
+) -> tuple[list[str], list[tuple[int, str]], list[str]]:
     """Return (frontmatter, numbered body lines, appendix lines)."""
     frontmatter: list[str] = []
     start = 0
@@ -69,7 +90,7 @@ def split_document(lines: list[str]) -> tuple[list[str], list[tuple[int, str]], 
                 break
 
     for index in range(start, len(lines)):
-        if APPENDIX_HEADING.match(lines[index]):
+        if not fenced[index] and APPENDIX_HEADING.match(lines[index]):
             body = [(n + 1, lines[n]) for n in range(start, index)]
             return frontmatter, body, lines[index:]
 
@@ -109,8 +130,10 @@ def check_body_tokens(body: list[tuple[int, str]]) -> list[str]:
     return problems
 
 
-def check_sections(lines: list[str]) -> list[str]:
-    headings = "\n".join(line for line in lines if line.startswith("#"))
+def check_sections(lines: list[str], fenced: list[bool]) -> list[str]:
+    headings = "\n".join(
+        line for index, line in enumerate(lines) if line.startswith("#") and not fenced[index]
+    )
     return [
         f"structure: required section `{section}` is missing"
         for section in REQUIRED_SECTIONS
@@ -137,11 +160,12 @@ def main() -> int:
         return 1
 
     lines = skill_path.read_text(encoding="utf-8").splitlines()
-    frontmatter, body, appendix = split_document(lines)
+    fenced = fenced_flags(lines)
+    frontmatter, body, appendix = split_document(lines, fenced)
 
     problems = [
         *check_frontmatter(frontmatter, skill_path),
-        *check_sections(lines),
+        *check_sections(lines, fenced),
         *check_body_tokens(body),
         *check_appendix_coverage(appendix),
     ]
