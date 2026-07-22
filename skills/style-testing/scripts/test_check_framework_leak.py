@@ -143,6 +143,30 @@ CASES: tuple[tuple[str, str, str, int, str], ...] = (
         PASS,
         "style-testing",
     ),
+    (
+        "scope",
+        "WIDENING: moving the start marker above the principles must not exempt the document",
+        # The markers are well formed and every heading is present, so only the
+        # sections-outside-the-region rule catches this. Without it the checker
+        # reports OK after scanning one line.
+        FRONTMATTER
+        + f"\n{START}\n"
+        + SECTIONS
+        + "\n## Appendix\nuse rspec let! here\npytest | vitest | xctest | minitest\n"
+        + f"{END}\n",
+        FAIL,
+        "style-testing",
+    ),
+    (
+        "scope",
+        "a principle section inside the exempt region fails",
+        FRONTMATTER
+        + "## When to Use\n## Notation\n## Principles\n## Anti-Patterns\n## Escape Hatches\n"
+        + f"\n{START}\n## Appendix\n## Quality Checklist\n## Apply Workflow\n"
+        + f"pytest | vitest | xctest | minitest\n{END}\n",
+        FAIL,
+        "style-testing",
+    ),
     # --- PARSER INDEPENDENCE ----------------------------------------------
     (
         "parser",

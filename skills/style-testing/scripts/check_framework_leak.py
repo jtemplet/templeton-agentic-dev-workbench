@@ -65,7 +65,10 @@ BANNED_TOKENS = (
     "build_stubbed", "assert_equal", "@pytest",
 )
 
-REQUIRED_SECTIONS = (
+# These must appear as `## ` headings OUTSIDE the exempt region. Requiring that
+# is what stops the markers from being widened: moving the start marker above the
+# principles would otherwise exempt the whole document and still report OK.
+REQUIRED_BODY_SECTIONS = (
     "When to Use",
     "Notation",
     "Principles",
@@ -73,8 +76,8 @@ REQUIRED_SECTIONS = (
     "Escape Hatches",
     "Apply Workflow",
     "Quality Checklist",
-    "Appendix",
 )
+APPENDIX_SECTION = "Appendix"
 
 # The appendix earns its exemption only by actually covering every framework the
 # description promises. Each entry is a set of acceptable spellings.
@@ -163,13 +166,40 @@ def check_body_tokens(body: list[tuple[int, str]]) -> list[str]:
     return problems
 
 
-def check_sections(lines: list[str]) -> list[str]:
-    headings = "\n".join(match.group(1) for match in map(H2_HEADING.match, lines) if match)
-    return [
-        f"structure: required section `{section}` is missing"
-        for section in REQUIRED_SECTIONS
-        if section.lower() not in headings.lower()
+def check_sections(lines: list[str], start: int | None, end: int | None) -> list[str]:
+    """Require the principle sections to sit outside the exempt region.
+
+    Checking only that a heading exists somewhere is not enough. The exempt
+    region is delimited by markers an editor can move, and moving the start
+    marker above the principles would exempt the entire document while every
+    heading still existed. Anchoring the sections outside the region makes that
+    edit fail instead of silently disabling the check.
+    """
+    def outside(index: int) -> bool:
+        return start is None or end is None or not start <= index <= end
+
+    body_headings: list[str] = []
+    all_headings: list[str] = []
+    for index, line in enumerate(lines):
+        match = H2_HEADING.match(line)
+        if not match:
+            continue
+        all_headings.append(match.group(1))
+        if outside(index):
+            body_headings.append(match.group(1))
+
+    body_text = "\n".join(body_headings).lower()
+    problems = [
+        f"structure: required section `{section}` is missing, "
+        "or lies inside the exempt appendix region"
+        for section in REQUIRED_BODY_SECTIONS
+        if section.lower() not in body_text
     ]
+
+    if APPENDIX_SECTION.lower() not in "\n".join(all_headings).lower():
+        problems.append(f"structure: required section `{APPENDIX_SECTION}` is missing")
+
+    return problems
 
 
 def check_appendix_coverage(appendix: list[str]) -> list[str]:
@@ -206,7 +236,7 @@ def main() -> int:
     problems = [
         *check_frontmatter(frontmatter, skill_path),
         *marker_problems,
-        *check_sections(lines),
+        *check_sections(lines, start, end),
         *check_body_tokens(body),
         *check_appendix_coverage(appendix),
     ]

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.1] - 2026-07-22
+
+### Fixed
+
+- **The sentinel markers could be widened to exempt the whole document, and the check reported
+  OK.** Moving `<!-- leak-check:appendix-start -->` above the principles left both markers well
+  formed and every required heading present, so nothing objected: the checker scanned one line and
+  printed a clean pass. Unlike the five bypasses this design replaced, that needs a deliberate
+  edit rather than ordinary markdown, but a self-check that can be silently disabled by moving one
+  line is not much of a self-check. The required principle sections must now appear as `## `
+  headings OUTSIDE the exempt region, so widening the markers past them fails with a named
+  section rather than passing. Found by adversarial testing of the new design, not by review.
+
 ## [1.19.0] - 2026-07-22
 
 ### Changed
