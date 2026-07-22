@@ -27,7 +27,7 @@ Don't use this for:
 
 ## Universal Core (injected)
 
-The universal style core ("TRUE code" plus the 9 principles and the correctness-over-speed posture) is injected separately each session from `hooks/style-core.md`; apply it, do not restate it here. For Rails 8 *writing* conventions (the Rails Way, Solid Stack, Hotwire idioms), defer to the companion `style-rails` skill, and for test style defer to `style-rspec`. This skill owns the review *process*: security-first scanning, verify-before-flag discipline, and prioritized findings.
+The universal style core ("TRUE code" plus the 9 principles and the correctness-over-speed posture) is injected separately each session from `hooks/style-core.md`; apply it, do not restate it here. For Rails 8 *writing* conventions (the Rails Way, Solid Stack, Hotwire idioms), defer to the companion `style-rails` skill. For test style defer to `style-testing`, which owns the framework-independent principles, and additionally to `style-rspec` when the project's suite is RSpec. This skill owns the review *process*: security-first scanning, verify-before-flag discipline, and prioritized findings.
 
 ## Review Principles
 

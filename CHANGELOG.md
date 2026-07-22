@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-07-22
+
+### Added
+
+- **`style-testing`, a universal framework-independent test-style core.** Until now the only
+  test guidance in this workbench was `style-rspec`, so anyone working in pytest, Vitest, XCTest,
+  or Minitest got nothing, even though most of what makes a good test is framework-independent.
+  The new skill carries 14 principles: ten transposed from `style-rspec` (outermost fast seam,
+  name the action once, hoisted declarative setup, one behavior per test, scenario-named groups,
+  lightest sufficient fixture, lazy-unless-ordering-matters, deterministic identification by
+  unique key, shared setup visible to every case, prerequisites before the action) and four
+  net-new that nothing in the repo covered (determinism with injected clocks and seeds,
+  behavior-not-implementation naming, what not to test, and one clear cause of failure per
+  assertion). Examples use a declared neutral pseudocode so no rule reads as belonging to one
+  framework, and a single fenced appendix maps every principle to its pytest, Vitest/Jest,
+  XCTest/Swift Testing, and Minitest idiom.
+- **`check_framework_leak.py`, enforcement for the above.** The core's value rests entirely on
+  the principles staying framework-free while the appendix carries the concreteness. Author
+  discipline does not hold that line across edits, so a stdlib-only script does: it scans
+  everything between the frontmatter and the appendix for framework tokens and fails the build on
+  any leak. It caught a `style-rspec` reference in the skill's own introduction on its first run.
+- **An invocation battery for the skill's `description`.** For a model-invoked skill the
+  description is the only thing that determines whether it ever fires, and `style-rspec` is the
+  cautionary example: its description was scoped so narrowly ("RSpec tests in Rails apps") that it
+  could not fire on this repo's current work. The battery at
+  `skills/style-testing/references/invocation-battery.md` runs 8 realistic test prompts and 3
+  controls against a 7-of-8 bar. First run passed 8/8 with 0/3 false fires.
+
+### Changed
+
+- **`style-rspec` is now a thin delta on `style-testing`, down from 496 lines to 119.** Everything
+  that would still read as correct advice with the RSpec nouns stripped out moved into the core.
+  What remains is the RSpec spelling of those principles as a mapping table, plus four genuinely
+  Rails mechanics with no framework-free parent: `let` versus `let!` evaluation semantics,
+  `expect { subject }` versus a bare `subject` call, FactoryBot's three build strategies, and
+  `it_behaves_like` resolving variables at invocation rather than definition.
+- **Test files now route to `style-testing` through the agents, not just the docs.**
+  `software-engineer` and `code-reviewer` dispatch to style skills by file extension and had no
+  entry for test files at all, so a skill wired only into `AGENTS.md` and `README.md` would have
+  shipped unreachable, which is precisely the state `style-rspec` was in. Both agents plus
+  `/python-feature-dev` now match test-file patterns across Python, TypeScript, Ruby, Swift, and
+  Go. This also satisfies `/validate-plugin`'s orphan rule, which counts referrers in `agents/`
+  and `commands/` but not `skills/`.
+- **`review-rails` defers to `style-testing` for test style,** naming `style-rspec` only when the
+  project's suite is actually RSpec.
+- **The `bv` agent-instructions block moved out of `AGENTS.md` into `docs/beads-workflow.md`.**
+  Ninety lines of generated tracker documentation, largely duplicating the existing "Issue
+  Tracking (br + bv)" section, had been appended to the top-level agent instructions. `AGENTS.md`
+  drops from 727 to 642 lines and links to the extracted file, which records its own provenance
+  including the marker `bv` uses, so a future re-injection is recognisable rather than mysterious.
+
 ## [1.17.0] - 2026-07-22
 
 ### Changed

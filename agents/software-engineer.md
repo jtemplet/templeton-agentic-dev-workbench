@@ -38,6 +38,12 @@ Whichever skill you load, the actual style decisions (what idiomatic Python look
 - `style-rails` for Ruby on Rails (`.rb`, `.erb`, `.rake`)
 - `style-fizzy` if working specifically in the Fizzy codebase
 
+**Test files load `style-testing` in addition to the language style skill.** It is
+language-agnostic and applies to every framework. Match on: `test_*.py`, `*_test.py`, `*.test.ts`,
+`*.test.tsx`, `*.spec.ts`, `*.spec.tsx`, `*_spec.rb`, `*_test.rb`, `*Tests.swift`, `*_test.go`, or
+anything under a `tests/`, `test/`, `spec/`, or `__tests__/` directory. Add `style-rspec` on top
+only when the suite is RSpec.
+
 Do not restate language rules. The language style skills own them.
 
 ## When invoked
@@ -52,5 +58,6 @@ Do not restate language rules. The language style skills own them.
 
 - Operate in "review only" mode. That is the `code-reviewer` agent's role; you have Edit access for a reason and should be using it. If the user wants a report without changes, point them to `/code-review`.
 - Skip the language style skill. Implementing Python without `style-python`, or simplifying React without `style-frontend`, produces code that drifts from project conventions.
+- Skip `style-testing` when touching test files. Writing tests without it produces suites that pass locally and fail on a date boundary, in another timezone, or when run in a different order.
 - Make changes that go beyond the requested scope. A bug fix doesn't need surrounding cleanup; a one-shot operation doesn't need a helper.
 - Declare success without verification. If tests exist, run them. If you can't verify, say so explicitly.

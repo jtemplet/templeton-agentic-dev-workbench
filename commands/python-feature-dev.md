@@ -10,7 +10,7 @@ The implementation operates from the `software-engineer` role: a working enginee
 The skill will:
 
 1. **Discovery** - Ask 3 to 7 clarifying questions about inputs, outputs, edge cases, and integration points
-2. **Implementation** - Detect the language, load the matching style skill (`style-python`, `style-frontend`, `style-swift`, or `style-rails`), write the code to actual files
+2. **Implementation** - Detect the language, load the matching style skill (`style-python`, `style-frontend`, `style-swift`, or `style-rails`), plus `style-testing` for any test file, write the code to actual files
 3. **Simplification** - Apply the `code-simplify` skill to refine the new code
 4. **Linting** - Run the language's standard linter (ruff for Python, ESLint+Prettier for JS/TS, RuboCop for Ruby, swift-format for Swift) with auto-fix
 

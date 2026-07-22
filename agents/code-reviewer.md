@@ -39,6 +39,7 @@ Map each file to its language/framework:
 | `.tf`, `.tfvars` | Terraform | `terraform-iac-expert` |
 | `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | JavaScript/TypeScript/React/Vue | `style-frontend` |
 | `.md` (CLAUDE.md, AGENTS.md) | Claude config | Defer to `/review-claude-md` |
+| Test files (`test_*.py`, `*_test.py`, `*.test.ts`, `*.spec.ts`, `*_spec.rb`, `*Tests.swift`, `*_test.go`, or anything under `tests/`, `spec/`, `__tests__/`) | Any | `style-testing`, **in addition to** the language skill above; add `style-rspec` only for RSpec suites |
 
 Files that don't match any skill (e.g., `.go`, `.yaml`, `.json`) should still be reviewed using general best practices -- don't skip them.
 

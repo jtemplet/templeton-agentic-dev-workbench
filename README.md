@@ -132,7 +132,8 @@ Pair with `/loop` to run on a schedule:
 |---|---|
 | `review-python` | PEP 8 and Google Style Guide review technique |
 | `review-rails` | Rails 8 systematic review (security, conventions, performance) |
-| `style-rspec` | Opinionated RSpec style (request specs, context-driven) |
+| `style-testing` | Universal test style, framework-independent (any language) |
+| `style-rspec` | RSpec/Rails delta on `style-testing` |
 | `style-rails` | Rails 8 Way conventions and best practices |
 | `style-python` | Python style (Sandi Metz principles adapted for Python) |
 | `style-swift` | Swift style (Sandi Metz, protocol-oriented design) |

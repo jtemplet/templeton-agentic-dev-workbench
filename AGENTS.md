@@ -165,11 +165,12 @@ description: One-line description
 - Security-first approach with pragmatic severity assessment
 - Understands `where.missing`, `broadcast_refresh_to`, Solid Stack patterns
 
-**Testing:** Use the `style-rspec` skill
+**Testing:** Use the `style-testing` skill (language-agnostic), plus `style-rspec` if the project uses RSpec
 
-- Opinionated RSpec style
-- Request specs over controller specs
-- Context-driven organization
+- `style-testing` owns the principles: one behavior per test, hoisted declarative setup,
+  deterministic clocks and identification, scenario-named groups, what not to test
+- `style-rspec` adds only the RSpec/Rails spelling: request specs over controller specs,
+  `let`/`let!`/`subject` mechanics, FactoryBot build strategies
 
 **Conventions:** Use the `style-rails` skill
 
@@ -359,7 +360,8 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 
 - `review-python` - PEP 8 and Google Style Guide reviews
 - `review-rails` - Rails 8-aware systematic code review
-- `style-rspec` - Opinionated RSpec testing patterns
+- `style-testing` - Universal, framework-independent test-style core (14 principles, plus a fenced appendix mapping each to its pytest/Vitest/XCTest/Minitest idiom); enforced framework-free by `scripts/check_framework_leak.py`
+- `style-rspec` - RSpec/Rails delta on `style-testing`
 - `style-rails` - Rails conventions and best practices
 - `style-python` - Python style preferences (Sandi Metz principles)
 - `style-swift` - Swift/iOS with Sandi Metz principles and protocol-oriented design
@@ -632,3 +634,9 @@ bv --robot-suggest                   # Duplicates, missing deps, label assignmen
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+
+## Beads Workflow Integration
+
+Full `br` and `bv` usage for agents, covering the `--robot-*` triage flags, scoping and filtering
+recipes, the issue-management command set, and the git policy, lives in
+[docs/beads-workflow.md](docs/beads-workflow.md). Read it before running any tracker command.
