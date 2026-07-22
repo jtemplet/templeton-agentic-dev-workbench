@@ -486,14 +486,21 @@ presence is visible in any session, not only in a one-time test.
   into the subagent hook process, so one setting covers both surfaces, or
 - a persistent flag file at `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`.
 
-**`node` on PATH requirement.** The hook command invokes `node` directly. If `node` is not on the
-non-interactive shell's PATH (common for `fnm`/`nvm` users), the core cannot be injected. The
-failure is **visible rather than silent**: each command is `node "..." || echo <failure marker>`,
-so a missing `node` or a script error injects
-`<!-- house-style-core: FAILED to load ... -->` in place of the core. If you see that marker,
-the hook ran and could not execute; if you see no marker at all, the hook did not run (check the
-matcher and the off-switch). The `; exit 0` suffix is retained so a failure never blocks the
-session.
+**`node` on PATH requirement.** Both hooks run through `hooks/run-hook.sh`, which invokes `node`.
+If `node` is not on the non-interactive shell's PATH (common for `fnm`/`nvm` users), the core
+cannot be injected, and the wrapper makes that **visible rather than silent**: it emits
+`<!-- house-style-core: FAILED to load ... -->` in place of the core (as valid
+`hookSpecificOutput` JSON for `SubagentStart`). If you see that marker, the hook ran and could not
+execute; if you see no marker at all, the hook did not run (check the matcher and the off-switch).
+The wrapper always exits 0, so a failure never blocks the session.
+
+**Why the off-switch is checked twice.** `run-hook.sh` re-implements `isDisabled()` from
+`hooks/runtime.js`, because the off-switch has to be honoured even when `node` cannot run, which
+is exactly when the JS copy is unavailable. The wrapper checks it **before** spawning `node`, so
+there is no node-missing path that skips it; an opted-out user gets silence, not a misleading
+"FAILED to load" marker for something they turned off themselves. `test-hooks.js` asserts the two
+implementations agree across a matrix of env values and the flag file, so the duplication cannot
+drift unnoticed.
 
 **Blast radius (behavior change).** Declaring `hooks` in `plugin.json` makes these hooks fire
 in **every project** the plugin is loaded for, and (if distributed via the marketplace) for
@@ -501,14 +508,24 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 6 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 11 checks: the
 SessionStart raw output (both documents present, response style frontmatter stripped), the
 SubagentStart JSON wrapping (response style absent), both off-switch paths, the **manifest**
-(the matcher covers all five SessionStart sources, every referenced script exists, and no
-command fails silently), and that `/response-style` reads the skill file rather than invoking
-the disabled skill through the Skill tool. The last two exist because the suite previously
-tested only the scripts, so a matcher missing `fork` and a dead `/response-style` command both
-shipped green.
+(the matcher covers all five SessionStart sources, every referenced script exists, every
+command routes through the wrapper with a fallback marker, and the Windows command honours both
+off-switch paths, since it cannot be executed on a macOS or Linux runner and would otherwise
+drift in silence), that `/response-style` reads the
+skill file rather than invoking the disabled skill through the Skill tool, and four covering
+`run-hook.sh`: it emits the marker when `node` fails, it stays silent when `node` fails *and*
+the off-switch is set, it needs neither an external command nor `HOME`, and its off-switch
+agrees with `runtime.js`. A final check **executes the manifest commands themselves** against a
+working and a broken `node`, because everything else tests the manifest as a string and the
+wrapper as a program, never the two together, so a shell-quoting error would ship green. The
+suite also asserts that the count stated in this sentence matches the number of checks it ran,
+since that number drifted three times while the suite was being written. Each check was added
+after a real defect shipped green under a narrower suite: a matcher missing `fork`, a dead
+`/response-style` command, a failure marker that ignored the off-switch, and an off-switch that
+silently stopped working when `tr` was off the PATH.
 
 ## Key Design Principles
 
