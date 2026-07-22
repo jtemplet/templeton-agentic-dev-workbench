@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.2] - 2026-07-22
+
+### Fixed
+
+- **The failure marker ignored the off-switch.** The `|| echo <marker>` fallback added in 1.18.1
+  fired whenever `node` failed, including for users who had deliberately disabled the style core.
+  They got `<!-- house-style-core: FAILED to load -->` injected into every session, which is both
+  noise and a lie: nothing failed, they turned it off. Hooks now run through `hooks/run-hook.sh`,
+  which checks the off-switch **before** spawning `node`. That ordering is the fix, since no
+  node-missing path can skip a check that already happened.
+- **The wrapper depended on the environment it exists to survive.** Two defects found while
+  iterating on the fix above, both the same silent-no-op class it was meant to eliminate. It
+  lowercased with `tr`, so on a PATH without `tr` the substitution failed silently, the value read
+  as empty, and `TADW_STYLE_CORE=off` was ignored entirely. And an unset `HOME` aborted it under
+  `set -u`, emitting neither the core nor the marker. It now uses no external command and defaults
+  `HOME`, verified under both `sh` and `dash`.
+- **A temp-directory leak in the hook suite,** pre-existing and worsened by the new checks: roughly
+  26 directories per run were left in the system temp dir, accumulating on every dev machine and
+  CI push. All scratch directories now live under one root removed on exit.
+- **`TypeError` instead of a clean assertion** when a manifest entry lacks a `hooks` array.
+
+### Changed
+
+- **The hook suite goes from 6 to 11 checks**, each added after a real defect shipped green under
+  a narrower suite. The two most valuable are new kinds rather than new cases. One **executes the
+  real manifest commands** against a working and a broken `node`; everything else tested the
+  manifest as a string and the wrapper as a program, never together, so a shell-quoting error
+  could ship green (it matters most for the `SubagentStart` fallback, which is JSON nested inside
+  single quotes inside a JSON string). The other guards `commandWindows`, which cannot be executed
+  on macOS or the Linux runner and had no guard at all, which is how it lost the off-switch in the
+  first place; the suite now asserts it references both off-switch paths and a failure marker.
+- **The check count documented in `AGENTS.md` is asserted, not remembered.** It drifted three
+  times while this work was in progress, so the suite now compares the documented number against
+  the number of checks it actually ran.
+
+### Known limitations
+
+- `runtime.js` resolves the default config dir with `os.homedir()`, which falls back to the
+  password database, while `run-hook.sh` uses `$HOME` only. They diverge solely when `HOME` is
+  unset **and** the flag file exists **and** `node` is broken. Closing it needs either an external
+  command or tilde expansion, which `dash` does not perform with `HOME` unset, so it is documented
+  in place rather than fixed by reintroducing the dependency the wrapper just removed.
+- `commandWindows` is guarded structurally but remains unexecuted; no PowerShell is available on
+  macOS or the CI runner.
+
 ## [1.19.1] - 2026-07-22
 
 ### Fixed
