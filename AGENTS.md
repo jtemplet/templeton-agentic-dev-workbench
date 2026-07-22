@@ -353,8 +353,11 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 
 ### Manifest File
 
-`.claude-plugin/plugin.json` defines plugin metadata, component registration, and the
-`hooks` field that wires the always-on style core (see "Always-on style core (hooks)" below):
+`.claude-plugin/plugin.json` defines plugin metadata and the `hooks` field that wires the
+always-on style core (see "Always-on style core (hooks)" below). It does **not** register
+components: skills, agents, and commands are auto-discovered from their directories, and
+`plugin.json` lists none of them. The registration surfaces are the component lists in this file
+and the table in `README.md`.
 
 **Registered Skills:**
 
@@ -445,7 +448,7 @@ Each iteration reports rebase status, CI status, files touched, and any manual a
 - `/pr-maintain` - Keep the current branch's PR rebased on its parent and passing CI; one iteration per invocation, safe to pair with `/loop`
 - `/roadmap-dashboard` - Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker
 - `/prod-ops` - Safely operate the production apps on the Hetzner VPS over SSH (service ops + PostgreSQL data ops) under strong guardrails; loads the `production-ops` skill
-- `/response-style` - Re-assert the house response style (concise, answer-first, owner-split "Next actions"); loads the `house-response-style` skill to re-anchor after a compaction or inside a subagent
+- `/response-style` - Re-assert the house response style (concise, answer-first, owner-split "Next actions") to re-anchor after a compaction or inside a subagent; **reads** `skills/house-response-style/SKILL.md` directly rather than invoking it via the Skill tool, which refuses it because the skill sets `disable-model-invocation: true`
 
 ### Always-on style core (hooks)
 
@@ -464,8 +467,10 @@ on-demand `style-*` and `review-*` skills; only the small universal core is alwa
   at inject time): respond concisely; suggest a follow-up question only when the answer
   genuinely raises one; end any response that leaves work open with a "Next actions" section
   split into "Me (Claude)" and "You". Injected as raw context into every new, resumed,
-  cleared, or compacted session. The same skill backs the on-demand `/response-style`
-  command, so the always-on and invocable surfaces share one source of truth.
+  cleared, compacted, **or forked** session (the matcher must list all five sources; omitting
+  one silently skips injection for it, with no error and no marker). The same file backs the
+  on-demand `/response-style` command, which **reads** it rather than invoking it through the
+  Skill tool, so the always-on and invocable surfaces share one source of truth.
 - **`SubagentStart`** re-injects the coding-style core only (JSON-wrapped in
   `hookSpecificOutput.additionalContext`) into every spawned subagent. The response style
   is deliberately parent-only: a subagent's final text is consumed by the orchestrator as
@@ -481,9 +486,14 @@ presence is visible in any session, not only in a one-time test.
   into the subagent hook process, so one setting covers both surfaces, or
 - a persistent flag file at `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`.
 
-**`node` on PATH requirement.** The hook command is literally `node "...";`. If `node` is not
-on the non-interactive shell's PATH (common for `fnm`/`nvm` users), the hook silently no-ops
-and the core is not injected. There is no error; the marker line simply will not appear.
+**`node` on PATH requirement.** The hook command invokes `node` directly. If `node` is not on the
+non-interactive shell's PATH (common for `fnm`/`nvm` users), the core cannot be injected. The
+failure is **visible rather than silent**: each command is `node "..." || echo <failure marker>`,
+so a missing `node` or a script error injects
+`<!-- house-style-core: FAILED to load ... -->` in place of the core. If you see that marker,
+the hook ran and could not execute; if you see no marker at all, the hook did not run (check the
+matcher and the off-switch). The `; exit 0` suffix is retained so a failure never blocks the
+session.
 
 **Blast radius (behavior change).** Declaring `hooks` in `plugin.json` makes these hooks fire
 in **every project** the plugin is loaded for, and (if distributed via the marketplace) for
@@ -491,9 +501,14 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) asserts the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 6 checks: the
 SessionStart raw output (both documents present, response style frontmatter stripped), the
-SubagentStart JSON wrapping (response style absent), and both off-switch paths.
+SubagentStart JSON wrapping (response style absent), both off-switch paths, the **manifest**
+(the matcher covers all five SessionStart sources, every referenced script exists, and no
+command fails silently), and that `/response-style` reads the skill file rather than invoking
+the disabled skill through the Skill tool. The last two exist because the suite previously
+tested only the scripts, so a matcher missing `fork` and a dead `/response-style` command both
+shipped green.
 
 ## Key Design Principles
 
@@ -528,7 +543,9 @@ Agents should:
 1. Create directory: `skills/<skill-name>/`
 2. Create `SKILL.md` with frontmatter and content
 3. (Optional) Add `README.md` for user documentation
-4. Register in `.claude-plugin/plugin.json` if needed
+4. Add it to the "Registered Skills" list in this file and the skills table in `README.md`
+   (do **not** edit `.claude-plugin/plugin.json`; skills are auto-discovered)
+5. Reference it from an agent or command, or `/validate-plugin` will flag it as an orphan
 
 ### Adding a New Agent
 
@@ -536,7 +553,8 @@ Agents should:
 2. Follow agent structure template
 3. Reference existing skills where appropriate
 4. Test with real scenarios
-5. Register in `.claude-plugin/plugin.json` if needed
+5. Add it to the "Registered Agents" list in this file and the agents table in `README.md`
+   (do **not** edit `.claude-plugin/plugin.json`; agents are auto-discovered)
 
 ### Adding a New Command
 

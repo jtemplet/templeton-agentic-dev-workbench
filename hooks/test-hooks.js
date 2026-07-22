@@ -16,6 +16,13 @@
 //   3. env off-switch (TADW_STYLE_CORE=off) => both emit EMPTY stdout.
 //   4. flag-file off-switch (env unset, flag file present) => both emit EMPTY
 //      stdout. This path is invisible to env-var tests, so it is covered here.
+//   5. The MANIFEST itself: style-core-hooks.json must match every SessionStart
+//      source Claude Code can emit. The suite previously tested only the two
+//      scripts, so a matcher missing a source (this happened: `fork` was absent,
+//      silently skipping style injection for every forked session) shipped green.
+//   6. /response-style must NOT route through the Skill tool. The skill sets
+//      disable-model-invocation, so the Skill tool refuses it and the command
+//      silently no-ops. Regression guard for that exact bug.
 
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
@@ -111,6 +118,63 @@ check('flag file disables both hooks with env unset', () => {
   const env = enabledEnv({ CLAUDE_CONFIG_DIR: tmp });
   assert.strictEqual(runHook(SESSION, env), '', 'SessionStart must be empty when flag file present');
   assert.strictEqual(runHook(SUBAGENT, env), '', 'SubagentStart must be empty when flag file present');
+});
+
+// --- 5. Manifest: matcher covers every SessionStart source ----------------
+// Keep in sync with Claude Code's SessionStart source enum. Adding a source
+// here without adding it to the matcher is what silently disables the hook.
+const SESSION_START_SOURCES = ['startup', 'resume', 'clear', 'compact', 'fork'];
+
+check('SessionStart matcher covers every session source', () => {
+  const manifestPath = path.join(HOOKS_DIR, 'style-core-hooks.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+  const sessionStart = manifest.hooks.SessionStart;
+  assert.ok(Array.isArray(sessionStart) && sessionStart.length > 0, 'SessionStart must be declared');
+
+  const matcher = new RegExp(sessionStart[0].matcher);
+  for (const source of SESSION_START_SOURCES) {
+    assert.ok(matcher.test(source), `matcher must cover the "${source}" session source`);
+  }
+
+  assert.ok(Array.isArray(manifest.hooks.SubagentStart), 'SubagentStart must be declared');
+
+  // Every referenced script must exist, or the hook no-ops at runtime.
+  for (const entry of [...sessionStart, ...manifest.hooks.SubagentStart]) {
+    for (const hook of entry.hooks) {
+      const script = hook.command.match(/hooks\/([\w-]+\.js)/);
+      assert.ok(script, `command must invoke a hooks/*.js script: ${hook.command}`);
+      assert.ok(
+        fs.existsSync(path.join(HOOKS_DIR, script[1])),
+        `referenced script ${script[1]} must exist`
+      );
+      // A bare `; exit 0` swallows a missing-node failure into a silent success.
+      assert.ok(
+        hook.command.includes('||'),
+        `command must emit a failure marker on error, not fail silently: ${hook.command}`
+      );
+    }
+  }
+});
+
+// --- 6. /response-style must not go through the Skill tool ----------------
+check('/response-style reads the skill file instead of invoking the Skill tool', () => {
+  const skillPath = path.join(HOOKS_DIR, '..', 'skills', 'house-response-style', 'SKILL.md');
+  const commandPath = path.join(HOOKS_DIR, '..', 'commands', 'response-style.md');
+  const skill = fs.readFileSync(skillPath, 'utf8');
+  const command = fs.readFileSync(commandPath, 'utf8');
+
+  // The guard only matters while the skill is non-model-invocable.
+  if (!skill.includes('disable-model-invocation: true')) return;
+
+  assert.ok(
+    /Read\b/.test(command) && command.includes('skills/house-response-style/SKILL.md'),
+    'command must instruct reading the SKILL.md file directly'
+  );
+  assert.ok(
+    !/Use the `house-response-style` skill/.test(command),
+    'command must not tell the model to invoke the disabled skill via the Skill tool'
+  );
 });
 
 console.log(`\nAll ${passed} checks passed.`);

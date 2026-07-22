@@ -2,12 +2,12 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume|clear|compact",
+        "matcher": "startup|resume|clear|compact|fork",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js\"; exit 0",
-            "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\session-start.js\" }",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js\" || echo \"<!-- house-style-core: FAILED to load (node missing or script error) -->\"; exit 0",
+            "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\session-start.js\" } else { Write-Output \"<!-- house-style-core: FAILED to load (node not found) -->\" }",
             "timeout": 5,
             "statusMessage": "Loading house style core..."
           }
@@ -19,8 +19,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-start.js\"; exit 0",
-            "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\subagent-start.js\" }",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-start.js\" || echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SubagentStart\",\"additionalContext\":\"<!-- house-style-core: FAILED to load (node missing or script error) -->\"}}'; exit 0",
+            "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\subagent-start.js\" } else { Write-Output '{\"hookSpecificOutput\":{\"hookEventName\":\"SubagentStart\",\"additionalContext\":\"<!-- house-style-core: FAILED to load (node not found) -->\"}}' }",
             "timeout": 5,
             "statusMessage": "Loading house style core..."
           }

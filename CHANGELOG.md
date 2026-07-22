@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.1] - 2026-07-22
+
+### Fixed
+
+- **The `SessionStart` matcher missed the `fork` session source, so forked sessions got no style
+  injection at all.** Claude Code declares five `SessionStart` sources; the matcher listed four.
+  Any session created by a conversation rewind, a branch, or `--fork-session` started with no
+  coding-style core and no response style, silently, with no error and no marker to notice it by.
+  The matcher is now `startup|resume|clear|compact|fork`.
+- **`/response-style` was a no-op.** The command told the model to load the `house-response-style`
+  skill, but that skill sets `disable-model-invocation: true`, so the Skill tool hard-refuses it.
+  The one designed recovery path for style drift after a compaction, and the only way to get the
+  response style inside a subagent, therefore did nothing. The command now **reads**
+  `skills/house-response-style/SKILL.md` directly, which keeps the single source of truth while
+  preserving the skill's non-model-invocable design.
+- **Hook failures are now visible instead of silent.** Each command was `node "..."; exit 0`,
+  which converted every possible failure (missing `node`, syntax error, bad permissions) into a
+  successful no-op. Commands are now `node "..." || echo <failure marker>`, so a failure injects
+  `<!-- house-style-core: FAILED to load ... -->` rather than nothing. The absence of any marker
+  now means the hook did not run; a FAILED marker means it ran and could not execute. The
+  `SubagentStart` fallback emits valid JSON so the wrapper contract still holds.
+- **`AGENTS.md` claimed `plugin.json` performs component registration. It does not.** The file
+  carries metadata plus the `hooks` field and lists zero components; skills, agents, and commands
+  are auto-discovered from their directories. The "Adding a New Skill" and "Adding a New Agent"
+  steps told readers to edit it, which had already produced one unsatisfiable acceptance criterion
+  in the tracker. They now name the real registration surfaces, and the skill steps add the
+  orphan-check requirement that `/validate-plugin` enforces.
+
+### Changed
+
+- **`hooks/test-hooks.js` now covers the manifest, not just the scripts.** The suite went from 4
+  checks to 6, adding one that asserts the `SessionStart` matcher covers all five sources, that
+  every referenced script exists, and that no command can fail silently; and one that guards
+  `/response-style` against being routed back through the Skill tool. Both of the bugs fixed above
+  shipped green under the old suite, which never opened `style-core-hooks.json`.
+
 ## [1.18.0] - 2026-07-22
 
 ### Added
