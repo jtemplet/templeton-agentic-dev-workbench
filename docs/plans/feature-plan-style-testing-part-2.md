@@ -97,7 +97,7 @@ Ships `skills/style-testing/references/fixtures/` and
 
 #### Fixtures
 
-```
+```text
 fixtures/
   python-pytest-service/      source.py     rubric.md
   ts-vitest-hook/             source.ts     rubric.md
@@ -127,9 +127,9 @@ weight in the pass bar.
    randomized order, and scores each criterion independently with cited evidence (D9).
 4. Three runs per arm; take the median.
 
-**Smoke check first (D10).** Run one arm-pair per fixture (12 runs) before committing to the full
-36. A fixture whose baseline already passes all three traps is a broken fixture, not a null result,
-and must be redesigned before the full matrix runs.
+**Smoke check first (D10).** Run one arm-pair per fixture (12 runs) before committing to all
+36 runs. A fixture whose baseline already passes all three traps is a broken fixture, not a null
+result, and must be redesigned before the full matrix runs.
 
 #### Pass bar (D8)
 

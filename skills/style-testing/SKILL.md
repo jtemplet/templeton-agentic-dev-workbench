@@ -251,10 +251,16 @@ Break a rule when the rule fights the goal, and say why in a comment:
 
 ---
 
+<!-- leak-check:appendix-start -->
+
 ## Appendix: Framework Idiom Map
 
 Reference only. The principles above are the skill; this table is how they are spelled. Nothing
 here is a rule.
+
+The two `leak-check` comments around this section are load-bearing: they are what
+`scripts/check_framework_leak.py` uses to decide which region may name a framework. Do not remove,
+duplicate, or reorder them, and keep every framework name inside them.
 
 | Principle | Python (pytest) | TypeScript (Vitest / Jest) | Swift (XCTest / Swift Testing) | Ruby (Minitest) |
 |---|---|---|---|---|
@@ -267,3 +273,5 @@ here is a rule.
 | 11, injected clock | pass a `Clock` protocol, or `freezegun` | inject a `now()` function, or fake timers | inject a `Date` provider closure | pass a clock object, or `travel_to` |
 | 11, seeded randomness | `random.Random(seed)` passed in | a seeded generator passed in | a `RandomNumberGenerator` passed in | `Random.new(seed)` passed in |
 | 13, public surface only | test the module's exports | test the module's exports | test `internal`/`public`, never `@testable` private access | test public methods only |
+
+<!-- leak-check:appendix-end -->

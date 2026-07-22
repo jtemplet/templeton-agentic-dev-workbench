@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-07-22
+
+### Changed
+
+- **The framework-leak check no longer parses markdown.** It located the exempt appendix by
+  finding a `## Appendix` heading, which meant it had to know whether that heading sat inside a
+  fenced code block. Five bypasses shipped from that one decision: a fenced fake heading, a ````
+  block containing ```, a closing fence carrying an info string, an over-indented fence, and an
+  exemption that ran to end of file. Each was patched by adding another CommonMark rule to a
+  hand-rolled scanner, and each patch left the next rule unimplemented. The exempt region is now
+  delimited by explicit `<!-- leak-check:appendix-start -->` and `<!-- leak-check:appendix-end -->`
+  sentinels, and the fence scanner is deleted. Two properties make that safe: exactly one of each
+  marker is required, so a marker duplicated inside a code sample is an error rather than an
+  ambiguous choice; and any marker problem disables the exemption entirely and scans the whole
+  document, so the failure mode is a visible false positive rather than a silent pass.
+- **The exemption is bounded.** It previously ran from the appendix heading to end of file, so a
+  section appended after the appendix was silently exempt. It now covers only the region between
+  the two markers.
+- **The regression suite derives its cases from the design contract, not from known bugs.** The
+  previous suite enumerated bugs already found and reported "All 15 checks passed" while three
+  live bypasses existed in the function it covered. Cases are now grouped by contract (marker
+  contract, exemption scope, parser independence) and cover 23 checks, including all five historic
+  bypasses as parser-independence assertions and the previously untested frontmatter
+  name-versus-directory branch.
+
+### Fixed
+
+- **CI ran no tests at all.** The only job was `rumdl fmt --check .`, so both `hooks/test-hooks.js`
+  and the leak checker suite were run only when a human remembered. A `tests` job now runs both
+  suites plus the leak check on the shipped skill. Both are stdlib-only, so no install step is
+  needed.
+- **Markdown linting was failing on `main`.** Files added earlier today carried five `rumdl`
+  violations, so the one CI job that did exist was red and unnoticed. Fixed, including a
+  line-initial `36.` in a plan document that markdown was rendering as an ordered list item.
+
 ## [1.18.3] - 2026-07-22
 
 ### Fixed

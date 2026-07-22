@@ -41,3 +41,22 @@ jobs:
 
       - name: Check Markdown formatting
         run: rumdl fmt --check .
+
+  tests:
+    name: Tests (hooks + skill checks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Both suites are stdlib-only by design, so neither needs an install step.
+      # They are wired here because the bugs they pin shipped green twice while
+      # CI checked only markdown formatting.
+      - name: Style-core hook tests
+        run: node hooks/test-hooks.js
+
+      - name: Framework-leak checker tests
+        run: python3 skills/style-testing/scripts/test_check_framework_leak.py
+
+      - name: Framework-leak check on the shipped skill
+        run: python3 skills/style-testing/scripts/check_framework_leak.py

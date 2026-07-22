@@ -4,17 +4,19 @@
 Stdlib only, no install, mirroring hooks/test-hooks.js. Run with:
     python3 skills/style-testing/scripts/test_check_framework_leak.py
 
-The checker exists to stop framework tokens leaking into style-testing's
-principles. Two separate bypasses shipped before this suite existed, both from
-markdown fence handling, both of which let a file containing `pytest` in its
-body exit 0:
+Cases are derived from the checker's design contract, not from the list of bugs
+that happened to be found. The previous suite enumerated known bugs and reported
+"All 15 checks passed" while three live bypasses existed in the function it
+covered; enumerating known bugs only ever pins the past.
 
-  1. A `## Appendix` heading inside a fenced code block split the document
-     early, exempting everything after it.
-  2. After (1) was fixed with a naive toggle, a ```` block containing a ```
-     line read as closed, re-exposing the same heading.
+The contract has three parts, and each has its own group below:
 
-Every case below is a real defect that shipped or a guard against one.
+  MARKER CONTRACT   exactly one of each sentinel, or no exemption at all
+  EXEMPTION SCOPE   only the region between the sentinels may name a framework
+  PARSER INDEPENDENCE  markdown structure, especially code fences, must not be
+                    able to move the exempt region. Five bypasses came from the
+                    old heading-based split; these cases assert that markdown
+                    shape is now simply irrelevant.
 """
 
 from __future__ import annotations
@@ -28,7 +30,13 @@ from pathlib import Path
 CHECKER = Path(__file__).resolve().parent / "check_framework_leak.py"
 REAL_SKILL = Path(__file__).resolve().parent.parent / "SKILL.md"
 
-FRONTMATTER = "---\nname: style-testing\ndescription: mentions pytest and Vitest for keyword matching\n---\n"
+START = "<!-- leak-check:appendix-start -->"
+END = "<!-- leak-check:appendix-end -->"
+
+FRONTMATTER = (
+    "---\nname: style-testing\n"
+    "description: mentions pytest and Vitest for keyword matching\n---\n"
+)
 SECTIONS = "\n".join(
     f"## {section}"
     for section in (
@@ -41,7 +49,9 @@ SECTIONS = "\n".join(
         "Quality Checklist",
     )
 )
-APPENDIX = "\n## Appendix\npytest | vitest | xctest | minitest\n"
+APPENDIX = f"\n{START}\n## Appendix\npytest | vitest | xctest | minitest\n{END}\n"
+
+PASS, FAIL = 0, 1
 
 
 def run_checker(content: str, dirname: str = "style-testing") -> int:
@@ -60,108 +70,201 @@ def run_checker(content: str, dirname: str = "style-testing") -> int:
         shutil.rmtree(root)
 
 
-PASS, FAIL = 0, 1
-
-CASES: tuple[tuple[str, str, int], ...] = (
+# (group, name, content, expected exit, skill directory name)
+CASES: tuple[tuple[str, str, str, int, str], ...] = (
+    # --- MARKER CONTRACT ---------------------------------------------------
+    ("marker", "well-formed markers pass", FRONTMATTER + SECTIONS + APPENDIX, PASS, "style-testing"),
     (
-        "clean file passes",
-        FRONTMATTER + SECTIONS + APPENDIX,
-        PASS,
+        "marker",
+        "missing start marker fails",
+        FRONTMATTER + SECTIONS + f"\n## Appendix\npytest | vitest | xctest | minitest\n{END}\n",
+        FAIL,
+        "style-testing",
     ),
     (
+        "marker",
+        "missing end marker fails",
+        FRONTMATTER + SECTIONS + f"\n{START}\n## Appendix\npytest | vitest | xctest | minitest\n",
+        FAIL,
+        "style-testing",
+    ),
+    (
+        "marker",
+        "duplicate start marker fails rather than picking one",
+        FRONTMATTER + SECTIONS + f"\n{START}\n" + APPENDIX,
+        FAIL,
+        "style-testing",
+    ),
+    (
+        "marker",
+        "end marker before start marker fails",
+        FRONTMATTER + SECTIONS + f"\n{END}\n## Appendix\npytest | vitest | xctest | minitest\n{START}\n",
+        FAIL,
+        "style-testing",
+    ),
+    (
+        "marker",
+        "FAIL-SAFE: a broken marker contract disables the exemption entirely",
+        # The duplicated marker is the only structural problem; the `rspec` token
+        # would be exempt under a working contract. It must still be reported.
+        FRONTMATTER + SECTIONS + f"\n{START}\n{START}\nuse rspec let! here\n{END}\n",
+        FAIL,
+        "style-testing",
+    ),
+    # --- EXEMPTION SCOPE ---------------------------------------------------
+    (
+        "scope",
         "framework token in the body fails",
         FRONTMATTER + SECTIONS + "\nuse pytest fixtures here\n" + APPENDIX,
         FAIL,
+        "style-testing",
     ),
     (
-        "token only in frontmatter passes (description lists frameworks deliberately)",
+        "scope",
+        "framework token between the markers passes",
         FRONTMATTER + SECTIONS + APPENDIX,
         PASS,
+        "style-testing",
     ),
     (
-        "token in the appendix passes (mapping idioms is its job)",
-        FRONTMATTER + SECTIONS + APPENDIX + "\nrspec uses let!\n",
-        PASS,
-    ),
-    (
-        "REGRESSION: fake appendix heading inside a ``` fence must not split the document",
-        FRONTMATTER + SECTIONS + "\n```\n## Appendix\n```\nuse pytest here\n" + APPENDIX,
-        FAIL,
-    ),
-    (
-        "REGRESSION: ```` block containing ``` must not read as closed",
-        FRONTMATTER + SECTIONS + "\n````\n```\n## Appendix\n```\n````\nuse pytest here\n" + APPENDIX,
-        FAIL,
-    ),
-    (
-        "REGRESSION: a ~~~ line inside a ``` block is content, not a closer",
-        FRONTMATTER + SECTIONS + "\n```\n~~~\n## Appendix\n```\nuse pytest here\n" + APPENDIX,
-        FAIL,
-    ),
-    (
-        "REGRESSION: required sections must be real headings, not code comments",
+        "scope",
+        "token AFTER the end marker fails (the exemption is bounded)",
         FRONTMATTER
-        + "\n```\n# When to Use\n# Notation\n# Principles\n# Anti-Patterns\n"
-        "# Escape Hatches\n# Apply Workflow\n# Quality Checklist\n```\n"
+        + SECTIONS
+        + APPENDIX
+        + "\n## Further Reading\nAlways use let! and build_stubbed in rspec specs.\n",
+        FAIL,
+        "style-testing",
+    ),
+    (
+        "scope",
+        "token only in frontmatter passes (the description lists frameworks deliberately)",
+        FRONTMATTER + SECTIONS + APPENDIX,
+        PASS,
+        "style-testing",
+    ),
+    # --- PARSER INDEPENDENCE ----------------------------------------------
+    (
+        "parser",
+        "a `## Appendix` heading inside a code fence cannot move the exempt region",
+        FRONTMATTER
+        + SECTIONS
+        + "\n```\n## Appendix\n```\nuse pytest here\n"
         + APPENDIX,
         FAIL,
+        "style-testing",
     ),
     (
+        "parser",
+        "a ```` block containing ``` cannot move the exempt region",
+        FRONTMATTER
+        + SECTIONS
+        + "\n````\n```\n## Appendix\n```\n````\nuse pytest here\n"
+        + APPENDIX,
+        FAIL,
+        "style-testing",
+    ),
+    (
+        "parser",
+        "a closing fence carrying an info string cannot move the exempt region",
+        FRONTMATTER
+        + SECTIONS
+        + "\n```\n```python\n## Appendix\n```\nuse pytest here\n"
+        + APPENDIX,
+        FAIL,
+        "style-testing",
+    ),
+    (
+        "parser",
+        "an over-indented fence cannot move the exempt region",
+        FRONTMATTER
+        + SECTIONS
+        + "\n```\n        ```\n## Appendix\n```\nuse pytest here\n"
+        + APPENDIX,
+        FAIL,
+        "style-testing",
+    ),
+    (
+        "parser",
+        "an unclosed fence cannot move the exempt region",
+        FRONTMATTER + SECTIONS + "\n```\nuse pytest here\n" + APPENDIX,
+        FAIL,
+        "style-testing",
+    ),
+    (
+        "parser",
         "legitimate fenced pseudocode does not false-positive",
-        FRONTMATTER + SECTIONS + '\n```text\ngroup "when x"\n  given a = 1\n```\n' + APPENDIX,
+        FRONTMATTER
+        + SECTIONS
+        + '\n```text\ngroup "when x"\n  given a = 1\n  action = submit(form)\n```\n'
+        + APPENDIX,
         PASS,
+        "style-testing",
+    ),
+    # --- OTHER CHECKS ------------------------------------------------------
+    ("other", "missing frontmatter fails", SECTIONS + APPENDIX, FAIL, "style-testing"),
+    (
+        "other",
+        "unterminated frontmatter fails",
+        "---\nname: style-testing\n" + SECTIONS + APPENDIX,
+        FAIL,
+        "style-testing",
     ),
     (
-        "unclosed fence fails loudly rather than silently exempting",
-        FRONTMATTER + SECTIONS + "\n```\nsome code\n" + APPENDIX,
+        "other",
+        "frontmatter name not matching the directory fails",
+        FRONTMATTER + SECTIONS + APPENDIX,
         FAIL,
+        "style-elsewhere",
     ),
     (
-        "missing frontmatter fails",
-        SECTIONS + APPENDIX,
+        "other",
+        "a missing required section fails",
+        FRONTMATTER + "## When to Use\n## Notation\n" + APPENDIX,
         FAIL,
+        "style-testing",
     ),
     (
-        "missing appendix fails",
-        FRONTMATTER + SECTIONS,
+        "other",
+        "an appendix missing a required framework fails",
+        FRONTMATTER + SECTIONS + f"\n{START}\n## Appendix\npytest | vitest only\n{END}\n",
         FAIL,
+        "style-testing",
     ),
-    (
-        "appendix missing a required framework fails",
-        FRONTMATTER + SECTIONS + "\n## Appendix\npytest | vitest only\n",
-        FAIL,
-    ),
-    (
-        "empty file fails",
-        "",
-        FAIL,
-    ),
+    ("other", "empty file fails", "", FAIL, "style-testing"),
 )
 
 
 def main() -> int:
     print("check_framework_leak tests:")
     failures = 0
+    group = None
 
-    for name, content, expected in CASES:
-        actual = run_checker(content)
+    for case_group, name, content, expected, dirname in CASES:
+        if case_group != group:
+            group = case_group
+            print(f"\n  [{group}]")
+        actual = run_checker(content, dirname)
         if actual == expected:
-            print(f"  ok - {name}")
+            print(f"    ok - {name}")
         else:
             failures += 1
             want = "pass" if expected == PASS else "fail"
-            print(f"  NOT OK - {name}\n      expected the checker to {want}, got exit {actual}")
+            print(f"    NOT OK - {name}\n        expected the checker to {want}, got exit {actual}")
 
-    # The shipped skill must satisfy its own checker.
+    print("\n  [shipped artifact]")
     if REAL_SKILL.is_file():
         result = subprocess.run(
             [sys.executable, str(CHECKER), str(REAL_SKILL)], capture_output=True, text=True
         )
         if result.returncode == 0:
-            print("  ok - the shipped SKILL.md passes its own checker")
+            print("    ok - the shipped SKILL.md passes its own checker")
         else:
             failures += 1
-            print(f"  NOT OK - the shipped SKILL.md fails its own checker\n{result.stdout}")
+            print(f"    NOT OK - the shipped SKILL.md fails its own checker\n{result.stdout}")
+    else:
+        failures += 1
+        print(f"    NOT OK - expected the shipped skill at {REAL_SKILL}")
 
     if failures:
         print(f"\n{failures} check(s) failed.")

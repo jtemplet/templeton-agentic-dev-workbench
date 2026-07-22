@@ -2,14 +2,42 @@
 """Enforce that style-testing's principles stay framework-independent.
 
 The skill's value depends on one structural constraint: the body states testing
-principles without naming any test framework, and a single fenced appendix maps
-those principles to framework idioms. Author discipline does not hold that line
-across edits, so this check does.
+principles without naming any test framework, and a single appendix maps those
+principles to framework idioms. Author discipline does not hold that line across
+edits, so this check does.
 
-Scans everything between the frontmatter and the appendix heading. The
-frontmatter is exempt because its description deliberately lists frameworks for
-keyword matching at invocation time, and the appendix is exempt because mapping
-idioms is its entire job.
+The exempt region is delimited by explicit sentinel comments, NOT by parsing
+markdown:
+
+    <!-- leak-check:appendix-start -->
+    ... framework idioms live here ...
+    <!-- leak-check:appendix-end -->
+
+Why sentinels. This check previously found the appendix by locating a `## Appendix`
+heading, which required knowing whether that heading sat inside a fenced code
+block. Five separate bypasses shipped from that one decision (a fenced fake
+heading, a ```` block containing ```, a closing fence carrying an info string, an
+over-indented fence, and an exemption that ran to end of file). Each was patched
+by adding another CommonMark rule to a hand-rolled scanner, and each patch left
+the next rule unimplemented. Sentinels remove the dependency on parsing markdown
+at all.
+
+Two properties make that safe:
+
+  1. Exactly one of each marker is required. A marker duplicated anywhere, for
+     example inside a code sample, is an ERROR rather than an ambiguous choice
+     of which one to honour.
+  2. Any marker problem disables the exemption entirely and scans the whole
+     document. The failure mode is a false positive you can see, never a silent
+     pass.
+
+Frontmatter is exempt because its description deliberately lists frameworks for
+keyword matching at invocation time.
+
+Known limitation: required-section detection matches `## ` headings by text, so a
+`## Principles` line inside a fenced code sample would satisfy that check. That
+weakens a structural check; it cannot exempt a framework token, because token
+scanning depends only on the sentinels.
 
 Usage:  python3 check_framework_leak.py [path/to/SKILL.md]
 Exit:   0 clean, 1 with a line-numbered report.
@@ -22,43 +50,10 @@ import sys
 from pathlib import Path
 
 DEFAULT_SKILL = Path(__file__).resolve().parent.parent / "SKILL.md"
-APPENDIX_HEADING = re.compile(r"^##\s+Appendix\b", re.IGNORECASE)
 FRONTMATTER_FENCE = "---"
-CODE_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
-
-
-def fenced_flags(lines: list[str]) -> list[bool]:
-    """Mark every line that sits inside a fenced code block, fence lines included.
-
-    Headings are only headings outside a fence. Without this, a code sample
-    containing `## Appendix` ends the body early and exempts every real leak
-    after it, and a `# Principles` comment satisfies the required-section check.
-
-    Fence matching follows CommonMark: a block opened with N of a character
-    closes only on a run of at least N of that SAME character. Treating any
-    fence-looking line as a toggle is not equivalent, and is itself a bypass:
-    a ```` block containing a ``` line would read as closed, exposing the
-    `## Appendix` inside it as a real heading.
-    """
-    flags: list[bool] = []
-    opening: tuple[str, int] | None = None
-
-    for line in lines:
-        match = CODE_FENCE.match(line)
-        if not match:
-            flags.append(opening is not None)
-            continue
-
-        marker = match.group(1)
-        char, length = marker[0], len(marker)
-        if opening is None:
-            opening = (char, length)
-        elif char == opening[0] and length >= opening[1]:
-            opening = None
-        # Any other fence-looking line is content inside the open block.
-        flags.append(True)
-
-    return flags
+APPENDIX_START = "<!-- leak-check:appendix-start -->"
+APPENDIX_END = "<!-- leak-check:appendix-end -->"
+H2_HEADING = re.compile(r"^##\s+(.+?)\s*$")
 
 # Substrings that must not appear in the body. Matched case-insensitively.
 BANNED_TOKENS = (
@@ -91,26 +86,46 @@ REQUIRED_APPENDIX_FRAMEWORKS = (
 )
 
 
-def split_document(
-    lines: list[str], fenced: list[bool]
-) -> tuple[list[str], list[tuple[int, str]], list[str]]:
-    """Return (frontmatter, numbered body lines, appendix lines)."""
-    frontmatter: list[str] = []
-    start = 0
+def frontmatter_bounds(lines: list[str]) -> tuple[list[str], int]:
+    """Return (frontmatter lines, index of the first body line)."""
+    if not lines or lines[0].strip() != FRONTMATTER_FENCE:
+        return [], 0
 
-    if lines and lines[0].strip() == FRONTMATTER_FENCE:
-        for index in range(1, len(lines)):
-            if lines[index].strip() == FRONTMATTER_FENCE:
-                frontmatter = lines[1:index]
-                start = index + 1
-                break
+    for index in range(1, len(lines)):
+        if lines[index].strip() == FRONTMATTER_FENCE:
+            return lines[1:index], index + 1
 
-    for index in range(start, len(lines)):
-        if not fenced[index] and APPENDIX_HEADING.match(lines[index]):
-            body = [(n + 1, lines[n]) for n in range(start, index)]
-            return frontmatter, body, lines[index:]
+    # Unterminated frontmatter: report it as missing and scan from the top.
+    return [], 0
 
-    return frontmatter, [(n + 1, lines[n]) for n in range(start, len(lines))], []
+
+def locate_appendix(lines: list[str], start_index: int) -> tuple[int | None, int | None, list[str]]:
+    """Find the sentinel-delimited appendix.
+
+    Returns (start line index, end line index, problems). Any problem yields
+    (None, None, problems), which disables the exemption so the whole document
+    is scanned. Ambiguity must never silently widen the exempt region.
+    """
+    starts = [i for i in range(start_index, len(lines)) if lines[i].strip() == APPENDIX_START]
+    ends = [i for i in range(start_index, len(lines)) if lines[i].strip() == APPENDIX_END]
+
+    problems: list[str] = []
+    if len(starts) != 1:
+        problems.append(
+            f"appendix: expected exactly 1 `{APPENDIX_START}` marker, found {len(starts)}"
+        )
+    if len(ends) != 1:
+        problems.append(
+            f"appendix: expected exactly 1 `{APPENDIX_END}` marker, found {len(ends)}"
+        )
+    if not problems and ends[0] < starts[0]:
+        problems.append(
+            f"appendix: end marker (line {ends[0] + 1}) precedes start marker (line {starts[0] + 1})"
+        )
+
+    if problems:
+        return None, None, problems
+    return starts[0], ends[0], []
 
 
 def check_frontmatter(frontmatter: list[str], skill_path: Path) -> list[str]:
@@ -142,14 +157,14 @@ def check_body_tokens(body: list[tuple[int, str]]) -> list[str]:
         lowered = line.lower()
         for token in BANNED_TOKENS:
             if token in lowered:
-                problems.append(f"line {number}: leaked framework token `{token}` in `{line.strip()}`")
+                problems.append(
+                    f"line {number}: leaked framework token `{token}` in `{line.strip()}`"
+                )
     return problems
 
 
-def check_sections(lines: list[str], fenced: list[bool]) -> list[str]:
-    headings = "\n".join(
-        line for index, line in enumerate(lines) if line.startswith("#") and not fenced[index]
-    )
+def check_sections(lines: list[str]) -> list[str]:
+    headings = "\n".join(match.group(1) for match in map(H2_HEADING.match, lines) if match)
     return [
         f"structure: required section `{section}` is missing"
         for section in REQUIRED_SECTIONS
@@ -158,9 +173,6 @@ def check_sections(lines: list[str], fenced: list[bool]) -> list[str]:
 
 
 def check_appendix_coverage(appendix: list[str]) -> list[str]:
-    if not appendix:
-        return ["appendix: missing, so the principles have no idiom map"]
-
     text = "\n".join(appendix).lower()
     return [
         f"appendix: no coverage for {' / '.join(spellings)}"
@@ -176,12 +188,25 @@ def main() -> int:
         return 1
 
     lines = skill_path.read_text(encoding="utf-8").splitlines()
-    fenced = fenced_flags(lines)
-    frontmatter, body, appendix = split_document(lines, fenced)
+    frontmatter, body_start = frontmatter_bounds(lines)
+    start, end, marker_problems = locate_appendix(lines, body_start)
+
+    if start is None or end is None:
+        # No trustworthy exemption: scan everything after the frontmatter.
+        body = [(n + 1, lines[n]) for n in range(body_start, len(lines))]
+        appendix: list[str] = []
+    else:
+        body = [
+            (n + 1, lines[n])
+            for n in range(body_start, len(lines))
+            if not start <= n <= end
+        ]
+        appendix = lines[start + 1 : end]
 
     problems = [
         *check_frontmatter(frontmatter, skill_path),
-        *check_sections(lines, fenced),
+        *marker_problems,
+        *check_sections(lines),
         *check_body_tokens(body),
         *check_appendix_coverage(appendix),
     ]
