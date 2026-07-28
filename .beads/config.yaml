@@ -1,0 +1,7 @@
+# Beads Project Configuration
+issue_prefix: tadw
+# default_priority: 2
+# default_type: task
+
+# Git branch for beads sync
+sync-branch: beads-sync

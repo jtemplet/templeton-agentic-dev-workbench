@@ -1,0 +1,10 @@
+{
+  "name": "templeton-agentic-dev-workbench",
+  "version": "1.5.0",
+  "description": "Personal agentic development workbench with Python/Ruby/Frontend coding styles, code review agents, feature development, and ideation tools",
+  "author": {
+    "name": "Jason Templeton",
+    "email": "jtemple77@gmail.com"
+  },
+  "license": "MIT"
+}

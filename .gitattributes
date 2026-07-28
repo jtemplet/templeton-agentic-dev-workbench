@@ -1,0 +1,65 @@
+# ============================================================================
+# Git Attributes for Claude Code Plugin Repository
+# ============================================================================
+
+# Beads (br): JSONL files use union merge to preserve lines from both sides
+# This prevents conflicts on append-only issue tracking files
+.beads/issues.jsonl merge=union
+.beads/interactions.jsonl merge=union
+
+# ============================================================================
+# Line Ending Normalization (cross-platform consistency)
+# ============================================================================
+
+# Text files: normalize to LF on commit, convert to platform native on checkout
+* text=auto
+
+# Explicitly declare markdown as text (always LF)
+*.md text eol=lf
+
+# JSON files: always LF
+*.json text eol=lf
+*.jsonl text eol=lf
+
+# Shell scripts: always LF (if any future scripts added)
+*.sh text eol=lf
+
+# ============================================================================
+# Diff Strategies (better git diff output)
+# ============================================================================
+
+# JSON: better diff for structured data
+*.json diff=json
+
+# ============================================================================
+# GitHub Linguist (help GitHub understand this repo)
+# ============================================================================
+
+# Mark this as a Claude Code plugin project (documentation)
+agents/*.md linguist-language=Markdown linguist-documentation
+skills/*/SKILL.md linguist-language=Markdown linguist-documentation
+commands/*.md linguist-language=Markdown linguist-documentation
+
+# Documentation directories
+docs/* linguist-documentation
+README.md linguist-documentation
+IMPROVEMENTS.md linguist-documentation
+
+# Exclude from language stats
+.gitattributes linguist-vendored
+.gitignore linguist-vendored
+.claude-plugin/* linguist-vendored
+
+# ============================================================================
+# Export-Ignore (exclude from git archive / releases)
+# ============================================================================
+
+# Development files not needed in releases
+.gitattributes export-ignore
+.gitignore export-ignore
+.session-handoff.md export-ignore
+templeton-agentic-dev-workbench.code-workspace export-ignore
+.DS_Store export-ignore
+
+# Beads (br) issue tracking (internal tool)
+.beads/ export-ignore

@@ -1,0 +1,36 @@
+# Local settings (user-specific)
+.claude/settings.local.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.idea/
+*.swp
+*.swo
+*~
+
+# Node modules (if any tooling added)
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Beads (br) - runtime artifacts handled by .beads/.gitignore
+# Only need to ignore files not covered there
+.beads/daemon.log
+.beads/.local_version
+
+# Beads Viewer (bv) - track workspace config, ignore cache
+.bv/*
+!.bv/workspace.yml
+
+# Backup skills
+skills/rails-conventions-BAK/
