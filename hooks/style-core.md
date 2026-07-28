@@ -1,5 +1,5 @@
 <!-- house-style-core: loaded -->
-<!-- Injected by templeton-agentic-dev-workbench on every session and subagent. -->
+<!-- Injected by tadw on every session and subagent. -->
 <!-- Universal coding-style core. Language-specific deltas live in the style-* skills. -->
 
 # House Coding-Style Core

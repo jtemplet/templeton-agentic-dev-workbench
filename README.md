@@ -1,4 +1,4 @@
-# templeton-agentic-dev-workbench
+# tadw (Templeton Agentic Dev Workbench)
 
 Personal Claude Code plugin — an agentic development workbench with custom agents, skills, and commands for Python, Ruby/Rails, JavaScript/TypeScript/React/Vue, Swift/iOS, and Terraform development.
 
@@ -9,8 +9,16 @@ Personal Claude Code plugin — an agentic development workbench with custom age
 /plugin marketplace add jtemplet/templeton-agentic-marketplace
 
 # Install this plugin
-/plugin install templeton-agentic-dev-workbench@templeton-agentic-marketplace
+/plugin install tadw@templeton-agentic-marketplace
 ```
+
+Everything in the plugin is namespaced under `tadw:`, so a skill or agent is addressed as
+`tadw:fresh-eyes-cr`, `tadw:code-reviewer`, and so on. The namespace comes from the `name` field in
+`.claude-plugin/plugin.json`.
+
+> **Upgrading from 1.x?** The namespace was `templeton-agentic-dev-workbench:` before 2.0.0.
+> Uninstall the old plugin and install this one under its new name; see the 2.0.0 entry in
+> [CHANGELOG.md](CHANGELOG.md).
 
 ## Workflow Pipelines
 

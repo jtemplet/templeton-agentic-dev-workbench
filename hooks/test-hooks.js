@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// templeton-agentic-dev-workbench - standalone hook test
+// tadw - standalone hook test
 //
 // No dependencies, no package.json: uses only Node built-ins. Run with:
 //   node hooks/test-hooks.js

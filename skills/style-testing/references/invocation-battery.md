@@ -11,7 +11,7 @@ current work.
 load the working tree. They load a versioned marketplace cache built from the GitHub remote:
 
 ```text
-~/.claude/plugins/cache/templeton-agentic-marketplace/templeton-agentic-dev-workbench/<version>/
+~/.claude/plugins/cache/templeton-agentic-marketplace/tadw/<version>/
 ```
 
 So any skill authored here is invisible to every session and subagent until it is merged, version
@@ -33,8 +33,8 @@ re-measure. No publish cycle per iteration.
 
 **Two caveats.**
 
-1. The skill registers unprefixed as `style-testing` rather than
-   `templeton-agentic-dev-workbench:style-testing`. This does not affect what the battery measures,
+1. The skill registers unprefixed as `style-testing` rather than `tadw:style-testing`. This does not
+   affect what the battery measures,
    since selection is driven by the description text, not the namespace.
 2. The symlink is global and fires in every project. **Remove it once the skill ships via the
    plugin**, or you will have two registrations of the same skill:

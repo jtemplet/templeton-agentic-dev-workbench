@@ -1,5 +1,5 @@
 #!/bin/sh
-# templeton-agentic-dev-workbench - style-core hook wrapper
+# tadw - style-core hook wrapper
 #
 # Usage: run-hook.sh <script-path> <fallback-text>
 #

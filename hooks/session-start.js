@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// templeton-agentic-dev-workbench - SessionStart hook
+// tadw - SessionStart hook
 //
 // Injects the universal style core plus the response style into every
 // new/resumed/cleared/compacted session as raw stdout context. The response
