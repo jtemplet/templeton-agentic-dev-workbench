@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-27
+
+### Changed
+
+- **BREAKING: the plugin is now named `tadw`.** Every skill, agent, and command was addressed
+  through a 31-character prefix (`templeton-agentic-dev-workbench:fresh-eyes-cr`) before the part
+  that carried any meaning. The invocation namespace is derived from the plugin's name, so shortening
+  the name shortens every invocation: `tadw:fresh-eyes-cr`, `tadw:code-reviewer`, `/tadw:quality-gates`.
+
+  There is no compatibility shim. Listing the plugin under both names would install every skill and
+  command twice and fire the `SessionStart` hook twice per session, so this is a clean cut. To
+  upgrade:
+
+  ```bash
+  /plugin marketplace update templeton-agentic-marketplace
+  /plugin uninstall templeton-agentic-dev-workbench@templeton-agentic-marketplace
+  /plugin install tadw@templeton-agentic-marketplace
+  ```
+
+  Then restart the session. Anything outside this repo that names a skill or agent by its full
+  prefix (`.outrigger/config` files, `RALPH.md`/`AGENT.md` prose, `Skill(...)` and `Agent(...)`
+  permission entries in `.claude/settings.local.json`) needs the prefix rewritten; a stale prefix
+  fails to resolve rather than falling back.
+
+  Unaffected: the repository name and its git remote, the `TADW_STYLE_CORE` environment variable and
+  the `.tadw-style-core-off` flag file, and the `tadw-*` beads issue prefix. Those were never derived
+  from the plugin name and keep working untouched.
+
 ## [1.19.2] - 2026-07-22
 
 ### Fixed

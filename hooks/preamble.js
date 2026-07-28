@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// templeton-agentic-dev-workbench - injected-preamble loaders
+// tadw - injected-preamble loaders
 //
 // Reads the canonical injected text from its markdown source. If a read fails
 // for any reason, returns a small hardcoded fallback so the hook still injects

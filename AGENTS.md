@@ -359,6 +359,12 @@ components: skills, agents, and commands are auto-discovered from their director
 `plugin.json` lists none of them. The registration surfaces are the component lists in this file
 and the table in `README.md`.
 
+The `name` field (`tadw`) is also the **invocation namespace**: every component in this plugin is
+addressed as `tadw:<component>` (`tadw:fresh-eyes-cr`, `tadw:code-reviewer`). Changing `name` renames
+every invocation path at once, including the ones hardcoded in other repos, so treat it as a breaking
+change. It was `templeton-agentic-dev-workbench` before 2.0.0. Unrelated to the namespace despite the
+shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue prefix.
+
 **Registered Skills:**
 
 - `review-python` - PEP 8 and Google Style Guide reviews

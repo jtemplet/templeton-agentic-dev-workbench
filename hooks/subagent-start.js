@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// templeton-agentic-dev-workbench - SubagentStart hook
+// tadw - SubagentStart hook
 //
 // SessionStart context is parent-thread only and never reaches spawned
 // subagents, so without this every Task-spawned agent runs style-core-unaware.

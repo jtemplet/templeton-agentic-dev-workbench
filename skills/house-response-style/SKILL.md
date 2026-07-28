@@ -6,7 +6,7 @@ license: MIT
 ---
 
 <!-- house-response-style: loaded -->
-<!-- Injected by templeton-agentic-dev-workbench into parent sessions only. -->
+<!-- Injected by tadw into parent sessions only. -->
 <!-- Governs how responses to the user are written. Coding style lives in style-core.md. -->
 
 # House Response Style

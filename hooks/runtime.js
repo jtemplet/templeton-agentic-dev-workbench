@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// templeton-agentic-dev-workbench - shared hook runtime
+// tadw - shared hook runtime
 //
 // Centralizes the two pieces of logic that BOTH hook scripts must share so they
 // can never drift apart:
