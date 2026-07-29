@@ -292,7 +292,7 @@ git diff main...HEAD  # See changes to be reviewed
 
 - **Business Ideas:** Analyzes the project's business model, generates 15 revenue-focused candidates, critically evaluates, presents top 10
 - **Plan Feature:** Explores the codebase, drafts a structured implementation plan with testable acceptance criteria and a per-milestone "Done when", writes to `docs/plans/feature-plan-<name>.md`
-- **Plan Review:** Runs an acceptance-criteria gate (a plan with none, or with only subjective ones, is Actionability RED), evaluates the plan across 7 dimensions (completeness, feasibility, scope, risks, dependencies, MECE, actionability), runs a MECE audit for overlaps and gaps, renders a verdict
+- **Plan Review:** Runs an acceptance-criteria gate (a plan with none, or with only subjective ones, is Actionability RED), grounds the plan's claims in the actual codebase (named files, patterns, and stack must exist), evaluates the plan across 7 dimensions (completeness anchored to the `/plan-feature` template, feasibility, scope, risks, dependencies, MECE, actionability), runs a MECE audit for overlaps and gaps, renders a mechanical verdict; report-only, drafting missing Acceptance Criteria / Testing Strategy paste-ready and offering to apply
 - **Plan to Beads:** Decomposes the plan into `br` issues with dependency graph, articulates Marr Levels 1 (Why) and 2 (How) and acceptance criteria (Done when) per bead, audits each, then confirms with user before creating
 
 **Pipeline B - Product Strategy:**
@@ -380,7 +380,7 @@ shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue pr
 - `idea-wizard` - Generate 30 ideas, evaluate, distill to top 5
 - `architecture-decision-record` - Record decisions with context, options, and rationale
 - `business-ideas` - Analyze business model and surface 10 revenue-focused feature ideas
-- `plan-review` - Fresh-eyes plan review for completeness, feasibility, MECE adherence, and gaps; gates on the presence and testability of acceptance criteria
+- `plan-review` - Fresh-eyes plan review that gates on the presence and testability of acceptance criteria, grounds the plan's claims in the codebase, judges completeness against the `/plan-feature` template, and audits MECE coverage; report-only, with paste-ready drafts for missing Acceptance Criteria / Testing Strategy and an offer-to-apply handoff
 - `aso-audit` - App Store Optimization audit across 10 weighted factors with ASO Score Card and prioritized action plan
 - `ux-audit` - Web UX audit via Playwright across 7 design dimensions with severity-ranked report
 - `ux-audit-ios` - iOS UX audit via Simulator with Dynamic Type / Dark Mode / Bold Text testing against Apple HIG
@@ -433,7 +433,7 @@ shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue pr
 - `/agentic-clean-code` - Design or review agentic systems (tools, prompts, orchestration) against Clean Code and POODR principles
 - `/business-ideas` - Analyze business model, surface 10 revenue-focused feature ideas
 - `/plan-feature` - Generate a detailed implementation plan for a feature
-- `/plan-review` - Fresh-eyes review of a feature plan
+- `/plan-review` - Fresh-eyes review of a feature plan (report-only; grounds claims in the codebase, drafts missing acceptance criteria and test plans, offers to apply)
 - `/plan-to-beads` - Decompose a feature plan into br issues with dependencies; each bead audited for Why (L1), How (L2), and Done when (acceptance criteria) before creation
 - `/product-surface-docs` - Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface, grounded in code, surfacing bugs/gaps/debt into a findings ledger
 - `/bead-audit` - Audit one or more bead bodies; paste content directly, give a file path, or pipe your issue tracker's output - no specific CLI required

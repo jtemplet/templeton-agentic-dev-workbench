@@ -30,7 +30,7 @@ Everything in the plugin is namespaced under `tadw:`, so a skill or agent is add
 |---|---|
 | `/business-ideas` | Analyze business model, surface 10 revenue-focused feature ideas |
 | `/plan-feature <idea>` | Explore codebase, draft structured plan with acceptance criteria to `docs/plans/` |
-| `/plan-review <path>` | Gate on acceptance criteria, evaluate plan across 7 dimensions (incl. MECE audit), render verdict |
+| `/plan-review <path>` | Gate on acceptance criteria, ground claims in the codebase, evaluate 7 dimensions (incl. MECE audit), render verdict; drafts missing criteria/test plan |
 | `/plan-to-beads <path>` | Decompose plan into `br` issues; each bead audited for Why, How, and Done when |
 
 ### Pipeline B — Code Quality
@@ -151,7 +151,7 @@ Pair with `/loop` to run on a schedule:
 | `idea-wizard` | Structured ideation: generate, evaluate, distill |
 | `architecture-decision-record` | ADR format with context, options, and rationale |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis |
-| `plan-review` | Acceptance-criteria gate + 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability) |
+| `plan-review` | Acceptance-criteria gate + codebase grounding + 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability); report-only, drafts missing criteria/test plan |
 | `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan |
 | `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report |
 | `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG |

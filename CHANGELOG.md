@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-28
+
+### Changed
+
+- **`plan-review` now grounds plans in the codebase and drafts what is missing.** Shaped by a
+  live run against a real plan (which caught a conditionally-wrong behavioral claim no
+  text-only review could have seen):
+  - **Codebase Grounding** is a required step: existence, pattern, stack, and behavior checks
+    over every claim the design depends on; findings route to Feasibility (1-2 unverifiable
+    claims YELLOW, approach hinges on code that does not exist or behave as described RED).
+  - **Completeness is anchored to the `/plan-feature` canonical section list**, so a plan can no
+    longer score GREEN by silently omitting a section (previously it was judged only against the
+    headings it declared).
+  - **Draft, don't instruct:** a missing or failed Acceptance Criteria section gets a paste-ready
+    draft in the review (3-6 testable criteria derived from goals and scope), and a missing
+    Testing Strategy gets a drafted test plan; never just "add criteria". The gate's
+    where-to-look list now includes test-plan sections with objectively pass/fail assertions.
+  - **Mechanical verdicts:** any RED is Major Rework; 2+ YELLOW or a milestone-1 blocker is
+    Needs Revision; otherwise Ready. The summary must state whether milestone 1 is blocked.
+  - **Open Questions** now score under Dependencies when work depends on them; the
+    Roles-vs-stages MECE pairing applies only when the plan assigns owners (solo plans skip it).
+  - **Report-only with an offer-to-apply handoff** that follows the plan's own revision
+    conventions, plus a re-review protocol: verify a prior revision note against the body, and
+    never re-litigate decisions the plan records with rationale and evidence.
+
 ## [2.0.0] - 2026-07-27
 
 ### Changed
