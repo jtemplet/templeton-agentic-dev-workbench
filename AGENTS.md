@@ -400,7 +400,7 @@ shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue pr
 - `pr-maintenance` - Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop
 - `roadmap-dashboard` - Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` data-collection script and versions the output instead of overwriting
 - `production-ops` - Safely operate the production apps (atlas, meridian, compass, ...) as Docker Compose stacks on a single Hetzner VPS over a two-hop SSH login (root, then `su - deploy`); covers service ops and PostgreSQL data ops under strong guardrails (read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes/`prune`/`DROP`/`TRUNCATE`/`WHERE`-less writes)
-- `house-response-style` - The always-on response style as a single-source skill: lead with the answer, cut narration, structure only genuinely multi-part answers, suggest a follow-up only when earned, and end open work with an owner-split "Next actions" section. The `SessionStart` hook reads this file (frontmatter stripped) so the injected style and the on-demand `/response-style` command share one source of truth; carries a "why," Bad/Good pairs, escape hatches, and a pre-send check
+- `house-response-style` - The always-on response style as a single-source skill: lead with the answer, cut narration, write in Simplified Technical English (the ASD-STE100 **writing rules** only, explicitly not its licensed dictionary: one word one meaning, one part of speech per word, active voice and imperative instructions, no jargon or borrowed metaphor like "tombstone", one instruction per sentence, 20-word instructions and 25-word explanations, positive phrasing, condition-before-instruction warnings, with technical names and technical verbs kept verbatim), put multi-factor choices in a decision matrix with a bold recommendation, structure only genuinely multi-part answers, suggest a follow-up only when earned, and end open work with an owner-split "Next actions" section. The `SessionStart` hook reads this file (frontmatter stripped) so the injected style and the on-demand `/response-style` command share one source of truth; carries a "why," Bad/Good pairs, escape hatches, and a pre-send check
 
 **Registered Agents:**
 
@@ -454,7 +454,7 @@ shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue pr
 - `/pr-maintain` - Keep the current branch's PR rebased on its parent and passing CI; one iteration per invocation, safe to pair with `/loop`
 - `/roadmap-dashboard` - Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker
 - `/prod-ops` - Safely operate the production apps on the Hetzner VPS over SSH (service ops + PostgreSQL data ops) under strong guardrails; loads the `production-ops` skill
-- `/response-style` - Re-assert the house response style (concise, answer-first, owner-split "Next actions") to re-anchor after a compaction or inside a subagent; **reads** `skills/house-response-style/SKILL.md` directly rather than invoking it via the Skill tool, which refuses it because the skill sets `disable-model-invocation: true`
+- `/response-style` - Re-assert the house response style (concise, answer-first, Simplified Technical English, decision matrices for hard choices, owner-split "Next actions") to re-anchor after a compaction or inside a subagent; **reads** `skills/house-response-style/SKILL.md` directly rather than invoking it via the Skill tool, which refuses it because the skill sets `disable-model-invocation: true`
 
 ### Always-on style core (hooks)
 
@@ -465,14 +465,17 @@ present even when the model would not have chosen to load a skill, and even insi
 subagents (which never inherit the parent session's loaded skills).
 
 **What it injects.** The universal, language-agnostic core from `hooks/style-core.md` (TRUE
-code plus nine cross-language principles). The detailed per-language rules stay in the
+code plus ten cross-language principles). The detailed per-language rules stay in the
 on-demand `style-*` and `review-*` skills; only the small universal core is always on.
 
 - **`SessionStart`** injects the core plus the response style, sourced from the
   `house-response-style` skill (`skills/house-response-style/SKILL.md`, frontmatter stripped
-  at inject time): respond concisely; suggest a follow-up question only when the answer
-  genuinely raises one; end any response that leaves work open with a "Next actions" section
-  split into "Me (Claude)" and "You". Injected as raw context into every new, resumed,
+  at inject time): respond concisely; write in Simplified Technical English (ASD-STE100
+  writing rules, not the licensed dictionary); put multi-factor choices in a decision
+  matrix; suggest a follow-up
+  question only when the answer genuinely raises one; end any response that leaves work open
+  with a "Next actions" section split into "Me (Claude)" and "You". Injected as raw context
+  into every new, resumed,
   cleared, compacted, **or forked** session (the matcher must list all five sources; omitting
   one silently skips injection for it, with no error and no marker). The same file backs the
   on-demand `/response-style` command, which **reads** it rather than invoking it through the

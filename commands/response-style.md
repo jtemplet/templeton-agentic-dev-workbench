@@ -1,5 +1,5 @@
 ---
-description: "Re-assert the house response style (concise, answer-first, owner-split Next actions) for this session or subagent"
+description: "Re-assert the house response style (concise, answer-first, Simplified Technical English, decision matrices for hard choices, owner-split Next actions) for this session or subagent"
 ---
 
 **Read** the file `${CLAUDE_PLUGIN_ROOT}/skills/house-response-style/SKILL.md`, then follow it for

@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-08-04
+
+### Added
+
+- **`house-response-style` now mandates Simplified Technical English.** A new "Write in
+  Simplified Technical English" section adopts the ASD-STE100 writing rules: one word carries
+  one meaning and one part of speech, no jargon or borrowed metaphor ("tombstone", "reap",
+  "drain", "hydrate", "poison pill"), active voice with imperative instructions, simple verb
+  tenses, one instruction per sentence, 20 words maximum for an instruction and 25 for an
+  explanation, positive phrasing, no dropped articles, no noun stacks over three, English
+  instead of Latin abbreviations, and condition-before-instruction ordering in warnings.
+  Technical names and technical verbs (file paths, commands, settings, error text) stay
+  verbatim, which is itself an STE allowance; an unavoidable term is defined in the same
+  sentence that uses it.
+  - **The section states its own limit.** It adopts the writing rules only and explicitly
+    disclaims the controlled dictionary, which is licensed material that cannot be shipped
+    here and would strip ordinary technical conversation down to manual-speak. Guessing at
+    dictionary membership is called out as prohibited rather than left to inference.
+  - Scoped explicitly to wording, not content, so no fact, caveat, number, or warning is
+    dropped to make a sentence simpler.
+- **`house-response-style` now requires a decision matrix for hard choices.** A new "Put hard
+  choices in a decision matrix" section with a three-part trigger test (2-4 real options,
+  more than one factor that matters, expensive to undo or directly asked), an explicit skip
+  rule so obvious calls stay prose, a column/cell format that bans bare scores, and a worked
+  example ending in a bold recommendation plus the condition that would reverse it.
+
+### Changed
+
+- The "Why this shape" rationale gains a fourth fact (a word the reader has to decode costs
+  more than a longer sentence), and the pre-send check gains three rewrite passes and a
+  second verify question covering the matrix.
+- `preamble.js`'s degraded-path response-style fallback carries the plain-language and
+  decision-matrix rules, so a failed read of `SKILL.md` no longer silently drops them.
+
+### Fixed
+
+- `AGENTS.md` described the injected coding-style core as "nine cross-language principles";
+  `hooks/style-core.md` ships ten.
+- `README.md` was missing two registration rows that `AGENTS.md` already carried: the
+  `house-response-style` skill and the `/response-style` command. Both surfaces now list all
+  34 skills, 12 agents, and 36 commands.
+
 ## [2.1.0] - 2026-07-28
 
 ### Changed

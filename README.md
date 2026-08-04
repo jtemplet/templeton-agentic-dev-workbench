@@ -116,6 +116,7 @@ Pair with `/loop` to run on a schedule:
 | `/idea-wizard` | Generate 30 improvement ideas, evaluate, distill to top 5 |
 | `/adr <topic>` | Record an architectural decision with context and rationale |
 | `/agentic-clean-code [target]` | Design or review agentic code (tools, prompts, orchestration) against Clean Code + POODR |
+| `/response-style` | Re-assert the house response style (answer-first, Simplified Technical English, decision matrices, owner-split "Next actions") after a compaction or inside a subagent |
 
 ### Maintenance
 
@@ -171,6 +172,7 @@ Pair with `/loop` to run on a schedule:
 | `pr-maintenance` | Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop |
 | `roadmap-dashboard` | Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` collector and versions the output |
 | `production-ops` | Safely operate production Docker Compose apps on a single Hetzner VPS over SSH (two-hop `root` -> `su - deploy`); service ops and PostgreSQL data ops under strong guardrails: read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes / `prune` / `DROP` / `TRUNCATE` / `WHERE`-less writes |
+| `house-response-style` | The always-on response style, single-sourced for both the `SessionStart` hook and `/response-style`: lead with the answer, cut narration, write in Simplified Technical English (ASD-STE100 writing rules, not its licensed dictionary), put multi-factor choices in a decision matrix, and end open work with an owner-split "Next actions" section |
 
 ## Agents
 
@@ -214,9 +216,13 @@ a skill is not loaded and inside subagents that do not inherit the parent's skil
 text opens with a `<!-- house-style-core: loaded -->` marker so you can see it is active.
 
 `SessionStart` additionally injects a response style (`<!-- house-response-style: loaded -->`
-marker): respond concisely, suggest a follow-up question only when the answer genuinely
-raises one, and end any response that leaves work open with a "Next actions" section split
-into "Me (Claude)" and "You". Parent sessions only; subagents get the coding-style core
+marker): respond concisely, write in Simplified Technical English (the ASD-STE100 writing
+rules, not its licensed dictionary: one word one meaning, active voice, no jargon or
+borrowed metaphor, capped sentence length, with technical names like files and settings kept
+verbatim), put choices that trade off on more than
+one factor into a decision matrix with a bold recommendation, suggest a follow-up question
+only when the answer genuinely raises one, and end any response that leaves work open with a
+"Next actions" section split into "Me (Claude)" and "You". Parent sessions only; subagents get the coding-style core
 alone, since their output goes to the orchestrator, not a human. The rules live in one
 place, `skills/house-response-style/SKILL.md`: the hook reads that file (stripping its
 frontmatter) so the always-on injection can never drift from the on-demand `/response-style`
