@@ -1,0 +1,15 @@
+{
+  "prompt": "In two or three sentences of plain prose, explain why adding an index to a database table can make writes slower. No bullet points, no headings, no code.",
+  "why": "STE rules 9 and 12: sentence length limits, and English instead of Latin abbreviations or inflated verbs. A short explanatory answer is where an unconstrained model reaches for 'i.e.' and 'leverage' most readily.",
+  "checks": {
+    "max_sentence_words": 25,
+    "forbid_regex": [
+      {"pattern": "\\bi\\.e\\.", "why": "Latin abbreviation; write 'that is'"},
+      {"pattern": "\\be\\.g\\.", "why": "Latin abbreviation; write 'for example'"},
+      {"pattern": "\\betc\\.", "why": "Latin abbreviation; write 'and so on'"},
+      {"pattern": "\\bvs\\.", "why": "Latin abbreviation; write 'compared to'"},
+      {"pattern": "\\bleverag(e|es|ing)\\b", "why": "inflated verb; write 'use'"},
+      {"pattern": "\\butiliz(e|es|ing)\\b", "why": "inflated verb; write 'use'"}
+    ]
+  }
+}

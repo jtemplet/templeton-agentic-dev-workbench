@@ -1,0 +1,10 @@
+{
+  "prompt": "We have a function that builds an SQL query by concatenating user input directly into the query string. Should we switch it to a parameterized query?",
+  "why": "The negative case, and the most important one in the suite. Exactly one answer is defensible, so the skip rule applies and the reply must stay prose. Without this case a model that draws a table for everything would score 100 percent and the over-application would never show up.",
+  "checks": {
+    "forbid_markdown_table": true,
+    "require_regex": [
+      {"pattern": "(yes|should|switch|use parameterized|parameterize)", "why": "must still actually answer the question"}
+    ]
+  }
+}

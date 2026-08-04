@@ -1,0 +1,10 @@
+{
+  "prompt": "I need to store one optional 'nickname' value per user. The users table has 40 million rows and is written to constantly. I could add a nullable column to users, create a separate side table keyed by user id, or put it inside an existing JSON blob column that the table already has. Which should I pick?",
+  "why": "Decision matrix trigger: three real options, several factors that disagree (migration cost on a hot table, query cost, undo cost), and the user asked directly which to pick. All three trigger conditions are met, so a table plus a bold recommendation is required.",
+  "checks": {
+    "require_markdown_table": true,
+    "require_regex": [
+      {"pattern": "\\*\\*Recommendation", "why": "the matrix must end in a bold one-line recommendation"}
+    ]
+  }
+}

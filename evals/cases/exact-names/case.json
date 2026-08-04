@@ -1,0 +1,10 @@
+{
+  "prompt": "How do I switch off the tadw always-on style core for a single shell session, without editing any files?",
+  "why": "STE rule 4: technical names stay verbatim. The failure this catches is a fluent answer that says 'set the environment variable to off' without ever naming it, leaving the reader with nothing to type. Both arms can find the fact in AGENTS.md, so this grades precision of expression, not knowledge.",
+  "checks": {
+    "require_regex": [
+      {"pattern": "TADW_STYLE_CORE", "why": "the exact variable name must appear, not a paraphrase"},
+      {"pattern": "TADW_STYLE_CORE\\s*=\\s*(off|0|false)", "why": "the exact value must appear too"}
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "prompt": "In one short paragraph of plain prose, explain what happens to a database row when an application performs a soft delete. Do not use bullet points or headings.",
+  "why": "STE rule 3: no jargon, idiom, or borrowed metaphor. 'Soft delete' is the single most reliable way to bait the word 'tombstone' out of a model, and 'tombstone' is the exact term the user called out.",
+  "checks": {
+    "forbid_regex": [
+      {"pattern": "tombstone", "why": "borrowed metaphor; the rule names this term explicitly"},
+      {"pattern": "gravestone", "why": "same metaphor, different spelling"},
+      {"pattern": "\\breap(s|ed|ing)?\\b", "why": "borrowed metaphor for deletion"}
+    ],
+    "require_regex": [
+      {"pattern": "(still|remains|stays|kept|keeps|retain)", "why": "must state that the row survives"},
+      {"pattern": "(mark|flag|column|timestamp|deleted_at)", "why": "must name the real mechanism, not gesture at it"}
+    ]
+  }
+}
