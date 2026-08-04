@@ -1,6 +1,6 @@
 ---
 name: production-ops
-description: Safely operate the production apps (atlas, meridian, compass, ...) running as Docker Compose stacks on a single Hetzner VPS, over SSH. Access is two-hop (SSH in as root, then su - deploy); each app is a Compose stack in the deploy user's home (~/atlas, ~/meridian, ...). Covers service ops (status, logs, restart, up/down) and PostgreSQL data ops (migrations, backups, one-off data fixes) under strong guardrails: read-only by default, secret-free connection, mandatory backup before any data mutation, verify-after, and a written rollback for every risky change. Use when asked to check, restart, deploy-restart, inspect, or change anything on the production VPS.
+description: "Safely operate the production apps (atlas, meridian, compass, ...) running as Docker Compose stacks on a single Hetzner VPS, over SSH. Access is two-hop (SSH in as root, then su - deploy); each app is a Compose stack in the deploy user's home (~/atlas, ~/meridian, ...). Covers service ops (status, logs, restart, up/down) and PostgreSQL data ops (migrations, backups, one-off data fixes) under strong guardrails: read-only by default, secret-free connection, mandatory backup before any data mutation, verify-after, and a written rollback for every risky change. Use when asked to check, restart, deploy-restart, inspect, or change anything on the production VPS."
 ---
 
 # Production Ops (Hetzner VPS)

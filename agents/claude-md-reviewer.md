@@ -1,42 +1,43 @@
 ---
 name: claude-md-reviewer
-description: Use this agent when reviewing CLAUDE.md or AGENTS.md files to ensure they follow best practices for AI agent effectiveness. Provides quantitative scoring, auto-refactoring, and validation. Examples:
+description: |
+  Use this agent when reviewing CLAUDE.md or AGENTS.md files to ensure they follow best practices for AI agent effectiveness. Provides quantitative scoring, auto-refactoring, and validation. Examples:
 
-<example>
-Context: User wants to optimize their project's CLAUDE.md file
-user: "Can you review our CLAUDE.md and suggest improvements?"
-assistant: "I'll use the claude-md-reviewer agent to analyze your CLAUDE.md file with quantitative scoring and provide a detailed refactoring plan."
-<commentary>
-This agent provides systematic review with health scores, token impact analysis, and actionable recommendations based on aihero.dev and humanlayer.dev research.
-</commentary>
-</example>
+  <example>
+  Context: User wants to optimize their project's CLAUDE.md file
+  user: "Can you review our CLAUDE.md and suggest improvements?"
+  assistant: "I'll use the claude-md-reviewer agent to analyze your CLAUDE.md file with quantitative scoring and provide a detailed refactoring plan."
+  <commentary>
+  This agent provides systematic review with health scores, token impact analysis, and actionable recommendations based on aihero.dev and humanlayer.dev research.
+  </commentary>
+  </example>
 
-<example>
-Context: Developer has a large AGENTS.md file that seems ineffective
-user: "Our AGENTS.md is over 500 lines and Claude seems confused"
-assistant: "I'll use the claude-md-reviewer agent to identify issues, calculate token waste, and automatically refactor using progressive disclosure."
-<commentary>
-The agent can operate in review mode (recommendations) or refactor mode (auto-implement changes) with validation.
-</commentary>
-</example>
+  <example>
+  Context: Developer has a large AGENTS.md file that seems ineffective
+  user: "Our AGENTS.md is over 500 lines and Claude seems confused"
+  assistant: "I'll use the claude-md-reviewer agent to identify issues, calculate token waste, and automatically refactor using progressive disclosure."
+  <commentary>
+  The agent can operate in review mode (recommendations) or refactor mode (auto-implement changes) with validation.
+  </commentary>
+  </example>
 
-<example>
-Context: Team wants to maintain optimized CLAUDE.md over time
-user: "How do we prevent our CLAUDE.md from becoming bloated again?"
-assistant: "I'll use the claude-md-reviewer agent to set up CI/CD hooks and generate team guidelines for maintaining optimization."
-<commentary>
-Agent provides automated monitoring, regression detection, and team collaboration tools.
-</commentary>
-</example>
+  <example>
+  Context: Team wants to maintain optimized CLAUDE.md over time
+  user: "How do we prevent our CLAUDE.md from becoming bloated again?"
+  assistant: "I'll use the claude-md-reviewer agent to set up CI/CD hooks and generate team guidelines for maintaining optimization."
+  <commentary>
+  Agent provides automated monitoring, regression detection, and team collaboration tools.
+  </commentary>
+  </example>
 
-<example>
-Context: Monorepo needs structured CLAUDE.md hierarchy
-user: "Help me structure CLAUDE.md files for our Nx monorepo with 8 apps"
-assistant: "I'll use the claude-md-reviewer agent to analyze your monorepo structure and create optimal hierarchical CLAUDE.md files."
-<commentary>
-Agent detects framework patterns (Nx, Turborepo, etc.) and provides structure-specific recommendations.
-</commentary>
-</example>
+  <example>
+  Context: Monorepo needs structured CLAUDE.md hierarchy
+  user: "Help me structure CLAUDE.md files for our Nx monorepo with 8 apps"
+  assistant: "I'll use the claude-md-reviewer agent to analyze your monorepo structure and create optimal hierarchical CLAUDE.md files."
+  <commentary>
+  Agent detects framework patterns (Nx, Turborepo, etc.) and provides structure-specific recommendations.
+  </commentary>
+  </example>
 
 model: inherit
 color: cyan

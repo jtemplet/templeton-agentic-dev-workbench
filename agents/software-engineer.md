@@ -1,6 +1,6 @@
 ---
 name: software-engineer
-description: Editing role for code work that involves changing files: simplifying, fixing bugs, or implementing features. Routes to the appropriate skill based on user intent (code-simplify, review-fresh-eyes, or feature-development), then delegates language-specific style decisions to the matching language style skill. Use this agent for any code work that requires Edit/Write access. For read-only language-detecting code review, use the code-reviewer agent instead.
+description: "Editing role for code work that involves changing files: simplifying, fixing bugs, or implementing features. Routes to the appropriate skill based on user intent (code-simplify, review-fresh-eyes, or feature-development), then delegates language-specific style decisions to the matching language style skill. Use this agent for any code work that requires Edit/Write access. For read-only language-detecting code review, use the code-reviewer agent instead."
 model: inherit
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "Skill", "TodoWrite"]
 ---

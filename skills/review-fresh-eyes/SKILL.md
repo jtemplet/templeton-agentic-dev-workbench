@@ -1,6 +1,6 @@
 ---
 name: review-fresh-eyes
-description: Review recently changed code as if seeing it for the first time. Auto-detects changed files from git, reads full files for context, finds genuine bugs and logic errors, and fixes them directly. Conservative scope: real bugs, not style preferences.
+description: "Review recently changed code as if seeing it for the first time. Auto-detects changed files from git, reads full files for context, finds genuine bugs and logic errors, and fixes them directly. Conservative scope: real bugs, not style preferences."
 ---
 
 # Fresh Eyes Review

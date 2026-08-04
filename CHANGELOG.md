@@ -48,6 +48,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `README.md` was missing two registration rows that `AGENTS.md` already carried: the
   `house-response-style` skill and the `/response-style` command. Both surfaces now list all
   34 skills, 12 agents, and 36 commands.
+- **Four components loaded with empty metadata.** `claude plugin validate --strict` (the
+  official validator, which parses the YAML rather than pattern-matching it like
+  `/validate-plugin` does) found unparseable frontmatter in `skills/production-ops/SKILL.md`,
+  `skills/review-fresh-eyes/SKILL.md`, `agents/claude-md-reviewer.md`, and
+  `agents/software-engineer.md`. All four had an unquoted `description` containing a colon
+  followed by a space, which YAML reads as a nested key; the parse failed and every
+  frontmatter field (`name`, `description`, `tools`) was silently dropped at load time. The
+  three single-line descriptions are now quoted, and `claude-md-reviewer`'s multi-line
+  description (which spans blank lines and contains double quotes) is now a block scalar.
+  The repository validator missed these because it read frontmatter as text; the root cause
+  was confirmed by validating a scratch plugin with and without the quotes.
 
 ## [2.1.0] - 2026-07-28
 
