@@ -19,6 +19,7 @@
       "**/__pycache__": true,
       "**/*.pyc": true,
       ".rumdl_cache": true,
+      ".ruff_cache": true,
       ".session-handoff.md": true
     },
 

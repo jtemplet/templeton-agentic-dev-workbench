@@ -38,6 +38,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The "Why this shape" rationale gains a fourth fact (a word the reader has to decode costs
   more than a longer sentence), and the pre-send check gains three rewrite passes and a
   second verify question covering the matrix.
+- **The decision matrix now fixes the order of its parts**, resolving a contradiction the
+  eval suite caught. "Be concise" says lead with the answer; the matrix section said end
+  with a bold recommendation. When the question is "which should I pick?", the
+  recommendation *is* the answer, so the two rules pulled in opposite directions and the
+  model could satisfy only one. The recommendation now leads in bold above the table, the
+  table shows the work, and one line after it names what would change the answer. Stating
+  it twice is called out as wrong.
+- **The Simplified Technical English section is roughly half its previous length.** It no
+  longer explains what ASD-STE100 is or recounts its history; the reader is a model that
+  already knows the standard. What remains is the delta: which half of the standard applies
+  (writing rules, not the licensed dictionary), that the rules govern wording and never
+  content, the thirteen rules stated once each, and the four examples that actually steer
+  behavior.
 - `preamble.js`'s degraded-path response-style fallback carries the plain-language and
   decision-matrix rules, so a failed read of `SKILL.md` no longer silently drops them.
 
