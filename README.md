@@ -212,8 +212,10 @@ This plugin injects a small, universal coding-style core into **every session an
 spawned subagent** via Claude Code lifecycle hooks (`SessionStart` + `SubagentStart`). The
 model-invoked `style-*` / `review-*` skills still carry the detailed per-language rules; the
 always-on hook just guarantees the universal core (`hooks/style-core.md`) is present even when
-a skill is not loaded and inside subagents that do not inherit the parent's skills. Injected
-text opens with a `<!-- house-style-core: loaded -->` marker so you can see it is active.
+a skill is not loaded and inside subagents that do not inherit the parent's skills. The core
+also fixes spelling: American English throughout (identifiers, comments, docs, commit
+messages), except when quoting a name you do not own. Injected text opens with a
+`<!-- house-style-core: loaded -->` marker so you can see it is active.
 
 `SessionStart` additionally injects a response style (`<!-- house-response-style: loaded -->`
 marker): respond concisely, write in Simplified Technical English (the ASD-STE100 writing

@@ -186,7 +186,7 @@ check('SessionStart matcher covers every session source', () => {
         `referenced script ${script[1]} must exist`
       );
       // A bare `node ...; exit 0` swallows a missing-node failure into a silent
-      // success. run-hook.sh owns emitting the marker AND honouring the
+      // success. run-hook.sh owns emitting the marker AND honoring the
       // off-switch, so the manifest must route through it.
       assert.ok(
         hook.command.includes('run-hook.sh'),
@@ -204,11 +204,11 @@ check('SessionStart matcher covers every session source', () => {
       assert.ok(hook.commandWindows, 'each hook must declare a Windows command');
       assert.ok(
         hook.commandWindows.includes('TADW_STYLE_CORE'),
-        `commandWindows must honour the env off-switch: ${hook.commandWindows}`
+        `commandWindows must honor the env off-switch: ${hook.commandWindows}`
       );
       assert.ok(
         hook.commandWindows.includes('.tadw-style-core-off'),
-        `commandWindows must honour the flag-file off-switch: ${hook.commandWindows}`
+        `commandWindows must honor the flag-file off-switch: ${hook.commandWindows}`
       );
       assert.ok(
         /FAILED to load/.test(hook.commandWindows),
@@ -238,7 +238,7 @@ check('/response-style reads the skill file instead of invoking the Skill tool',
   );
 });
 
-// --- 7. The wrapper honours the off-switch even when node fails -----------
+// --- 7. The wrapper honors the off-switch even when node fails -----------
 // The bug this pins: the failure fallback used to fire regardless of the
 // off-switch, so a user who had deliberately disabled the hook still got a
 // "FAILED to load" marker injected into every session. Nothing had failed.

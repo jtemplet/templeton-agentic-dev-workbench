@@ -65,6 +65,17 @@ Every unit you write should be:
     does; a comment that restates the code is noise, and it rots into a lie the moment the
     code changes and the comment doesn't.
 
+## Spelling
+
+Use American English everywhere: identifiers, comments, documentation, commit messages,
+log lines, and user-facing strings. Write "color", "behavior", "initialize", "canceled",
+"analyze", "license" for both the noun and the verb.
+
+One exception, and it is not optional: match the spelling of something you do not own. If
+an external API returns `colour`, a database column is named `organisation`, or an
+existing public identifier uses a British form, keep it exactly as it is and do not rename
+across that boundary. Consistency with the caller beats consistency with this rule.
+
 ## Default Posture
 
 Favor correctness over speed and simplicity over cleverness. When in doubt, be explicit

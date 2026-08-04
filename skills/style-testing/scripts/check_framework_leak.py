@@ -26,7 +26,7 @@ Two properties make that safe:
 
   1. Exactly one of each marker is required. A marker duplicated anywhere, for
      example inside a code sample, is an ERROR rather than an ambiguous choice
-     of which one to honour.
+     of which one to honor.
   2. Any marker problem disables the exemption entirely and scans the whole
      document. The failure mode is a false positive you can see, never a silent
      pass.

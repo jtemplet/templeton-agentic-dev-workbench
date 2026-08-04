@@ -400,7 +400,7 @@ shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue pr
 - `pr-maintenance` - Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop
 - `roadmap-dashboard` - Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` data-collection script and versions the output instead of overwriting
 - `production-ops` - Safely operate the production apps (atlas, meridian, compass, ...) as Docker Compose stacks on a single Hetzner VPS over a two-hop SSH login (root, then `su - deploy`); covers service ops and PostgreSQL data ops under strong guardrails (read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes/`prune`/`DROP`/`TRUNCATE`/`WHERE`-less writes)
-- `house-response-style` - The always-on response style as a single-source skill: lead with the answer, cut narration, write in Simplified Technical English (the ASD-STE100 **writing rules** only, explicitly not its licensed dictionary: one word one meaning, one part of speech per word, active voice and imperative instructions, no jargon or borrowed metaphor like "tombstone", one instruction per sentence, 20-word instructions and 25-word explanations, positive phrasing, condition-before-instruction warnings, with technical names and technical verbs kept verbatim), put multi-factor choices in a decision matrix with a bold recommendation, structure only genuinely multi-part answers, suggest a follow-up only when earned, and end open work with an owner-split "Next actions" section. The `SessionStart` hook reads this file (frontmatter stripped) so the injected style and the on-demand `/response-style` command share one source of truth; carries a "why," Bad/Good pairs, escape hatches, and a pre-send check
+- `house-response-style` - The always-on response style as a single-source skill: lead with the answer, cut narration, write in Simplified Technical English (the ASD-STE100 **writing rules** only, explicitly not its licensed dictionary: one word one meaning, one part of speech per word, active voice and imperative instructions, no jargon or borrowed metaphor like "tombstone", one instruction per sentence, 20-word instructions and 25-word explanations, positive phrasing, condition-before-instruction warnings, American English, with technical names and technical verbs kept verbatim), put multi-factor choices in a decision matrix with a bold recommendation, structure only genuinely multi-part answers, suggest a follow-up only when earned, and end open work with an owner-split "Next actions" section. The `SessionStart` hook reads this file (frontmatter stripped) so the injected style and the on-demand `/response-style` command share one source of truth; carries a "why," Bad/Good pairs, escape hatches, and a pre-send check
 
 **Registered Agents:**
 
@@ -465,14 +465,16 @@ present even when the model would not have chosen to load a skill, and even insi
 subagents (which never inherit the parent session's loaded skills).
 
 **What it injects.** The universal, language-agnostic core from `hooks/style-core.md` (TRUE
-code plus ten cross-language principles). The detailed per-language rules stay in the
+code, ten cross-language principles, and an American-English spelling rule that covers
+identifiers, comments, docs, and commit messages, with an explicit carve-out for names you
+do not own). The detailed per-language rules stay in the
 on-demand `style-*` and `review-*` skills; only the small universal core is always on.
 
 - **`SessionStart`** injects the core plus the response style, sourced from the
   `house-response-style` skill (`skills/house-response-style/SKILL.md`, frontmatter stripped
   at inject time): respond concisely; write in Simplified Technical English (ASD-STE100
-  writing rules, not the licensed dictionary); put multi-factor choices in a decision
-  matrix; suggest a follow-up
+  writing rules, not the licensed dictionary) using American English; put multi-factor
+  choices in a decision matrix; suggest a follow-up
   question only when the answer genuinely raises one; end any response that leaves work open
   with a "Next actions" section split into "Me (Claude)" and "You". Injected as raw context
   into every new, resumed,
@@ -504,7 +506,7 @@ execute; if you see no marker at all, the hook did not run (check the matcher an
 The wrapper always exits 0, so a failure never blocks the session.
 
 **Why the off-switch is checked twice.** `run-hook.sh` re-implements `isDisabled()` from
-`hooks/runtime.js`, because the off-switch has to be honoured even when `node` cannot run, which
+`hooks/runtime.js`, because the off-switch has to be honored even when `node` cannot run, which
 is exactly when the JS copy is unavailable. The wrapper checks it **before** spawning `node`, so
 there is no node-missing path that skips it; an opted-out user gets silence, not a misleading
 "FAILED to load" marker for something they turned off themselves. `test-hooks.js` asserts the two
@@ -521,7 +523,7 @@ and the off-switch is the escape hatch.
 SessionStart raw output (both documents present, response style frontmatter stripped), the
 SubagentStart JSON wrapping (response style absent), both off-switch paths, the **manifest**
 (the matcher covers all five SessionStart sources, every referenced script exists, every
-command routes through the wrapper with a fallback marker, and the Windows command honours both
+command routes through the wrapper with a fallback marker, and the Windows command honors both
 off-switch paths, since it cannot be executed on a macOS or Linux runner and would otherwise
 drift in silence), that `/response-style` reads the
 skill file rather than invoking the disabled skill through the Skill tool, and four covering

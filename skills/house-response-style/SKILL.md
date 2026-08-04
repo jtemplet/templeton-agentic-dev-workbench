@@ -134,6 +134,10 @@ middle schooler, even where the subject is advanced.
 13. **Condition before instruction in a warning.** "If the table has live traffic, take a
     backup first."
 
+14. **American English.** "Color", "behavior", "initialize", "canceled", "analyze",
+    "license" as both noun and verb. Exception: quote a name you do not own exactly as it
+    is, so an API field called `colour` stays `colour`.
+
 ## Put hard choices in a decision matrix
 
 When the user faces a genuinely hard choice, do not scatter the trade-offs across

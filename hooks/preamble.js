@@ -40,7 +40,9 @@ const FALLBACK = [
   'duplication before abstracting; keep units small and single-purpose; keep',
   'interfaces simple; inject dependencies; tell, do not ask; compose over',
   'inherit; fail fast with explicit errors; read top-down; let names do the',
-  'documenting. Favor correctness over speed and simplicity over cleverness.',
+  'documenting. Use American English everywhere (color, behavior, initialize),',
+  'except when quoting a name you do not own. Favor correctness over speed and',
+  'simplicity over cleverness.',
   '',
 ].join('\n');
 
@@ -56,7 +58,8 @@ const RESPONSE_FALLBACK = [
   'jargon or borrowed metaphor, one instruction per sentence, twenty words',
   'for an instruction and twenty-five for an explanation. Keep technical',
   'names (files, commands, settings) verbatim, and define an unavoidable',
-  'term in the same sentence you use it. When the reader has to choose between options that',
+  'term in the same sentence you use it. Use American English. When the',
+  'reader has to choose between options that',
   'trade off on more than one factor, put those trade-offs in a table and end',
   'with a bold one-line recommendation. When anything is left open, end',
   'with a "Next actions" section split into "Me (Claude)" and "You"; omit it',

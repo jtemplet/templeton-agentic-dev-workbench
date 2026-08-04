@@ -27,6 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     dictionary membership is called out as prohibited rather than left to inference.
   - Scoped explicitly to wording, not content, so no fact, caveat, number, or warning is
     dropped to make a sentence simpler.
+- **American English is now mandatory, in both injected documents.** `hooks/style-core.md`
+  gains a "Spelling" section covering identifiers, comments, documentation, commit messages,
+  log lines, and user-facing strings, so the rule reaches sessions *and* subagents (the
+  coding core is injected into both). `house-response-style` gains rule 14 for prose. Both
+  carry the same exception: match the spelling of a name you do not own, so an API field
+  called `colour` stays `colour` rather than being silently renamed across a boundary. The
+  degraded-path fallbacks in `preamble.js` carry the rule too.
+  - Existing British spellings in the repository were normalized in the same pass
+    ("honoured", "honours", "honouring", "recognisable" across `AGENTS.md`, `CHANGELOG.md`,
+    `hooks/test-hooks.js`, and `skills/style-testing/scripts/check_framework_leak.py`), so
+    the repository now follows the rule it ships.
 - **`house-response-style` now requires a decision matrix for hard choices.** A new "Put hard
   choices in a decision matrix" section with a three-part trigger test (2-4 real options,
   more than one factor that matters, expensive to undo or directly asked), an explicit skip
@@ -344,7 +355,7 @@ regression cases are documented in the fix commit.
   Ninety lines of generated tracker documentation, largely duplicating the existing "Issue
   Tracking (br + bv)" section, had been appended to the top-level agent instructions. `AGENTS.md`
   drops from 727 to 642 lines and links to the extracted file, which records its own provenance
-  including the marker `bv` uses, so a future re-injection is recognisable rather than mysterious.
+  including the marker `bv` uses, so a future re-injection is recognizable rather than mysterious.
 
 ## [1.17.0] - 2026-07-22
 
