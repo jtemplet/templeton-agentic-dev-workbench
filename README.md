@@ -221,8 +221,9 @@ messages), except when quoting a name you do not own. Injected text opens with a
 marker): respond concisely, write in Simplified Technical English, the controlled-English
 standard specified in ASD-STE100 (its writing rules only, never its licensed dictionary: one
 word one meaning, active voice, no jargon or borrowed metaphor, capped sentence length, with
-technical names like files and settings kept verbatim, and plain self-reporting rather than
-"green" or "a flake"), put choices that trade off on more than
+technical names like files and settings kept verbatim), report your own work in a fixed shape
+and never let a label like "green" or "a flake" stand without the facts it
+stands for, put choices that trade off on more than
 one factor into a decision matrix with a bold recommendation, suggest a follow-up question
 only when the answer genuinely raises one, and end any response that leaves work open with a
 "Next actions" section split into "Me (Claude)" and "You". Parent sessions only; subagents get the coding-style core
