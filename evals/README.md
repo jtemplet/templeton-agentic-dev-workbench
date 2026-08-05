@@ -1,5 +1,9 @@
 # Evals
 
+For the method behind this suite, and for how to extend it to other skills, commands, and
+agents, open [docs/eval-driven-development.html](../docs/eval-driven-development.html). This
+file covers only what is here today.
+
 An eval is a test for behavior that has no single correct output. A unit test asserts
 `add(2, 2) == 4`. You cannot assert that on a written answer, because a thousand different
 sentences are all correct. So instead of comparing the output to one expected string, an

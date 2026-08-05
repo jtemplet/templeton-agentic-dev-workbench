@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eval-Driven Development for Claude Code Skills, Commands, and Agents</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfbfa;
+    --panel: #ffffff;
+    --panel-2: #f4f4f2;
+    --ink: #1c1c1a;
+    --ink-soft: #55554f;
+    --ink-faint: #85857c;
+    --rule: #e3e3de;
+    --accent: #8a5a2b;
+    --accent-soft: #f2e9df;
+    --good: #2f6b45;
+    --bad: #9b3b2f;
+    --warn: #8a6d1f;
+    --code-bg: #f4f4f2;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.04);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14140f;
+      --panel: #1c1c18;
+      --panel-2: #232320;
+      --ink: #eceae2;
+      --ink-soft: #b6b3a8;
+      --ink-faint: #8a877c;
+      --rule: #33332d;
+      --accent: #d9a066;
+      --accent-soft: #2a2318;
+      --good: #7fbd93;
+      --bad: #e0897a;
+      --warn: #d9bd6a;
+      --code-bg: #201f1b;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 1.5rem; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 1.25rem 6rem; }
+
+  header.hero {
+    border-bottom: 1px solid var(--rule);
+    padding: 3.5rem 0 2.25rem;
+    margin-bottom: 2rem;
+  }
+  .eyebrow {
+    font: 600 .72rem/1 var(--mono);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1rem;
+  }
+  h1 { font-size: clamp(1.75rem, 4vw, 2.6rem); line-height: 1.15; margin: 0 0 .75rem; letter-spacing: -.02em; }
+  .lede { font-size: 1.1rem; color: var(--ink-soft); max-width: 62ch; margin: 0 0 1.5rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; font: .82rem/1.4 var(--mono); color: var(--ink-faint); }
+
+  .layout { display: grid; grid-template-columns: 1fr; gap: 2.5rem; }
+  @media (min-width: 1000px) {
+    .layout { grid-template-columns: 230px 1fr; gap: 3rem; align-items: start; }
+    nav.toc { position: sticky; top: 1.5rem; max-height: calc(100vh - 3rem); overflow-y: auto; }
+  }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  nav.toc li { counter-increment: toc; }
+  nav.toc a {
+    display: block; padding: .3rem 0 .3rem .5rem;
+    border-left: 2px solid var(--rule);
+    color: var(--ink-soft); text-decoration: none; font-size: .86rem;
+  }
+  nav.toc a::before { content: counter(toc) ". "; color: var(--ink-faint); font-family: var(--mono); font-size: .78rem; }
+  nav.toc a:hover { color: var(--ink); border-left-color: var(--accent); }
+  nav.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+
+  section { margin: 0 0 3.25rem; scroll-margin-top: 1.5rem; }
+  h2 {
+    font-size: 1.45rem; line-height: 1.25; margin: 0 0 1rem;
+    letter-spacing: -.01em; padding-bottom: .5rem; border-bottom: 1px solid var(--rule);
+  }
+  h3 { font-size: 1.05rem; margin: 2rem 0 .6rem; letter-spacing: -.005em; }
+  h4 { font-size: .93rem; margin: 1.4rem 0 .4rem; color: var(--ink-soft); }
+  p { margin: 0 0 1rem; max-width: 74ch; }
+  ul, ol { max-width: 74ch; padding-left: 1.25rem; }
+  li { margin: .35rem 0; }
+  strong { font-weight: 650; }
+  a { color: var(--accent); }
+
+  code { font-family: var(--mono); font-size: .87em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 1rem 1.1rem; overflow-x: auto; font-family: var(--mono); font-size: .82rem; line-height: 1.6;
+    margin: 0 0 1.25rem; position: relative;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .codewrap { position: relative; }
+  .copy {
+    position: absolute; top: .5rem; right: .5rem;
+    font: 600 .7rem/1 var(--mono); text-transform: uppercase; letter-spacing: .08em;
+    background: var(--panel); color: var(--ink-faint);
+    border: 1px solid var(--rule); border-radius: 5px; padding: .35rem .5rem; cursor: pointer;
+  }
+  .copy:hover { color: var(--accent); border-color: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 0 0 1.5rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: .89rem; }
+  th, td { text-align: left; padding: .65rem .85rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { background: var(--panel-2); font-weight: 650; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); }
+  tr:last-child td { border-bottom: none; }
+  td code { white-space: nowrap; }
+
+  .callout {
+    border: 1px solid var(--rule); border-left: 3px solid var(--accent);
+    background: var(--panel); border-radius: 0 8px 8px 0;
+    padding: 1rem 1.15rem; margin: 0 0 1.5rem; box-shadow: var(--shadow);
+  }
+  .callout h4 { margin: 0 0 .4rem; color: var(--accent); font-size: .82rem; text-transform: uppercase; letter-spacing: .07em; font-family: var(--mono); }
+  .callout p:last-child, .callout ul:last-child { margin-bottom: 0; }
+  .callout.bad { border-left-color: var(--bad); }
+  .callout.bad h4 { color: var(--bad); }
+  .callout.good { border-left-color: var(--good); }
+  .callout.good h4 { color: var(--good); }
+
+  .cards { display: grid; gap: 1rem; grid-template-columns: 1fr; margin: 0 0 1.5rem; }
+  @media (min-width: 760px) { .cards.three { grid-template-columns: repeat(3, 1fr); } .cards.two { grid-template-columns: repeat(2, 1fr); } }
+  .card { border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); padding: 1.1rem 1.15rem; box-shadow: var(--shadow); }
+  .card h3 { margin: 0 0 .5rem; font-size: 1rem; }
+  .card p { font-size: .89rem; color: var(--ink-soft); margin-bottom: .6rem; }
+  .card .tag { display: inline-block; font: 600 .68rem/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; padding: .3rem .45rem; border-radius: 4px; background: var(--accent-soft); color: var(--accent); margin-bottom: .6rem; }
+
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps > li { counter-increment: step; position: relative; padding-left: 2.5rem; margin: 0 0 1.25rem; }
+  .steps > li::before {
+    content: counter(step); position: absolute; left: 0; top: .05rem;
+    width: 1.7rem; height: 1.7rem; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    font: 650 .82rem/1.7rem var(--mono); text-align: center;
+  }
+  .steps h3 { margin: 0 0 .35rem; font-size: 1rem; }
+
+  details { border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); padding: .75rem 1rem; margin: 0 0 .75rem; }
+  details[open] { padding-bottom: 1rem; }
+  summary { cursor: pointer; font-weight: 600; font-size: .93rem; }
+  summary::marker { color: var(--accent); }
+  details > *:not(summary) { margin-top: .75rem; }
+
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { display: flex; gap: .65rem; align-items: flex-start; padding: .5rem .65rem; border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); margin-bottom: .5rem; }
+  .checklist input { margin-top: .3rem; accent-color: var(--accent); width: 1rem; height: 1rem; flex: none; }
+  .checklist label { font-size: .9rem; cursor: pointer; }
+  .checklist li.done label { color: var(--ink-faint); text-decoration: line-through; }
+  .progress { font: 600 .8rem/1 var(--mono); color: var(--ink-faint); margin-bottom: .75rem; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .9rem; }
+  .filters button {
+    font: 600 .75rem/1 var(--mono); padding: .45rem .7rem; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--rule); background: var(--panel); color: var(--ink-soft);
+  }
+  .filters button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .pill { display: inline-block; font: 600 .68rem/1 var(--mono); padding: .28rem .45rem; border-radius: 4px; white-space: nowrap; }
+  .pill.t1 { background: var(--accent-soft); color: var(--accent); }
+  .pill.t2 { background: var(--panel-2); color: var(--ink-soft); }
+  .pill.t3 { background: var(--panel-2); color: var(--ink-faint); }
+  .num { font-family: var(--mono); font-size: .85em; }
+  .pass { color: var(--good); font-weight: 650; }
+  .fail { color: var(--bad); font-weight: 650; }
+
+  footer { border-top: 1px solid var(--rule); padding-top: 1.5rem; color: var(--ink-faint); font-size: .85rem; }
+
+  @media print {
+    nav.toc, .copy, .filters { display: none; }
+    body { background: #fff; color: #000; font-size: 11pt; }
+    .layout { grid-template-columns: 1fr; }
+    section { break-inside: avoid-page; }
+    pre, .card, .callout, .tablewrap { break-inside: avoid; }
+    a { color: #000; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <p class="eyebrow">tadw engineering note</p>
+  <h1>Eval-Driven Development for Claude Code Skills, Commands, and Agents</h1>
+  <p class="lede">
+    A skill is a prompt, and a prompt is an unverified claim about model behavior until you measure it.
+    This is what measuring costs, what it requires, and how to do it in this repository.
+  </p>
+  <div class="meta">
+    <span>Repo: templeton-agentic-dev-workbench</span>
+    <span>Plugin: tadw 2.3.1</span>
+    <span>Written: 2026-08-05</span>
+    <span>Harness: <code>evals/run.py</code></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#why">Why prompts need evals</a></li>
+    <li><a href="#anatomy">Anatomy of an eval</a></li>
+    <li><a href="#types">The three eval types</a></li>
+    <li><a href="#requirements">The six requirements</a></li>
+    <li><a href="#claude-code">Claude Code specifics</a></li>
+    <li><a href="#harness">The harness in this repo</a></li>
+    <li><a href="#adding">Adding a case</a></li>
+    <li><a href="#graders">Grader taxonomy</a></li>
+    <li><a href="#worked">A worked example</a></li>
+    <li><a href="#antipatterns">Anti-patterns</a></li>
+    <li><a href="#roadmap">What to build here</a></li>
+    <li><a href="#priority">Which skills first</a></li>
+    <li><a href="#cost">Cost model</a></li>
+    <li><a href="#checklist">Readiness checklist</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="why">
+  <h2>1. Why prompts need evals</h2>
+  <p>
+    Every skill, command, and agent in this repo is a document that tries to change what a model does.
+    Nothing about writing one proves it works. A skill can be well written, correctly registered,
+    documented in two places, and still change nothing, because prose is a request and not a mechanism.
+  </p>
+  <p>There are exactly two ways a prompt artifact fails, and they need different tests:</p>
+  <div class="cards two">
+    <div class="card">
+      <span class="tag">Failure one</span>
+      <h3>It never loads</h3>
+      <p>
+        The model never invokes the skill, so its content is irrelevant. This repo has shipped it twice.
+        <code>AGENTS.md</code> records <code>style-rspec</code> as "well written, documented, never loaded",
+        with a description scoped so narrowly it could not fire on current work.
+      </p>
+    </div>
+    <div class="card">
+      <span class="tag">Failure two</span>
+      <h3>It loads and does nothing</h3>
+      <p>
+        The document is in context and the output is unchanged. Measured here: a flat ban on the words
+        "green" and "a flake" was violated in <span class="num">14 of 14</span> runs across three
+        versions of the same document, including two rewrites aimed at that exact rule.
+      </p>
+    </div>
+  </div>
+  <div class="callout">
+    <h4>The core claim</h4>
+    <p>
+      A unit test asserts <code>add(2, 2) == 4</code>. You cannot assert that on a written answer, because a
+      thousand different sentences are all correct. An eval replaces the exact-match assertion with a rule,
+      and replaces certainty with a rate. That is the whole idea. Everything below is bookkeeping around it.
+    </p>
+  </div>
+</section>
+
+<section id="anatomy">
+  <h2>2. Anatomy of an eval</h2>
+  <p>Four parts, and dropping any one of them makes the result unreadable:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Part</th><th>What it is</th><th>What happens without it</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Prompt</strong></td>
+          <td>A fixed question that reproduces the situation where the rule applies.</td>
+          <td>You measure the model's mood, not the rule.</td>
+        </tr>
+        <tr>
+          <td><strong>Arm</strong></td>
+          <td>The configuration under test. Here: with the plugin loaded against without it.</td>
+          <td>You cannot tell whether the artifact did anything. The model may already behave that way.</td>
+        </tr>
+        <tr>
+          <td><strong>Grader</strong></td>
+          <td>The thing that decides pass or fail. A script, or a second model call.</td>
+          <td>You are reading outputs and forming an impression, which is not a measurement.</td>
+        </tr>
+        <tr>
+          <td><strong>Runs</strong></td>
+          <td>The same prompt sent more than once. Three to see a pattern, five to decide.</td>
+          <td>One passing run proves nothing. One failing run proves nothing.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout bad">
+    <h4>The arm is the part people skip</h4>
+    <p>
+      A single-arm run tells you the model produced good output. It does not tell you your document caused it.
+      Modern models write decent tests, lead with the answer, and avoid jargon a fair amount of the time
+      unprompted. Without a baseline arm you will credit your prompt for the model's defaults, and you will
+      keep every useless rule you ever wrote.
+    </p>
+  </div>
+</section>
+
+<section id="types">
+  <h2>3. The three eval types</h2>
+  <p>
+    They differ by roughly an order of magnitude in cost, so pick deliberately rather than defaulting to the
+    expensive one.
+  </p>
+  <div class="cards three">
+    <div class="card">
+      <span class="tag">Cheapest</span>
+      <h3>Invocation evals</h3>
+      <p><strong>Question:</strong> does the artifact load when it should, and stay quiet when it should not?</p>
+      <p><strong>Grader:</strong> deterministic. The skill appears in the session's loaded set, or it does not.</p>
+      <p><strong>Runs:</strong> one per prompt. There is little variance in a binary registry check.</p>
+      <p><strong>Needs:</strong> positive prompts and control prompts, because a skill that fires on everything is also broken.</p>
+    </div>
+    <div class="card">
+      <span class="tag">Middle</span>
+      <h3>Structure evals</h3>
+      <p><strong>Question:</strong> does the produced artifact have the required shape?</p>
+      <p><strong>Grader:</strong> deterministic on the document. Sections present, acceptance criteria testable, table drawn or not drawn.</p>
+      <p><strong>Fits:</strong> <code>plan-feature</code>, <code>plan-review</code>, <code>bead-audit</code>, <code>product-brief</code>, and any skill whose output is a document with a specified skeleton.</p>
+    </div>
+    <div class="card">
+      <span class="tag">Most expensive</span>
+      <h3>Behavior evals</h3>
+      <p><strong>Question:</strong> does the loaded artifact change the content of the output?</p>
+      <p><strong>Grader:</strong> regex where the rule is lexical, a rubric plus a blind judge where the output is code.</p>
+      <p><strong>Cost:</strong> two arms times three or five runs per case, so a six-case suite is 36 model calls.</p>
+    </div>
+  </div>
+  <p>
+    <strong>Start with invocation evals.</strong> They cost about a tenth of a behavior eval and they catch the
+    failure that makes every other measurement moot. A behavior eval on a skill that never loads is a very
+    expensive way to measure the base model.
+  </p>
+</section>
+
+<section id="requirements">
+  <h2>4. The six requirements</h2>
+  <p>
+    These are the conditions under which an eval result means something. They came out of a real session in
+    this repo, and two of the six are still missing from the harness.
+  </p>
+  <ol class="steps">
+    <li>
+      <h3>Write the case before the change</h3>
+      <p>
+        The case defines what "better" means while you can still be honest about it. Write it after and you will
+        write a case your change happens to pass. In the worked example below, the label rule was measured at
+        <span class="num">0 of 14</span> before anyone touched it, which is why the later rewrite could not be
+        graded on vibes.
+      </p>
+    </li>
+    <li>
+      <h3>Build a real "before" arm</h3>
+      <p>
+        Not "I remember it was worse". Check out the released commit into a scratch git worktree and run the same
+        cases against it, concurrently if you can. This repo's runner has no flag for that yet, so it is done by
+        hand:
+      </p>
+      <div class="codewrap"><pre><code>git worktree add /tmp/baseline v2.3.0
+env -u ANTHROPIC_API_KEY python3 /tmp/baseline/evals/run.py --case my-case --runs 3 --no-baseline
+git worktree remove /tmp/baseline --force</code></pre></div>
+      <p>
+        The runner derives its plugin directory from its own file location, so running the worktree's copy tests
+        the worktree's documents.
+      </p>
+    </li>
+    <li>
+      <h3>Pre-register the bar</h3>
+      <p>
+        State the number that would change your mind, in writing, before the run. "0 of 5 means prose cannot hold
+        this rule and we move to enforcement." Without it you will reinterpret whatever comes back, and a
+        measurement you can reinterpret is decoration.
+      </p>
+    </li>
+    <li>
+      <h3>Grade deterministically wherever possible</h3>
+      <p>
+        A regex is free, instant, and gives the same verdict every time. Reach for a model judge only when the
+        property is genuinely not mechanical, such as "is this test suite well structured". When you do, make it
+        blind, score per criterion with cited evidence, and state the blinding limitation rather than claiming
+        it away. A treatment output often identifies itself through its own style.
+      </p>
+    </li>
+    <li>
+      <h3>Keep the raw output</h3>
+      <p>
+        A failing case you cannot see is a failing case you cannot diagnose. This repo carried an undiagnosed
+        failure in <code>evals/README.md</code> for exactly that reason: the grader reported a missing bold
+        recommendation that a hand-captured response clearly contained, and nobody could inspect what the grader
+        actually received. Always pass <code>--json</code>.
+      </p>
+    </li>
+    <li>
+      <h3>Run more than once</h3>
+      <p>
+        One run is an anecdote. Three shows a pattern. Five is the minimum for a decision that changes a rule.
+        Sampling error at these sizes is large, so treat a two-run difference as noise and say so out loud.
+      </p>
+    </li>
+  </ol>
+</section>
+
+<section id="claude-code">
+  <h2>5. Claude Code specifics</h2>
+  <p>
+    Generic eval advice ignores three things that decide whether a Claude Code eval is even possible.
+  </p>
+
+  <h3>How the artifact reaches the model differs by type</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Artifact</th><th>How it loads</th><th>What an eval can measure</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Hook-injected document<br><span class="num">SessionStart</span></td>
+          <td>Injected as raw context into every parent session, with no model decision involved.</td>
+          <td>Behavior only. Invocation is guaranteed, so the arm is plugin loaded against not loaded.</td>
+        </tr>
+        <tr>
+          <td>Model-invoked skill</td>
+          <td>The model reads the frontmatter <code>description</code> and decides to call it.</td>
+          <td>Invocation <em>and</em> behavior. The description is a first-class deliverable with its own test.</td>
+        </tr>
+        <tr>
+          <td>Skill with <code>disable-model-invocation: true</code></td>
+          <td>Only a hook or an explicit command can load it. The Skill tool refuses it.</td>
+          <td>Behavior only. An invocation eval here would measure nothing, and a command that tries to invoke it through the Skill tool silently does nothing.</td>
+        </tr>
+        <tr>
+          <td>Command <code>/name</code></td>
+          <td>The user types it. Invocation is deterministic.</td>
+          <td>Behavior, plus whether the command's instructions actually route to the intended skill.</td>
+        </tr>
+        <tr>
+          <td>Agent (subagent)</td>
+          <td>Spawned with its own context. It does <strong>not</strong> inherit the parent session's injected style.</td>
+          <td>Behavior, measured on the agent's returned text. Remember that the response style is deliberately parent-only, so do not grade a subagent against it.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout bad">
+    <h4>The registry loads at session start</h4>
+    <p>
+      A skill authored in the current session is not invocable until a restart. An invocation battery run in the
+      session that wrote the skill scores zero for a reason that has nothing to do with the skill. This blocked
+      an acceptance criterion in bead <code>tadw-wdk</code>, and the fix is procedural: run invocation evals
+      first thing in a fresh session.
+    </p>
+  </div>
+
+  <div class="callout bad">
+    <h4>ANTHROPIC_API_KEY breaks the nested call</h4>
+    <p>
+      The harness shells out to <code>claude -p</code>. When <code>ANTHROPIC_API_KEY</code> is set, that call
+      exits 1 with a warning about connectors, every case fails at the <code>invocation</code> check, and the
+      summary still prints a score as though something had been measured. A full six-case run scored
+      <span class="num">0 of 6</span> this way; the same tree scored <span class="num">3 of 6</span> with the
+      variable unset. Until <code>tadw-evals-strip-api-key-drc</code> lands, prefix every run with
+      <code>env -u ANTHROPIC_API_KEY</code>.
+    </p>
+  </div>
+
+  <h3>Cost is measured in nested sessions</h3>
+  <p>
+    Each run is a full <code>claude -p</code> invocation with its own context. Cost scales as
+    <code>cases &times; arms &times; runs</code>, and wall clock is dominated by model latency, not by your
+    grader. Parallelize across arms, keep <code>--runs 1</code> for smoke checks, and reserve five-run passes
+    for decisions.
+  </p>
+</section>
+
+<section id="harness">
+  <h2>6. The harness in this repo</h2>
+  <p>Everything lives under <code>evals/</code>. It is about 240 lines of Python with no dependencies.</p>
+  <div class="codewrap"><pre><code>evals/
+  run.py                      # the runner: prompts, arms, graders, reporting
+  README.md                   # what an eval is, current state, known defects
+  cases/
+    decision-matrix-suppress/case.json
+    decision-matrix-trigger/case.json
+    exact-names/case.json
+    jargon-tombstone/case.json
+    plain-sentences/case.json
+    self-report-plainly/case.json</code></pre></div>
+
+  <h3>How the arms are built</h3>
+  <p>
+    The with-plugin arm passes <code>--plugin-dir</code> pointed at the repo root, so the
+    <code>SessionStart</code> hook injects the style from your working tree rather than from the released copy
+    in <code>~/.claude/plugins/cache</code>. The baseline arm passes no plugin at all. The gap between the two
+    is the measurement.
+  </p>
+  <div class="codewrap"><pre><code># with-plugin arm
+claude -p "&lt;prompt&gt;" --model sonnet --plugin-dir /path/to/templeton-agentic-dev-workbench
+
+# baseline arm
+claude -p "&lt;prompt&gt;" --model sonnet</code></pre></div>
+
+  <h3>Running it</h3>
+  <div class="codewrap"><pre><code># everything, one run per case, both arms
+env -u ANTHROPIC_API_KEY python3 evals/run.py
+
+# one case, three runs, plugin arm only, keep the raw output
+env -u ANTHROPIC_API_KEY python3 evals/run.py \
+  --case self-report-plainly --runs 3 --no-baseline --json /tmp/out.json
+
+# print every answer as it lands
+env -u ANTHROPIC_API_KEY python3 evals/run.py --case exact-names --show-output</code></pre></div>
+  <p>
+    Flags: <code>--case</code>, <code>--model</code> (default <code>sonnet</code>), <code>--runs</code>
+    (default 1), <code>--no-baseline</code>, <code>--timeout</code> (default 300s),
+    <code>--show-output</code>, <code>--json</code>. Exit status is 0 when every with-plugin run passes, so it
+    can gate a commit.
+  </p>
+</section>
+
+<section id="adding">
+  <h2>7. Adding a case</h2>
+  <p>
+    One directory, one <code>case.json</code>. The <code>why</code> field is not decoration: it is where you
+    pre-register what the case is for, so a later reader can tell whether a change to the case was a repair or
+    a retreat.
+  </p>
+  <div class="codewrap"><pre><code>{
+  "prompt": "A fixed question that reproduces the situation the rule governs.",
+  "why": "Which rule this tests, what failure it catches, and why this prompt baits it.",
+  "checks": {
+    "max_sentence_words": 35,
+    "forbid_regex": [
+      {"pattern": "\\btombstone\\b", "why": "borrowed metaphor; name the mechanism"}
+    ],
+    "require_regex": [
+      {"pattern": "TADW_STYLE_CORE=off", "why": "technical names stay verbatim"}
+    ],
+    "forbid_label_alone": [
+      {
+        "pattern": "\\bflak(e|es|ey|y|iness)\\b",
+        "unless_all": ["3,?499", "(again|re-?ran|re-?run|retry)"],
+        "why": "the label may summarize the facts, never replace them"
+      }
+    ],
+    "require_markdown_table": true
+  }
+}</code></pre></div>
+  <div class="callout">
+    <h4>Design the prompt to bait the failure</h4>
+    <p>
+      A good case hands the model the exact situation that produces the bad habit, then forbids it.
+      <code>self-report-plainly</code> gives the model a passing suite plus one test that failed once and then
+      passed, which is precisely the situation that produces "green" and "a flake". A prompt that does not
+      tempt the failure cannot detect it.
+    </p>
+  </div>
+</section>
+
+<section id="graders">
+  <h2>8. Grader taxonomy</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Grader</th><th>Shape</th><th>Use it for</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>forbid_regex</code></td><td>Pattern must be absent</td><td>Words that are wrong in every context: "tombstone", "surfaced", "smoke test"</td><td>Built</td></tr>
+        <tr><td><code>require_regex</code></td><td>Pattern must be present</td><td>Facts the answer must contain: a count, an exact setting name</td><td>Built</td></tr>
+        <tr><td><code>forbid_label_alone</code></td><td>Pattern allowed only when every <code>unless_all</code> pattern is also present</td><td>Conclusions that are legitimate beside their evidence and forbidden without it</td><td>Built</td></tr>
+        <tr><td><code>require_markdown_table</code> / <code>forbid_markdown_table</code></td><td>Structural presence, checked by looking for a divider row</td><td>A rule about when to draw a table and when not to</td><td>Built</td></tr>
+        <tr><td><code>max_sentence_words</code></td><td>Counting, over prose with code and tables stripped</td><td>Length limits</td><td>Built</td></tr>
+        <tr><td><code>skill_loaded</code></td><td>The named skill appears in the session's loaded set</td><td>Every invocation eval</td><td>To build</td></tr>
+        <tr><td>Rubric plus blind judge</td><td>N binary criteria, scored per criterion with cited evidence, arms labeled A and B in random order</td><td>Code quality, test structure, document quality</td><td>Designed in <code>tadw-geh</code>, not built</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout">
+    <h4>A grader may be looser than its rule, on purpose, once</h4>
+    <p>
+      The response style states a 25-word sentence limit; <code>max_sentence_words</code> fails only above 35.
+      That gap is deliberate and documented: a check that can never pass stops being run. The rule keeps the
+      tighter number as the target, and the grader catches runaway sentences. Write the gap down where the
+      grader lives, or the next reader will "fix" one of the two numbers.
+    </p>
+  </div>
+</section>
+
+<section id="worked">
+  <h2>9. A worked example, end to end</h2>
+  <p>
+    This is the session that produced this document. It is included because the interesting part is not the
+    passing result, it is the two rule changes that the measurement forced.
+  </p>
+
+  <h3>The rule under test</h3>
+  <p>
+    The response style banned agents from describing their own work with "green" or "a flake", on the argument
+    that a label hides the claim the reader needs: what failed, what was re-run, and why the change cannot be
+    the cause.
+  </p>
+
+  <h3>The measurements</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Configuration</th><th>Runs</th><th>Result</th><th>What the outputs showed</th></tr></thead>
+      <tbody>
+        <tr><td>2.3.0, flat ban</td><td>3</td><td class="fail">0 of 3</td><td>"flake" or "flaky" in all three</td></tr>
+        <tr><td>After the ASD-STE100 rewrite</td><td>3</td><td class="fail">0 of 3</td><td>Unchanged</td></tr>
+        <tr><td>After promoting the rule to its own section with a six-part contract</td><td>3, then 5</td><td class="fail">0 of 3, 0 of 5</td><td>Unchanged again. <span class="num">14 of 14</span> runs used a banned word</td></tr>
+        <tr><td>Same runs, substance checks</td><td>5</td><td class="pass">5 of 5</td><td>Every run gave the count, the re-run, and the reason</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>What the data changed</h3>
+  <p>
+    The rule's premise was that the label <em>replaces</em> the argument. In fourteen runs it never did: the
+    model produced the full report and then added the label on top. So the ban was failing answers that already
+    served the reader. The rule was retargeted to <strong>never let a label stand alone</strong>, and the grader
+    became <code>forbid_label_alone</code>. The label check now passes 5 of 5.
+  </p>
+
+  <div class="callout good">
+    <h4>Moving a bar, versus lowering one</h4>
+    <p>
+      These look identical from the outside, so the distinction has to be defended in writing. The bar moved
+      because fourteen measurements showed it was in the wrong place, and the substance checks kept their
+      original strictness. Lowering a bar means widening a grader until an inconvenient rule passes, and it is
+      how a suite stops measuring anything. If you cannot articulate which one you are doing, you are doing the
+      second one.
+    </p>
+  </div>
+
+  <h3>The failure that was hiding underneath</h3>
+  <p>
+    With the label check passing, the case dropped to <span class="num">1 of 5</span> on a different rule:
+    sentence length, at 44, 48, 54, and 64 words against a 35-word ceiling and a 25-word rule. That failure had
+    been there the whole time, masked because the label check failed first. It is filed as
+    <code>tadw-self-report-sentence-length-zxu</code> and left failing rather than graded away.
+  </p>
+  <details>
+    <summary>Two grader defects the same run exposed</summary>
+    <p>
+      Both failed answers that were complete, which makes a score uninformative about the rule it claims to test:
+    </p>
+    <ul>
+      <li><code>require /3499/</code> failed whenever the model wrote <code>3,499</code> with a separator, which happened in three of six runs.</li>
+      <li>The re-run pattern did not match "on retry" or "passed on a retry", which was the phrasing the model chose most often.</li>
+    </ul>
+    <p>
+      A grader that fails compliant output is worse than no grader, because it produces a number that looks like
+      evidence. Check your patterns against real outputs before trusting a red result.
+    </p>
+  </details>
+  <details>
+    <summary>The document was priming its own eval</summary>
+    <p>
+      The skill's pre-send check contained the string <code>3499</code>, the exact test count the eval prompt
+      uses and the grader requires back. The check was therefore partly measuring recall of the document rather
+      than the rule. The number in the document was changed to decontaminate the case. Grep your prompts for
+      strings that appear in your artifacts.
+    </p>
+  </details>
+</section>
+
+<section id="antipatterns">
+  <h2>10. Anti-patterns</h2>
+  <div class="cards two">
+    <div class="card">
+      <h3>Loosening a grader until it passes</h3>
+      <p>The single fastest way to end up with a green suite that measures nothing. Leave a failing case failing and file it.</p>
+    </div>
+    <div class="card">
+      <h3>Deciding on one run</h3>
+      <p>These systems are not deterministic. A one-run result is an anecdote wearing a number.</p>
+    </div>
+    <div class="card">
+      <h3>Teaching to the test</h3>
+      <p>Putting the eval's exact strings into the artifact. The case then measures memory, and it will keep passing after the rule stops working.</p>
+    </div>
+    <div class="card">
+      <h3>No baseline arm</h3>
+      <p>You will credit your document for behavior the model had already.</p>
+    </div>
+    <div class="card">
+      <h3>Holistic judge scoring</h3>
+      <p>"Which suite is better, A or B?" invites the judge to guess the arm. Score per criterion with cited evidence instead.</p>
+    </div>
+    <div class="card">
+      <h3>Reporting a score from a broken run</h3>
+      <p>An invocation failure is not a style failure. If the harness could not call the model, it must refuse to print a score.</p>
+    </div>
+  </div>
+</section>
+
+<section id="roadmap">
+  <h2>11. What to build here</h2>
+  <p>
+    The harness is response-style specific in its layout, but the mechanism is general. Four changes make it
+    serve every artifact in the plugin.
+  </p>
+  <ol class="steps">
+    <li>
+      <h3>Namespace the cases by artifact</h3>
+      <p>
+        Move <code>evals/cases/&lt;name&gt;/</code> to <code>evals/&lt;artifact&gt;/cases/&lt;name&gt;/</code>, so
+        <code>style-python</code> and <code>bead-audit</code> can have suites without colliding. Add
+        <code>--suite</code> next to <code>--case</code>.
+      </p>
+    </li>
+    <li>
+      <h3>Add the <code>skill_loaded</code> grader and an invocation battery</h3>
+      <p>
+        A case type whose prompt is a realistic user request and whose grader asks whether the named skill was
+        loaded. Positive prompts and control prompts, one run each. This is the cheapest coverage in the
+        building, and it must run in a fresh session.
+      </p>
+    </li>
+    <li>
+      <h3>Teach the runner to build its own baseline</h3>
+      <p>
+        A <code>--baseline-ref &lt;sha-or-tag&gt;</code> flag that creates a scratch worktree, runs the same cases
+        against it, and removes it afterward. Doing this by hand is the step most likely to be skipped, and it is
+        the step that makes a result trustworthy.
+      </p>
+    </li>
+    <li>
+      <h3>Write raw output to disk by default</h3>
+      <p>
+        Not behind <code>--json</code>. One directory per run with the prompt, the arm, the answer, and the
+        verdicts. A failure nobody can inspect is why this repo's eval README carried an undiagnosed case
+        instead of a fix.
+      </p>
+    </li>
+  </ol>
+</section>
+
+<section id="priority">
+  <h2>12. Which artifacts to cover first</h2>
+  <p>
+    Rank by how silently the artifact fails, not by how much you like it. Filter the table to plan a stage.
+  </p>
+  <div class="filters" role="group" aria-label="Filter by tier">
+    <button type="button" data-tier="all" aria-pressed="true">All</button>
+    <button type="button" data-tier="1" aria-pressed="false">Tier 1, do first</button>
+    <button type="button" data-tier="2" aria-pressed="false">Tier 2, next</button>
+    <button type="button" data-tier="3" aria-pressed="false">Tier 3, not worth it</button>
+  </div>
+  <div class="tablewrap">
+    <table id="priority-table">
+      <thead><tr><th>Artifact</th><th>Tier</th><th>Eval type</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr data-tier="1"><td><code>house-response-style</code></td><td><span class="pill t1">1</span></td><td>Behavior</td><td>Built. Six cases, and it has already forced two rule changes.</td></tr>
+        <tr data-tier="1"><td>Every model-invocable skill</td><td><span class="pill t1">1</span></td><td>Invocation</td><td>Cheapest coverage available, and it catches the failure this repo has shipped twice.</td></tr>
+        <tr data-tier="1"><td><code>style-testing</code></td><td><span class="pill t1">1</span></td><td>Behavior, blind A/B</td><td>Already designed in <code>tadw-geh</code>: four fixtures, ten binary criteria, three pre-registered traps, smoke check before the full matrix. Build it and it becomes the template for every judge-graded eval.</td></tr>
+        <tr data-tier="2"><td><code>bead-audit</code></td><td><span class="pill t2">2</span></td><td>Structure</td><td>Closest to eval-driven already, with fixtures and a rubric regression suite under <code>references/fixtures/</code>. Extend it to score drift.</td></tr>
+        <tr data-tier="2"><td><code>plan-review</code>, <code>plan-feature</code></td><td><span class="pill t2">2</span></td><td>Structure</td><td>Output is a document with a specified skeleton. Grade whether acceptance criteria exist and are testable, which is the thing the skill exists to enforce.</td></tr>
+        <tr data-tier="2"><td>One language style skill, probably <code>style-python</code></td><td><span class="pill t2">2</span></td><td>Behavior</td><td>Proves code output can be graded without a judge, using structural checks over the emitted code.</td></tr>
+        <tr data-tier="3"><td><code>production-ops</code>, <code>pr-maintenance</code></td><td><span class="pill t3">3</span></td><td>None</td><td>A run has real side effects. Cover these with dry-run guards and hard-stop rules, not with evals.</td></tr>
+        <tr data-tier="3"><td>Script-backed skills</td><td><span class="pill t3">3</span></td><td>Unit tests</td><td><code>check_framework_leak.py</code> shows the right answer: a plain regression suite, run in a second, no model calls.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="cost">
+  <h2>13. Cost model</h2>
+  <p>Cost is model calls. Everything else is free.</p>
+  <div class="codewrap"><pre><code>behavior suite   = cases x arms x runs
+invocation suite = artifacts x prompts x 1
+judge overhead   = graded outputs x judges</code></pre></div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Activity</th><th>Calls</th><th>When to spend it</th></tr></thead>
+      <tbody>
+        <tr><td>Smoke check on one case</td><td class="num">1 to 2</td><td>Every time you touch a case or a grader</td></tr>
+        <tr><td>Full response-style suite, one arm, three runs</td><td class="num">18</td><td>Before opening a PR that touches the style</td></tr>
+        <tr><td>Same suite, both arms</td><td class="num">36</td><td>When you need to claim the plugin caused the difference</td></tr>
+        <tr><td>Five-run decision pass on one case</td><td class="num">5</td><td>Only when a result would change a rule</td></tr>
+        <tr><td>Invocation battery, 30 artifacts, 3 positives and 1 control each</td><td class="num">120</td><td>Once, then on any description change</td></tr>
+        <tr><td>Blind A/B with a judge, 4 fixtures, 3 runs, 2 arms, 1 judge each</td><td class="num">36</td><td>Per skill, once it is worth proving</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Wall clock is dominated by model latency, so run arms concurrently as separate processes. Two arms of the
+    same three cases were run that way here, and the pair cost little more wall clock than the slower arm
+    alone.
+  </p>
+</section>
+
+<section id="checklist">
+  <h2>14. Readiness checklist</h2>
+  <p class="progress" id="progress">0 of 12 checked</p>
+  <ul class="checklist" id="checklist">
+    <li><input type="checkbox" id="c1"><label for="c1">The case exists, and it was written before the change it will judge.</label></li>
+    <li><input type="checkbox" id="c2"><label for="c2">The prompt reproduces the situation that baits the failure.</label></li>
+    <li><input type="checkbox" id="c3"><label for="c3">The <code>why</code> field says which rule this tests and what failure it catches.</label></li>
+    <li><input type="checkbox" id="c4"><label for="c4">There is a baseline arm, or a scratch worktree at the released commit.</label></li>
+    <li><input type="checkbox" id="c5"><label for="c5">The bar is written down before the run.</label></li>
+    <li><input type="checkbox" id="c6"><label for="c6">Every grader has been checked against a real passing output, not only a failing one.</label></li>
+    <li><input type="checkbox" id="c7"><label for="c7">No string in the artifact primes an answer the grader requires.</label></li>
+    <li><input type="checkbox" id="c8"><label for="c8">Runs are at least three, and five if the result will change a rule.</label></li>
+    <li><input type="checkbox" id="c9"><label for="c9">Raw output is saved with <code>--json</code>.</label></li>
+    <li><input type="checkbox" id="c10"><label for="c10">The run used <code>env -u ANTHROPIC_API_KEY</code>, or that bead has landed.</label></li>
+    <li><input type="checkbox" id="c11"><label for="c11">Invocation evals ran in a fresh session, not the one that wrote the skill.</label></li>
+    <li><input type="checkbox" id="c12"><label for="c12">Every failing case is either fixed or filed. None were graded away.</label></li>
+  </ul>
+</section>
+
+<footer>
+  <p>
+    Sources in this repo: <code>evals/run.py</code>, <code>evals/README.md</code>,
+    <code>skills/house-response-style/SKILL.md</code>, <code>hooks/test-hooks.js</code>, and beads
+    <code>tadw-geh</code>, <code>tadw-wdk</code>, <code>tadw-self-report-sentence-length-zxu</code>,
+    <code>tadw-evals-strip-api-key-drc</code>. Every number on this page was measured on 2026-08-05 against
+    tadw 2.3.0 and 2.3.1 with <code>sonnet</code>, and each is stale the moment the artifacts change.
+  </p>
+</footer>
+
+</main>
+</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Copy buttons on every code block.
+  document.querySelectorAll(".codewrap").forEach(function (wrap) {
+    var pre = wrap.querySelector("pre");
+    if (!pre) return;
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "copy";
+    button.textContent = "copy";
+    button.addEventListener("click", function () {
+      var text = pre.innerText;
+      var done = function () {
+        button.textContent = "copied";
+        setTimeout(function () { button.textContent = "copy"; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { button.textContent = "failed"; });
+      } else {
+        var area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        try { document.execCommand("copy"); done(); } catch (e) { button.textContent = "failed"; }
+        document.body.removeChild(area);
+      }
+    });
+    wrap.appendChild(button);
+  });
+
+  // Table of contents highlighting.
+  var links = Array.prototype.slice.call(document.querySelectorAll("nav.toc a"));
+  var sections = links
+    .map(function (a) { return document.querySelector(a.getAttribute("href")); })
+    .filter(Boolean);
+
+  if ("IntersectionObserver" in window && sections.length) {
+    var visible = new Set();
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) visible.add(entry.target.id);
+        else visible.delete(entry.target.id);
+      });
+      var first = sections.find(function (s) { return visible.has(s.id); });
+      links.forEach(function (a) {
+        a.classList.toggle("active", !!first && a.getAttribute("href") === "#" + first.id);
+      });
+    }, { rootMargin: "-10% 0px -70% 0px" });
+    sections.forEach(function (s) { observer.observe(s); });
+  }
+
+  // Tier filter on the priority table.
+  var filterButtons = Array.prototype.slice.call(document.querySelectorAll(".filters button"));
+  var rows = Array.prototype.slice.call(document.querySelectorAll("#priority-table tbody tr"));
+  filterButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      var tier = button.getAttribute("data-tier");
+      filterButtons.forEach(function (b) { b.setAttribute("aria-pressed", String(b === button)); });
+      rows.forEach(function (row) {
+        row.hidden = tier !== "all" && row.getAttribute("data-tier") !== tier;
+      });
+    });
+  });
+
+  // Checklist state, persisted per browser.
+  var KEY = "tadw-eval-checklist-v1";
+  var list = document.getElementById("checklist");
+  var progress = document.getElementById("progress");
+  if (list && progress) {
+    var boxes = Array.prototype.slice.call(list.querySelectorAll("input[type=checkbox]"));
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { saved = {}; }
+
+    var render = function () {
+      var checked = 0;
+      boxes.forEach(function (box) {
+        box.parentElement.classList.toggle("done", box.checked);
+        if (box.checked) checked += 1;
+      });
+      progress.textContent = checked + " of " + boxes.length + " checked";
+    };
+
+    boxes.forEach(function (box) {
+      box.checked = saved[box.id] === true;
+      box.addEventListener("change", function () {
+        saved[box.id] = box.checked;
+        try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) { /* private mode */ }
+        render();
+      });
+    });
+    render();
+  }
+})();
+</script>
+</body>
+</html>
