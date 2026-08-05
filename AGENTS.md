@@ -400,7 +400,7 @@ shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue pr
 - `pr-maintenance` - Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop
 - `roadmap-dashboard` - Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` data-collection script and versions the output instead of overwriting
 - `production-ops` - Safely operate the production apps (atlas, meridian, compass, ...) as Docker Compose stacks on a single Hetzner VPS over a two-hop SSH login (root, then `su - deploy`); covers service ops and PostgreSQL data ops under strong guardrails (read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes/`prune`/`DROP`/`TRUNCATE`/`WHERE`-less writes)
-- `house-response-style` - The always-on response style as a single-source skill: lead with the answer, cut narration, write in Simplified Technical English (the ASD-STE100 **writing rules** only, explicitly not its licensed dictionary: one word one meaning, one part of speech per word, active voice and imperative instructions, no jargon or borrowed metaphor like "tombstone", one instruction per sentence, 20-word instructions and 25-word explanations, positive phrasing, condition-before-instruction warnings, American English, with technical names and technical verbs kept verbatim), put multi-factor choices in a decision matrix with a bold recommendation, structure only genuinely multi-part answers, suggest a follow-up only when earned, and end open work with an owner-split "Next actions" section. The `SessionStart` hook reads this file (frontmatter stripped) so the injected style and the on-demand `/response-style` command share one source of truth; carries a "why," Bad/Good pairs, escape hatches, and a pre-send check
+- `house-response-style` - The always-on response style as a single-source skill: lead with the answer, cut narration, write in **Simplified Technical English, the controlled-English standard specified in ASD-STE100** (its **writing rules** only, explicitly not its licensed dictionary: one word one meaning, one part of speech per word, active voice and imperative instructions, no jargon or borrowed metaphor like "tombstone", one instruction per sentence, 20-word instructions and 25-word explanations, positive phrasing, condition-before-instruction warnings, American English, with technical names and technical verbs kept verbatim, and self-reporting stated plainly rather than as "green" or "a flake" - the highest-drift case, since the reader cannot audit either word), put multi-factor choices in a decision matrix with a bold recommendation, structure only genuinely multi-part answers, suggest a follow-up only when earned, and end open work with an owner-split "Next actions" section. The `SessionStart` hook reads this file (frontmatter stripped) so the injected style and the on-demand `/response-style` command share one source of truth; carries a "why," Bad/Good pairs, escape hatches, and a pre-send check
 
 **Registered Agents:**
 
@@ -472,8 +472,10 @@ on-demand `style-*` and `review-*` skills; only the small universal core is alwa
 
 - **`SessionStart`** injects the core plus the response style, sourced from the
   `house-response-style` skill (`skills/house-response-style/SKILL.md`, frontmatter stripped
-  at inject time): respond concisely; write in Simplified Technical English (ASD-STE100
-  writing rules, not the licensed dictionary) using American English; put multi-factor
+  at inject time): respond concisely; write in Simplified Technical English, the
+  controlled-English standard specified in ASD-STE100 (its writing rules only, never its
+  licensed dictionary), using American English, and report your own work plainly rather than
+  as "green" or "a flake"; put multi-factor
   choices in a decision matrix; suggest a follow-up
   question only when the answer genuinely raises one; end any response that leaves work open
   with a "Next actions" section split into "Me (Claude)" and "You". Injected as raw context
@@ -519,7 +521,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 11 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 12 checks: the
 SessionStart raw output (both documents present, response style frontmatter stripped), the
 SubagentStart JSON wrapping (response style absent), both off-switch paths, the **manifest**
 (the matcher covers all five SessionStart sources, every referenced script exists, every
@@ -529,14 +531,19 @@ drift in silence), that `/response-style` reads the
 skill file rather than invoking the disabled skill through the Skill tool, and four covering
 `run-hook.sh`: it emits the marker when `node` fails, it stays silent when `node` fails *and*
 the off-switch is set, it needs neither an external command nor `HOME`, and its off-switch
-agrees with `runtime.js`. A final check **executes the manifest commands themselves** against a
+agrees with `runtime.js`. One check **executes the manifest commands themselves** against a
 working and a broken `node`, because everything else tests the manifest as a string and the
-wrapper as a program, never the two together, so a shell-quoting error would ship green. The
-suite also asserts that the count stated in this sentence matches the number of checks it ran,
-since that number drifted three times while the suite was being written. Each check was added
-after a real defect shipped green under a narrower suite: a matcher missing `fork`, a dead
-`/response-style` command, a failure marker that ignored the off-switch, and an off-switch that
-silently stopped working when `tr` was off the PATH.
+wrapper as a program, never the two together, so a shell-quoting error would ship green. A final
+check pins the **report-your-own-work** rule in both response-style sources (the skill and
+`preamble.js`'s fallback): the no-jargon rule illustrated only words about system behavior, so
+the words an agent uses for its *own* work read as allowed, and "the suite is green" or "that
+was a flake" hides the very thing the reader needs (a test count; the argument for why a failure
+is unrelated). The suite also asserts that the count stated in this sentence matches the number
+of checks it ran, since that number drifted three times while the suite was being written. Each
+check was added after a real defect shipped green under a narrower suite: a matcher missing
+`fork`, a dead `/response-style` command, a failure marker that ignored the off-switch, an
+off-switch that silently stopped working when `tr` was off the PATH, and an agent reporting its
+own work in shorthand the reader could not check.
 
 ## Key Design Principles
 

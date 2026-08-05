@@ -37,6 +37,12 @@
 //      as a string and the wrapper as a program, never together, so a shell
 //      quoting error would ship green. Matters most for the SubagentStart
 //      fallback: JSON nested in single quotes inside a JSON string.
+//  11. Both response-style sources carry the report-your-own-work rule. Rule 3
+//      (no jargon) listed only words about system behavior, so the words an
+//      agent reaches for to describe its OWN work ("green", "a flake") read as
+//      allowed. That is the highest-drift case: shorthand the reader cannot
+//      audit. Pinned in the skill AND in preamble.js's fallback, because a
+//      failed file read must not silently drop the rule.
 //
 // Finally, the check count documented in AGENTS.md is asserted against the real
 // total. That number drifted three times while this suite was being written.
@@ -405,6 +411,54 @@ check('the manifest commands execute correctly end to end', () => {
     failJson.hookSpecificOutput.additionalContext.includes('FAILED to load'),
     'the SubagentStart fallback must be valid JSON carrying the marker'
   );
+});
+
+// --- 11. The report-your-own-work rule survives in both sources -----------
+// Rule 3 (no jargon) illustrated only words about system behavior (reap, drain,
+// hydrate), so the words an agent uses for its OWN work read as allowed. That is
+// the highest-drift case, because the reader cannot audit the shorthand: "green"
+// hides a test count, and "a flake" hides the whole argument for why a failure
+// is unrelated. Pinned in both sources so a fallback injection keeps the rule.
+check('both response-style sources carry the report-your-own-work rule', () => {
+  const skill = fs.readFileSync(
+    path.join(HOOKS_DIR, '..', 'skills', 'house-response-style', 'SKILL.md'),
+    'utf8'
+  );
+  const { RESPONSE_FALLBACK } = require('./preamble');
+
+  assert.ok(
+    /binds hardest when you report your own work/.test(skill),
+    'SKILL.md must extend the no-jargon rule to self-reporting'
+  );
+  assert.ok(
+    skill.includes('every test passes') && skill.includes('passed on re-run'),
+    'SKILL.md must give the "green" and "flake" replacements explicitly'
+  );
+  assert.ok(
+    /claim about work you just did/i.test(skill),
+    'the pre-send check must include the self-reporting pass'
+  );
+  assert.ok(
+    RESPONSE_FALLBACK.includes('report your own work') &&
+      RESPONSE_FALLBACK.includes('every test'),
+    'the degraded-path fallback must carry the rule too'
+  );
+
+  // Both sources must name the standard and its number, and must take only its
+  // writing rules. Without the number a reader cannot look the standard up; with
+  // the dictionary included the rule becomes unfollowable, since that half is
+  // licensed and cannot be consulted.
+  for (const [label, text] of [['SKILL.md', skill], ['the fallback', RESPONSE_FALLBACK]]) {
+    assert.ok(
+      /Simplified Technical English/.test(text),
+      `${label} must use the standard's real name, "Simplified Technical English"`
+    );
+    assert.ok(/ASD-STE100/.test(text), `${label} must cite ASD-STE100 by number`);
+    assert.ok(
+      /dictionary/i.test(text),
+      `${label} must exclude the licensed dictionary, not just cite the standard`
+    );
+  }
 });
 
 // The documented count in AGENTS.md has drifted three times while iterating on

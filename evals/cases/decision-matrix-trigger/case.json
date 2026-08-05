@@ -1,10 +1,11 @@
 {
   "prompt": "I need to store one optional 'nickname' value per user. The users table has 40 million rows and is written to constantly. I could add a nullable column to users, create a separate side table keyed by user id, or put it inside an existing JSON blob column that the table already has. Which should I pick?",
   "why": "Decision matrix trigger: three real options, several factors that disagree (migration cost on a hot table, query cost, undo cost), and the user asked directly which to pick. All three trigger conditions are met, so a table plus a bold recommendation is required. The recommendation must lead, above the table, because 'lead with the answer' outranks building to a conclusion.",
+  "known_failing": "KNOWN FAILING as of 2026-08-05, and the only failing case in the suite (15/18 runs pass; the other five cases pass 3/3). Not yet diagnosed to a root cause. What is known: (1) the response DOES lead with a bold recommendation when captured by hand ('**Add the nullable column to `users`.**'), and the require_regex matches that text in isolation, so the rule is being followed; (2) the same regex reports 'missing' through the runner, which points at the runner's output capture rather than the response, since a leading bold span cannot both match and not match the same string; (3) one run in three also loses the table entirely, which is a separate real miss. Start by making run.py save each raw response to disk, because this case cannot be diagnosed further without seeing exactly what the grader received.",
   "checks": {
     "require_markdown_table": true,
     "require_regex": [
-      {"pattern": "\\*\\*[^*\\n]{0,40}[Rr]ecommend", "why": "the recommendation must be stated in bold"}
+      {"pattern": "\\A\\s*(\\*\\*|#{2,} )", "why": "the recommendation must LEAD, so the response opens with the bold call (or a heading carrying it) rather than building toward it. Deliberately does not require the word 'recommend': the rule is lead with the answer, and a bold imperative ('**Add the nullable column to `users`.**') satisfies it better than a labelled restatement. The earlier pattern demanded that literal word and failed 3 of 3 runs on responses that were following the rule correctly."}
     ]
   }
 }

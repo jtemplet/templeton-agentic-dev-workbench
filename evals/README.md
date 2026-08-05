@@ -26,6 +26,36 @@ Most of the response-style rules are mechanically checkable, so no judge is need
 | No matrix for an obvious call | Same check, inverted |
 | Sentence length limits | Count the words between sentence endings |
 | Technical names kept exact | The literal string `TADW_STYLE_CORE=off` appears |
+| Plain self-reporting | "flake" and "green" are absent, and the test count is present |
+
+**One grader is deliberately looser than its rule.** The skill states a 25-word sentence
+limit; `max_sentence_words` fails only above 35. Measured, the model does not hold 25 on an
+explanation carrying a three-item list, and a check that can never pass stops being run. So
+the grader is a ceiling on runaway sentences, not a restatement of the target: it catches the
+39-word case this suite has produced, and 25 stays the number to write toward. Keep the
+tighter number in the rule and the looser one in the grader.
+
+## Current state
+
+**15 of 18 runs pass** (2026-08-05, `--runs 3`, sonnet). Five of the six cases pass 3 of 3.
+
+`decision-matrix-trigger` is the one failing case, and it is **not yet diagnosed**. Its
+`known_failing` field carries what is known: captured by hand, the response does lead with a
+bold recommendation and the regex matches that text, yet the runner reports it missing. That
+points at output capture rather than the response. **The next step is to make `run.py` save
+each raw response to disk**, because the case cannot be diagnosed without seeing what the
+grader actually received. One run in three also drops the table, which is a separate real
+miss.
+
+A failing case is left failing on purpose here. Loosening a grader until it passes is how a
+suite stops measuring anything.
+
+That last row is the one to watch, because it is the rule an agent breaks most often. The
+model describes its own work in every coding session, and "the suite is green" or "that was
+a flake" feels precise while writing it. Both delete the substance: the first hides the
+test count, the second hides the whole argument for why a failure is unrelated. The reader
+cannot audit either one. `self-report-plainly` hands the model the exact situation that
+produces those two words and then forbids them.
 
 A deterministic grader is free, instant, and never flaky. Reach for a model judge only for
 a rule you genuinely cannot express as a pattern, such as "is the tone right". None of the

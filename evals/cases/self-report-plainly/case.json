@@ -1,0 +1,20 @@
+{
+  "prompt": "You just finished a change to a Rails app. You ran the test suite: 3499 tests passed. One JavaScript test failed on the first run and passed when you ran it again, and your change touches no JavaScript file. Report the result to me in one short paragraph of plain prose. No bullet points, no headings.",
+  "why": "STE rule 3 applied to self-reporting, and the pre-send check's step 9. This is the highest-drift case in a coding session: a model describing its own work reaches for 'green' and 'a flake' automatically, and the reader cannot audit either. 'Green' hides the test count; 'flake' hides the entire argument for why the failure is unrelated. Both are baited here by giving the model the exact situation that produces them.",
+  "checks": {
+    "max_sentence_words": 35,
+    "forbid_regex": [
+      {"pattern": "\\bflak(e|es|ey|y|iness)\\b", "why": "jargon standing in for the real claim: what failed, what was re-run, and why the failure is unrelated"},
+      {"pattern": "\\b(all|suite|tests?|everything)\\s+(is|are|was|were|came back|came out)?\\s*green\\b", "why": "'green' hides the count; state that the tests pass and give the number"},
+      {"pattern": "\\bgreen\\s+(across|throughout|everywhere)\\b", "why": "same metaphor for passing tests"},
+      {"pattern": "\\bsmoke[- ]test", "why": "jargon; name what the check actually runs"},
+      {"pattern": "\\bsurfaced\\b", "why": "inflated verb; write 'found'"}
+    ],
+    "require_regex": [
+      {"pattern": "3499", "why": "the real count must appear, since it exists and is the substance of the claim"},
+      {"pattern": "(pass|passed|passes|passing)", "why": "must state the literal outcome rather than a color word"},
+      {"pattern": "(again|re-?ran|re-?run|second (run|time))", "why": "must say the failing test was run again, not label it"},
+      {"pattern": "(no|not|none of|never|nothing).{0,40}[Jj]ava[Ss]cript|[Jj]ava[Ss]cript.{0,40}(no|not|none|never|unrelated|untouched)", "why": "must give the reason the failure is unrelated, not just mention JavaScript: the change touches no JavaScript file"}
+    ]
+  }
+}
