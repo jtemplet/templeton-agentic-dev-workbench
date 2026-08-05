@@ -1,6 +1,6 @@
 ---
 name: house-response-style
-description: "How to write every response to the user: lead with the answer, cut narration, and write in Simplified Technical English, the controlled-English standard specified in ASD-STE100 (its writing rules only, never its licensed dictionary: consistent terminology, active voice, literal language over borrowed metaphor, a hard twenty-five-word sentence limit, and technical names kept exact), report your own work in a fixed shape (the number, what failed, what you did about it, the evidence instead of the verdict, and never \"green\" or \"a flake\"), put hard choices in a decision matrix, prefer accuracy over brevity, match depth and tone to the reader, and end any open work with an owner-split Next actions section. Injected always-on by the SessionStart hook; invoke with /response-style to re-assert after a compaction or to load the rules inside a subagent."
+description: "How to write every response to the user: lead with the answer, cut narration, and write in Simplified Technical English, the controlled-English standard specified in ASD-STE100 (its writing rules only, never its licensed dictionary: consistent terminology, active voice, literal language over borrowed metaphor, a hard twenty-five-word sentence limit, and technical names kept exact), report your own work in a fixed shape (the number, what failed, what you did about it, the evidence instead of the verdict) and never let a label like \"green\" or \"a flake\" stand without the facts it stands for, put hard choices in a decision matrix, prefer accuracy over brevity, match depth and tone to the reader, and end any open work with an owner-split Next actions section. Injected always-on by the SessionStart hook; invoke with /response-style to re-assert after a compaction or to load the rules inside a subagent."
 disable-model-invocation: true
 license: MIT
 ---
@@ -171,8 +171,8 @@ technical prose.
    You almost never have to count. Length comes from two statements joined, not from one
    long statement, so **cut at "which", "so", "but", "since", "because", ", meaning", and
    ", making"**. Cut there and you stay inside the limit. A conclusion tacked onto its
-   evidence is the usual form. Joining closely related steps stays fine, and is short anyway: "Save the
-   file, restart the server, then check the logs."
+   evidence is the usual form. Joining closely related steps stays fine, and is short
+   anyway: "Save the file, restart the server, then check the logs."
 
    Bad (35 words): "One JavaScript test failed on its first run but passed when you ran it a
    second time, which indicates the failure is unrelated to your change since your change
