@@ -307,9 +307,10 @@ git diff main...HEAD  # See changes to be reviewed
 
 **Pipeline C - Code Quality:**
 
-`/fresh-eyes-cr` → `/quality-gates`
+`/fresh-eyes-cr` → `/verify-acceptance` → `/quality-gates`
 
 - **Fresh Eyes CR:** Auto-detects changed files, reads full files for context, finds and fixes bugs directly
+- **Verify Acceptance:** Grades the unit of work against its bead's acceptance criteria and the QA gates, one criterion at a time, against evidence rather than the diff; report-only. The acceptance gate hooks run this automatically at the end of a fresh-eyes turn, so the arrow is usually walked for you
 - **Quality Gates:** Runs tests, linting, type checks, documentation freshness, and security scan with pass/fail/skip per gate
 
 ### Multi-Language Reviews
@@ -386,6 +387,7 @@ shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue pr
 - `ux-audit-ios` - iOS UX audit via Simulator with Dynamic Type / Dark Mode / Bold Text testing against Apple HIG
 - `code-simplify` - Language-agnostic simplification workflow that loads the matching language style skill
 - `review-fresh-eyes` - Bug-and-correctness pass over recently changed code, fixes issues directly
+- `verify-acceptance` - Grade a finished unit of work against its bead's `acceptance_criteria` and the QA gates. Resolves the bead from `br` (claimed issue, branch name, or commit messages), grades each criterion PASS / FAIL / UNVERIFIABLE against an artifact (a named test that ran, a command with its output, a `file:line`) rather than against the diff, runs tests/lint/types/security, and renders one verdict: ACCEPTED, NOT ACCEPTED, or INCONCLUSIVE. Report-only: it never edits code, never closes a bead, and never invents criteria when the bead records none (that is a `bead-audit` finding, not a gap to fill). Chained automatically onto the end of a fresh-eyes review by the acceptance gate hooks
 - `feature-development` - 4-phase guided implementation (discovery, implementation, simplification, linting), language-agnostic
 - `plan-to-beads` - Decompose a feature plan into br (beads_rust) issues with dependencies, auditing each bead against Marr Levels 1 (Why), 2 (How), and acceptance criteria (Done when) before creation
 - `product-surface-docs` - Generate, refresh, and keep current a MECE/Pyramid-Principle product documentation tree under `docs/products/`, organized by product surface (web/api/iOS/...) and drilling into each surface's capabilities; grounds claims in code, proactively hunts bugs/gaps/debt into a `_findings.md` ledger with stable F-IDs (cheap capture, report everything) and promotes the actionable ones into `bead-audit`-compliant beads, ships a `check_staleness.py` (in-repo + multi-repo) so staleness is a command, and uses progressive disclosure (scripts/ + references/)
@@ -439,6 +441,7 @@ shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue pr
 - `/bead-audit` - Audit one or more bead bodies; paste content directly, give a file path, or pipe your issue tracker's output - no specific CLI required
 - `/bead-audit-all` - Single-pass, report-only audit of the whole backlog: enumerate every bead via `br`, score each once, report a ranked health table (worst band first). Bounded, not a `/goal` loop
 - `/fresh-eyes-cr` - Review and fix obvious bugs in all changed code
+- `/verify-acceptance` - Check whether the current unit of work met its bead's acceptance criteria and passed the QA gates; report-only verdict table. Runs automatically after a fresh-eyes review via the acceptance gate hooks
 - `/quality-gates` - Run tests, linting, type checks, docs, and security scan
 - `/diagnose` - Investigate a bug thoroughly before attempting any fix
 - `/product-analysis` - Generate an objective product analysis document
@@ -459,7 +462,8 @@ shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue pr
 ### Always-on style core (hooks)
 
 The plugin ships an always-on coding-style core via Claude Code lifecycle hooks
-(`hooks/style-core-hooks.json`, registered through the `hooks` field in `plugin.json`).
+(`hooks/style-core-hooks.json`, registered through the `hooks` field in `plugin.json`; that
+file now carries the acceptance gate too, since `plugin.json` takes a single manifest path).
 Unlike the model-invoked style skills, this fires automatically, so the house style is
 present even when the model would not have chosen to load a skill, and even inside spawned
 subagents (which never inherit the parent session's loaded skills).
@@ -516,13 +520,20 @@ there is no node-missing path that skips it; an opted-out user gets silence, not
 implementations agree across a matrix of env values and the flag file, so the duplication cannot
 drift unnoticed.
 
+**No hook script may call `process.exit()`.** Node's stdout writes are synchronous on POSIX
+pipes and **asynchronous on Windows pipes**, so an explicit exit can discard whatever has not
+flushed yet. Every hook script keeps its work inside a `try`/`catch` and falls off the end
+instead, which exits 0 anyway and flushes first. The rationale sits beside `writeHookOutput` in
+`hooks/runtime.js`, where the writes happen. Nothing pins this yet: it is a convention held by
+a comment, not by a check.
+
 **Blast radius (behavior change).** Declaring `hooks` in `plugin.json` makes these hooks fire
 in **every project** the plugin is loaded for, and (if distributed via the marketplace) for
 **every consumer on upgrade**. The core fires in non-coding sessions too (product, research,
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 12 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 16 checks: the
 SessionStart raw output (both documents present, response style frontmatter stripped), the
 SubagentStart JSON wrapping (response style absent), both off-switch paths, the **manifest**
 (the matcher covers all five SessionStart sources, every referenced script exists, every
@@ -539,12 +550,70 @@ check pins the **report-your-own-work** rule in both response-style sources (the
 `preamble.js`'s fallback): the no-jargon rule illustrated only words about system behavior, so
 the words an agent uses for its *own* work read as allowed, and "the suite is green" or "that
 was a flake" hides the very thing the reader needs (a test count; the argument for why a failure
-is unrelated). The suite also asserts that the count stated in this sentence matches the number
+is unrelated). Four more cover the **acceptance gate** (see below): it arms only on the
+fresh-eyes review skills and refuses a session id that could escape the temp directory; its
+`Stop` half blocks exactly once and disarms *before* it blocks; its off-switch is independent
+of the style core's in both directions; and its manifest commands execute, degrading to
+silence rather than to a partial decision when `node` is missing. The suite also asserts that
+the count stated in this sentence matches the number
 of checks it ran, since that number drifted three times while the suite was being written. Each
 check was added after a real defect shipped green under a narrower suite: a matcher missing
 `fork`, a dead `/response-style` command, a failure marker that ignored the off-switch, an
 off-switch that silently stopped working when `tr` was off the PATH, and an agent reporting its
 own work in shorthand the reader could not check.
+
+### Acceptance gate (hooks)
+
+The same manifest wires a second, independent feature: a `PostToolUse` + `Stop` pair
+(`hooks/acceptance-gate.js`) that chains the `verify-acceptance` skill onto the end of a
+fresh-eyes review.
+
+**Why two events.** Claude Code has no "slash command finished" event. `PostToolUse` on the
+`Skill` tool fires when a skill is **loaded**, not when its work is done, so a check wired
+there alone would grade the branch before a single file had been reviewed. `Stop` fires at the
+right moment but cannot see what ran earlier in the turn. So `PostToolUse` (matcher `Skill`)
+arms a per-session flag at `$TMPDIR/tadw-acceptance-<session_id>.flag` when `review-fresh-eyes`
+or `fresh-eyes-cr` loads, and `Stop` consumes that flag and returns
+`{"decision":"block"}` once, asking for the acceptance check before the turn ends.
+
+**Loop safety** is the whole risk: a `Stop` hook that blocks and never disarms traps the
+session, and a user cannot escape it from inside. Three guards, in order: the flag is deleted
+**before** the block is emitted (load-bearing); `stop_hook_active` is honored; and any error
+falls through to a silent `exit 0`. A flag older than 24 hours is discarded rather than spent,
+so a session that died before its `Stop` fired cannot block an unrelated turn later.
+
+**Not routed through `run-hook.sh`,** unlike the style hooks. That wrapper emits a visible
+marker when `node` is missing, which is right for a document injected once per session and
+wrong for a hook that fires on every `Skill` call and every stop. This gate degrades silently
+on purpose.
+
+**Off-switch,** independent of the style core's so that silencing one does not silence the
+other: `TADW_ACCEPTANCE_GATE=off` (also `0` / `false`), or a flag file at
+`${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-acceptance-gate-off`.
+
+**Blast radius.** The `Stop` hook fires in every session in every project the plugin is loaded
+for, but only speaks when the flag is armed, so a session that never runs a fresh-eyes review
+never sees it.
+
+**Test.** Three claims hide inside "the gate works," and they need different methods.
+
+1. *The gate arms and blocks.* Deterministic. `node hooks/test-hooks.js` covers it from inside
+   the suite (checks 12-15). `./hooks/manual-gate-test.sh` drives the same sequence from
+   outside, with the real hook payloads: arming is silent, the flag appears, `Stop` emits
+   `decision=block` naming `verify-acceptance`, the second `Stop` is silent because the block
+   consumed the flag, and a 25-hour-old flag is discarded rather than spent. It points `TMPDIR`
+   at a scratch directory removed on exit, so it cannot touch a live session's flag, and it
+   exits non-zero on any failure. Reach for it when the gate misbehaves in a live session and
+   you need to see which step diverges.
+2. *Claude Code fires the hooks.* Needs the plugin installed with this manifest, which the
+   working tree alone does not give you. Run `claude --debug hooks`, invoke `/fresh-eyes-cr`,
+   and watch for `$TMPDIR/tadw-acceptance-<session-id>.flag` and then the block.
+3. *The model complies.* Not deterministic. Read the transcript. Two failure modes: it
+   acknowledges the block without loading the skill, or it re-runs the fresh-eyes review.
+
+The gate must ship in the same version as the `verify-acceptance` skill. Released apart, it
+blocks every fresh-eyes turn asking for a skill that is not installed, and the loop-safety
+guards do not help, because that block is still well formed.
 
 ## Key Design Principles
 

@@ -35,11 +35,12 @@ Everything in the plugin is namespaced under `tadw:`, so a skill or agent is add
 
 ### Pipeline B — Code Quality
 
-`/fresh-eyes-cr` → `/quality-gates`
+`/fresh-eyes-cr` → `/verify-acceptance` → `/quality-gates`
 
 | Command | What it does |
 |---|---|
 | `/fresh-eyes-cr` | Review changed code with fresh eyes, find and fix bugs directly |
+| `/verify-acceptance` | Grade the work against its bead's acceptance criteria and the QA gates; report-only verdict. Runs automatically after a fresh-eyes review |
 | `/quality-gates` | Run tests, linting, type checks, doc freshness, security scan |
 
 ### Debugging
@@ -158,6 +159,7 @@ Pair with `/loop` to run on a schedule:
 | `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG |
 | `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill |
 | `review-fresh-eyes` | Bug-and-correctness pass over recently changed code, fixes issues directly |
+| `verify-acceptance` | Grade a finished unit of work against its bead's `acceptance_criteria` and the QA gates; every criterion graded against a named test, a command's output, or a `file:line`, never the diff; report-only ACCEPTED / NOT ACCEPTED / INCONCLUSIVE |
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
 | `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) |
 | `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards; separates content from structure (format-only issues are auto-fixable), honors native tracker fields, optional 0-100 scorecard banded Poor→Excellent and capped by verdict, JSON output for backlog grooming |
@@ -241,11 +243,64 @@ research, ASO). This is intentional. Use the off-switch below for sessions where
 `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`. Either disables both the session and
 subagent injection.
 
-**Requires `node` on PATH.** The hook runs `node`. If `node` is not on the non-interactive
-shell's PATH (common with `fnm`/`nvm`), the hook silently does nothing and the core is not
-injected (no error, just no marker line). Ensure `node` resolves in a non-interactive shell.
+**Requires `node` on PATH.** The hook runs `node` through `hooks/run-hook.sh`. If `node` is not
+on the non-interactive shell's PATH (common with `fnm`/`nvm`), the core cannot be injected and
+the wrapper says so: it emits `<!-- house-style-core: FAILED to load (node missing or script
+error) -->` in place of the core. If you see that marker, fix your PATH so `node` resolves in a
+non-interactive shell. If you see no marker at all, the hook did not run; check the matcher and
+the off-switch.
 
 **Test the hooks:** `node hooks/test-hooks.js` (no dependencies, no install).
+
+## Acceptance Gate
+
+A second, independent pair of hooks chains the `verify-acceptance` skill onto the end of a
+fresh-eyes review, so a review that fixed bugs is followed by the question the review does not
+answer: **did this work meet its acceptance criteria, and did it pass QA?**
+
+Claude Code has no "slash command finished" event, so the gate uses two:
+
+- `PostToolUse` (matcher `Skill`) arms a per-session flag when `review-fresh-eyes` or
+  `fresh-eyes-cr` loads.
+- `Stop` consumes that flag and blocks the turn once, asking for the acceptance check.
+
+`PostToolUse` alone would not work: it fires when a skill is **loaded**, not when its work is
+done, so the check would grade the branch before a file had been reviewed.
+
+**Loop safety.** A `Stop` hook that blocks and never disarms traps the session, and you cannot
+escape it from inside. The flag is therefore deleted *before* the block is emitted,
+`stop_hook_active` is honored, any error falls through to a silent exit, and a flag older than
+24 hours is discarded rather than spent on an unrelated turn.
+
+**Off-switch,** separate from the style core's so that turning off one does not silence the
+other: set `TADW_ACCEPTANCE_GATE=off` (also `0` / `false`), or create a flag file at
+`${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-acceptance-gate-off`.
+
+**Degrades silently.** Unlike the style hooks, this one prints no marker when `node` is
+missing. A marker on every `Skill` call and every stop would be noise, and a skipped nudge is
+a smaller cost than a corrupted transcript.
+
+**Testing it.** `node hooks/test-hooks.js` covers the gate's logic. `./hooks/manual-gate-test.sh`
+drives the same arm, block, and disarm sequence by hand with the real hook payloads, and exits
+non-zero on any failure:
+
+```text
+$ ./hooks/manual-gate-test.sh
+acceptance gate, driven by hand:
+  ok   - arming is silent
+  ok   - flag written to $TMPDIR
+  ok   - Stop emits decision=block naming verify-acceptance
+  ok   - second Stop is silent (flag consumed)
+  ok   - stale flag (>24h) is discarded, not spent
+
+5/5 passed. Flags cleaned up.
+```
+
+Both run against the working tree and speak to the hook script directly, so neither says
+whether Claude Code fires the hooks in a real session. For that, run `claude --debug hooks`,
+invoke `/fresh-eyes-cr`, and watch for the flag file and then the block.
+
+Run the check by hand any time with `/verify-acceptance`.
 
 ## Creating Components
 

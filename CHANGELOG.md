@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **An acceptance gate that chains `verify-acceptance` onto the end of a fresh-eyes review.**
+  Claude Code has no "slash command finished" event, so `hooks/acceptance-gate.js` uses two:
+  `PostToolUse` on the `Skill` tool arms a per-session flag when `review-fresh-eyes` or
+  `fresh-eyes-cr` loads, and `Stop` consumes that flag and blocks once. `PostToolUse` alone
+  fires when a skill is *loaded*, not when its work is done, so a check wired there would grade
+  the branch before a single file had been reviewed. Loop safety is the whole risk: a `Stop`
+  hook that blocks and never disarms traps the session, and the user cannot escape it from
+  inside. The flag is therefore deleted **before** the block is emitted, `stop_hook_active` is
+  honored, any error falls through to a silent exit, and a flag older than 24 hours is
+  discarded rather than spent on an unrelated turn. Off-switch: `TADW_ACCEPTANCE_GATE=off`, or
+  a flag file at `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-acceptance-gate-off`.
+- **The `verify-acceptance` skill and the `/verify-acceptance` command.** Grades a finished
+  unit of work against its bead's `acceptance_criteria` and the QA gates, one criterion at a
+  time. Its one load-bearing rule: grade against an artifact, never against the diff. Reading a
+  diff and concluding it should satisfy a criterion is a prediction, not a check, so a
+  criterion with no named test, no command output, and no `file:line` is UNVERIFIABLE rather
+  than PASS. Report-only: it never edits code, never closes a bead, and never invents criteria
+  when the bead records none, since a made-up criterion always passes.
+- **`hooks/manual-gate-test.sh`**, which drives the gate by hand with the real hook payloads:
+  arming is silent, the flag appears, `Stop` emits `decision=block` naming the skill, the
+  second `Stop` is silent, and a 25-hour-old flag is discarded. It points `TMPDIR` at a scratch
+  directory removed on exit, so it cannot touch a live session's flag. Use it when the gate
+  misbehaves in a session and you need to see which step diverges. Verified to discriminate: it
+  exits non-zero against three separately injected regressions (disarm removed, trigger list
+  narrowed, block reason no longer naming the skill).
+- **Checks 12-15 in `hooks/test-hooks.js`**, covering the gate: it arms only on the fresh-eyes
+  review skills and refuses a session id that could escape the temp directory, its `Stop` half
+  blocks exactly once and disarms first, its off-switch is independent of the style core's in
+  both directions, and its manifest commands execute rather than merely parsing.
+
+### Fixed
+
+- **No hook script calls `process.exit(0)` after writing to stdout.** Node's stdout writes are
+  synchronous on POSIX pipes but **asynchronous on Windows pipes**, so an explicit exit can
+  discard whatever has not flushed. The truncation would be silent and platform-specific: valid
+  output everywhere it was tested, a half-written object in production on Windows. Removing the
+  call is the entire fix, because every branch already sits inside a `try`/`catch`, so falling
+  off the end exits 0 anyway and flushes first. It could never have helped the one path that
+  does exit non-zero either, since a failed `require` throws before the line is reached.
+  Affects `session-start.js`, `subagent-start.js`, and `acceptance-gate.js`.
+- **`verify-acceptance` could return ACCEPTED having graded nothing.** The rule read "every
+  criterion PASS", which zero criteria satisfy vacuously, so the UNRESOLVED path the skill
+  itself routes to (no bead found, acceptance table skipped) rendered ACCEPTED. That is the
+  exact outcome the skill exists to refuse. ACCEPTED now requires at least one criterion
+  graded, and the unresolved case is named alongside the empty-criteria case.
+- **`/verify-acceptance` ignored the bead id it documented.** The command offered a bead id
+  argument, but the skill's Step 1 had no branch for one and always auto-resolved. Step 1 now
+  takes a supplied id first, confirms it exists, and stops rather than falling back when it
+  does not. The command also declares the `argument-hint` every other argument-taking command
+  in `commands/` declares.
+- **`README.md` described a missing `node` as a silent no-op.** It has not been silent since
+  `run-hook.sh` was introduced: the wrapper emits a `FAILED to load` marker in place of the
+  core. The README now states the real behavior and distinguishes "marker present, `node`
+  broken" from "no marker, the hook never ran".
+- **The `[Unreleased]` compare link pointed at `v1.14.0`.** It now points at `v2.3.1`, the
+  latest tag. Only `v1.13.0`, `v1.14.0`, `v1.15.0`, `v1.15.1`, and `v2.3.1` were ever tagged, so
+  the releases from 1.16.0 to 2.3.0 still have no compare link; adding one would produce a dead
+  link rather than a useful one.
+
+### Changed
+
+- **`runtime.js` off-switch is parameterized.** `isFeatureDisabled(envVar, flagFile)` now
+  carries the shape, and `isDisabled()` is its style-core specialization. The plugin ships two
+  independent hook features, and one shared switch would mean silencing the per-turn gate also
+  silenced the once-per-session style core.
+- **`plugin.json` still points at a single hooks manifest**, so `style-core-hooks.json` now
+  declares all four events. The file name is narrower than its contents; the alternative was a
+  second manifest the `hooks` field cannot reference.
+- Documentation: `AGENTS.md` and `README.md` cover the gate, the new skill and command, and
+  the three separate things "does the gate work" can mean, each needing a different test.
+
 ## [2.3.1] - 2026-08-05
 
 ### Added
@@ -643,5 +716,5 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.3.1...HEAD
 [1.14.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v1.13.0...v1.14.0

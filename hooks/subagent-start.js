@@ -24,4 +24,6 @@ try {
   // Silent fail - a stdout/read error at hook exit must not surface as a failure.
 }
 
-process.exit(0);
+// Deliberately no process.exit(0). Everything above is inside the try/catch, so
+// falling off the end already exits 0, and it flushes stdout first. See
+// writeHookOutput in runtime.js for why an explicit exit is unsafe here.
