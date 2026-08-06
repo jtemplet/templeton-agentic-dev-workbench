@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-08-06
+
+### Added
+
+- **A grounding audit in `bead-audit`, checking each bead against the code on `main`.** The
+  audit could previously certify a bead as Excellent while every file it named had been
+  renamed. Grounding is a third verdict on its own axis (`grounded` / `drifted` / `satisfied` /
+  `ungroundable`), never folded into the content verdict, because a bead whose target code
+  moved is *stale*, not under-specified, and the fix is to re-ground it rather than to write
+  missing content.
+
+  Only **current-state** claims are checkable. A bead's Why, How, and Steps to Reproduce
+  describe the world as it is; its Done when and Acceptance Criteria describe the world after
+  the work, and are supposed to be false while the bead is open. Checking those for drift would
+  fail every open bead, so they run the other way: an end state that **already holds** makes the
+  bead `satisfied`, and the proposal is to close it, not to fix it.
+
+  Claims are checked against `origin/main` with `git show` and `git grep`, never the working
+  tree, which on a feature branch already contains the change the bead asks for and would
+  report unmerged work as `satisfied`. `ungroundable` (no repository, a different repository,
+  no repository of record, nothing checkable) is reported explicitly, so an unchecked backlog
+  is never mistaken for a verified one. Grounding contributes no points; it applies a band
+  ceiling (`drifted` caps at Adequate, `satisfied` at Weak) and forces `applyable: false`,
+  because a false premise has two opposite resolutions ("the bead is stale" and "the code
+  regressed") that the audit cannot tell apart. The four checks (existence, pattern, stack,
+  behavior) are deliberately the same ones `plan-review` uses.
+- **A `Grounding` column and a `satisfied` callout in the `/bead-audit-all` report**, plus a
+  step that resolves the baseline sha once for the whole sweep instead of per bead. `satisfied`
+  beads are listed **above** the table: they appear done on `main` and can be closed
+  immediately, so burying them in a quality ranking sends someone to re-specify finished work.
+
+### Fixed
+
+- **`/bead-audit-all` now reads `skills/bead-audit/SKILL.md` from disk instead of invoking it
+  through the Skill tool, which never reached the rubric.** `commands/<name>.md` and
+  `skills/<name>/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+  `Skill(bead-audit)` returned the twenty-line command body whose first line is "Use the
+  `bead-audit` skill", redirecting to itself. Every sweep therefore scored from a summary
+  rather than from the weights, the caps, and the renormalization rules, and reported confident
+  numbers computed from nothing. Step 4 now also asserts that three headings are present in the
+  file it read, because a wrong number here is indistinguishable from a right one downstream.
+  Same fix, and same reason, as `/response-style`.
+
+### Known issues
+
+- **`/bead-audit` still has the collision described above and does not load the rubric.** Until
+  it is fixed, audit a single bead through `/bead-audit-all` and ignore the other rows.
+  Eighteen commands collide with a same-named skill; the collision is only a live bug where the
+  command's body delegates with "load the skill" instead of carrying its own instructions, and
+  only `/bead-audit-all` has been fixed so far.
+- **The two grounding band ceilings are unpinned by any fixture.** Exercising `drifted` and
+  `satisfied` needs a real repository at a known sha, which a pasted-body suite cannot provide.
+  All eight fixtures name no repository of record and are therefore `ungroundable`, which
+  proves the ceilings do not fire when they should not, and proves nothing about whether they
+  fire when they should.
+
 ## [2.4.0] - 2026-08-06
 
 ### Added
@@ -718,6 +774,7 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.1...HEAD
+[2.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.3.1...v2.4.0
 [1.14.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v1.13.0...v1.14.0

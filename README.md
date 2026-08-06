@@ -1,6 +1,6 @@
 # tadw (Templeton Agentic Dev Workbench)
 
-Personal Claude Code plugin — an agentic development workbench with custom agents, skills, and commands for Python, Ruby/Rails, JavaScript/TypeScript/React/Vue, Swift/iOS, and Terraform development.
+Personal Claude Code plugin: an agentic development workbench with custom agents, skills, and commands for Python, Ruby/Rails, JavaScript/TypeScript/React/Vue, Swift/iOS, and Terraform development.
 
 ## Installation
 
@@ -22,7 +22,7 @@ Everything in the plugin is namespaced under `tadw:`, so a skill or agent is add
 
 ## Workflow Pipelines
 
-### Pipeline A — Business Planning
+### Pipeline A: Business Planning
 
 `/business-ideas` → `/plan-feature <idea>` → `/plan-review` → `/plan-to-beads`
 
@@ -33,7 +33,7 @@ Everything in the plugin is namespaced under `tadw:`, so a skill or agent is add
 | `/plan-review <path>` | Gate on acceptance criteria, ground claims in the codebase, evaluate 7 dimensions (incl. MECE audit), render verdict; drafts missing criteria/test plan |
 | `/plan-to-beads <path>` | Decompose plan into `br` issues; each bead audited for Why, How, and Done when |
 
-### Pipeline B — Code Quality
+### Pipeline B: Code Quality
 
 `/fresh-eyes-cr` → `/verify-acceptance` → `/quality-gates`
 
@@ -63,7 +63,7 @@ Pair with `/loop` to run on a schedule:
 /loop 6h /pr-maintain
 ```
 
-### Pipeline C — Product Strategy
+### Pipeline C: Product Strategy
 
 `/competitive-analysis` → `/product-research` → `/product-roadmap` → `/product-brief <feature>` → `/ab-test-design <hypothesis>`
 
@@ -123,12 +123,16 @@ Pair with `/loop` to run on a schedule:
 
 | Command | Description |
 |---|---|
-| `/bead-audit [id or content]` | Audit bead bodies (Marr, size, type-specific sections); content-vs-structure verdicts, JSON mode, drafts applyable fixes |
-| `/bead-audit-all [open\|all]` | Single-pass, report-only audit of the whole backlog: score every bead once, ranked health table (worst first) |
+| `/bead-audit [id or content]` | Audit bead bodies (Marr, size, type-specific sections) and ground their claims in the code on `main`; content-vs-structure-vs-grounding verdicts, JSON mode, drafts applyable fixes |
+| `/bead-audit-all [open\|all]` | Single-pass, report-only audit of the whole backlog: score and ground every bead once, ranked health table (worst first) |
 | `/product-surface-docs [dir]` | Build/refresh a MECE/Pyramid product doc tree by surface under docs/products/; surfaces bugs/gaps/debt into a findings ledger |
 | `/pr-maintain` | Keep the current branch's PR rebased on its parent and passing CI; safe to pair with `/loop` |
 | `/roadmap-dashboard [jsonl]` | Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker |
 | `/validate-plugin` | Check plugin integrity and cross-references |
+
+> **Use `/bead-audit-all` for a single bead too, for now.** `/bead-audit` collides with the
+> same-named skill and does not load the audit rubric, so it scores from a summary. Audit the
+> one bead through `/bead-audit-all` and ignore the other rows until that is fixed.
 
 ### Operations
 
@@ -162,7 +166,7 @@ Pair with `/loop` to run on a schedule:
 | `verify-acceptance` | Grade a finished unit of work against its bead's `acceptance_criteria` and the QA gates; every criterion graded against a named test, a command's output, or a `file:line`, never the diff; report-only ACCEPTED / NOT ACCEPTED / INCONCLUSIVE |
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
 | `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) |
-| `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards; separates content from structure (format-only issues are auto-fixable), honors native tracker fields, optional 0-100 scorecard banded Poor→Excellent and capped by verdict, JSON output for backlog grooming |
+| `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards, and ground their claims in the code on `main`; separates content from structure (format-only issues are auto-fixable) and both from grounding (a bead whose code moved is `drifted`, not under-specified); honors native tracker fields, optional 0-100 scorecard banded Poor→Excellent and capped by verdict and by grounding, JSON output for backlog grooming |
 | `product-surface-docs` | Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface; grounds claims in code, proactively hunts bugs/gaps/debt into `_findings.md` (cheap capture) and promotes actionable ones into bead-audit-compliant beads, ships a staleness checker (in-repo + multi-repo) |
 | `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing |
 | `competitive-analysis` | Competitor teardown with positioning map, moat analysis, trajectory, and feature gaps |
@@ -185,7 +189,7 @@ Pair with `/loop` to run on a schedule:
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
 | `feature-planner` | Explores codebase, drafts structured plans with acceptance criteria to `docs/plans/` |
 | `project-manager` | Decomposes plans into `br` issues; ensures each bead has Why, How, and acceptance criteria (uses `plan-to-beads` skill) |
-| `diagnostician` | Read-only investigation — evidence, hypotheses, root cause |
+| `diagnostician` | Read-only investigation: evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
 | `research-librarian` | Ingests sources into Research wiki: reads, assesses study quality, generates summaries and entity/concept pages (uses `research-ingest` skill) |
 | `ux-product-designer` | UX audit of a web app via Playwright, 7-dimension evaluation with severity-ranked report |
