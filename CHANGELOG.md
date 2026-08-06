@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-08-06
+
 ### Added
 
 - **An acceptance gate that chains `verify-acceptance` onto the end of a fresh-eyes review.**
@@ -716,5 +718,6 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.3.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.3.1...v2.4.0
 [1.14.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v1.13.0...v1.14.0
