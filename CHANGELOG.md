@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-08-05
+
+### Added
+
+- **`Report your own work plainly` is now a top-level section**, stated as a six-part output
+  contract rather than a word ban: give the number, name what failed, say what you did about
+  it, give the evidence instead of the verdict, say what you did not run, and say where you
+  stopped. It was a table nested under sub-point 2 of ten numbered STE rules, which is the
+  least prominent place in the document for the rule that governs the claim you make most
+  often. `preamble.js`'s fallback carries the contract too.
+- **The label rule is now conditional: never let a label stand alone.** "Green" and "a flake"
+  are legitimate beside the facts they stand for, and forbidden without them. The flat ban
+  that preceded it was measured against three versions of this document and failed all
+  fourteen runs, while those same runs gave the count, the re-run, and the reason every time.
+  The harm the ban was written to prevent, a label swallowing the argument, did not occur
+  once. Shorthand that carries no facts of its own ("smoke test", "round-trip", "surfaced",
+  "lands", "wire up") stays forbidden outright, since it has nothing to stand beside.
+- **`forbid_label_alone`, a conditional grader in `evals/run.py`.** It takes a `pattern` and
+  an `unless_all` list, and fails only when the label appears and a supporting fact is
+  missing. `evals/cases/self-report-plainly` now uses it, and its substance checks keep their
+  current strictness. Its count and re-run patterns also accept `3,499` and "retry", which
+  the old patterns failed on answers that were otherwise complete.
+- **A rule for work you could not finish.** The document treated reporting success as its
+  highest-drift case and said nothing about reporting failure, which is its twin.
+
+### Fixed
+
+- **The document violated four of its own rules.** It used an em-dash, which the global house
+  rule bans everywhere. It banned "lands" as borrowed metaphor and then used "land" in that
+  same sense twice. Four of its sentences ran past its own twenty-five-word limit, one of
+  them inside the rule that sets the limit.
+- **"Lead with the answer" and "never state the recommendation twice" could not both hold**
+  when the answer was a choice. The matrix section now states one legal order for each case:
+  the lead sentence is the recommendation when the choice is the whole answer, and a separate
+  line carries it when the choice sits inside a longer answer.
+- **ASD-STE100's scope is now stated.** The rules were written unconditionally while "Tone
+  follows the task" exempted creative and personal work without saying what it exempted. The
+  scope note keeps accuracy, answer-first, and literal language for that work, and drops the
+  sentence caps. The spec is named at every point the rules are invoked, so "STE" never
+  appears without "ASD-STE100" nearby.
+- **Cross-references name their target instead of numbering it.** Four sections each number
+  from 1, so "Rule 1 above outranks all of them" could have meant accuracy or lead-with-the-
+  answer.
+- **The pre-send check no longer prints `3499`**, the exact test count used by
+  `evals/cases/self-report-plainly`. The document was priming the number its own eval requires
+  back, so that check partly measured recall of the document.
+
+### Changed
+
+- **`house-response-style` is now derived from ASD-STE100 alone.** Three sections still
+  tracked the `i-have-adhd` skill this style grew out of, closely enough to read as its copy:
+  the pre-send check (same delete list, same order, same "reads only the first line and the
+  last line" test), the escape hatches (four of its six items, two near-verbatim), and the
+  reader-facts list under "Why this shape". All three are rewritten from the standard's own
+  premise, that the reader must act on the document, often quickly and often in a second
+  language. Four smaller echoes went with them: the "Great question" opener, "anything else?"
+  as the named closing ritual, "2 to 4 ranked options", and the persistence sentence. The
+  rules themselves are unchanged; only the wording and the derivation are new.
+- **"When to break these rules" is now "Where these rules yield"**, and states what it yields
+  to: accuracy, which is rule 1. The old heading described the reader's action; the new one
+  describes the rule's behavior, and each item now names the situation rather than the
+  permission.
+- **The pre-send check is three named passes** (cut, rewrite, check your own claims) followed
+  by two tests of the finished draft. It was one list of deletions with a verify step, which
+  gave the self-reporting pass no place of its own. `evals/cases/self-report-plainly`
+  referred to "step 9" of a check that has had no numbered steps since 2.3.0; it now names
+  the pass.
+
 ## [2.3.0] - 2026-08-05
 
 ### Added

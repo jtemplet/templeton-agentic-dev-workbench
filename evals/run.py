@@ -107,6 +107,22 @@ def grade(output: str, checks: dict) -> list[CheckResult]:
             detail="absent" if hit is None else f"found {hit.group(0)!r} ({rule['why']})",
         ))
 
+    # A label is allowed only when the facts it stands for are present. The word
+    # alone is the failure, not the word. Fails when the pattern appears and any
+    # "unless" pattern is missing; passes when the pattern is absent entirely.
+    for rule in checks.get("forbid_label_alone", []):
+        hit = re.search(rule["pattern"], output, re.I)
+        missing = [p for p in rule["unless_all"] if not re.search(p, output, re.I)]
+        results.append(CheckResult(
+            name=f"label /{rule['pattern']}/ only beside its facts",
+            passed=hit is None or not missing,
+            detail=(
+                "label absent" if hit is None
+                else "label present, and every supporting fact is there" if not missing
+                else f"found {hit.group(0)!r} without {missing} ({rule['why']})"
+            ),
+        ))
+
     for rule in checks.get("require_regex", []):
         hit = re.search(rule["pattern"], output, re.I)
         results.append(CheckResult(

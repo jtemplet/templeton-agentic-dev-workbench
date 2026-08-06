@@ -1,5 +1,9 @@
 # Evals
 
+For the method behind this suite, and for how to extend it to other skills, commands, and
+agents, open [docs/eval-driven-development.html](../docs/eval-driven-development.html). This
+file covers only what is here today.
+
 An eval is a test for behavior that has no single correct output. A unit test asserts
 `add(2, 2) == 4`. You cannot assert that on a written answer, because a thousand different
 sentences are all correct. So instead of comparing the output to one expected string, an
@@ -26,7 +30,14 @@ Most of the response-style rules are mechanically checkable, so no judge is need
 | No matrix for an obvious call | Same check, inverted |
 | Sentence length limits | Count the words between sentence endings |
 | Technical names kept exact | The literal string `TADW_STYLE_CORE=off` appears |
-| Plain self-reporting | "flake" and "green" are absent, and the test count is present |
+| Plain self-reporting | The count, the re-run, and the reason are present, and no label appears without them |
+
+**One grader is conditional.** `forbid_label_alone` fails a label only when a fact it stands
+for is missing. It takes a `pattern` and an `unless_all` list, and passes when the pattern is
+absent, or when the pattern appears and every `unless_all` pattern also appears. It exists
+because a flat ban on "flake" and "green" failed 14 of 14 runs across three versions of the
+skill, while those same runs carried the count, the re-run, and the reason every time. A
+grader that fails a complete report measures the vocabulary, not the rule.
 
 **One grader is deliberately looser than its rule.** The skill states a 25-word sentence
 limit; `max_sentence_words` fails only above 35. Measured, the model does not hold 25 on an
@@ -37,25 +48,28 @@ tighter number in the rule and the looser one in the grader.
 
 ## Current state
 
-**15 of 18 runs pass** (2026-08-05, `--runs 3`, sonnet). Five of the six cases pass 3 of 3.
+**13 of 18 runs pass** (2026-08-05, `--runs 3`, sonnet, with-plugin arm only), measured
+before `self-report-plainly` was changed to `forbid_label_alone`. `decision-matrix-trigger`,
+`exact-names`, and `jargon-tombstone` pass 3 of 3. `decision-matrix-suppress` and
+`plain-sentences` pass 2 of 3. `self-report-plainly` passed 0 of 3, and 0 of 5 on a longer
+re-run.
 
-`decision-matrix-trigger` is the one failing case, and it is **not yet diagnosed**. Its
-`known_failing` field carries what is known: captured by hand, the response does lead with a
-bold recommendation and the regex matches that text, yet the runner reports it missing. That
-points at output capture rather than the response. **The next step is to make `run.py` save
-each raw response to disk**, because the case cannot be diagnosed without seeing what the
-grader actually received. One run in three also drops the table, which is a separate real
-miss.
+An earlier line here claimed 15 of 18 with five cases at 3 of 3, and that claim did not
+survive re-measurement: the same three hard cases scored 2 of 9 against the tree it described.
+Treat any number in this section as stale until you re-run it.
 
-A failing case is left failing on purpose here. Loosening a grader until it passes is how a
-suite stops measuring anything.
+**`self-report-plainly` drove a rule change, not a grader change.** Across three versions of
+the skill, 14 of 14 runs used "flake", "flaky", or "green". Every one of those runs also gave
+the count, said the test was run again, and said the change touches no JavaScript file. So the
+harm the ban was written to prevent, a label swallowing the argument, never occurred. The rule
+now forbids the label only where a fact it stands for is missing, and the grader follows it.
+That is the one legitimate reason to move a bar: the measurement showed the bar was in the
+wrong place. Loosening a grader because a rule is inconvenient is still how a suite stops
+measuring anything.
 
-That last row is the one to watch, because it is the rule an agent breaks most often. The
-model describes its own work in every coding session, and "the suite is green" or "that was
-a flake" feels precise while writing it. Both delete the substance: the first hides the
-test count, the second hides the whole argument for why a failure is unrelated. The reader
-cannot audit either one. `self-report-plainly` hands the model the exact situation that
-produces those two words and then forbids them.
+**Running it:** `claude -p` exits 1 when `ANTHROPIC_API_KEY` is set, and every case then fails
+at `invocation` with a connectors warning that reads like a style failure. Run
+`env -u ANTHROPIC_API_KEY python3 evals/run.py` until `run.py` strips that variable itself.
 
 A deterministic grader is free, instant, and never flaky. Reach for a model judge only for
 a rule you genuinely cannot express as a pattern, such as "is the tone right". None of the
