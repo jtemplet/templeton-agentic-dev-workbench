@@ -20,14 +20,16 @@
       "**/*.pyc": true,
       ".rumdl_cache": true,
       ".ruff_cache": true,
-      ".session-handoff.md": true
+      ".session-handoff.md": true,
+      ".in_use": true
     },
 
     "search.exclude": {
       "**/node_modules": true,
       "**/.git": true,
       "**/.beads": true,
-      "**/__pycache__": true
+      "**/__pycache__": true,
+      ".in_use": true
     },
 
     // Markdown settings
@@ -47,8 +49,7 @@
   "extensions": {
     "recommendations": [
       "yzhang.markdown-all-in-one",
-      "davidanson.vscode-markdownlint",
-      "editorconfig.editorconfig"
+      "davidanson.vscode-markdownlint"
     ]
   },
 
