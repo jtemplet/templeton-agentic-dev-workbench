@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.2] - 2026-08-08
+
+### Fixed
+
+- **The `SessionStart` hook was delivering about a tenth of what it injected.** Claude Code
+  caps every hook output string at 10,000 characters, covering plain stdout and
+  `hookSpecificOutput.additionalContext` alike, and replaces anything longer with a short
+  preview plus a file path. The payload is 19,996 characters: the coding core at 4,499 and the
+  response style at 15,495. Sessions received the first ~2,000 characters. The coding core
+  arrived cut off after principle 4 of 10, and **the response style never arrived at all**.
+
+  The failure was invisible from inside a session, which is the part worth remembering. The
+  coding core's marker sits at byte 5, inside the surviving preview, so a session read as
+  correctly loaded. The response style's marker sits at byte 4,507, inside the discarded
+  remainder. The one signal designed to prove the injection worked was the one signal the
+  truncation could not reach, and it had been reporting success since the hook shipped.
+
+  The fix is to split, not to shrink. The cap is per output, and Claude receives the
+  `additionalContext` of every hook that matched the event, so `SessionStart` now ships from
+  three manifest entries differing only in a payload index (core 4,499; response style parts
+  of 9,854 and 5,777). `getSessionStartPayloads()` computes the split at run time on line
+  boundaries, so editing either document re-splits it and nothing is hand-maintained.
+  Continuation parts name the section they resume, which buys back the context a mid-section
+  cut loses for one line instead of one manifest entry.
+
+  Two checks hold the seam shut, bringing the suite to 18: every payload must fit the cap,
+  asserted against real stdout rather than the computed string, and the manifest must wire
+  exactly one entry per payload with its own index. The splitter decides how many parts exist
+  while the manifest decides how many are asked for, and a mismatch drops the tail in silence.
+
+  `run-hook.sh` now forwards its remaining arguments to the script, which is how the index
+  reaches `session-start.js`. An index past the end emits nothing, so a stale manifest entry
+  cannot duplicate a part if the documents shrink.
+
+- **`bead-audit` was loading with no metadata at all.** Its `description` was an unquoted YAML
+  scalar containing `verdicts: content`, and the colon-space ended the scalar early, so the
+  whole frontmatter block failed to parse. Both `name` and `description` were silently dropped
+  at load time, which is what the runtime reads to decide whether to invoke a skill. Quoting
+  the description fixes it, and `claude plugin validate .` passes again. This shipped in 2.4.1.
+
+### Changed
+
+- **`AGENTS.md` cut from 767 lines to 231, about 12,060 tokens to 2,850.** The file loads in
+  full on every session in this repo, and roughly 91% of it restated content that already
+  lived elsewhere. The worst case was `house-response-style`, whose rules were in context three
+  times at once: injected by the hook, and restated at two separate places in `AGENTS.md`. That
+  copy had drifted, dropping the two rules the skill declares as outranking everything else and
+  adding two ASD-STE100 rules the skill deliberately refuses. Sessions were following the
+  drifted summary, because the hook's copy was being truncated away.
+
+  The registry lists became name indexes; descriptions live in the `README.md` tables and in
+  each component's frontmatter, which is what the runtime actually reads. Hook design notes
+  moved to `docs/HOOKS.md`, the language catalog to a 28-row routing table with the long form
+  in `docs/ROUTING.md`, and component anatomy to `docs/AUTHORING.md`. The inline `br` and `bv`
+  blocks gave way to `docs/beads-workflow.md`, with six commands that existed only in
+  `AGENTS.md` added there first.
+
+  "Landing the Plane" and the manifest namespace rule stay verbatim. Neither exists anywhere
+  else in the repo, and the first has to be in context at the end of a session, where a pointer
+  would not be followed.
+
+### Added
+
+- **A "Commands for This Repo" block in `AGENTS.md`.** `rumdl`, the two test suites, and
+  `evals/run.py` were documented nowhere in a 767-line file, yet CI fails on
+  `rumdl fmt --check .`.
+
 ## [2.4.1] - 2026-08-06
 
 ### Added
@@ -774,7 +841,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.2...HEAD
+[2.4.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.1...v2.4.2
 [2.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.3.1...v2.4.0
 [1.14.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v1.13.0...v1.14.0
