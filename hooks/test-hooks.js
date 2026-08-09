@@ -60,6 +60,10 @@
 //  17. The manifest wires one SessionStart entry per payload, each passing its
 //      own index. The splitter decides how many parts exist; the manifest
 //      decides how many are asked for, and a mismatch drops the tail silently.
+//  18. No command both shares a skill's name and delegates to that skill by
+//      name. The two share one `tadw:` namespace and the command wins, so such
+//      a command resolves back to itself. Eighteen shipped that way, hiding
+//      271,067 bytes of skill content behind their own summaries.
 //
 // Finally, the check count documented in docs/HOOKS.md is asserted against the
 // real total. That number drifted three times while this suite was being written.
@@ -355,6 +359,64 @@ check('/response-style reads the skill file instead of invoking the Skill tool',
     !/Use the `house-response-style` skill/.test(command),
     'command must not tell the model to invoke the disabled skill via the Skill tool'
   );
+});
+
+// --- 6b. No command may share a skill's name AND delegate to it by name ---
+// `commands/<name>.md` and `skills/<name>/SKILL.md` are addressed as the same
+// `tadw:<name>`, and the command wins. So a command body saying "Use the
+// `<name>` skill" resolves back to itself and never reaches the skill.
+//
+// Eighteen commands shipped that way, hiding 271,067 bytes of skill content.
+// /bead-audit alone put a 250-byte summary in front of a 51,113-byte rubric, and
+// every audit it ran scored from the summary. Check 6 pinned this for one
+// command; this generalizes it to every colliding name, because the same defect
+// reappeared seventeen more times while that single check kept passing.
+//
+// The rule: a command may share a skill's name, or delegate to that skill by
+// name, but never both. Satisfy it by renaming the command, deleting it (the
+// skill then takes the slash name), or reading the SKILL.md from disk.
+check('no command both shares a skill name and delegates to that skill by name', () => {
+  const root = path.join(HOOKS_DIR, '..');
+  const skills = new Set(
+    fs
+      .readdirSync(path.join(root, 'skills'), { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+  );
+  const commandDir = path.join(root, 'commands');
+  const shared = fs
+    .readdirSync(commandDir)
+    .filter((f) => f.endsWith('.md'))
+    .map((f) => f.slice(0, -3))
+    .filter((n) => skills.has(n));
+
+  for (const name of shared) {
+    const body = fs
+      .readFileSync(path.join(commandDir, `${name}.md`), 'utf8')
+      .replace(/^---[\s\S]*?\n---\n/, '');
+    const delegates = new RegExp(
+      String.raw`(use|load|invoke)\s+the\s+\`?${name}\`?\s+skill`,
+      'i'
+    ).test(body);
+    const readsFile = body.includes(`skills/${name}/SKILL.md`);
+
+    assert.ok(
+      !delegates || readsFile,
+      `/${name} shares its name with skills/${name}/ and tells the model to load that skill ` +
+        `by name. Skill(${name}) returns this command, not the skill. Read ` +
+        `\${CLAUDE_PLUGIN_ROOT}/skills/${name}/SKILL.md instead, rename the command, or delete it.`
+    );
+
+    // A Read with no fallback fails silently when CLAUDE_PLUGIN_ROOT does not
+    // resolve, which is the same class of silent failure as the shadow itself.
+    if (readsFile) {
+      assert.ok(
+        /Glob:/.test(body),
+        `/${name} reads its skill from disk but gives no Glob fallback for an ` +
+          'unresolved ${CLAUDE_PLUGIN_ROOT}'
+      );
+    }
+  }
 });
 
 // --- 7. The wrapper honors the off-switch even when node fails -----------

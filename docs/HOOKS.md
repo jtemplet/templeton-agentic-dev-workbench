@@ -106,7 +106,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 18 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 19 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
 frontmatter stripped), the two that hold the split shut (every payload inside the

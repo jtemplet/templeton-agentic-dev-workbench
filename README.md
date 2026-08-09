@@ -229,8 +229,9 @@ messages), except when quoting a name you do not own. Injected text opens with a
 `SessionStart` additionally injects a response style (`<!-- house-response-style: loaded -->`
 marker): respond concisely, write in Simplified Technical English, the controlled-English
 standard specified in ASD-STE100 (its writing rules only, never its licensed dictionary: one
-word one meaning, active voice, no jargon or borrowed metaphor, capped sentence length, with
-technical names like files and settings kept verbatim), report your own work in a fixed shape
+word one meaning, active voice, no jargon or borrowed metaphor, sentences capped at twenty-five
+words for an explanation and twenty for an instruction, with technical names like files and
+settings kept verbatim), report your own work in a fixed shape
 and never let a label like "green" or "a flake" stand without the facts it
 stands for, put choices that trade off on more than
 one factor into a decision matrix with a bold recommendation, suggest a follow-up question
