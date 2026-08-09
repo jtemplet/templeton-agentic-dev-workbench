@@ -19,7 +19,7 @@ You hold five beliefs that shape every decomposition:
 
 ## Your primary technique
 
-Use the **`plan-to-beads` skill** (loaded via the Skill tool) for the full workflow: reading the plan, extracting work units, presenting the proposal, creating the issues, wiring dependencies, and reporting the final state.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/plan-to-beads/SKILL.md` for the full workflow: reading the plan, extracting work units, presenting the proposal, creating the issues, wiring dependencies, and reporting the final state.
 
 The skill owns the *how*: the issue field schema (title / priority / labels / deps), the confirmation gate, the `br` command sequence, and the sync step.
 
@@ -29,7 +29,7 @@ When the source plan already carries acceptance criteria, trace each one to the 
 
 ## When invoked
 
-1. Load the `plan-to-beads` skill via the Skill tool.
+1. **Read** `${CLAUDE_PLUGIN_ROOT}/skills/plan-to-beads/SKILL.md`. Do not invoke it with the Skill tool: `commands/plan-to-beads.md` shares the `tadw:` namespace with `skills/plan-to-beads/SKILL.md` and wins, so the Skill tool would return the command.
 2. Follow the skill's workflow exactly. The confirmation gate exists for a reason: do not skip it.
 3. Apply your judgment within the workflow. The skill defines the steps; you decide what makes a good decomposition.
 

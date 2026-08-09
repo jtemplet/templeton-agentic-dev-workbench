@@ -3,7 +3,11 @@ description: "Decompose a feature plan into br (beads_rust) issues with dependen
 argument-hint: "[path-to-plan-file]"
 ---
 
-Use the `plan-to-beads` skill to decompose a feature plan into trackable `br` issues.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/plan-to-beads/SKILL.md` and follow it to decompose a feature plan into trackable `br` issues.
+
+Read the file rather than invoking the skill by name. `commands/plan-to-beads.md` and
+`skills/plan-to-beads/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+`Skill(plan-to-beads)` returns this file and never reaches the skill.
 
 The decomposition operates from the `project-manager` role: a project manager who keeps the dependency graph shallow, makes each issue self-contained, and refuses to create issues without explicit confirmation. Refer to `agents/project-manager.md` for the role's beliefs and judgment principles.
 

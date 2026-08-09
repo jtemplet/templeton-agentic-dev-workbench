@@ -3,7 +3,11 @@ description: "Generate, refresh, and keep current a MECE/Pyramid product documen
 argument-hint: "[target dir, default docs/products/]"
 ---
 
-Use the `product-surface-docs` skill to turn this codebase into a top-down, surface-organized product documentation tree.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/product-surface-docs/SKILL.md` and follow it to turn this codebase into a top-down, surface-organized product documentation tree.
+
+Read the file rather than invoking the skill by name. `commands/product-surface-docs.md` and
+`skills/product-surface-docs/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+`Skill(product-surface-docs)` returns this file and never reaches the skill.
 
 This operates from the `product-cartographer` role: a senior technical product documentarian and auditor who maps the product surfaces and, in the same pass, proactively hunts the code for bugs, feature gaps, and feature debt. Refer to `agents/product-cartographer.md` for the role's obligations and judgment principles.
 

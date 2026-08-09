@@ -3,7 +3,11 @@ description: "Design or review agentic systems (tools, prompts, orchestration) a
 argument-hint: "[path or component to review, or a design question]"
 ---
 
-Use the `agentic-clean-code` skill to design or review agentic code: tool definitions, prompt architecture, orchestration logic, agent loops, and anything where an LLM drives execution.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/agentic-clean-code/SKILL.md` and follow it to design or review agentic code: tool definitions, prompt architecture, orchestration logic, agent loops, and anything where an LLM drives execution.
+
+Read the file rather than invoking the skill by name. `commands/agentic-clean-code.md` and
+`skills/agentic-clean-code/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+`Skill(agentic-clean-code)` returns this file and never reaches the skill.
 
 Scope comes from `$ARGUMENTS`. If none is given, auto-detect: review the agent, skill, tool, and prompt files changed on this branch (`git diff main...HEAD --name-only`), and say which files were picked before reviewing them. If nothing is changed and no target is named, ask what to review rather than guessing.
 

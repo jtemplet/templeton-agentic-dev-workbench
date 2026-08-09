@@ -3,7 +3,11 @@ description: "Run a UX audit of a web app: drives it via Playwright, captures sc
 argument-hint: "<app-url> [notes]"
 ---
 
-Use the `ux-audit` skill to conduct a UX audit of the web app at $ARGUMENTS.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/ux-audit/SKILL.md` and follow it to conduct a UX audit of the web app at $ARGUMENTS.
+
+Read the file rather than invoking the skill by name. `commands/ux-audit.md` and
+`skills/ux-audit/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+`Skill(ux-audit)` returns this file and never reaches the skill.
 
 The audit operates from the `ux-product-designer` role: a senior product designer working at the standard of Apple, Stripe, and Airbnb design teams. Refer to `agents/ux-product-designer.md` for the role's beliefs and judgment principles.
 

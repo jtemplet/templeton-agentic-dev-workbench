@@ -127,17 +127,15 @@ each `agents/<name>.md` frontmatter.
 `product-cartographer` `product-manager` `project-manager` `research-librarian`
 `software-engineer` `ux-product-designer` `ux-product-designer-ios`
 
-**Registered Commands** (36). Descriptions live in the `README.md` command tables
+**Registered Commands** (29). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
-`/ab-test-design` `/adr` `/agentic-clean-code` `/aso-audit` `/bead-audit-all`
-`/business-ideas` `/code-review` `/competitive-analysis` `/diagnose` `/fresh-eyes-cr`
-`/frontend-code-review` `/idea-wizard` `/plan-feature` `/plan-review` `/plan-to-beads`
-`/pr-maintain` `/prod-ops` `/product-analysis` `/product-brief` `/product-research`
-`/product-roadmap` `/product-surface-docs` `/python-code-review` `/python-feature-dev`
-`/quality-gates` `/rails-code-review` `/research-ingest` `/response-style` `/review-claude-md`
-`/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-audit` `/ux-audit-ios`
-`/validate-plugin` `/verify-acceptance`
+`/adr` `/agentic-clean-code` `/aso-audit` `/bead-audit-all` `/code-review` `/diagnose`
+`/fresh-eyes-cr` `/frontend-code-review` `/plan-feature` `/plan-review` `/plan-to-beads`
+`/pr-maintain` `/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
+`/python-feature-dev` `/quality-gates` `/rails-code-review` `/research-ingest` `/response-style`
+`/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-audit`
+`/ux-audit-ios` `/validate-plugin` `/verify-acceptance`
 
 ### Hooks
 
@@ -201,6 +199,17 @@ no agent or command references is an orphan and `/validate-plugin` will flag it.
 [docs/AUTHORING.md](docs/AUTHORING.md).
 
 Run `/validate-plugin` after adding, renaming, or removing a component.
+
+**A command may share a skill's name, or delegate to that skill by name, but never both.**
+`commands/<name>.md` and `skills/<name>/SKILL.md` are addressed as the same `tadw:<name>` and the
+command wins, so a command body saying "Use the `<name>` skill" resolves back to itself. Give the
+command a different name, delete it (the skill then takes the slash name), or have it
+`**Read** ${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md` instead of invoking it.
+
+`business-ideas` and `idea-wizard` are referenced by no agent and no command, which
+`/validate-plugin` reports as orphans. That is accepted: both are invoked directly as
+`/<name>`, so a referrer would add nothing. Treat the orphan rule as a prompt to check the
+skill is still reachable, not as a requirement that something point at it.
 
 ## Issue Tracking (br + bv)
 

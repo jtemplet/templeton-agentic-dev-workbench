@@ -114,7 +114,6 @@ Pair with `/loop` to run on a schedule:
 | Command | Description |
 |---|---|
 | `/python-feature-dev <feature>` | Guided Python feature development (4-phase workflow) |
-| `/idea-wizard` | Generate 30 improvement ideas, evaluate, distill to top 5 |
 | `/adr <topic>` | Record an architectural decision with context and rationale |
 | `/agentic-clean-code [target]` | Design or review agentic code (tools, prompts, orchestration) against Clean Code + POODR |
 | `/response-style` | Re-assert the house response style (answer-first, Simplified Technical English, decision matrices, owner-split "Next actions") after a compaction or inside a subagent |
@@ -141,6 +140,10 @@ Pair with `/loop` to run on a schedule:
 | `/prod-ops` | Safely operate production apps on a Hetzner VPS over SSH (service ops + PostgreSQL data ops) under strong guardrails; loads the `production-ops` skill |
 
 ## Skills
+
+Every skill below is invocable directly as `/<skill-name>`, so a skill needs no command file to
+be reachable. Seven commands that did nothing but name their own skill were removed for that
+reason: they shadowed the skill they pointed at. See "Commands and skills share one namespace".
 
 | Skill | Description |
 |---|---|
@@ -305,6 +308,22 @@ whether Claude Code fires the hooks in a real session. For that, run `claude --d
 invoke `/fresh-eyes-cr`, and watch for the flag file and then the block.
 
 Run the check by hand any time with `/verify-acceptance`.
+
+## Commands and skills share one namespace
+
+`commands/<name>.md` and `skills/<name>/SKILL.md` are addressed as the same `tadw:<name>`, and
+the command wins. A command whose body says "Use the `<name>` skill" therefore resolves back to
+itself and never reaches the skill.
+
+**The rule: a command may share a skill's name, or delegate to that skill by name, but never
+both.** Three ways to satisfy it:
+
+- **Give the command a different name.** `/fresh-eyes-cr` loads `review-fresh-eyes`,
+  `/prod-ops` loads `production-ops`. This is what most commands already do.
+- **Delete the command.** If it only names its own skill, it adds nothing, and the skill takes
+  the slash name once the shadow is gone.
+- **Read the skill file instead of invoking it.** Commands that carry real per-invocation
+  instructions do this: `**Read** ${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md`.
 
 ## Creating Components
 

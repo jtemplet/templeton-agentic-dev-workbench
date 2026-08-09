@@ -3,7 +3,11 @@ description: "Check whether the current unit of work met its bead's acceptance c
 argument-hint: "[bead-id]"
 ---
 
-Use the `verify-acceptance` skill to grade the current unit of work.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/verify-acceptance/SKILL.md` and follow it to grade the current unit of work.
+
+Read the file rather than invoking the skill by name. `commands/verify-acceptance.md` and
+`skills/verify-acceptance/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+`Skill(verify-acceptance)` returns this file and never reaches the skill.
 
 The skill will:
 

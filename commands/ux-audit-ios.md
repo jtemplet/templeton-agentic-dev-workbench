@@ -3,7 +3,11 @@ description: "Run a UX audit of an iOS app in the Simulator: captures screenshot
 argument-hint: "<app-bundle-id-or-name> [notes]"
 ---
 
-Use the `ux-audit-ios` skill to conduct a UX audit of the iOS app specified in $ARGUMENTS.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/ux-audit-ios/SKILL.md` and follow it to conduct a UX audit of the iOS app specified in $ARGUMENTS.
+
+Read the file rather than invoking the skill by name. `commands/ux-audit-ios.md` and
+`skills/ux-audit-ios/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+`Skill(ux-audit-ios)` returns this file and never reaches the skill.
 
 The audit operates from the `ux-product-designer-ios` role: a senior product designer working at the standard of Apple's Human Interface team. Refer to `agents/ux-product-designer-ios.md` for the role's beliefs and judgment principles.
 

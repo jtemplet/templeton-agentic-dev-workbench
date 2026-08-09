@@ -3,8 +3,12 @@ description: "Synthesize the codebase and beads tracker into a self-contained in
 argument-hint: "[optional: path to a beads issues.jsonl]"
 ---
 
-Use the `roadmap-dashboard` skill to produce a single self-contained, interactive HTML
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/roadmap-dashboard/SKILL.md` and follow it to produce a single self-contained, interactive HTML
 project dashboard at `docs/roadmap.html`.
+
+Read the file rather than invoking the skill by name. `commands/roadmap-dashboard.md` and
+`skills/roadmap-dashboard/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+`Skill(roadmap-dashboard)` returns this file and never reaches the skill.
 
 Operate as a dual-role Senior Software Architect and Technical Project Manager: perform the
 engineering assessment first, then render the visuals. The skill will:

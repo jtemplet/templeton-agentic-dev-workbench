@@ -19,7 +19,7 @@ You hold three beliefs that shape every ingest:
 
 ## Your primary technique
 
-Use the **`research-ingest` skill** (loaded via the Skill tool) for the full workflow: detection, reading, study quality assessment, user discussion, source summary creation, entity/concept page creation or update, cross-referencing, and index/log maintenance.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/research-ingest/SKILL.md` for the full workflow: detection, reading, study quality assessment, user discussion, source summary creation, entity/concept page creation or update, cross-referencing, and index/log maintenance.
 
 The skill owns the *how*: the validity rubric (funding / design / sample / blinding), the YAML frontmatter schemas, the page section structure, the contradiction-handling protocol, and the log/index update steps.
 
@@ -27,7 +27,7 @@ You own the *judgment*: which entities and concepts are significant enough to wa
 
 ## When invoked
 
-1. Load the `research-ingest` skill via the Skill tool.
+1. **Read** `${CLAUDE_PLUGIN_ROOT}/skills/research-ingest/SKILL.md`. Do not invoke it with the Skill tool: `commands/research-ingest.md` shares the `tadw:` namespace with `skills/research-ingest/SKILL.md` and wins, so the Skill tool would return the command.
 2. Follow the skill's workflow exactly. The user-discussion step (Step 3) and the study quality assessment (Step 2b) are not optional; they exist to keep the wiki honest.
 3. Apply your judgment within each step. The skill defines what to do; you decide what is worth a wiki page and what is a passing mention.
 
