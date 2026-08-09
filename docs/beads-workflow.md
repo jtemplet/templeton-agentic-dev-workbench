@@ -95,3 +95,17 @@ br sync --flush-only                  # Export DB to JSONL after Beads mutations
 `br` never commits or pushes. Follow this repository's own git instructions before staging, committing, or pushing. If the repository says "commit only when asked," that rule overrides any generic workflow advice.
 
 <!-- end-bv-agent-instructions -->
+
+## Additional br commands
+
+Hand-maintained, outside the generated block above so a `bv` re-injection cannot overwrite them.
+These were extracted from `AGENTS.md` when its inline command reference was removed.
+
+```bash
+br sync --import-only                 # Import JSONL -> DB (after git pull)
+br sync --merge                       # 3-way merge after pull conflicts
+br dep add <issue> <depends-on>       # Add a blocking dependency
+br dep tree <issue>                   # Show the dependency tree
+br label list-all                     # All labels with counts
+br update <id> --claim                # Atomic: assign to self + set in_progress
+```

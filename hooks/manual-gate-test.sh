@@ -15,7 +15,7 @@
 # SCOPE. This runs against the WORKING TREE, not the installed plugin, and it
 # speaks to acceptance-gate.js directly rather than through Claude Code. A green
 # run says nothing about whether Claude Code fires the hooks, nor about whether
-# the model then loads the skill. See "Acceptance gate" in AGENTS.md for those.
+# the model then loads the skill. See "Acceptance gate" in docs/HOOKS.md for those.
 #
 # ISOLATION. The flag path derives from os.tmpdir(), which honors TMPDIR, so this
 # points TMPDIR at a scratch directory removed on exit. It therefore cannot arm,

@@ -311,18 +311,21 @@ Run the check by hand any time with `/verify-acceptance`.
 ### New Skill
 
 1. Create `skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description`)
-2. Register in AGENTS.md
+2. Add the name to the "Registered Skills" list in AGENTS.md
+3. Add a description row to the Skills table above
 
 ### New Agent
 
 1. Create `agents/<name>.md` with YAML frontmatter (`name`, `description`, `model`, `tools`)
-2. Register in AGENTS.md
+2. Add the name to the "Registered Agents" list in AGENTS.md
+3. Add a description row to the Agents table above
 
 ### New Command
 
 1. Create `commands/<name>.md` with YAML frontmatter (`description`, optional `argument-hint`)
 2. Reference an agent or skill in the body
-3. Register in AGENTS.md
+3. Add the name to the "Registered Commands" list in AGENTS.md
+4. Add a description row to the Commands table above
 
 Run `/validate-plugin` after changes to verify integrity.
 

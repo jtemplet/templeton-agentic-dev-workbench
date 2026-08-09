@@ -53,8 +53,8 @@
 //  15. The gate's manifest entries execute, and a missing node degrades to
 //      silence rather than to a partial decision payload.
 //
-// Finally, the check count documented in AGENTS.md is asserted against the real
-// total. That number drifted three times while this suite was being written.
+// Finally, the check count documented in docs/HOOKS.md is asserted against the
+// real total. That number drifted three times while this suite was being written.
 
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
@@ -687,16 +687,21 @@ check('the manifest wires the acceptance gate and its commands run', () => {
   );
 });
 
-// The documented count in AGENTS.md has drifted three times while iterating on
-// this suite. Assert it rather than remembering it. Runs after the checks so it
-// can compare against the real total without inflating it.
-const agentsMd = fs.readFileSync(path.join(HOOKS_DIR, '..', 'AGENTS.md'), 'utf8');
-const documented = agentsMd.match(/runs (\d+) checks/);
-assert.ok(documented, 'AGENTS.md must state how many checks this suite runs');
+// The documented count has drifted three times while iterating on this suite.
+// Assert it rather than remembering it. Runs after the checks so it can compare
+// against the real total without inflating it. The prose moved from AGENTS.md to
+// docs/HOOKS.md; this read must move with it or the assertion silently loses its
+// subject.
+const hooksDoc = fs.readFileSync(
+  path.join(HOOKS_DIR, '..', 'docs', 'HOOKS.md'),
+  'utf8'
+);
+const documented = hooksDoc.match(/runs (\d+) checks/);
+assert.ok(documented, 'docs/HOOKS.md must state how many checks this suite runs');
 assert.strictEqual(
   Number(documented[1]),
   passed,
-  `AGENTS.md says "runs ${documented[1]} checks" but the suite ran ${passed}`
+  `docs/HOOKS.md says "runs ${documented[1]} checks" but the suite ran ${passed}`
 );
 
-console.log(`\nAll ${passed} checks passed (AGENTS.md count verified).`);
+console.log(`\nAll ${passed} checks passed (docs/HOOKS.md count verified).`);
