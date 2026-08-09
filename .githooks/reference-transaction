@@ -1,0 +1,64 @@
+#!/usr/bin/env sh
+# tadw - block a release tag when the plugin does not validate
+#
+# Git has no pre-tag hook. reference-transaction is the only one that sees a tag
+# being created and can still refuse it, so this gates `git tag v*` rather than
+# every commit. Validation belongs at the release boundary: it is the moment a
+# broken manifest stops being a local mistake and becomes a published one.
+#
+# Why this gate exists. bead-audit shipped in 2.4.1 with an unquoted YAML scalar
+# containing "verdicts: content". The colon-space ended the scalar early, the
+# frontmatter failed to parse, and both name and description were dropped at load
+# time, leaving the skill undiscoverable. Nothing caught it: CI runs rumdl and the
+# hook suite, neither of which parses skill frontmatter.
+#
+# Git calls this hook on EVERY reference update, including fetch, rebase, reset,
+# and each commit's HEAD move. Everything below the tag filter must stay cheap.
+#
+# Stages are "preparing", "prepared", then "committed" or "aborted". Only a
+# non-zero exit during "prepared" aborts the transaction, so that is the only
+# stage worth work.
+
+stage=$1
+
+# Consume stdin whether or not we act on it, so git never writes into a closed
+# pipe. Each line is: <old-value> <new-value> <ref-name>
+tagged=''
+while read -r old new ref; do
+  case "$ref" in
+    refs/tags/v*) ;;
+    *) continue ;;
+  esac
+
+  # An all-zero new value is a deletion. Deleting a tag cannot publish a broken
+  # plugin, so validating there would only make cleanup harder.
+  case "$new" in
+    *[!0]*) tagged="$tagged $ref" ;;
+  esac
+done
+
+[ "$stage" = "prepared" ] || exit 0
+[ -n "$tagged" ] || exit 0
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+
+if ! command -v claude >/dev/null 2>&1; then
+  # Allow rather than block. A missing CLI is not evidence of a broken plugin,
+  # and an untaggable repository is a worse failure than an unchecked tag. Say so
+  # loudly: a silent skip here would recreate the gap this hook exists to close.
+  echo "tadw: WARNING - 'claude' is not on PATH, skipping plugin validation for$tagged" >&2
+  exit 0
+fi
+
+echo "tadw: validating the plugin before tagging$tagged" >&2
+
+if claude plugin validate "$root" >/tmp/tadw-validate.$$ 2>&1; then
+  rm -f /tmp/tadw-validate.$$
+  exit 0
+fi
+
+cat /tmp/tadw-validate.$$ >&2
+rm -f /tmp/tadw-validate.$$
+echo "tadw: refusing to tag, 'claude plugin validate' failed" >&2
+echo "tadw: fix the errors above, or pass --no-verify equivalent by unsetting core.hooksPath" >&2
+exit 1

@@ -16,10 +16,25 @@ rumdl fmt --check .                                          # what CI runs; ./l
 node hooks/test-hooks.js                                      # hook suite, incl. the docs/HOOKS.md count assertion
 python3 skills/style-testing/scripts/test_check_framework_leak.py   # regression suite for the leak checker
 python3 skills/style-testing/scripts/check_framework_leak.py        # assert style-testing stays framework-free
+claude plugin validate .                                      # parses every SKILL.md frontmatter
 python3 evals/run.py                                          # response-style evals
 ```
 
 Run `/validate-plugin` after adding or renaming a component.
+
+### Release gate (one-time setup per clone)
+
+`.githooks/reference-transaction` refuses to create a `v*` tag when
+`claude plugin validate` fails. Git has no pre-tag hook, so this is the only one that sees a
+tag being created and can still stop it. Wire it once per clone, because `core.hooksPath` is
+local config and does not travel with the repository:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+It gates tags only. Commits, branches, and non-`v` tags are untouched. A missing `claude` on
+PATH warns and allows, since an untaggable repository is worse than an unchecked tag.
 
 ## Architecture
 

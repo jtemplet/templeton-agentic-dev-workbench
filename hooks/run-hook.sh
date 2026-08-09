@@ -10,7 +10,7 @@
 # SessionStart payload exceeds Claude Code's 10,000-character per-hook cap, so it
 # is emitted by several manifest entries that differ only in a payload index.
 #
-# Why the off-switch is re-implemented here. It must be honoured even when node
+# Why the off-switch is re-implemented here. It must be honored even when node
 # is unavailable, which is precisely when runtime.js isDisabled() cannot be
 # consulted. That forces a second implementation outside node. Two things keep
 # the copies honest:
