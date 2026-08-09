@@ -1,10 +1,14 @@
 #!/bin/sh
 # tadw - style-core hook wrapper
 #
-# Usage: run-hook.sh <script-path> <fallback-text>
+# Usage: run-hook.sh <script-path> <fallback-text> [script-args...]
 #
 # Runs a hook script, and makes failure VISIBLE (emits <fallback-text>) instead
 # of the silent no-op a bare `node ...; exit 0` produces when node is missing.
+#
+# Any arguments after <fallback-text> are passed through to the script. The
+# SessionStart payload exceeds Claude Code's 10,000-character per-hook cap, so it
+# is emitted by several manifest entries that differ only in a payload index.
 #
 # Why the off-switch is re-implemented here. It must be honoured even when node
 # is unavailable, which is precisely when runtime.js isDisabled() cannot be
@@ -23,6 +27,7 @@ set -u
 
 script=$1
 fallback=$2
+shift 2
 
 # Mirror runtime.js isDisabled(): trim, case-insensitive match on off/0/false,
 # or the persistent flag file under CLAUDE_CONFIG_DIR (default ~/.claude).
@@ -62,7 +67,7 @@ if is_disabled; then
   exit 0
 fi
 
-if ! node "$script"; then
+if ! node "$script" "$@"; then
   printf '%s\n' "$fallback"
 fi
 

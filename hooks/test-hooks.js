@@ -52,6 +52,14 @@
 //      per-turn gate also silenced the once-per-session style core.
 //  15. The gate's manifest entries execute, and a missing node degrades to
 //      silence rather than to a partial decision payload.
+//  16. Every SessionStart payload fits Claude Code's 10,000-character hook
+//      output cap. Over the cap, the output is replaced by a preview and a file
+//      path, and the style core's marker survives inside that preview while the
+//      response style does not, so the session reads as loaded while most of it
+//      is missing. This shipped that way and went unnoticed.
+//  17. The manifest wires one SessionStart entry per payload, each passing its
+//      own index. The splitter decides how many parts exist; the manifest
+//      decides how many are asked for, and a mismatch drops the tail silently.
 //
 // Finally, the check count documented in docs/HOOKS.md is asserted against the
 // real total. That number drifted three times while this suite was being written.
@@ -61,6 +69,11 @@ const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const {
+  getSessionStartPayloads,
+  getResponseStylePreamble,
+  HOOK_OUTPUT_CAP,
+} = require('./preamble');
 
 const HOOKS_DIR = __dirname;
 const SESSION = path.join(HOOKS_DIR, 'session-start.js');
@@ -85,8 +98,9 @@ function tmpDir(prefix) {
 }
 
 // Run a hook script with a controlled environment and return its stdout.
-function runHook(scriptPath, env) {
-  const result = spawnSync(process.execPath, [scriptPath], {
+// Extra args go to the script: session-start.js takes a payload index.
+function runHook(scriptPath, env, args = []) {
+  const result = spawnSync(process.execPath, [scriptPath, ...args], {
     encoding: 'utf8',
     env,
     timeout: 5000,
@@ -113,11 +127,17 @@ function check(name, fn) {
 console.log('style-core hook tests:');
 
 // --- 1. SessionStart: raw preamble containing both docs --------------------
+// Emitted across several indexed entries, so assert the UNION. Asserting only
+// index 0 would pass while the response style never left the disk, which is the
+// failure that went unnoticed for the whole life of the single-entry version.
 check('SessionStart emits raw preamble with style core and response style', () => {
   // Point CLAUDE_CONFIG_DIR at an empty temp dir so a real ~/.claude flag file
   // can never disable the enabled-path tests.
   const tmp = tmpDir('tadw-on-');
-  const out = runHook(SESSION, enabledEnv({ CLAUDE_CONFIG_DIR: tmp }));
+  const env = enabledEnv({ CLAUDE_CONFIG_DIR: tmp });
+  const parts = getSessionStartPayloads().map((_, i) => runHook(SESSION, env, [String(i)]));
+  const out = parts.join('\n');
+
   assert.ok(out.includes(MARKER), 'stdout must contain the style-core marker');
   assert.ok(out.includes('House Coding-Style Core'), 'stdout must contain the core header');
   assert.ok(out.includes(RESPONSE_MARKER), 'stdout must contain the response-style marker');
@@ -126,7 +146,91 @@ check('SessionStart emits raw preamble with style core and response style', () =
     !out.includes('disable-model-invocation'),
     'response-style frontmatter must be stripped (no skill frontmatter keys in injected text)'
   );
-  assert.ok(!out.trimStart().startsWith('{'), 'SessionStart stdout must be raw, not JSON');
+  for (const part of parts) {
+    assert.ok(!part.trimStart().startsWith('{'), 'SessionStart stdout must be raw, not JSON');
+  }
+
+  // Nothing is lost at a split boundary. Compare ignoring whitespace, since a
+  // cut consumes the newline that joined the two sides.
+  const normalize = (t) => t.replace(/\s+/g, ' ').trim();
+  const rejoined = parts
+    .slice(1)
+    .map((p) => p.replace(/^<!-- house-response-style: continued[^\n]*-->\n\n/, ''))
+    .join('\n');
+  assert.strictEqual(
+    normalize(rejoined),
+    normalize(getResponseStylePreamble()),
+    'the emitted parts must reassemble to the whole response style'
+  );
+
+  // An index past the end must be silent, so shrinking the documents cannot
+  // make a stale manifest entry emit a duplicate or an error.
+  assert.strictEqual(
+    runHook(SESSION, env, [String(getSessionStartPayloads().length)]),
+    '',
+    'an out-of-range payload index must emit nothing'
+  );
+});
+
+// --- 1b. Every payload fits the documented cap -----------------------------
+// Claude Code caps each hook output string at 10,000 characters and replaces
+// anything longer with a preview plus a file path. That degradation is silent
+// from inside the session: the marker still arrives at the top of the preview,
+// so the injection reads as successful while most of it is missing.
+check('every SessionStart payload fits the 10,000-character hook output cap', () => {
+  const tmp = tmpDir('tadw-cap-');
+  const env = enabledEnv({ CLAUDE_CONFIG_DIR: tmp });
+  const payloads = getSessionStartPayloads();
+
+  payloads.forEach((payload, i) => {
+    assert.ok(
+      payload.length <= HOOK_OUTPUT_CAP,
+      `payload ${i} is ${payload.length} chars, over the ${HOOK_OUTPUT_CAP} cap`
+    );
+    // The real stdout, not just the computed string: the wrapper adds nothing
+    // today, but a future change to it would be invisible to the check above.
+    const out = runHook(SESSION, env, [String(i)]);
+    assert.ok(
+      out.length <= HOOK_OUTPUT_CAP,
+      `emitted payload ${i} is ${out.length} chars, over the ${HOOK_OUTPUT_CAP} cap`
+    );
+  });
+
+  const subagent = runHook(SUBAGENT, env);
+  assert.ok(
+    subagent.length <= HOOK_OUTPUT_CAP,
+    `SubagentStart emits ${subagent.length} chars, over the ${HOOK_OUTPUT_CAP} cap`
+  );
+});
+
+// --- 1c. The manifest wires one entry per payload --------------------------
+// The splitter decides how many parts there are; the manifest decides how many
+// are asked for. If the documents grow by one part and the manifest does not,
+// the tail is dropped without a word.
+check('the manifest wires one SessionStart entry per payload', () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(HOOKS_DIR, 'style-core-hooks.json'), 'utf8')
+  );
+  const entries = manifest.hooks.SessionStart[0].hooks;
+  const payloads = getSessionStartPayloads();
+
+  assert.strictEqual(
+    entries.length,
+    payloads.length,
+    `manifest wires ${entries.length} SessionStart entries but the splitter produces ${payloads.length} payloads`
+  );
+
+  // Each entry must request its own index, or two entries emit the same part.
+  entries.forEach((entry, i) => {
+    assert.ok(
+      new RegExp(`session-start\\.js"?\\s+"[^"]*"\\s+${i};`).test(entry.command),
+      `SessionStart entry ${i} must pass payload index ${i}: ${entry.command}`
+    );
+    assert.ok(
+      new RegExp(`session-start\\.js"\\s+${i}\\s`).test(entry.commandWindows),
+      `Windows SessionStart entry ${i} must pass payload index ${i}`
+    );
+  });
 });
 
 // --- 2. SubagentStart: JSON-wrapped additionalContext ----------------------

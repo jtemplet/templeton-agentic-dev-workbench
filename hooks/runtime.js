@@ -65,6 +65,13 @@ function isDisabled() {
 //   SubagentStart -> MUST be wrapped in hookSpecificOutput JSON or native Claude
 //                    silently drops the context and the subagent never sees it.
 //
+// The format is not a way around the size limit. Claude Code caps every hook
+// output string at 10,000 characters, stdout and additionalContext alike, and
+// replaces anything longer with a preview plus a file path. Splitting the
+// payload across manifest entries is what handles that; see
+// getSessionStartPayloads in preamble.js and the Output size section of
+// docs/HOOKS.md.
+//
 // No caller of this may follow it with process.exit(). Node's stdout writes are
 // synchronous on POSIX pipes but ASYNCHRONOUS on Windows pipes, so an explicit
 // exit can discard whatever has not flushed yet. A hook script that falls off

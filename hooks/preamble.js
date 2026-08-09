@@ -106,9 +106,96 @@ function getResponseStylePreamble() {
   return text.replace(FRONTMATTER, '');
 }
 
+// Claude Code caps every hook output string at 10,000 characters, and the cap
+// applies to plain stdout and to hookSpecificOutput.additionalContext alike.
+// Output past the cap is written to a file and replaced with a short preview
+// plus that path, so the model gets a pointer it has no reason to follow.
+//
+// This is not a theoretical limit. The combined payload was 19,996 characters,
+// almost exactly twice the cap, and the response style (which sits second) never
+// reached a single session. Only the style core's opening survived, carrying the
+// marker that says it loaded, so the failure read as success.
+const HOOK_OUTPUT_CAP = 10000;
+
+// Reserved out of each part for the continuation marker prepended below.
+const MARKER_RESERVE = 80;
+
+// Split text into the fewest parts that each fit the cap, cutting at line
+// boundaries. Returns { text, section } per part, where `section` names the
+// `## ` heading in effect where that part begins.
+//
+// Packing greedily rather than on section boundaries is deliberate. Section
+// packing costs a whole extra part here (the sections do not divide evenly), and
+// each part costs a manifest entry. Naming the resumed section in the
+// continuation marker restores the context that a mid-section cut loses, for one
+// line instead of one entry.
+function splitForCap(text, maxChars) {
+  const headingOf = (line) => (line.startsWith('## ') ? line.slice(3).trim() : null);
+
+  if (text.length <= maxChars) {
+    return [{ text, section: null }];
+  }
+
+  const parts = [];
+  let current = '';
+  let currentSection = null; // heading in effect where `current` begins
+  let heading = null; // most recent heading seen
+
+  const flush = () => {
+    if (current.length > 0) {
+      parts.push({ text: current.replace(/\n+$/, ''), section: currentSection });
+      current = '';
+    }
+  };
+
+  for (const line of text.split('\n')) {
+    const candidate = current.length === 0 ? line : `${current}\n${line}`;
+
+    if (candidate.length <= maxChars) {
+      current = candidate;
+      heading = headingOf(line) || heading;
+      continue;
+    }
+
+    flush();
+    currentSection = heading;
+    // A single line longer than the cap is vanishingly unlikely in prose, but
+    // dropping its tail silently is the exact failure this function prevents.
+    // Cut it explicitly so the caller's assertion can see the overflow.
+    current = line.length <= maxChars ? line : line.slice(0, maxChars);
+    heading = headingOf(line) || heading;
+  }
+
+  flush();
+  return parts;
+}
+
+// Every payload the SessionStart hook must emit, in order. The manifest wires
+// one entry per index. If this returns more payloads than the manifest has
+// entries, the tail is silently dropped, so hooks/test-hooks.js asserts the two
+// counts agree rather than trusting them to stay in step.
+function getSessionStartPayloads(maxChars = HOOK_OUTPUT_CAP) {
+  const budget = maxChars - MARKER_RESERVE;
+  const responseParts = splitForCap(getResponseStylePreamble(), budget);
+  const total = responseParts.length;
+
+  const labeled = responseParts.map((part, i) => {
+    if (i === 0) {
+      return part.text;
+    }
+    const resumes = part.section ? `, resuming "${part.section}"` : '';
+    return `<!-- house-response-style: continued (part ${i + 1} of ${total}${resumes}) -->\n\n${part.text}`;
+  });
+
+  return [getStyleCorePreamble(), ...labeled];
+}
+
 module.exports = {
   getStyleCorePreamble,
   getResponseStylePreamble,
+  getSessionStartPayloads,
+  splitForCap,
+  HOOK_OUTPUT_CAP,
   STYLE_CORE_PATH,
   RESPONSE_STYLE_PATH,
   FALLBACK,

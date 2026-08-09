@@ -135,6 +135,10 @@ strategy live in [docs/HOOKS.md](docs/HOOKS.md).
   document opens with a marker line so you can see in any session whether it loaded.
   Off-switch: `TADW_STYLE_CORE=off`, or a flag file at
   `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`.
+  The payload is 19,996 characters and Claude Code caps each hook output at 10,000, so
+  `SessionStart` ships as three manifest entries that differ only in a payload index. Do not
+  collapse them back into one; the tail is discarded in silence, and the marker that says it
+  loaded survives inside the surviving preview.
 - **Acceptance gate.** A `PostToolUse` + `Stop` pair chains the `verify-acceptance` skill onto
   the end of a fresh-eyes review. Off-switch, independent of the style core's:
   `TADW_ACCEPTANCE_GATE=off`, or a flag file at
