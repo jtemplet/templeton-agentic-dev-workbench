@@ -123,16 +123,16 @@ Pair with `/loop` to run on a schedule:
 
 | Command | Description |
 |---|---|
-| `/bead-audit [id or content]` | Audit bead bodies (Marr, size, type-specific sections) and ground their claims in the code on `main`; content-vs-structure-vs-grounding verdicts, JSON mode, drafts applyable fixes |
 | `/bead-audit-all [open\|all]` | Single-pass, report-only audit of the whole backlog: score and ground every bead once, ranked health table (worst first) |
 | `/product-surface-docs [dir]` | Build/refresh a MECE/Pyramid product doc tree by surface under docs/products/; surfaces bugs/gaps/debt into a findings ledger |
 | `/pr-maintain` | Keep the current branch's PR rebased on its parent and passing CI; safe to pair with `/loop` |
 | `/roadmap-dashboard [jsonl]` | Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker |
 | `/validate-plugin` | Check plugin integrity and cross-references |
 
-> **Use `/bead-audit-all` for a single bead too, for now.** `/bead-audit` collides with the
-> same-named skill and does not load the audit rubric, so it scores from a summary. Audit the
-> one bead through `/bead-audit-all` and ignore the other rows until that is fixed.
+> **`/bead-audit` is the skill, not a command.** The command file was removed because it
+> shadowed the skill of the same name and returned a summary instead of the 661-line rubric.
+> Typing `/bead-audit` now loads the skill itself. Use `/bead-audit-all` to sweep the whole
+> backlog in one pass.
 
 ### Operations
 

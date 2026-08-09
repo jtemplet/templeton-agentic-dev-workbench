@@ -70,7 +70,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Grade work against its bead | `/verify-acceptance` | `verify-acceptance` |
 | Plan a feature | `/plan-feature`, `/plan-review` | `feature-planner` agent, `plan-review` |
 | Break a plan into issues | `/plan-to-beads` | `project-manager` agent |
-| Audit issue quality | `/bead-audit`, `/bead-audit-all` | `bead-audit` |
+| Audit issue quality | `/bead-audit` (the skill itself), `/bead-audit-all` | `bead-audit` |
 | Product strategy | `/competitive-analysis`, `/product-research`, `/product-roadmap`, `/product-brief`, `/ab-test-design` | `product-manager` agent |
 | Generate ideas | `/idea-wizard`, `/business-ideas` | `idea-wizard`, `business-ideas` |
 | Record a decision | `/adr` | `architecture-decision-record` |
@@ -127,10 +127,10 @@ each `agents/<name>.md` frontmatter.
 `product-cartographer` `product-manager` `project-manager` `research-librarian`
 `software-engineer` `ux-product-designer` `ux-product-designer-ios`
 
-**Registered Commands** (37). Descriptions live in the `README.md` command tables
+**Registered Commands** (36). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
-`/ab-test-design` `/adr` `/agentic-clean-code` `/aso-audit` `/bead-audit` `/bead-audit-all`
+`/ab-test-design` `/adr` `/agentic-clean-code` `/aso-audit` `/bead-audit-all`
 `/business-ideas` `/code-review` `/competitive-analysis` `/diagnose` `/fresh-eyes-cr`
 `/frontend-code-review` `/idea-wizard` `/plan-feature` `/plan-review` `/plan-to-beads`
 `/pr-maintain` `/prod-ops` `/product-analysis` `/product-brief` `/product-research`

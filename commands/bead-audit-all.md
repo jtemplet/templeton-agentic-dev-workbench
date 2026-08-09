@@ -7,7 +7,7 @@ Run a single-pass audit over the whole backlog: enumerate the beads, read the `b
 
 The rubric is **read from disk**, not invoked through the Skill tool. Step 4 explains why, and that step is load-bearing: skip it and every score in the report is invented.
 
-This command is for grooming the whole backlog at once. It is currently also the right tool for a single bead, because `/bead-audit` does not load the rubric (see step 4); audit the one bead through this command and ignore the others until that is fixed.
+This command is for grooming the whole backlog at once. For a single bead, use `/bead-audit`, which now loads the rubric directly: the command file that shadowed the skill was removed.
 
 ## Scope (from `$ARGUMENTS`)
 
@@ -40,7 +40,7 @@ This command is for grooming the whole backlog at once. It is currently also the
 
 4. **Load the audit rubric by reading it.** **Read** the file `${CLAUDE_PLUGIN_ROOT}/skills/bead-audit/SKILL.md`. If that path does not resolve, locate it with `Glob: **/skills/bead-audit/SKILL.md` and read it from there.
 
-   Read the file directly. Do **not** invoke it through the Skill tool, and do not call `/bead-audit`. A command and a skill named `bead-audit` share one invocation namespace, and the command wins: `Skill(bead-audit)` returns the twenty-line command body, whose first line is "Use the `bead-audit` skill", which redirects to itself and never reaches the rubric. The audit then runs on a summary instead of on the weights, the caps, the renormalization rules, and the heading-recognition table, and it produces confident scores computed from nothing. Reading the file is what makes this command and the skill share one source of truth.
+   Read the file directly rather than invoking it through the Skill tool. `commands/bead-audit.md` used to shadow the skill and return a twenty-line summary in its place; that file is now deleted, so `Skill(bead-audit)` does reach the rubric. The explicit Read stays anyway, because it is verifiable: the next step asserts which headings the file contains, and no skill invocation can make that promise. The audit needs the weights, the caps, the renormalization rules, and the heading-recognition table. Running it on a summary produces confident scores computed from nothing.
 
    **Confirm before scoring.** The file you read must contain the headings "Scorecard", "Bands, capped by verdict", and "4. Grounding Audit". If it does not, you have the wrong file: stop and say so rather than scoring from memory. A wrong number here is indistinguishable from a right one downstream.
 
