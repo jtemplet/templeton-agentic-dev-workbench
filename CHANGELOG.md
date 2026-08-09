@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-08-09
+
+### Fixed
+
+- **Eighteen commands shadowed the skill they told you to load.** `commands/<name>.md` and
+  `skills/<name>/SKILL.md` are addressed as the same `tadw:<name>`, and the command wins. Every
+  one of the eighteen opened with "Use the `<name>` skill", which resolved back to itself, so
+  **271,067 bytes of skill content was unreachable by name**. `/bead-audit` alone put a
+  250-byte summary in front of a 51,113-byte rubric, and every audit it ran scored from the
+  summary. A wrong number produced that way is indistinguishable downstream from a right one.
+
+  Seven commands were **deleted**: `/ab-test-design`, `/business-ideas`,
+  `/competitive-analysis`, `/idea-wizard`, `/product-brief`, `/product-research`,
+  `/product-roadmap`, plus `/bead-audit` in 2.4.2. Each was a one-line delegation whose content
+  the skill already carried; `/business-ideas` and `/idea-wizard` duplicated a step already at
+  line 12 of their own `SKILL.md`. **Typing `/<name>` still works**: the skill takes the slash
+  name once the shadow is gone, verified by deleting one, restarting, and reading the menu.
+
+  Ten commands were **converted to read the skill from disk** rather than name it:
+  `/agentic-clean-code`, `/aso-audit`, `/plan-review`, `/plan-to-beads`,
+  `/product-surface-docs`, `/research-ingest`, `/roadmap-dashboard`, `/ux-audit`,
+  `/ux-audit-ios`, `/verify-acceptance`. These carry real per-invocation content (role framing,
+  argument resolution, output paths, prerequisites) that would be lost by deletion.
+
+  Five **agents** were routing by name to skills the surviving commands still shadow, which the
+  original report missed entirely: `product-cartographer`, `project-manager`,
+  `research-librarian`, `ux-product-designer`, `ux-product-designer-ios`. Each now reads its
+  skill from disk. `product-manager` needed no change: deleting its five commands repaired it.
+
+- **`house-response-style` contradicted itself on sentence length.** Its frontmatter said "a
+  hard twenty-five-word sentence limit" while its body said twenty-five words for an
+  explanation and twenty for an instruction. The frontmatter dropped the instruction case, and
+  the frontmatter is what the runtime reads. `README.md` said only "capped sentence length".
+  All three now state both numbers. The rule itself is unchanged.
+
+### Added
+
+- **Check 18, pinning the namespace rule.** A command sharing a skill directory's name may not
+  tell the model to load that skill by name. It also requires a `Glob` fallback wherever a
+  command reads a `SKILL.md`, because a Read with no fallback fails silently when
+  `${CLAUDE_PLUGIN_ROOT}` does not resolve, which is the same class of silent failure as the
+  shadow it replaced. Check 6 already pinned this for `/response-style` alone, and kept passing
+  while the defect appeared seventeen more times, so the check is now general.
+
+  Proven to discriminate, not merely to pass: injecting a delegate-by-name regression into
+  `/ux-audit` exits 1 naming that command, removing only its `Glob` fallback exits 1 naming
+  that, and restoring leaves the file byte-identical with the suite green. The suite is now 19
+  checks.
+
+- **A "When to use" column on the README skills table**, all 35 rows. Each cell is condensed
+  from that skill's own `## When to Use` section. Four skills have no such section
+  (`agentic-clean-code`, `house-response-style`, `ux-audit`, `ux-audit-ios`); those cells were
+  written from the skill's frontmatter and body instead.
+
+- **The namespace rule, written down** in `AGENTS.md` and `README.md`: a command may share a
+  skill's name, or delegate to that skill by name, but never both. Three ways to satisfy it:
+  rename the command, delete it, or read the `SKILL.md` from disk.
+
+### Changed
+
+- **The registered command count is 36 to 29.** No slash name stopped working; seven of them
+  now resolve to their skill rather than to a stub. `argument-hint` is lost on those seven,
+  which affects the menu hint only, not argument passing.
+- `business-ideas` and `idea-wizard` are now referenced by no agent and no command, so
+  `/validate-plugin` reports them as orphans. Accepted and recorded in `AGENTS.md`: both are
+  invoked directly as `/<name>`, and a referrer would add nothing.
+
 ## [2.4.2] - 2026-08-08
 
 ### Fixed
@@ -841,7 +908,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.2...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.2...v2.5.0
 [2.4.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.1...v2.4.2
 [2.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.3.1...v2.4.0

@@ -145,43 +145,43 @@ Every skill below is invocable directly as `/<skill-name>`, so a skill needs no 
 be reachable. Seven commands that did nothing but name their own skill were removed for that
 reason: they shadowed the skill they pointed at. See "Commands and skills share one namespace".
 
-| Skill | Description |
-|---|---|
-| `review-python` | PEP 8 and Google Style Guide review technique |
-| `review-rails` | Rails 8 systematic review (security, conventions, performance) |
-| `style-testing` | Universal test style, framework-independent (any language) |
-| `style-rspec` | RSpec/Rails delta on `style-testing` |
-| `style-rails` | Rails 8 Way conventions and best practices |
-| `style-python` | Python style (Sandi Metz principles adapted for Python) |
-| `style-swift` | Swift style (Sandi Metz, protocol-oriented design) |
-| `style-frontend` | Frontend style (JS/TS/React/Vue, Sandi Metz principles) |
-| `terraform-iac-expert` | Terraform/IaC expertise across AWS, Azure, GCP |
-| `style-fizzy` | Vanilla Rails conventions for the Fizzy codebase |
-| `idea-wizard` | Structured ideation: generate, evaluate, distill |
-| `architecture-decision-record` | ADR format with context, options, and rationale |
-| `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis |
-| `plan-review` | Acceptance-criteria gate + codebase grounding + 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability); report-only, drafts missing criteria/test plan |
-| `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan |
-| `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report |
-| `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG |
-| `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill |
-| `review-fresh-eyes` | Bug-and-correctness pass over recently changed code, fixes issues directly |
-| `verify-acceptance` | Grade a finished unit of work against its bead's `acceptance_criteria` and the QA gates; every criterion graded against a named test, a command's output, or a `file:line`, never the diff; report-only ACCEPTED / NOT ACCEPTED / INCONCLUSIVE |
-| `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages |
-| `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) |
-| `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards, and ground their claims in the code on `main`; separates content from structure (format-only issues are auto-fixable) and both from grounding (a bead whose code moved is `drifted`, not under-specified); honors native tracker fields, optional 0-100 scorecard banded Poor→Excellent and capped by verdict and by grounding, JSON output for backlog grooming |
-| `product-surface-docs` | Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface; grounds claims in code, proactively hunts bugs/gaps/debt into `_findings.md` (cheap capture) and promotes actionable ones into bead-audit-compliant beads, ships a staleness checker (in-repo + multi-repo) |
-| `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing |
-| `competitive-analysis` | Competitor teardown with positioning map, moat analysis, trajectory, and feature gaps |
-| `ab-test-design` | A/B test design with hypothesis, metrics, sample size, rollout plan, and decision criteria |
-| `product-research` | User signal synthesis by segment using JTBD, anti-jobs, and evidence-weighted opportunity scoring |
-| `product-roadmap` | Roadmap with themes, capacity modeling, bet classification, and Now/Next/Later sequencing |
-| `product-brief` | PM-to-engineering handoff: problem, metrics, scope, acceptance criteria, experiment tie-in |
-| `agentic-clean-code` | Clean Code + POODR principles for agentic systems: tool design, prompt architecture, orchestration, naming, testability |
-| `pr-maintenance` | Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop |
-| `roadmap-dashboard` | Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` collector and versions the output |
-| `production-ops` | Safely operate production Docker Compose apps on a single Hetzner VPS over SSH (two-hop `root` -> `su - deploy`); service ops and PostgreSQL data ops under strong guardrails: read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes / `prune` / `DROP` / `TRUNCATE` / `WHERE`-less writes |
-| `house-response-style` | The always-on response style, single-sourced for both the `SessionStart` hook and `/response-style`: lead with the answer, cut narration, write in Simplified Technical English (ASD-STE100 writing rules, not its licensed dictionary), put multi-factor choices in a decision matrix, and end open work with an owner-split "Next actions" section |
+| Skill | What it does | When to use |
+|---|---|---|
+| `review-python` | PEP 8 and Google Style Guide review technique | Reviewing a Python file, diff, or PR |
+| `review-rails` | Rails 8 systematic review (security, conventions, performance) | Reviewing Rails code before a merge or deploy |
+| `style-testing` | Universal test style, framework-independent (any language) | Writing tests in any language, or diagnosing a flaky one |
+| `style-rspec` | RSpec/Rails delta on `style-testing` | Writing RSpec specs, or converting controller specs to request specs |
+| `style-rails` | Rails 8 Way conventions and best practices | Generating Rails code, or deciding whether to add a gem |
+| `style-python` | Python style (Sandi Metz principles adapted for Python) | Writing or refactoring Python in the house style |
+| `style-swift` | Swift style (Sandi Metz, protocol-oriented design) | Writing or reviewing Swift and SwiftUI |
+| `style-frontend` | Frontend style (JS/TS/React/Vue, Sandi Metz principles) | Writing React or Vue, or splitting logic out of a component |
+| `terraform-iac-expert` | Terraform/IaC expertise across AWS, Azure, GCP | Writing Terraform, or debugging state and deployments |
+| `style-fizzy` | Vanilla Rails conventions for the Fizzy codebase | Working anywhere in the Fizzy codebase |
+| `idea-wizard` | Structured ideation: generate, evaluate, distill | Reviewing a codebase for improvements, or stuck and needing options |
+| `architecture-decision-record` | ADR format with context, options, and rationale | You made a non-obvious choice future-you will question |
+| `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis | A project needs to justify its investment or find revenue angles |
+| `plan-review` | Acceptance-criteria gate + codebase grounding + 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability); report-only, drafts missing criteria/test plan | After writing a plan, as the gate before decomposing it |
+| `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan | Before an app launch, or when organic installs are low |
+| `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report | Auditing the UX of a running web app |
+| `ux-audit-ios` | iOS UX audit via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG | Auditing the UX of an iOS app in the Simulator |
+| `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill | After a feature lands, as the refinement pass before committing |
+| `review-fresh-eyes` | Bug-and-correctness pass over recently changed code, fixes issues directly | After implementing or refactoring, before committing |
+| `verify-acceptance` | Grade a finished unit of work against its bead's `acceptance_criteria` and the QA gates; every criterion graded against a named test, a command's output, or a `file:line`, never the diff; report-only ACCEPTED / NOT ACCEPTED / INCONCLUSIVE | Deciding whether work is done, before `br close` or a PR |
+| `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages | Building something new and you want a guided workflow |
+| `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) | A reviewed plan needs breaking into trackable issues |
+| `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards, and ground their claims in the code on `main`; separates content from structure (format-only issues are auto-fixable) and both from grounding (a bead whose code moved is `drifted`, not under-specified); honors native tracker fields, optional 0-100 scorecard banded Poor→Excellent and capped by verdict and by grounding, JSON output for backlog grooming | Before claiming a bead, or grooming a backlog at scale |
+| `product-surface-docs` | Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface; grounds claims in code, proactively hunts bugs/gaps/debt into `_findings.md` (cheap capture) and promotes actionable ones into bead-audit-compliant beads, ships a staleness checker (in-repo + multi-repo) | Standing up or refreshing `docs/products/`, or auditing for gaps |
+| `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing | A new file appeared in `Research/sources/` |
+| `competitive-analysis` | Competitor teardown with positioning map, moat analysis, trajectory, and feature gaps | Before a planning cycle, or when a competitor ships something notable |
+| `ab-test-design` | A/B test design with hypothesis, metrics, sample size, rollout plan, and decision criteria | You have a hypothesis and want data to settle it, before building |
+| `product-research` | User signal synthesis by segment using JTBD, anti-jobs, and evidence-weighted opportunity scoring | Scattered user feedback and no clear priorities |
+| `product-roadmap` | Roadmap with themes, capacity modeling, bet classification, and Now/Next/Later sequencing | Start of a quarter, or stakeholders disagree on priorities |
+| `product-brief` | PM-to-engineering handoff: problem, metrics, scope, acceptance criteria, experiment tie-in | A prioritized feature needs scoping for engineering |
+| `agentic-clean-code` | Clean Code + POODR principles for agentic systems: tool design, prompt architecture, orchestration, naming, testability | Designing or reviewing tools, prompts, or agent orchestration |
+| `pr-maintenance` | Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop | A long-lived or stacked PR needs to stay current and green |
+| `roadmap-dashboard` | Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` collector and versions the output | Showing project maturity and remaining work to a stakeholder |
+| `production-ops` | Safely operate production Docker Compose apps on a single Hetzner VPS over SSH (two-hop `root` -> `su - deploy`); service ops and PostgreSQL data ops under strong guardrails: read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes / `prune` / `DROP` / `TRUNCATE` / `WHERE`-less writes | Checking, restarting, or changing data on the production VPS |
+| `house-response-style` | The always-on response style, single-sourced for both the `SessionStart` hook and `/response-style`: lead with the answer, cut narration, write in Simplified Technical English (ASD-STE100 writing rules, not its licensed dictionary), put multi-factor choices in a decision matrix, and end open work with an owner-split "Next actions" section | Never chosen: injected into every session by the hook |
 
 ## Agents
 
