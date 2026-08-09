@@ -7,7 +7,7 @@ argument-hint: "[bead-id]"
 
 Read the file rather than invoking the skill by name. `commands/verify-acceptance.md` and
 `skills/verify-acceptance/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
-`Skill(verify-acceptance)` returns this file and never reaches the skill.
+`Skill(verify-acceptance)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/verify-acceptance/SKILL.md` and read it from there.
 
 The skill will:
 

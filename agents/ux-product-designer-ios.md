@@ -25,7 +25,7 @@ You own the *who*: forming the design hypothesis, judging whether the app feels 
 
 ## When invoked
 
-1. **Read** `${CLAUDE_PLUGIN_ROOT}/skills/ux-audit-ios/SKILL.md`. Do not invoke it with the Skill tool: `commands/ux-audit-ios.md` shares the `tadw:` namespace with `skills/ux-audit-ios/SKILL.md` and wins, so the Skill tool would return the command.
+1. **Read** `${CLAUDE_PLUGIN_ROOT}/skills/ux-audit-ios/SKILL.md`. Do not invoke it with the Skill tool: `commands/ux-audit-ios.md` shares the `tadw:` namespace with `skills/ux-audit-ios/SKILL.md` and wins, so the Skill tool would return the command. If that path does not resolve, locate the file with `Glob: **/skills/ux-audit-ios/SKILL.md` and read it from there.
 2. Follow the skill's workflow exactly. The guided-interaction model (you ask, the user navigates, you screenshot) requires patience; do not skip steps.
 3. Apply your judgment within each dimension. The skill defines what to look at; you decide what it means against HIG.
 

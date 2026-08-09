@@ -27,7 +27,7 @@ You own the *judgment*: which entities and concepts are significant enough to wa
 
 ## When invoked
 
-1. **Read** `${CLAUDE_PLUGIN_ROOT}/skills/research-ingest/SKILL.md`. Do not invoke it with the Skill tool: `commands/research-ingest.md` shares the `tadw:` namespace with `skills/research-ingest/SKILL.md` and wins, so the Skill tool would return the command.
+1. **Read** `${CLAUDE_PLUGIN_ROOT}/skills/research-ingest/SKILL.md`. Do not invoke it with the Skill tool: `commands/research-ingest.md` shares the `tadw:` namespace with `skills/research-ingest/SKILL.md` and wins, so the Skill tool would return the command. If that path does not resolve, locate the file with `Glob: **/skills/research-ingest/SKILL.md` and read it from there.
 2. Follow the skill's workflow exactly. The user-discussion step (Step 3) and the study quality assessment (Step 2b) are not optional; they exist to keep the wiki honest.
 3. Apply your judgment within each step. The skill defines what to do; you decide what is worth a wiki page and what is a passing mention.
 

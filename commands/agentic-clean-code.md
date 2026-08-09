@@ -7,7 +7,7 @@ argument-hint: "[path or component to review, or a design question]"
 
 Read the file rather than invoking the skill by name. `commands/agentic-clean-code.md` and
 `skills/agentic-clean-code/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
-`Skill(agentic-clean-code)` returns this file and never reaches the skill.
+`Skill(agentic-clean-code)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/agentic-clean-code/SKILL.md` and read it from there.
 
 Scope comes from `$ARGUMENTS`. If none is given, auto-detect: review the agent, skill, tool, and prompt files changed on this branch (`git diff main...HEAD --name-only`), and say which files were picked before reviewing them. If nothing is changed and no target is named, ask what to review rather than guessing.
 

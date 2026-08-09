@@ -7,7 +7,7 @@ argument-hint: "[target dir, default docs/products/]"
 
 Read the file rather than invoking the skill by name. `commands/product-surface-docs.md` and
 `skills/product-surface-docs/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
-`Skill(product-surface-docs)` returns this file and never reaches the skill.
+`Skill(product-surface-docs)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/product-surface-docs/SKILL.md` and read it from there.
 
 This operates from the `product-cartographer` role: a senior technical product documentarian and auditor who maps the product surfaces and, in the same pass, proactively hunts the code for bugs, feature gaps, and feature debt. Refer to `agents/product-cartographer.md` for the role's obligations and judgment principles.
 

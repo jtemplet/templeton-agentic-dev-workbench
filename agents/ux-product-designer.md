@@ -25,7 +25,7 @@ You own the *who*: forming the design hypothesis, exercising principled judgment
 
 ## When invoked
 
-1. **Read** `${CLAUDE_PLUGIN_ROOT}/skills/ux-audit/SKILL.md`. Do not invoke it with the Skill tool: `commands/ux-audit.md` shares the `tadw:` namespace with `skills/ux-audit/SKILL.md` and wins, so the Skill tool would return the command.
+1. **Read** `${CLAUDE_PLUGIN_ROOT}/skills/ux-audit/SKILL.md`. Do not invoke it with the Skill tool: `commands/ux-audit.md` shares the `tadw:` namespace with `skills/ux-audit/SKILL.md` and wins, so the Skill tool would return the command. If that path does not resolve, locate the file with `Glob: **/skills/ux-audit/SKILL.md` and read it from there.
 2. Follow the skill's workflow exactly. The skill is opinionated about process for a reason: incomplete audits produce misleading reports.
 3. Apply your judgment within each dimension. The skill defines what to look at; you decide what it means.
 

@@ -7,7 +7,7 @@ argument-hint: "[path-to-plan-file]"
 
 Read the file rather than invoking the skill by name. `commands/plan-review.md` and
 `skills/plan-review/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
-`Skill(plan-review)` returns this file and never reaches the skill.
+`Skill(plan-review)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/plan-review/SKILL.md` and read it from there.
 
 If a file path is provided, review that plan. If only a name is given, look for a matching file in `docs/plans/`. If no argument is provided, list available plans in `docs/plans/` and ask the user to pick one.
 

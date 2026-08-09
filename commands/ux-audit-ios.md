@@ -7,7 +7,7 @@ argument-hint: "<app-bundle-id-or-name> [notes]"
 
 Read the file rather than invoking the skill by name. `commands/ux-audit-ios.md` and
 `skills/ux-audit-ios/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
-`Skill(ux-audit-ios)` returns this file and never reaches the skill.
+`Skill(ux-audit-ios)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/ux-audit-ios/SKILL.md` and read it from there.
 
 The audit operates from the `ux-product-designer-ios` role: a senior product designer working at the standard of Apple's Human Interface team. Refer to `agents/ux-product-designer-ios.md` for the role's beliefs and judgment principles.
 

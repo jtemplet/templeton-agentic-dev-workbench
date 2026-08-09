@@ -29,7 +29,7 @@ When the source plan already carries acceptance criteria, trace each one to the 
 
 ## When invoked
 
-1. **Read** `${CLAUDE_PLUGIN_ROOT}/skills/plan-to-beads/SKILL.md`. Do not invoke it with the Skill tool: `commands/plan-to-beads.md` shares the `tadw:` namespace with `skills/plan-to-beads/SKILL.md` and wins, so the Skill tool would return the command.
+1. **Read** `${CLAUDE_PLUGIN_ROOT}/skills/plan-to-beads/SKILL.md`. Do not invoke it with the Skill tool: `commands/plan-to-beads.md` shares the `tadw:` namespace with `skills/plan-to-beads/SKILL.md` and wins, so the Skill tool would return the command. If that path does not resolve, locate the file with `Glob: **/skills/plan-to-beads/SKILL.md` and read it from there.
 2. Follow the skill's workflow exactly. The confirmation gate exists for a reason: do not skip it.
 3. Apply your judgment within the workflow. The skill defines the steps; you decide what makes a good decomposition.
 

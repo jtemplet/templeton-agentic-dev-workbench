@@ -7,7 +7,7 @@ argument-hint: "[path-to-plan-file]"
 
 Read the file rather than invoking the skill by name. `commands/plan-to-beads.md` and
 `skills/plan-to-beads/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
-`Skill(plan-to-beads)` returns this file and never reaches the skill.
+`Skill(plan-to-beads)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/plan-to-beads/SKILL.md` and read it from there.
 
 The decomposition operates from the `project-manager` role: a project manager who keeps the dependency graph shallow, makes each issue self-contained, and refuses to create issues without explicit confirmation. Refer to `agents/project-manager.md` for the role's beliefs and judgment principles.
 
