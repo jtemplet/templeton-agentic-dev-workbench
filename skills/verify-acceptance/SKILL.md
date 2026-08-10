@@ -86,18 +86,16 @@ UNVERIFIABLE is a real answer and is not a soft FAIL. Say what would settle it a
 
 ### Step 4: Run the QA Gates
 
-Run these against the current tree. Skip any that do not apply to this project, and record the skip.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/SKILL.md` and run four of its gates against the current tree: **Tests**, **Lint and Format**, **Type Checking**, and **Secrets**. If that path does not resolve, locate it with `Glob: **/skills/quality-gates/SKILL.md` and read it from there.
 
-| Gate | What to run |
-|---|---|
-| Tests | The project's suite (`pytest`, `bundle exec rspec`, `npm test`, `go test ./...`) |
-| Linting | The project's linter (`ruff check .`, `rubocop`, `eslint .`) |
-| Type checking | `mypy`, `pyright`, or `tsc --noEmit` |
-| Security | Committed `.env` or credential files, hardcoded keys or tokens |
+Those four are the subset that can invalidate an acceptance claim. Skip its doc freshness and hygiene gates here; they produce warnings, and a warning never changes a verdict. Run `/quality-gates` instead when the user wants the complete sweep.
 
-`/quality-gates` holds the full gate definitions, including doc freshness. Run that command instead when the user wants the complete sweep; the four gates here are the subset that can invalidate an acceptance claim.
+Read the file rather than restating the gates from memory. It owns how each gate is discovered, how it is scoped, and what its statuses mean, and a second copy of that here would drift from it.
 
-Record real numbers. "Tests: 218 passed, 0 failed" is a gate result. "Tests: green" is not, and neither is "QA passed."
+Two of its rules carry into this report unchanged:
+
+- A configured gate that could not run is **BLOCKED**, never SKIP. A missing binary proves nothing about the code.
+- Record real numbers. "Tests: 218 passed, 0 failed" is a gate result. "Tests: green" is not, and neither is "QA passed."
 
 ### Step 5: Report
 
@@ -121,12 +119,12 @@ Output the report below, then stop.
 
 ### QA Gates
 
-| Gate | Status | Result |
-|---|---|---|
-| Tests | PASS | 218 passed, 0 failed |
-| Linting | PASS | 0 errors, 2 warnings |
-| Type checking | SKIP | No type checker configured |
-| Security | PASS | No committed secrets found |
+| Gate | Status | Command | Result |
+|---|---|---|---|
+| Tests | PASS | `pytest -q` | 218 passed, 0 failed |
+| Lint | PASS | `ruff check .` | 0 errors, 2 warnings |
+| Type checking | SKIP | - | No type checker configured |
+| Secrets | PASS | `gitleaks detect` | 0 findings |
 
 ### Verdict: ACCEPTED / NOT ACCEPTED / INCONCLUSIVE
 
@@ -142,11 +140,11 @@ Output the report below, then stop.
 
 Apply these mechanically. Do not soften a verdict because the work is nearly there.
 
-- **ACCEPTED** - at least one criterion was graded, every criterion is PASS, and no gate FAIL.
-- **NOT ACCEPTED** - any criterion FAIL, or any gate FAIL. One FAIL is enough.
+- **ACCEPTED** - at least one criterion was graded, every criterion is PASS, and no gate FAIL or BLOCKED.
+- **NOT ACCEPTED** - any criterion FAIL, or any gate FAIL or BLOCKED. One is enough.
 - **INCONCLUSIVE** - no criterion FAIL, but at least one UNVERIFIABLE. The work may well be done; you cannot say so from here.
 
-A skipped gate does not change the verdict. An unresolved unit of work, or a bead with an empty criteria field, makes the acceptance half INCONCLUSIVE, not ACCEPTED. Zero criteria satisfy "every criterion PASS" vacuously, and that is the reading this skill exists to refuse.
+A skipped gate does not change the verdict. A BLOCKED gate does, because a check that could not run leaves the claim unproven. An unresolved unit of work, or a bead with an empty criteria field, makes the acceptance half INCONCLUSIVE, not ACCEPTED. Zero criteria satisfy "every criterion PASS" vacuously, and that is the reading this skill exists to refuse.
 
 ## Critical Rules
 
@@ -175,6 +173,6 @@ Before reporting completion, verify:
 - [ ] Every criterion in the bead appears in the table, with none merged or dropped
 - [ ] Every PASS cites a test name, a command with output, or a `file:line`
 - [ ] Every UNVERIFIABLE says what would settle it and who does it
-- [ ] Every gate reports a real count or an explicit SKIP with a reason
+- [ ] Every gate reports a real count, an explicit SKIP with a reason, or BLOCKED with what stopped it
 - [ ] The verdict follows the Verdict Rules mechanically
 - [ ] No file was edited and no bead was closed

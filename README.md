@@ -41,7 +41,7 @@ Everything in the plugin is namespaced under `tadw:`, so a skill or agent is add
 |---|---|
 | `/fresh-eyes-cr` | Review changed code with fresh eyes, find and fix bugs directly |
 | `/verify-acceptance` | Grade the work against its bead's acceptance criteria and the QA gates; report-only verdict. Runs automatically after a fresh-eyes review |
-| `/quality-gates` | Run tests, linting, type checks, doc freshness, security scan |
+| `/quality-gates` | QA the change, not the repository: runs the project's own checks and proves every case the change introduces is exercised at the unit and end-to-end level, spans its input/state/outcome classes, and hands browser UI to `/qa` |
 
 ### Debugging
 
@@ -167,6 +167,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill | After a feature lands, as the refinement pass before committing |
 | `review-fresh-eyes` | Bug-and-correctness pass over recently changed code, fixes issues directly | After implementing or refactoring, before committing |
 | `verify-acceptance` | Grade a finished unit of work against its bead's `acceptance_criteria` and the QA gates; every criterion graded against a named test, a command's output, or a `file:line`, never the diff; report-only ACCEPTED / NOT ACCEPTED / INCONCLUSIVE | Deciding whether work is done, before `br close` or a PR |
+| `quality-gates` | QA the change rather than the repository: scoped to the diff by default, takes the gate list from `AGENTS.md`/CI/a task runner before guessing, and adds a change-coverage gate that enumerates the cases the diff introduces, requires a unit test for each plus an end-to-end test through the real entry point for every CLI command or HTTP route touched, and grades the span (input, boundary, state, outcome classes) while explicitly refusing cross-products and defensive code; browser UI is HANDOFF to `/qa`, an unrunnable gate is BLOCKED, and an all-skip run is not a pass; report-only | Ending a session, before a PR, or before `br close` |
 | `feature-development` | 4-phase guided implementation (discovery, implementation, simplification, linting) across languages | Building something new and you want a guided workflow |
 | `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) | A reviewed plan needs breaking into trackable issues |
 | `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards, and ground their claims in the code on `main`; separates content from structure (format-only issues are auto-fixable) and both from grounding (a bead whose code moved is `drifted`, not under-specified); honors native tracker fields, optional 0-100 scorecard banded Poor→Excellent and capped by verdict and by grounding, JSON output for backlog grooming | Before claiming a bead, or grooming a backlog at scale |

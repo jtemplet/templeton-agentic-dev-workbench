@@ -1,95 +1,28 @@
 ---
-description: "Run quality gates (tests, linting, type checks, docs freshness, security scan) and report pass/fail"
+description: "QA the change: tests, change coverage and span, lint, type checks, doc freshness, secrets, hygiene. Scoped to what changed by default"
+argument-hint: "[--changed | --all]"
 ---
 
-You are a quality gate runner. Execute each gate in sequence, skip gates that don't apply, and produce a consolidated report.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/SKILL.md` and follow it to run the gates against the current tree.
 
-## Gate 1: Tests
+Read the file rather than invoking the skill by name. `commands/quality-gates.md` and
+`skills/quality-gates/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+`Skill(quality-gates)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/quality-gates/SKILL.md` and read it from there.
 
-Auto-detect the test framework and run tests:
+The skill will:
 
-```bash
-# Check in order, run the first one found
-# pytest / python -m pytest
-# bundle exec rspec
-# npm test / yarn test
-# go test ./...
-# make test (if Makefile has a test target)
-```
+1. Discover the gate set from `AGENTS.md`, CI config, or a task runner, and fall back to language auto-detect only when none of those names a check
+2. Run tests, change coverage, lint, type checking, doc freshness, secrets, and hygiene, each with a bounded timeout
+3. Check that every case the change introduces is exercised at the unit level, and that every CLI command or HTTP route it touches is exercised end to end through the real entry point
+4. Check the span of each case, meaning the classes of input, state, and outcome, and name the classes nothing covers
+5. Hand a browser or mobile UI change to `/qa` rather than passing it, which makes the run INCOMPLETE
+6. Record a configured gate it could not run as BLOCKED, which fails the run, rather than as a skip
+7. Report one table carrying the exact command and real counts for every gate
 
-Record: pass/fail, test count, error count. **SKIP** if no test framework is detected.
+Report-only. It never fixes, formats, or edits anything, and it never rewrites the working tree to establish a baseline.
 
-## Gate 2: Linting
+**The default scope is the change, not the repository.** `--changed` runs the tests that cover the changed code and narrows lint, doc freshness, and hygiene to changed files. The report says the full suite did not run. Two gates stay wide on purpose: type checking analyzes the whole project and reports only the changed files, because a type error surfaces in the consumer; the secret scan always covers the whole tree. Pass `--all` for the repository-wide sweep. With no argument it uses `--changed`, falling back to `--all` when the base will not resolve.
 
-Auto-detect the linter and run it:
+The gate is proportionate by design. It asks for one test per span class, never their cross-product, and never for defensive code around a failure that cannot happen.
 
-```bash
-# ruff check . / flake8
-# rubocop
-# eslint . / npx eslint .
-# golangci-lint run
-```
-
-Record: warning count, error count. **SKIP** if no linter is detected.
-
-## Gate 3: Type Checking
-
-Run type checks if applicable:
-
-```bash
-# mypy . / pyright
-# tsc --noEmit
-```
-
-Record: error count. **SKIP** if no type checker applies.
-
-## Gate 4: Documentation Freshness
-
-Check for stale documentation:
-
-- Look for README.md, CLAUDE.md, AGENTS.md
-- Check if these files reference files, functions, or commands that no longer exist
-- Check if recently changed source files have corresponding doc updates needed
-
-Record: stale references found. **WARN** if issues, don't FAIL.
-
-## Gate 5: Security Quick Scan
-
-Check for common security issues:
-
-- Committed `.env` files or files matching `*.secret*`, `*credential*`
-- Hardcoded strings that look like API keys, passwords, or tokens (long hex/base64 strings in source)
-- `TODO`, `FIXME`, `HACK`, `XXX` comments (count them, report as warnings)
-
-Record: findings. **WARN** for TODOs/FIXMEs. **FAIL** for committed secrets.
-
-## Output
-
-Present results as:
-
-```markdown
-## Quality Gates Report
-
-| Gate | Status | Details |
-|---|---|---|
-| Tests | PASS/FAIL/SKIP | X passed, Y failed |
-| Linting | PASS/FAIL/WARN/SKIP | X warnings, Y errors |
-| Type Checking | PASS/FAIL/SKIP | X errors |
-| Doc Freshness | PASS/WARN/SKIP | X stale references |
-| Security Scan | PASS/FAIL/WARN | X findings |
-
-### Overall: PASS / FAIL
-
-### Action Items
-
-1. [First thing to fix, if any]
-2. ...
-```
-
-**Rules:**
-
-- A single FAIL in any gate means overall FAIL
-- WARN does not cause overall FAIL but should be noted
-- SKIP gates don't affect the overall result
-- Run gates sequentially (tests first — if tests fail, still run remaining gates)
-- Report actual command output for failures so the user can debug
+`/verify-acceptance` runs the four gates that can invalidate an acceptance claim, and points here for the rest.

@@ -607,8 +607,11 @@ terraform workspace select dev
 
 # List workspaces
 terraform workspace list
+```
 
-# Use in configuration
+Reference the active workspace from configuration:
+
+```hcl
 resource "aws_instance" "web" {
   # ... configuration ...
 

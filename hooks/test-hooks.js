@@ -419,6 +419,136 @@ check('no command both shares a skill name and delegates to that skill by name',
   }
 });
 
+// --- 6b. Registration: the AGENTS.md name lists match the directories -------
+// AGENTS.md claims it registers every component and states a count for each.
+// Nothing enforced that, so adding a skill without listing it, or listing one
+// and leaving the count behind, shipped green. /validate-plugin is a command an
+// LLM runs; this is the mechanical half of the same claim.
+const COMPONENTS = [
+  { label: 'Skills', dir: 'skills', names: (root) => componentNames(root, 'skills', true) },
+  { label: 'Agents', dir: 'agents', names: (root) => componentNames(root, 'agents', false) },
+  { label: 'Commands', dir: 'commands', names: (root) => componentNames(root, 'commands', false) },
+];
+
+function componentNames(root, dir, isDirectory) {
+  const entries = fs.readdirSync(path.join(root, dir), { withFileTypes: true });
+  return entries
+    .filter((e) => (isDirectory ? e.isDirectory() : e.isFile() && e.name.endsWith('.md')))
+    .map((e) => (isDirectory ? e.name : e.name.slice(0, -3)))
+    .sort();
+}
+
+check('AGENTS.md registers every component on disk, with matching counts', () => {
+  const root = path.join(HOOKS_DIR, '..');
+  const doc = fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8');
+
+  for (const { label, names } of COMPONENTS) {
+    const onDisk = names(root);
+    const heading = doc.match(
+      new RegExp(String.raw`\*\*Registered ${label}\*\* \((\d+)\)\.`)
+    );
+    assert.ok(heading, `AGENTS.md must carry a "**Registered ${label}** (N)." section`);
+
+    // The list is the first paragraph after the heading made up ENTIRELY of
+    // backticked names. Capturing to the next `**` instead swept in later prose
+    // and reported `node` and `hooks` as registered components.
+    const isNameList = (para) => {
+      const tokens = para.trim().split(/\s+/);
+      return tokens.length > 0 && tokens.every((t) => /^`\/?[a-z0-9-]+`$/.test(t));
+    };
+    const list = doc
+      .slice(heading.index + heading[0].length)
+      .split(/\n\s*\n/)
+      .find(isNameList);
+    assert.ok(list, `AGENTS.md has no name list under "Registered ${label}"`);
+
+    const listed = [...list.matchAll(/`\/?([a-z0-9-]+)`/g)].map((m) => m[1]).sort();
+    const missing = onDisk.filter((n) => !listed.includes(n));
+    const extra = listed.filter((n) => !onDisk.includes(n));
+
+    assert.deepStrictEqual(
+      missing,
+      [],
+      `AGENTS.md "Registered ${label}" omits: ${missing.join(', ')}`
+    );
+    assert.deepStrictEqual(
+      extra,
+      [],
+      `AGENTS.md "Registered ${label}" names something absent from ${label.toLowerCase()}/: ${extra.join(', ')}`
+    );
+    assert.strictEqual(
+      Number(heading[1]),
+      onDisk.length,
+      `AGENTS.md says ${label} (${heading[1]}) but ${onDisk.length} exist on disk`
+    );
+  }
+});
+
+// --- 6c. Registration: README.md documents every skill and agent -----------
+// Commands are deliberately out of scope. README organizes them by topic, and
+// several are aliases for a differently-named skill or agent (/adr -> the
+// architecture-decision-record skill), so a name-match assertion would encode a
+// rule this repository does not follow and fail on eleven correct entries.
+check('README.md documents every skill and agent on disk', () => {
+  const root = path.join(HOOKS_DIR, '..');
+  const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+
+  for (const label of ['Skills', 'Agents']) {
+    const { names } = COMPONENTS.find((c) => c.label === label);
+    const undocumented = names(root).filter((n) => !readme.includes(`\`${n}\``));
+    assert.deepStrictEqual(
+      undocumented,
+      [],
+      `README.md never mentions ${label.toLowerCase()}: ${undocumented.join(', ')}`
+    );
+  }
+});
+
+// --- 6d. Every runnable bash block in a skill or command parses ------------
+// Three broken snippets shipped inside one skill in a single sitting: a diff
+// basis that missed uncommitted work, a `grep -c` whose exit 1 on zero matches
+// reads as a failed gate, and a PEM pattern that matched neither common form.
+// Syntax checking catches none of those three. It catches the class below them,
+// which is why this is a cheap check and not a substitute for running a snippet.
+//
+// Blocks carrying a <placeholder> are templates, not scripts, and are skipped.
+check('every runnable bash block in a skill or command parses', () => {
+  const root = path.join(HOOKS_DIR, '..');
+  const docs = [
+    ...componentNames(root, 'skills', true).map((n) => `skills/${n}/SKILL.md`),
+    ...componentNames(root, 'commands', false).map((n) => `commands/${n}.md`),
+  ].filter((rel) => fs.existsSync(path.join(root, rel)));
+
+  const fence = /^```(?:bash|sh|shell)[^\n]*\n([\s\S]*?)^```/gm;
+  const placeholder = /<[a-z][a-z0-9_.-]*>/;
+  const failures = [];
+  let checked = 0;
+
+  for (const rel of docs) {
+    const text = fs.readFileSync(path.join(root, rel), 'utf8');
+    let match;
+    let index = 0;
+    while ((match = fence.exec(text)) !== null) {
+      const body = match[1];
+      index += 1;
+      if (placeholder.test(body)) continue;
+      checked += 1;
+      const result = spawnSync('bash', ['-n'], { input: body, encoding: 'utf8' });
+      if (result.status !== 0) {
+        const first = (result.stderr || '').trim().split('\n')[0];
+        failures.push(`${rel} block ${index}: ${first}`);
+      }
+    }
+  }
+
+  assert.ok(checked > 0, 'no bash blocks were checked; the fence pattern stopped matching');
+  assert.deepStrictEqual(
+    failures,
+    [],
+    `bash blocks that do not parse:\n  ${failures.join('\n  ')}`
+  );
+});
+
 // --- 7. The wrapper honors the off-switch even when node fails -----------
 // The bug this pins: the failure fallback used to fire regardless of the
 // off-switch, so a user who had deliberately disabled the hook still got a

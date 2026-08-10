@@ -149,6 +149,40 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 - Dispatches to the correct skill per language
 - Produces a single consolidated review report
 
+### Quality Assurance
+
+**Run the QA gates:** Use `/quality-gates` (reads the `quality-gates` skill from disk)
+
+- **Scoped to the change by default.** `--changed` runs the tests covering the changed code and
+  narrows lint, doc freshness, and hygiene to changed files; the report states that the full suite
+  did not run. Type checking still analyzes the whole project and reports only changed files,
+  because a type error surfaces in the consumer. The secret scan always covers the whole tree
+- Discovers the gate set from `AGENTS.md`, then CI config, then a task runner, and falls back to
+  language auto-detect only when none of those names a check; the report says which source it used
+- **Change coverage is the gate that earns the run.** It enumerates the cases the diff introduces,
+  requires a unit test for each, and requires an end-to-end test through the real entry point for
+  every CLI command or HTTP route touched; an in-process call of a handler does not count
+- Grades the **span** of each case (input, boundary, state, and outcome classes) and names the
+  classes nothing covers, weighing each by what a failure there would cost
+- Stays proportionate on purpose: one test per span class, never the cross-product, never a test
+  for an unreachable branch, and never defensive code around a failure that cannot happen
+- Hands a browser or mobile UI change to `/qa` (or `/qa-only` for a report) as HANDOFF, which makes
+  the overall verdict INCOMPLETE rather than PASS
+- Records a configured gate it could not run as BLOCKED, which fails the run; a missing binary is
+  not a skip, and an all-skip run reports NO GATES RAN rather than PASS
+- Reports the exact command and real counts for every gate, and says whether each failure looks new
+  by naming which changed files it involves
+- Scans for secrets on prefixed key formats only, and reports `file:line` without the matched value
+- Report-only: it never fixes, formats, or rewrites the working tree
+
+**Grade work against its criteria:** Use `/verify-acceptance` or the `verify-acceptance` skill
+
+- Resolves the bead from `br`, the branch name, or the commit messages
+- Grades each acceptance criterion against a named test, a command's output, or a `file:line`,
+  never against the diff
+- Runs the four gates from `quality-gates` that can invalidate an acceptance claim
+- Report-only: it never edits code and never closes a bead
+
 ### Project Reporting
 
 **Roadmap Dashboard:** Use `/roadmap-dashboard` or the `roadmap-dashboard` skill directly

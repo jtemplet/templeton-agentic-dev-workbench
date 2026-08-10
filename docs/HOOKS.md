@@ -106,7 +106,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 19 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 22 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
 frontmatter stripped), the two that hold the split shut (every payload inside the
@@ -130,7 +130,15 @@ is unrelated). Four more cover the **acceptance gate** (see below): it arms only
 fresh-eyes review skills and refuses a session id that could escape the temp directory; its
 `Stop` half blocks exactly once and disarms *before* it blocks; its off-switch is independent
 of the style core's in both directions; and its manifest commands execute, degrading to
-silence rather than to a partial decision when `node` is missing. The suite also asserts that
+silence rather than to a partial decision when `node` is missing. Three cover **repository
+structure**, added after a `/quality-gates` run found nothing enforcing them: `AGENTS.md`
+registers every skill, agent, and command on disk with a count that matches; `README.md`
+mentions every skill and agent (commands are out of scope, since several are aliases for a
+differently-named skill and README groups them by topic); and every `bash` block in a skill or
+command parses under `bash -n`, skipping blocks that carry a `<placeholder>` because those are
+templates rather than scripts. That last one caught a Terraform `resource` block fenced as
+`bash`. It would not have caught the three snippet bugs that prompted it, all of which were
+syntactically valid; only executing a snippet finds those. The suite also asserts that
 the count stated in this sentence matches the number
 of checks it ran, since that number drifted three times while the suite was being written. Each
 check was added after a real defect shipped green under a narrower suite: a matcher missing

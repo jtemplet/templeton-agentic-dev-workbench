@@ -16,6 +16,8 @@ rumdl fmt --check .                                          # what CI runs; ./l
 node hooks/test-hooks.js                                      # hook suite, incl. the docs/HOOKS.md count assertion
 python3 skills/style-testing/scripts/test_check_framework_leak.py   # regression suite for the leak checker
 python3 skills/style-testing/scripts/check_framework_leak.py        # assert style-testing stays framework-free
+python3 skills/quality-gates/scripts/test_check_doc_paths.py        # regression suite for the doc-path checker
+python3 skills/quality-gates/scripts/check_doc_paths.py             # assert every documented path exists
 claude plugin validate .                                      # parses every SKILL.md frontmatter
 python3 evals/run.py                                          # response-style evals
 ```
@@ -66,7 +68,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Find and fix bugs in a diff | `/fresh-eyes-cr` | `review-fresh-eyes` |
 | Investigate a bug before fixing | `/diagnose` | `diagnostician` agent |
 | Write or restructure tests | - | `style-testing`, plus `style-rspec` for RSpec |
-| Run the QA gates | `/quality-gates` | - |
+| Run the QA gates | `/quality-gates` | `quality-gates` |
 | Grade work against its bead | `/verify-acceptance` | `verify-acceptance` |
 | Plan a feature | `/plan-feature`, `/plan-review` | `feature-planner` agent, `plan-review` |
 | Break a plan into issues | `/plan-to-beads` | `project-manager` agent |
@@ -108,7 +110,7 @@ every invocation path at once, including the ones hardcoded in other repos, so t
 change. It was `templeton-agentic-dev-workbench` before 2.0.0. Unrelated to the namespace despite the
 shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue prefix.
 
-**Registered Skills** (35). One-line descriptions live in the `README.md` skills
+**Registered Skills** (36). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
@@ -116,9 +118,10 @@ reads when deciding what to invoke.
 `business-ideas` `code-simplify` `competitive-analysis` `feature-development`
 `house-response-style` `idea-wizard` `plan-review` `plan-to-beads` `pr-maintenance`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
-`research-ingest` `review-fresh-eyes` `review-python` `review-rails` `roadmap-dashboard`
-`style-fizzy` `style-frontend` `style-python` `style-rails` `style-rspec` `style-swift`
-`style-testing` `terraform-iac-expert` `ux-audit` `ux-audit-ios` `verify-acceptance`
+`quality-gates` `research-ingest` `review-fresh-eyes` `review-python` `review-rails`
+`roadmap-dashboard` `style-fizzy` `style-frontend` `style-python` `style-rails` `style-rspec`
+`style-swift` `style-testing` `terraform-iac-expert` `ux-audit` `ux-audit-ios`
+`verify-acceptance`
 
 **Registered Agents** (12). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.

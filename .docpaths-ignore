@@ -1,0 +1,19 @@
+# Paths the documents legitimately name that are not in this tree.
+# Read by skills/quality-gates/scripts/check_doc_paths.py (Gate 5).
+# One glob per line. Add a reason for every entry.
+
+# Outputs a documented tool creates when it runs. Absent until someone runs it.
+docs/ux-audits/*
+docs/ux-audits
+docs/aso-audits/*
+docs/aso-audits
+docs/products/*
+docs/products
+docs/roadmap.html
+docs/roadmap-v*.html
+.beads/*
+
+# Plans describe a future tree on purpose. A plan naming a file that does not
+# exist yet is the plan working, not a stale reference. `doc:` skips the whole
+# document, so the ignore file does not become a second copy of the plan.
+doc:docs/plans/*
