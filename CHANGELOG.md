@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-08-09
+
+### Fixed
+
+- **`/quality-gates` guessed the gate list from file extensions, so it found nothing here and
+  called that a pass.** Run against this repository it saw no `package.json` and no
+  `pyproject.toml`, reported every gate SKIP, and concluded overall PASS while missing all six
+  checks `AGENTS.md` declares. Gate discovery now reads `AGENTS.md`, then CI config, then a task
+  runner, and only guesses when none of those names a check. The report says which source it used.
+
+- **A configured gate that could not run degraded to SKIP, and SKIP did not affect the result.**
+  "No linter is configured" and "the linter is configured but not installed" collapsed to the same
+  status, so a broken toolchain reported a clean bill of health. The second is now BLOCKED, which
+  fails the run. A run where every gate skipped reports NO GATES RAN rather than PASS, the same
+  vacuous-satisfaction reading `verify-acceptance` already refuses for criteria.
+
+- **The doc-freshness gate was three prose steps that did not survive first contact.** Told to
+  extract "tokens that look like a path", it reported **194 missing paths on a repository with no
+  broken links**: slash commands, `<name>` placeholders, and a worked example in its own text. A
+  gate that cries wolf gets ignored, and the real miss gets ignored with it. It is now
+  `skills/quality-gates/scripts/check_doc_paths.py`, with `test_check_doc_paths.py` pinning 18
+  cases, six of them one per false positive from that run.
+
+- **A Terraform `resource` block was fenced as `bash`** in `terraform-iac-expert`, found by the
+  new fence check. Split into a `bash` fence and an `hcl` fence.
+
+### Added
+
+- **`quality-gates` is now a skill**, at `skills/quality-gates/SKILL.md`. It was 95 lines of
+  technique living in `commands/`, where no agent or skill could reach it, so `verify-acceptance`
+  carried its own copy of a four-gate subset that could drift. The command is a Read wrapper, and
+  `verify-acceptance` reads the same file.
+
+- **A change-coverage gate**, which is the reason to run the skill rather than the test command by
+  hand. A green suite says the old code still works; this asks whether the new code is exercised.
+  It enumerates the cases the diff introduces, requires a unit test for each and an end-to-end test
+  through the real entry point for every CLI command or HTTP route touched, then grades the
+  **span**: the classes of input, boundary, state, and outcome each case can take. One passing test
+  covers one point of a span, and no coverage percentage will tell you that. It stays proportionate
+  by rule: one test per class, never the cross-product, never a test for an unreachable branch, and
+  never defensive code around a failure that cannot happen. A browser or mobile UI change is
+  HANDOFF to `/qa`, which makes the verdict INCOMPLETE rather than PASS.
+
+- **The default scope is the change, not the repository.** `--changed` runs the tests covering the
+  changed code and narrows lint, doc freshness, and hygiene to changed files, and the report states
+  that the full suite did not run. Two gates stay wide on purpose: type checking analyzes the whole
+  project and reports only changed files, because a type error surfaces in the consumer, and the
+  secret scan always covers the whole tree.
+
+- **Three checks in the hook suite, which grows from 19 to 22**, each covering a case the first
+  real `/quality-gates` run found nothing enforcing: `AGENTS.md` registers every skill, agent, and
+  command on disk with a matching count; `README.md` mentions every skill and agent; and every
+  runnable `bash` block in a skill or command parses under `bash -n`. Blocks carrying a
+  `<placeholder>` are templates and are skipped. That last check would **not** have caught the three
+  snippet bugs that prompted it, all of which were syntactically valid. Only executing a snippet
+  finds those.
+
+- **`.docpaths-ignore`**, for paths a documented tool creates at runtime. `docs/roadmap.html` does
+  not exist until someone runs the dashboard. A `doc:` prefix skips a whole document, which is what
+  plans need: a plan names the tree it intends to create, so every path in it is a miss until the
+  work lands.
+
+### Known gaps
+
+- `docs/ROUTING.md` omits 15 commands. Asserting that invariant means writing 15 entries first, so
+  it is left for a separate pass and nothing enforces it today.
+
 ## [2.5.0] - 2026-08-09
 
 ### Fixed
@@ -908,7 +975,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.1...HEAD
+[2.5.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.2...v2.5.0
 [2.4.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.1...v2.4.2
 [2.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.0...v2.4.1
