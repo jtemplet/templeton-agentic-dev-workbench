@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.2] - 2026-08-10
+
+### Removed
+
+- **The acceptance gate, the `PostToolUse` + `Stop` hook pair that chained `verify-acceptance`
+  onto the end of a fresh-eyes review.** Deleted `hooks/acceptance-gate.js`, its manifest
+  entries, and `hooks/manual-gate-test.sh`, along with the four checks in `hooks/test-hooks.js`
+  that covered it (18 remain). The `verify-acceptance` skill and `/verify-acceptance` command
+  stay; the check is now invoked by hand. `TADW_ACCEPTANCE_GATE` and the
+  `.tadw-acceptance-gate-off` flag file no longer do anything, and a leftover flag file is
+  inert rather than harmful. `hooks/style-core-hooks.json` declares `SessionStart` and
+  `SubagentStart` only, so `isFeatureDisabled()` in `runtime.js` collapsed back into
+  `isDisabled()`, its single caller.
+
 ## [2.5.1] - 2026-08-09
 
 ### Fixed
@@ -975,7 +989,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.2...HEAD
+[2.5.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.2...v2.5.0
 [2.4.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.1...v2.4.2

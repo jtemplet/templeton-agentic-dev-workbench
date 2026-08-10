@@ -3,10 +3,8 @@
 //
 // Centralizes the logic every hook script must share so the copies can never
 // drift apart:
-//   1. isFeatureDisabled() - the off-switch shape (env var + persistent flag
-//                            file), parameterized per feature
-//   2. isDisabled()        - the style core's off-switch, in those terms
-//   3. writeHookOutput()   - the load-bearing stdout format per hook event
+//   1. isDisabled()        - the off-switch (env var + persistent flag file)
+//   2. writeHookOutput()   - the load-bearing stdout format per hook event
 //
 // Claude-only. No Codex/Copilot branches, no mode tracking.
 
@@ -26,17 +24,15 @@ function getFlagPath() {
   return path.join(getClaudeDir(), FLAG_FILE);
 }
 
-// The off-switch shape, parameterized by feature. Two independent paths, either
-// one disables the feature:
-//   - an env var set to off / 0 / false (it inherits into child hook processes,
-//     so one export silences every surface of that feature)
+// The style core's off-switch. Two independent paths, either one disables it:
+//   - TADW_STYLE_CORE set to off / 0 / false (it inherits into child hook
+//     processes, so one export silences both surfaces)
 //   - a persistent flag file under $CLAUDE_CONFIG_DIR
 //
-// Parameterized because the plugin now ships two independent hook features (the
-// style core and the acceptance gate). One shared switch would make disabling
-// the noisier one also silence the other.
-function isFeatureDisabled(envVar, flagFile) {
-  const flag = process.env[envVar];
+// run-hook.sh re-implements this in shell; hooks/test-hooks.js asserts the two
+// agree, so change them together.
+function isDisabled() {
+  const flag = process.env.TADW_STYLE_CORE;
   if (typeof flag === 'string') {
     const normalized = flag.trim().toLowerCase();
     if (normalized === 'off' || normalized === '0' || normalized === 'false') {
@@ -44,20 +40,13 @@ function isFeatureDisabled(envVar, flagFile) {
     }
   }
   try {
-    if (fs.existsSync(path.join(getClaudeDir(), flagFile))) {
+    if (fs.existsSync(getFlagPath())) {
       return true;
     }
   } catch (e) {
     // Stat failure is not a reason to disable; fall through to enabled.
   }
   return false;
-}
-
-// The style core's off-switch: TADW_STYLE_CORE, or .tadw-style-core-off.
-// run-hook.sh re-implements this in shell; hooks/test-hooks.js asserts the two
-// agree, so change them together.
-function isDisabled() {
-  return isFeatureDisabled('TADW_STYLE_CORE', FLAG_FILE);
 }
 
 // Load-bearing format rule:
@@ -98,6 +87,5 @@ module.exports = {
   getClaudeDir,
   getFlagPath,
   isDisabled,
-  isFeatureDisabled,
   writeHookOutput,
 };

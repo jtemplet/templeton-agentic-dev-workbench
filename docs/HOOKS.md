@@ -1,12 +1,11 @@
 # Hooks
 
-Design notes and rationale for the plugin's two hook features. `AGENTS.md` keeps only the
-operational summary (what fires, the off-switches, the `node` requirement) and points here for
+Design notes and rationale for the plugin's hook feature. `AGENTS.md` keeps only the
+operational summary (what fires, the off-switch, the `node` requirement) and points here for
 everything else.
 
-Both features are wired through `hooks/style-core-hooks.json`, registered by the `hooks` field
-in `.claude-plugin/plugin.json`. That field takes a single manifest path, so one file carries
-both.
+It is wired through `hooks/style-core-hooks.json`, registered by the `hooks` field in
+`.claude-plugin/plugin.json`. That field takes a single manifest path.
 
 ## Always-on style core
 
@@ -106,7 +105,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 22 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 18 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
 frontmatter stripped), the two that hold the split shut (every payload inside the
@@ -126,11 +125,7 @@ check pins the **report-your-own-work** rule in both response-style sources (the
 `preamble.js`'s fallback): the no-jargon rule illustrated only words about system behavior, so
 the words an agent uses for its *own* work read as allowed, and "the suite is green" or "that
 was a flake" hides the very thing the reader needs (a test count; the argument for why a failure
-is unrelated). Four more cover the **acceptance gate** (see below): it arms only on the
-fresh-eyes review skills and refuses a session id that could escape the temp directory; its
-`Stop` half blocks exactly once and disarms *before* it blocks; its off-switch is independent
-of the style core's in both directions; and its manifest commands execute, degrading to
-silence rather than to a partial decision when `node` is missing. Three cover **repository
+is unrelated). Three cover **repository
 structure**, added after a `/quality-gates` run found nothing enforcing them: `AGENTS.md`
 registers every skill, agent, and command on disk with a count that matches; `README.md`
 mentions every skill and agent (commands are out of scope, since several are aliases for a
@@ -145,56 +140,3 @@ check was added after a real defect shipped green under a narrower suite: a matc
 `fork`, a dead `/response-style` command, a failure marker that ignored the off-switch, an
 off-switch that silently stopped working when `tr` was off the PATH, and an agent reporting its
 own work in shorthand the reader could not check.
-
-## Acceptance gate
-
-The same manifest wires a second, independent feature: a `PostToolUse` + `Stop` pair
-(`hooks/acceptance-gate.js`) that chains the `verify-acceptance` skill onto the end of a
-fresh-eyes review.
-
-**Why two events.** Claude Code has no "slash command finished" event. `PostToolUse` on the
-`Skill` tool fires when a skill is **loaded**, not when its work is done, so a check wired
-there alone would grade the branch before a single file had been reviewed. `Stop` fires at the
-right moment but cannot see what ran earlier in the turn. So `PostToolUse` (matcher `Skill`)
-arms a per-session flag at `$TMPDIR/tadw-acceptance-<session_id>.flag` when `review-fresh-eyes`
-or `fresh-eyes-cr` loads, and `Stop` consumes that flag and returns
-`{"decision":"block"}` once, asking for the acceptance check before the turn ends.
-
-**Loop safety** is the whole risk: a `Stop` hook that blocks and never disarms traps the
-session, and a user cannot escape it from inside. Three guards, in order: the flag is deleted
-**before** the block is emitted (load-bearing); `stop_hook_active` is honored; and any error
-falls through to a silent `exit 0`. A flag older than 24 hours is discarded rather than spent,
-so a session that died before its `Stop` fired cannot block an unrelated turn later.
-
-**Not routed through `run-hook.sh`,** unlike the style hooks. That wrapper emits a visible
-marker when `node` is missing, which is right for a document injected once per session and
-wrong for a hook that fires on every `Skill` call and every stop. This gate degrades silently
-on purpose.
-
-**Off-switch,** independent of the style core's so that silencing one does not silence the
-other: `TADW_ACCEPTANCE_GATE=off` (also `0` / `false`), or a flag file at
-`${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-acceptance-gate-off`.
-
-**Blast radius.** The `Stop` hook fires in every session in every project the plugin is loaded
-for, but only speaks when the flag is armed, so a session that never runs a fresh-eyes review
-never sees it.
-
-**Test.** Three claims hide inside "the gate works," and they need different methods.
-
-1. *The gate arms and blocks.* Deterministic. `node hooks/test-hooks.js` covers it from inside
-   the suite (checks 12-15). `./hooks/manual-gate-test.sh` drives the same sequence from
-   outside, with the real hook payloads: arming is silent, the flag appears, `Stop` emits
-   `decision=block` naming `verify-acceptance`, the second `Stop` is silent because the block
-   consumed the flag, and a 25-hour-old flag is discarded rather than spent. It points `TMPDIR`
-   at a scratch directory removed on exit, so it cannot touch a live session's flag, and it
-   exits non-zero on any failure. Reach for it when the gate misbehaves in a live session and
-   you need to see which step diverges.
-2. *Claude Code fires the hooks.* Needs the plugin installed with this manifest, which the
-   working tree alone does not give you. Run `claude --debug hooks`, invoke `/fresh-eyes-cr`,
-   and watch for `$TMPDIR/tadw-acceptance-<session-id>.flag` and then the block.
-3. *The model complies.* Not deterministic. Read the transcript. Two failure modes: it
-   acknowledges the block without loading the skill, or it re-runs the fresh-eyes review.
-
-The gate must ship in the same version as the `verify-acceptance` skill. Released apart, it
-blocks every fresh-eyes turn asking for a skill that is not installed, and the loop-safety
-guards do not help, because that block is still well formed.

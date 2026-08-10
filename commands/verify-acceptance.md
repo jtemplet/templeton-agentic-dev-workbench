@@ -21,4 +21,4 @@ Report-only. It never edits code, never closes a bead, and never invents criteri
 
 Pass a bead id as an argument to grade that bead instead of the auto-resolved one. No argument needed otherwise.
 
-This also runs automatically after a fresh-eyes review: the plugin's `PostToolUse` + `Stop` hook pair arms on `review-fresh-eyes` and asks for this check before the turn ends. Disable that with `TADW_ACCEPTANCE_GATE=off` or a flag file at `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-acceptance-gate-off`.
+Invoke it by hand with `/verify-acceptance`, usually right after a fresh-eyes review.

@@ -40,7 +40,7 @@ Everything in the plugin is namespaced under `tadw:`, so a skill or agent is add
 | Command | What it does |
 |---|---|
 | `/fresh-eyes-cr` | Review changed code with fresh eyes, find and fix bugs directly |
-| `/verify-acceptance` | Grade the work against its bead's acceptance criteria and the QA gates; report-only verdict. Runs automatically after a fresh-eyes review |
+| `/verify-acceptance` | Grade the work against its bead's acceptance criteria and the QA gates; report-only verdict |
 | `/quality-gates` | QA the change, not the repository: runs the project's own checks and proves every case the change introduces is exercised at the unit and end-to-end level, spans its input/state/outcome classes, and hands browser UI to `/qa` |
 
 ### Debugging
@@ -260,56 +260,6 @@ non-interactive shell. If you see no marker at all, the hook did not run; check 
 the off-switch.
 
 **Test the hooks:** `node hooks/test-hooks.js` (no dependencies, no install).
-
-## Acceptance Gate
-
-A second, independent pair of hooks chains the `verify-acceptance` skill onto the end of a
-fresh-eyes review, so a review that fixed bugs is followed by the question the review does not
-answer: **did this work meet its acceptance criteria, and did it pass QA?**
-
-Claude Code has no "slash command finished" event, so the gate uses two:
-
-- `PostToolUse` (matcher `Skill`) arms a per-session flag when `review-fresh-eyes` or
-  `fresh-eyes-cr` loads.
-- `Stop` consumes that flag and blocks the turn once, asking for the acceptance check.
-
-`PostToolUse` alone would not work: it fires when a skill is **loaded**, not when its work is
-done, so the check would grade the branch before a file had been reviewed.
-
-**Loop safety.** A `Stop` hook that blocks and never disarms traps the session, and you cannot
-escape it from inside. The flag is therefore deleted *before* the block is emitted,
-`stop_hook_active` is honored, any error falls through to a silent exit, and a flag older than
-24 hours is discarded rather than spent on an unrelated turn.
-
-**Off-switch,** separate from the style core's so that turning off one does not silence the
-other: set `TADW_ACCEPTANCE_GATE=off` (also `0` / `false`), or create a flag file at
-`${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-acceptance-gate-off`.
-
-**Degrades silently.** Unlike the style hooks, this one prints no marker when `node` is
-missing. A marker on every `Skill` call and every stop would be noise, and a skipped nudge is
-a smaller cost than a corrupted transcript.
-
-**Testing it.** `node hooks/test-hooks.js` covers the gate's logic. `./hooks/manual-gate-test.sh`
-drives the same arm, block, and disarm sequence by hand with the real hook payloads, and exits
-non-zero on any failure:
-
-```text
-$ ./hooks/manual-gate-test.sh
-acceptance gate, driven by hand:
-  ok   - arming is silent
-  ok   - flag written to $TMPDIR
-  ok   - Stop emits decision=block naming verify-acceptance
-  ok   - second Stop is silent (flag consumed)
-  ok   - stale flag (>24h) is discarded, not spent
-
-5/5 passed. Flags cleaned up.
-```
-
-Both run against the working tree and speak to the hook script directly, so neither says
-whether Claude Code fires the hooks in a real session. For that, run `claude --debug hooks`,
-invoke `/fresh-eyes-cr`, and watch for the flag file and then the block.
-
-Run the check by hand any time with `/verify-acceptance`.
 
 ## Commands and skills share one namespace
 

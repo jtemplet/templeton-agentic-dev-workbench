@@ -143,7 +143,7 @@ and in each `commands/<name>.md` frontmatter.
 ### Hooks
 
 `hooks/style-core-hooks.json` (registered by the `hooks` field in `plugin.json`, which takes a
-single manifest path) wires two independent features. Design notes, rationale, and the test
+single manifest path) wires one feature. Design notes, rationale, and the test
 strategy live in [docs/HOOKS.md](docs/HOOKS.md).
 
 - **Always-on style core.** `SessionStart` injects `hooks/style-core.md` plus the
@@ -155,10 +155,6 @@ strategy live in [docs/HOOKS.md](docs/HOOKS.md).
   `SessionStart` ships as three manifest entries that differ only in a payload index. Do not
   collapse them back into one; the tail is discarded in silence, and the marker that says it
   loaded survives inside the surviving preview.
-- **Acceptance gate.** A `PostToolUse` + `Stop` pair chains the `verify-acceptance` skill onto
-  the end of a fresh-eyes review. Off-switch, independent of the style core's:
-  `TADW_ACCEPTANCE_GATE=off`, or a flag file at
-  `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-acceptance-gate-off`.
 
 Both style hooks run through `hooks/run-hook.sh`, which needs `node` on the non-interactive
 shell's PATH. Without it the core cannot be injected, and the wrapper emits
