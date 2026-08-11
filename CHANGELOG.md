@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-08-10
+
+### Changed
+
+- **BREAKING: `/python-feature-dev` is now `/build`.** The old name was wrong, and its own last
+  line admitted it: the workflow dispatches to Ruby, Swift, and TypeScript as readily as to
+  Python. Anything invoking `tadw:python-feature-dev` must switch to `tadw:build`. Renamed with
+  `git mv`, so history follows the file.
+
+- **`feature-development` takes a bead id and reads the spec instead of interviewing you.** Its
+  Discovery phase asked 3 to 7 questions that a bead which passed `/bead-audit` already answers in
+  its `design` and `acceptance_criteria` fields, so driving it from a tracked issue meant retyping
+  the tracker. Phase 1 now reads `br show <id> --json` and refuses two cases outright: criteria too
+  vague to build against (it loads `bead-audit` and stops), and a bead whose own notes say to split
+  it first. The interview survives for the no-bead case, so `software-engineer` routing for
+  "implement X" still works.
+
+- **A new Orient phase, because detecting a file extension is not understanding a repository.** The
+  skill matched `.py` and called that language detection, which would load `style-python` for
+  `atlas` without noticing it is FastAPI on SQLAlchemy, or that its `AGENTS.md` forbids external
+  calls. Phase 2 reads `AGENTS.md`/`CLAUDE.md`, then the dependency manifest for the framework and
+  test runner, then the two or three existing files nearest the change. It also loads a
+  project-local style skill when one covers the surface, and says the local skill wins over the
+  general language skill on conflict. That is the mechanism that reaches `jbuilder-style` and
+  `style-fizzy`; extension matching never could.
+
+- **The skill leaves tracker state alone and does not grade itself.** No claim, no status change,
+  no close. It stops at implemented and hands off to `/quality-gates` then `/verify-acceptance`,
+  because a step that both writes code and rules on whether the code met its criteria is the
+  self-grading `verify-acceptance` exists to prevent.
+
+- **Pipeline B reverses its last two steps: `/fresh-eyes-cr` → `/quality-gates` →
+  `/verify-acceptance`.** `verify-acceptance` already reads the `quality-gates` skill and runs four
+  of its gates, so running the gates first means the grader cites results that exist rather than
+  re-deriving a subset. Updated in `README.md` and `AGENTS.md`.
+
+- **`AGENTS.md` "Landing the Plane" gains `/verify-acceptance` as step 3**, after the gates, so the
+  session-completion checklist and Pipeline B stop describing different workflows. Qualified with
+  "if it has one", since not every session works against a bead.
+
+### Added
+
+- **`style-go`**, the Go style skill. `feature-development` already read `go.mod` when detecting a
+  stack but had no Go skill to load, so Go fell to the degraded path. Written against the
+  conventions already in a real Go repository rather than invented: `fmt.Errorf("read %s: %w", ...)`
+  wrapping, doc comments that open with the identifier, `defer` beside the open, table-driven tests
+  with named cases, and a `gofmt` → `go vet` → `staticcheck` → `go test -race` order.
+
+  Eleven deltas on the injected core, each with a BAD → why → GOOD example: accept interfaces and
+  return structs with the interface declared at the consumer; wrap errors and add a sentinel only
+  where a caller branches; make the zero value useful; `context.Context` first and never stored in a
+  struct; every goroutine has a defined exit; pass arguments until four; name for the call site;
+  doc comments start with the identifier; `defer` beside acquisition; happy path leftmost; standard
+  library before a dependency.
+
+  Two universal rules are deliberately overridden, and the skill says so rather than leaving a
+  reader to notice the contradiction. "Compose over inherit" is not a choice in Go, so the delta
+  becomes when an interface earns its place at all. And the core says comment only the why, but
+  exported doc comments **are** the API documentation `go doc` renders, so that exception is scoped
+  to exported identifiers while the core still governs comments inside function bodies.
+
+  Wired into every component that dispatches by language, so it is not an orphan:
+  `feature-development`'s extension and linter tables, `code-simplify`'s extension table and
+  frontmatter, and the `software-engineer` agent's style list. Registered in `AGENTS.md` (38 skills),
+  the `README.md` skills table, and a new Go section in `docs/ROUTING.md`.
+
+  Not verified: nothing compiles the 11 Go examples. `gofmt -e` parses 2 as whole files and 9 as
+  deliberate fragments, which matches `style-python`'s 4.
+
+### Fixed
+
+- **`plan-review`'s skill description omitted the acceptance-criteria gate and the verdict**, both
+  of which `commands/plan-review.md` and the `README.md` row already described. Frontmatter is
+  invocation-trigger text, so the runtime deciding whether to load the skill could not see two of
+  the things it does.
+
+- **Two defects in the rewritten `feature-development`, found by a fresh-eyes pass over it.** The
+  in-progress row told the reader to detect that "someone else claimed it" without saying how; it
+  now names `status` and `assignee` and states that `assignee` is absent from the JSON when nobody
+  holds the bead, verified by setting and clearing it. And an untested criterion was called "a
+  failing grade", where `verify-acceptance` defines UNVERIFIABLE as yielding INCONCLUSIVE and says
+  outright it is not a soft FAIL.
+
 ## [2.6.0] - 2026-08-10
 
 ### Added
@@ -1025,7 +1108,9 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.2...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.6.0...v2.7.0
+[2.6.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.2...v2.6.0
 [2.5.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.4.2...v2.5.0

@@ -12,11 +12,13 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 - Checks PEP 8 and Google Python Style Guide compliance
 - Reviews security, performance, and maintainability
 
-**Feature Development:** Use `/python-feature-dev` or the `software-engineer` agent + `feature-development` skill
+**Feature Development:** Use `/build <bead-id>` or the `software-engineer` agent + `feature-development` skill
 
-- 4-phase workflow: discovery, implementation, simplification, linting
-- Loads `style-python` for Python file style decisions
-- Runs `ruff` for linting
+- 5-phase workflow: ground the spec, orient in the repo, implement, simplify, lint
+- Reads the spec from `br show <id> --json` rather than interviewing about what the bead records
+- Loads `style-python` for Python file style decisions, plus `style-testing` for tests
+- Runs `ruff` for linting, or the command the project declares
+- Leaves the bead open; grading is `/quality-gates` then `/verify-acceptance`
 
 **Code Simplification:** Use the `software-engineer` agent + `code-simplify` skill
 
@@ -70,6 +72,19 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 - Small, focused components (~100-150 lines)
 - Extract business logic to custom hooks (React) or composables (Vue)
 - Composition over props explosion
+
+### Go Development
+
+**Style Guide:** Use the `style-go` skill
+
+- Accept interfaces, return structs: interfaces declared at the consumer, narrow (one or two methods)
+- Wrap errors with the failing operation (`fmt.Errorf("read %s: %w", ...)`); sentinels and error types only where a caller branches
+- Make the zero value useful, so `var x T` works without a constructor
+- `context.Context` first parameter of anything that blocks, never stored in a struct
+- Every goroutine has a defined exit; the owner decides when it stops
+- Exported identifiers carry a doc comment starting with their own name, since that is what `go doc` renders
+- Table-driven tests on the standard library alone, comparing errors with `errors.Is`; load `style-testing` alongside
+- Tooling in order: `gofmt -l -w .`, `go vet ./...`, `staticcheck ./...`, then `go test -race ./...`
 
 ### Infrastructure as Code
 

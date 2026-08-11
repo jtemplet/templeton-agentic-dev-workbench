@@ -1,6 +1,6 @@
 ---
 name: plan-review
-description: "Fresh-eyes review of a feature plan for completeness, feasibility, scope risks, MECE adherence, and actionability"
+description: "Fresh-eyes review of a feature plan: acceptance-criteria gate, codebase grounding, 7-dimension evaluation with MECE audit, and a verdict"
 ---
 
 # Plan Review

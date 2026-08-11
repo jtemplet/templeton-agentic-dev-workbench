@@ -1,6 +1,6 @@
 ---
 name: code-simplify
-description: Simplify and refine code for clarity, consistency, and maintainability while preserving exact functionality. Detects the language and delegates to the appropriate style skill (style-python for Python, style-rails for Ruby/Rails, style-frontend for JS/TS, style-swift for Swift). Focuses on recently modified code unless instructed otherwise.
+description: Simplify and refine code for clarity, consistency, and maintainability while preserving exact functionality. Detects the language and delegates to the appropriate style skill (style-python for Python, style-rails for Ruby/Rails, style-frontend for JS/TS, style-swift for Swift, style-go for Go). Focuses on recently modified code unless instructed otherwise.
 ---
 
 # Code Simplification
@@ -44,6 +44,7 @@ Detect by file extension and load the matching style skill via the Skill tool:
 | `.rb`, `.erb`, `.rake` | `style-rails` (or `style-fizzy` if working in the Fizzy codebase) |
 | `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `style-frontend` |
 | `.swift` | `style-swift` |
+| `.go` | `style-go` |
 
 The style skill owns the language-specific rules. This skill owns the simplification *process*. Do not restate language rules here.
 

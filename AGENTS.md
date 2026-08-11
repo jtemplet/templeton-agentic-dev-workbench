@@ -61,9 +61,10 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Review Rails | `/rails-code-review` | `review-rails` |
 | Review Swift/iOS | `/swift-code-review` | `style-swift` |
 | Review JS/TS/React/Vue | `/frontend-code-review` | `style-frontend` |
+| Write or review Go | - | `style-go` |
 | Review Terraform | `/terraform-review` | `terraform-iac-expert` |
 | Review agents, tools, prompts | `/agentic-clean-code` | `agentic-clean-code` |
-| Build a feature | `/python-feature-dev` | `feature-development` + a `style-*` skill |
+| Build a feature from a bead | `/build <bead-id>` | `feature-development` + a `style-*` skill |
 | Simplify code | - | `code-simplify` |
 | Find and fix bugs in a diff | `/fresh-eyes-cr` | `review-fresh-eyes` |
 | Investigate a bug before fixing | `/diagnose` | `diagnostician` agent |
@@ -91,7 +92,7 @@ What each one does in full is in [docs/ROUTING.md](docs/ROUTING.md).
 
 ```text
 A  Business Planning:  /business-ideas → /plan-feature → /plan-review → /plan-to-beads
-B  Code Quality:       /fresh-eyes-cr → /verify-acceptance → /quality-gates
+B  Code Quality:       /fresh-eyes-cr → /quality-gates → /verify-acceptance
 C  Product Strategy:   /competitive-analysis → /product-research → /product-roadmap → /product-brief → /ab-test-design
 ```
 
@@ -111,7 +112,7 @@ every invocation path at once, including the ones hardcoded in other repos, so t
 change. It was `templeton-agentic-dev-workbench` before 2.0.0. Unrelated to the namespace despite the
 shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue prefix.
 
-**Registered Skills** (37). One-line descriptions live in the `README.md` skills
+**Registered Skills** (38). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
@@ -120,9 +121,9 @@ reads when deciding what to invoke.
 `house-response-style` `idea-wizard` `plan-review` `plan-to-beads` `pr-maintenance`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `quality-gates` `research-ingest` `review-fresh-eyes` `review-python` `review-rails`
-`roadmap-dashboard` `style-fizzy` `style-frontend` `style-python` `style-rails` `style-rspec`
-`style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-audit` `ux-audit-ios`
-`verify-acceptance`
+`roadmap-dashboard` `style-fizzy` `style-frontend` `style-go` `style-python` `style-rails`
+`style-rspec` `style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-audit`
+`ux-audit-ios` `verify-acceptance`
 
 **Registered Agents** (12). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.
@@ -134,10 +135,10 @@ each `agents/<name>.md` frontmatter.
 **Registered Commands** (29). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
-`/adr` `/agentic-clean-code` `/aso-audit` `/bead-audit-all` `/code-review` `/diagnose`
+`/adr` `/agentic-clean-code` `/aso-audit` `/bead-audit-all` `/build` `/code-review` `/diagnose`
 `/fresh-eyes-cr` `/frontend-code-review` `/plan-feature` `/plan-review` `/plan-to-beads`
 `/pr-maintain` `/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
-`/python-feature-dev` `/quality-gates` `/rails-code-review` `/research-ingest` `/response-style`
+`/quality-gates` `/rails-code-review` `/research-ingest` `/response-style`
 `/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-audit`
 `/ux-audit-ios` `/validate-plugin` `/verify-acceptance`
 
@@ -237,8 +238,11 @@ recipes, the issue-management command set, and the git policy, lives in
 
 1. **File issues for remaining work** - Use `br create` for anything that needs follow-up
 2. **Run quality gates** (if code changed) - Use `/quality-gates` to run tests, linters, type checks, doc freshness, and security scan
-3. **Update issue status** - `br close` finished work, `br update` in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
+3. **Grade the work against its bead** (if it has one) - Use `/verify-acceptance`, which cites the
+   gate results from step 2 rather than re-deriving them. A NOT ACCEPTED verdict means the work is
+   not done; fix it or reopen the bead rather than closing it in step 4.
+4. **Update issue status** - `br close` finished work, `br update` in-progress items
+5. **PUSH TO REMOTE** - This is MANDATORY:
 
    ```bash
    git pull --rebase
@@ -247,9 +251,9 @@ recipes, the issue-management command set, and the git policy, lives in
    git status  # MUST show "up to date with origin"
    ```
 
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+6. **Clean up** - Clear stashes, prune remote branches
+7. **Verify** - All changes committed AND pushed
+8. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
 

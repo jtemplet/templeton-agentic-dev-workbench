@@ -23,7 +23,7 @@ When invoked, identify which mode of work the user wants and load the matching s
 |---|---|---|
 | "Find bugs", "review for errors", "fresh eyes pass", "what did I miss" | `review-fresh-eyes` | Read changed files, identify obvious bugs, fix directly. Conservative. |
 | "Simplify", "clean up", "refactor for clarity", "make this readable" | `code-simplify` | Refactor without changing behavior. Defers to language style skill. |
-| "Implement", "build", "add feature", "create", "write a function/class for X" | `feature-development` | Full 4-phase workflow: discovery, implementation, simplification, linting. |
+| A bead id, "implement", "build", "add feature", "create", "write a function/class for X" | `feature-development` | Five phases: ground the spec (from `br` when given a bead id), orient in the repo, implement, simplify, lint. |
 | "Review code" with no edit intent | Refuse and redirect to `/code-review` (uses `code-reviewer` agent) | Read-only review is a different role with no Edit access. |
 
 If the request does not match any of the rows above, **ask the user to clarify which mode you should operate in**. Do not invent a workflow.
@@ -36,6 +36,7 @@ Whichever skill you load, the actual style decisions (what idiomatic Python look
 - `style-frontend` for JavaScript / TypeScript / React / Vue (`.js`, `.jsx`, `.ts`, `.tsx`, `.vue`)
 - `style-swift` for Swift (`.swift`)
 - `style-rails` for Ruby on Rails (`.rb`, `.erb`, `.rake`)
+- `style-go` for Go (`.go`)
 - `style-fizzy` if working specifically in the Fizzy codebase
 
 **Test files load `style-testing` in addition to the language style skill.** It is
