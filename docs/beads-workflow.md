@@ -101,6 +101,12 @@ br sync --flush-only                  # Export DB to JSONL after Beads mutations
 Hand-maintained, outside the generated block above so a `bv` re-injection cannot overwrite them.
 These were extracted from `AGENTS.md` when its inline command reference was removed.
 
+> **Where the triage fields actually live.** The generated block above lists `quick_ref`,
+> `recommendations`, `quick_wins`, `blockers_to_clear`, `project_health`, and `commands` as if they
+> sat at the root of `bv --robot-triage` output. In `bv` v0.18 they sit one level down, under a
+> `triage` key, alongside `data_hash`, `generated_at`, and `usage_hints`. Read through
+> `(.triage // .)` so both shapes work. The `triage-beads` skill does exactly that.
+
 ```bash
 br sync --import-only                 # Import JSONL -> DB (after git pull)
 br sync --merge                       # 3-way merge after pull conflicts

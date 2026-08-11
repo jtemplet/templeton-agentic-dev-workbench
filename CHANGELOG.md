@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-08-10
+
+### Added
+
+- **`triage-beads`, a skill that turns the open `br` backlog into a one-screen "what next"
+  readout.** One Start-here pick with its claim command, then Quick wins / User impact / Keep
+  momentum buckets, a blocked list naming the blocker that holds each one, and a priority tail
+  capped at ten. It is a conversion of a Linear triage command, and the conversion is the point:
+  readiness comes from `br ready` and `br blocked`, and PageRank, betweenness, and unblock counts
+  come from one `bv --robot-triage` call, so the numbers are measured instead of inferred. The three
+  axes `bv` does not score (effort, user impact, momentum) stay a read of each bead body, and the
+  skill reports them separately rather than averaging them into one score that hides the choice
+  being made. Registered in `AGENTS.md`, the `README.md` skills table, and `docs/ROUTING.md`, and
+  accepted as an orphan because it is invoked directly as `/triage-beads`.
+
+  Every command and field claim in it was exercised against `br` 0.2.15 and `bv` v0.18 rather than
+  read out of help text, which is where the traps it documents came from. `dependency_count` sums
+  `blocks`, `parent-child`, and `related` edges alike, so a child of an open epic carries a
+  dependency and is ready at the same time, and only a `blocks` edge releases work when it closes.
+  `bv`'s `quick_ref.blocked_count` reads 0 on a backlog with six dependency-blocked beads. A
+  `br ready` row carries neither `due_at`, `defer_until`, nor `dependent_count`. `br list`,
+  `br blocked`, and `br ready` truncate at 50, 50, and 20 without saying so. `br show` returns a
+  one-element array. `br epic status` reports child counts and no member ids. `--format toon` emits
+  ordinary JSON with a stderr-only warning when the `tru` helper is absent. And `br update --claim`
+  exits 4 on a bead that is blocked or already claimed, which is why blocked beads stay out of the
+  actionable buckets: the command the readout prints would not work on them.
+
+### Fixed
+
+- **`docs/beads-workflow.md` placed the `bv --robot-triage` fields at the root of the output.**
+  `quick_ref`, `recommendations`, `quick_wins`, `blockers_to_clear`, `project_health`, and
+  `commands` sit one level down in `bv` v0.18, under a `triage` key. Reading the documented path
+  yields null for all six. The correction is a hand-maintained note below the generated block, so a
+  `bv` re-injection into `AGENTS.md` cannot overwrite it, and the skill reads through
+  `(.triage // .)` so both shapes work.
+
 ## [2.5.2] - 2026-08-10
 
 ### Removed

@@ -183,6 +183,26 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 - Runs the four gates from `quality-gates` that can invalidate an acceptance claim
 - Report-only: it never edits code and never closes a bead
 
+### Backlog Triage
+
+**Decide what to work on next:** Use `/triage-beads` or the `triage-beads` skill directly
+
+- Reads the tracker through the `br` and `bv` command-line tools only; there is no MCP server
+- Takes readiness from `br ready` and `br blocked`, never from `bv`, whose `blocked_count` reads 0
+  on a backlog full of dependency-blocked work
+- Takes every measured graph fact from one `bv --robot-triage` call (PageRank, betweenness, unblock
+  counts, low-complexity flags) and degrades to `br` alone, saying so, when `bv` is absent
+- Reads each bead body for the three axes `bv` does not score (effort, user impact, momentum) and
+  reports them separately instead of averaging them into one number that hides the choice
+- Prefers stored effort evidence (`estimated_minutes`, then a `plan-to-beads` size band, then `bv`'s
+  own low-effort flag) over a read of the prose, and says which source it used
+- Weights a dependency edge whose other end just closed above a shared label for "same thread"
+- Excludes blocked, deferred, draft, and other-assignee beads from the actionable buckets, listing
+  the blocked ones with the blocker that holds them
+- Caps the output at roughly one screen: one Start-here pick with its `br update <id> --claim`
+  command, three buckets of three, and a priority tail closed with `… and N more`
+- Report-only: it never claims, closes, defers, or re-prioritizes a bead
+
 ### Project Reporting
 
 **Roadmap Dashboard:** Use `/roadmap-dashboard` or the `roadmap-dashboard` skill directly

@@ -73,6 +73,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Plan a feature | `/plan-feature`, `/plan-review` | `feature-planner` agent, `plan-review` |
 | Break a plan into issues | `/plan-to-beads` | `project-manager` agent |
 | Audit issue quality | `/bead-audit` (the skill itself), `/bead-audit-all` | `bead-audit` |
+| Decide what to work on next | `/triage-beads` (the skill itself) | `triage-beads` |
 | Product strategy | `/competitive-analysis`, `/product-research`, `/product-roadmap`, `/product-brief`, `/ab-test-design` | `product-manager` agent |
 | Generate ideas | `/idea-wizard`, `/business-ideas` | `idea-wizard`, `business-ideas` |
 | Record a decision | `/adr` | `architecture-decision-record` |
@@ -110,7 +111,7 @@ every invocation path at once, including the ones hardcoded in other repos, so t
 change. It was `templeton-agentic-dev-workbench` before 2.0.0. Unrelated to the namespace despite the
 shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue prefix.
 
-**Registered Skills** (36). One-line descriptions live in the `README.md` skills
+**Registered Skills** (37). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
@@ -120,7 +121,7 @@ reads when deciding what to invoke.
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `quality-gates` `research-ingest` `review-fresh-eyes` `review-python` `review-rails`
 `roadmap-dashboard` `style-fizzy` `style-frontend` `style-python` `style-rails` `style-rspec`
-`style-swift` `style-testing` `terraform-iac-expert` `ux-audit` `ux-audit-ios`
+`style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-audit` `ux-audit-ios`
 `verify-acceptance`
 
 **Registered Agents** (12). Descriptions live in the `README.md` agents table and in
@@ -205,8 +206,8 @@ command wins, so a command body saying "Use the `<name>` skill" resolves back to
 command a different name, delete it (the skill then takes the slash name), or have it
 `**Read** ${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md` instead of invoking it.
 
-`business-ideas` and `idea-wizard` are referenced by no agent and no command, which
-`/validate-plugin` reports as orphans. That is accepted: both are invoked directly as
+`business-ideas`, `idea-wizard`, and `triage-beads` are referenced by no agent and no command, which
+`/validate-plugin` reports as orphans. That is accepted: all three are invoked directly as
 `/<name>`, so a referrer would add nothing. Treat the orphan rule as a prompt to check the
 skill is still reachable, not as a requirement that something point at it.
 
@@ -222,7 +223,7 @@ recipes, the issue-management command set, and the git policy, lives in
 
 ### Workflow
 
-1. `bv --robot-next` - find out what to work on
+1. `bv --robot-next` - find out what to work on (or `/triage-beads` for a bucketed readout)
 2. `br update <id> --claim` - claim the issue
 3. Do the work
 4. `br close <id>` - close when done
