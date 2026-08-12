@@ -18,8 +18,9 @@ The skill will:
 5. Hand a browser or mobile UI change to `/qa` rather than passing it, which makes the run INCOMPLETE
 6. Record a configured gate it could not run as BLOCKED, which fails the run, rather than as a skip
 7. Report one table carrying the exact command and real counts for every gate
+8. Write that verdict and every gate row to `quality-gates-report.json` inside the git directory, so a tool can read the conclusion instead of parsing prose. That is `.git/quality-gates-report.json` in an ordinary clone, and a per-worktree path in a worktree, resolved by `git rev-parse --git-dir` rather than hardcoded
 
-Report-only. It never fixes, formats, or edits anything, and it never rewrites the working tree to establish a baseline.
+Report-only. It never fixes, formats, or edits anything in the working tree, and it never rewrites the working tree to establish a baseline. The single file it writes is the JSON artifact above, which sits inside the git directory, is never committed, and is skipped entirely when the tree is not a git repository.
 
 **The default scope is the change, not the repository.** `--changed` runs the tests that cover the changed code and narrows lint, doc freshness, and hygiene to changed files. The report says the full suite did not run. Two gates stay wide on purpose: type checking analyzes the whole project and reports only the changed files, because a type error surfaces in the consumer; the secret scan always covers the whole tree. Pass `--all` for the repository-wide sweep. With no argument it uses `--changed`, falling back to `--all` when the base will not resolve.
 

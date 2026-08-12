@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-08-12
+
+### Added
+
+- **`/quality-gates` writes its verdict as JSON, so a tool can read the conclusion.** The report
+  was markdown only, which meant no downstream check could act on it, and the pre-push hook planned
+  for the next release cannot gate on a verdict it cannot parse. Step 5 now writes
+  `quality-gates-report.json` carrying `version`, `head`, `dirty`, `timestamp`, `scope`,
+  `gate_source`, `verdict`, and a per-gate array of name, status, command, and detail. `verdict` is
+  one of `PASS`, `FAIL`, `INCOMPLETE`, or `NO GATES RAN` verbatim, and the `gates` array carries one
+  entry per row of the markdown table, including SKIP, BLOCKED, and HANDOFF rows.
+
+  Three details are load-bearing rather than incidental. The path resolves through
+  `git rev-parse --git-dir` and never a hardcoded `.git/`, because `.git` is a file rather than a
+  directory inside a linked worktree, and because `--git-dir` returns a distinct path per worktree
+  so two worktrees on two branches keep two verdicts instead of overwriting one. `--git-common-dir`
+  is forbidden by name: it looks like the more careful choice and is the one that collides. The
+  object is built with `json.dump` rather than assembled as text, because the pre-push consumer
+  cannot tell a corrupt report from a missing one, and it reports the missing case, so a botched
+  write sends the author to fix the wrong thing. The write happens before the report is emitted,
+  since the report's new **Artifact** line states what the write did.
+
+  `dirty` is recorded for a human reader and has no automated consumer. The skill runs before the
+  commit nearly every time, so nearly every honest report is dirty, and a gate blocking on it would
+  block constantly.
+
+### Changed
+
+- **The report-only rules now say "nothing in the working tree" instead of "nothing".** Writing an
+  artifact made three separate absolute claims false, and a skill that violates its own Critical
+  Rules on every run is worse than no artifact. All three move together, because the next reader
+  trusts whichever copy is weaker: the `quality-gates` skill's "Never" entry and checklist item,
+  and the report-only line in `commands/quality-gates.md`.
+
+- **`verify-acceptance` is told explicitly not to write the artifact.** It runs four gates of
+  seven, so an artifact from that run would record a partial verdict, and the pre-push hook would
+  then decide a push on a conclusion nobody drew. Its own claims therefore stay absolute and get
+  stronger rather than weaker: it writes no file at all.
+
 ## [2.7.0] - 2026-08-10
 
 ### Changed
@@ -1108,7 +1147,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.1...HEAD
+[2.7.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.2...v2.6.0
 [2.5.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.1...v2.5.2

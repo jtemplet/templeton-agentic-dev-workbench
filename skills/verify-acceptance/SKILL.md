@@ -1,6 +1,6 @@
 ---
 name: verify-acceptance
-description: "Check a finished unit of work against its bead's acceptance criteria and the QA gates. Resolves the bead from br, grades each criterion against evidence rather than against the diff, runs the QA gates, and reports one verdict table. Report-only: it never edits code and never closes a bead."
+description: "Check a finished unit of work against its bead's acceptance criteria and the QA gates. Resolves the bead from br, grades each criterion against evidence rather than against the diff, runs the QA gates, and reports one verdict table. Report-only: it writes no file and closes no bead."
 ---
 
 # Verify Acceptance
@@ -92,6 +92,8 @@ Those four are the subset that can invalidate an acceptance claim. Skip its doc 
 
 Read the file rather than restating the gates from memory. It owns how each gate is discovered, how it is scoped, and what its statuses mean, and a second copy of that here would drift from it.
 
+**Do not write its `quality-gates-report.json` artifact.** That file records a full-sweep verdict, and this skill runs four gates of seven. A partial run recorded there would gate a push on a conclusion nobody drew.
+
 Two of its rules carry into this report unchanged:
 
 - A configured gate that could not run is **BLOCKED**, never SKIP. A missing binary proves nothing about the code.
@@ -158,7 +160,7 @@ A skipped gate does not change the verdict. A BLOCKED gate does, because a check
 
 **Never:**
 
-- Edit code, run `br close`, or change a bead's status (this skill is report-only)
+- Edit code in the working tree, write the `quality-gates` JSON artifact, run `br close`, or change a bead's status (this skill is report-only and writes no file at all)
 - Infer acceptance criteria when the bead has none
 - Grade a criterion from the diff alone
 - Call a criterion PASS because the code looks like it should satisfy it
@@ -175,4 +177,4 @@ Before reporting completion, verify:
 - [ ] Every UNVERIFIABLE says what would settle it and who does it
 - [ ] Every gate reports a real count, an explicit SKIP with a reason, or BLOCKED with what stopped it
 - [ ] The verdict follows the Verdict Rules mechanically
-- [ ] No file was edited and no bead was closed
+- [ ] No file in the working tree was edited, no artifact was written, and no bead was closed

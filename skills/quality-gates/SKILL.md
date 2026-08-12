@@ -254,7 +254,74 @@ Establish this by reading, never by rewriting the working tree. Do not stash, ch
 
 ### Step 5: Report
 
-Emit the report below, then stop.
+Produce two things: the markdown report below, and a JSON artifact carrying the same result so a tool can act on the verdict the prose states.
+
+**Write the JSON first, then emit the report.** The report's **Artifact** line records what that write did, including a refusal, so emitting the report first would mean predicting it.
+
+#### The JSON Artifact
+
+Resolve the git directory first:
+
+```bash
+git rev-parse --git-dir
+```
+
+If that command fails, the tree is not a git repository. Skip the write, say so on the report's **Artifact** line, and leave the rest of the report unchanged. A missing artifact is not a finding about the code.
+
+Write `<git-dir>/quality-gates-report.json`. It lives inside the git directory on purpose: it is per-clone, it is never committed, it needs no `.gitignore` entry, and it survives until the push it exists to inform.
+
+**Resolve the path with that command. Never hardcode `.git/`, and never use `--git-common-dir`.** The three forms differ exactly where it matters:
+
+| Form | In an ordinary clone | In a linked worktree |
+|---|---|---|
+| `git rev-parse --git-dir` | `.git` | `<main>/.git/worktrees/<name>`, one per worktree |
+| A literal `.git/` | correct | `.git` is a file, not a directory, so the write fails with "not a directory" |
+| `git rev-parse --git-common-dir` | `.git` | the shared `.git`, so every worktree overwrites the others |
+
+Two worktrees checking out two branches produce two verdicts about two different trees. `--git-dir` gives each its own file, and a `pre-push` hook run from a worktree resolves the same path and reads that worktree's own report. `--git-common-dir` would let the last run to finish decide every worktree's push.
+
+Collect the three facts the markdown report does not already carry:
+
+```bash
+git rev-parse HEAD                  # head
+git status --porcelain              # dirty: true when this prints anything
+date -u +%Y-%m-%dT%H:%M:%SZ         # timestamp
+```
+
+Then build the object in `python3` and `json.dump` it. Do not hand-assemble JSON text: one stray quote in a command string or a gate detail produces a file no reader can parse, and the pre-push consumer cannot tell an unparseable report from a missing one. It warns that no verdict was recorded, which reads as "you forgot to run the gates" rather than "your gate is broken", so the author fixes the wrong thing or nothing.
+
+This example is the run the Output Format section below reports, so the two can be compared line for line:
+
+```json
+{
+  "version": 1,
+  "head": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+  "dirty": true,
+  "timestamp": "2026-08-11T04:12:07Z",
+  "scope": "changed",
+  "gate_source": "AGENTS.md",
+  "verdict": "FAIL",
+  "gates": [
+    {"name": "Tests", "status": "PASS", "command": "pytest tests/test_export.py -q", "detail": "14 passed, 0 failed (selected, not the full suite)"},
+    {"name": "Change coverage", "status": "FAIL", "command": null, "detail": "case review over 6 cases: 5 of 6 have unit tests, 0 end-to-end, span 7 of 11"},
+    {"name": "Lint", "status": "FAIL", "command": "ruff check src/export.py", "detail": "2 errors, 11 warnings"},
+    {"name": "Type checking", "status": "BLOCKED", "command": "mypy .", "detail": "exit 127, mypy not installed"},
+    {"name": "Doc freshness", "status": "WARN", "command": null, "detail": "path check over 3 docs: 1 missing path"},
+    {"name": "Secrets", "status": "PASS", "command": "gitleaks detect", "detail": "0 findings"},
+    {"name": "Hygiene", "status": "WARN", "command": null, "detail": "diff marker count: 2 TODOs added"},
+    {"name": "Project checks", "status": "PASS", "command": "node hooks/test-hooks.js", "detail": "19 checks, 0 failed"}
+  ]
+}
+```
+
+Four rules the consumer depends on:
+
+- **`verdict` is one of `PASS`, `FAIL`, `INCOMPLETE`, or `NO GATES RAN`,** verbatim from the Verdict Rules. No other string, no lowercase, no added punctuation.
+- **`gates` carries one entry per row of the report table,** in the same order, with the same `status`. A SKIP, BLOCKED, or HANDOFF row gets its entry too. Count the array against the table before you write it: eight rows means eight entries. A short array contradicts a run the reader can see.
+- **`command` is `null` unless the cell holds a command someone can re-run.** Change coverage, doc freshness, and hygiene describe a method rather than name a command, so their `command` is `null` and the description moves into `detail`. A gate that never ran is `null` too. An invented command is worse than an absent one.
+- **`scope` is `changed` or `all`,** matching what Step 2 set.
+
+`dirty` is for a human reader, and nothing automated reads it. It records that this skill runs before the commit most of the time, so `head` is usually the commit *before* the one that gets pushed. Nearly every honest report is dirty, and a gate blocking on that would block constantly.
 
 ## Output Format
 
@@ -315,7 +382,11 @@ not a skip. Install it or remove the configuration.
 2. Add a test for the missing-input-file path (case 3)
 3. Fix the two ruff errors in `src/export.py`
 4. Install mypy, then re-run the type gate
+
+**Artifact:** `.git/quality-gates-report.json`, verdict FAIL
 ```
+
+The Artifact line always appears, and states either the path written or why nothing was written: `**Artifact:** not written, the tree is not a git repository`.
 
 Omit the Failures section when nothing failed. Omit the Change Coverage table only when that gate is SKIP. Never omit a gate row; a gate that did not run gets its row with SKIP, BLOCKED, or HANDOFF and a reason.
 
@@ -350,10 +421,12 @@ The order is load-bearing. An all-BLOCKED run is a FAIL by rule 1 and never reac
 - Give the reason beside every SKIP
 - Print the failing command's real output for every FAIL
 - Report `file:line` for a secret finding, never the matched value
+- Write the JSON artifact after the markdown report, with the verdict verbatim and one entry per table row
 
 **Never:**
 
-- Fix, format, or edit anything (this skill is report-only, and its report is the deliverable)
+- Fix, format, or edit anything in the working tree (this skill is report-only; its report is the deliverable, and the only file it writes is that report's JSON form inside the git directory)
+- Hand-assemble the artifact's JSON text, or record a verdict there that the report does not state
 - Report a gate as "green", "clean", or "passing" without its numbers
 - Treat a passing suite as evidence that the change is tested
 - Count a test you have not read, or one that exercises a case without asserting it
@@ -384,4 +457,6 @@ Before reporting completion, verify:
 - [ ] Every FAIL shows real command output, and says whether it looks new
 - [ ] No secret value was copied into the report
 - [ ] The overall verdict follows the Verdict Rules mechanically
-- [ ] No file was edited
+- [ ] The artifact's `verdict` matches the report's, and its `gates` array matches the table row for row
+- [ ] The Artifact line names the file written, or why the write was skipped
+- [ ] No file in the working tree was edited; the only write is the report artifact inside the git directory

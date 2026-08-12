@@ -85,7 +85,7 @@ second set.
 |---|---|---|
 | **D1** | New scripts are stdlib-only Python 3, mirroring `check_doc_paths.py` conventions: argparse CLI, module docstring stating why the script exists, exit 0 clean / 1 findings / 2 operator error, and a sibling `test_*.py` runnable with bare `python3`. | The pre-push hook must run them with no install step, on any clone. Convention-matching keeps the scripts reviewable as a set. |
 | **D2** | Gate 2 stays judgment-based prose. This plan adds evidence requirements to it, not a script. | Case enumeration and span grading are the LLM's job; the plan makes the claims auditable rather than pretending they can be computed. |
-| **D3** | The JSON report is written to `.git/quality-gates-report.json` in the repository the gates ran against. Its `dirty` field is recorded for a human reader and has no automated consumer. | Inside `.git/` it is per-clone, never committed, needs no `.gitignore` entry, and survives until the push it is meant to inform. `dirty` is read-only on purpose: the hook must not block on it, because the skill runs before the commit almost every time, so nearly every honest report is dirty. |
+| **D3** | The JSON report is written to `quality-gates-report.json` inside the directory `git rev-parse --git-dir` names, in the repository the gates ran against. Its `dirty` field is recorded for a human reader and has no automated consumer. | Inside the git directory it is per-clone, never committed, needs no `.gitignore` entry, and survives until the push it is meant to inform. **Resolved by command, never as a literal `.git/`, and never with `--git-common-dir`.** `--git-dir` returns a distinct path per linked worktree, so two worktrees on two branches keep two verdicts about two trees; `--git-common-dir` would let them overwrite each other, and a literal `.git/` is a file rather than a directory inside a worktree. `dirty` is read-only on purpose: the hook must not block on it, because the skill runs before the commit almost every time, so nearly every honest report is dirty. |
 | **D4** | **Enforcement is a local git hook, not a CI step.** `.github/workflows/lint.yml` keeps the checks it runs today and gains nothing new. | Author direction. A local hook fails in seconds at the moment of the mistake, needs no hosted service, and works the same in a repository with no remote. The tradeoff is real and accepted: hooks are per-clone config and `--no-verify` bypasses them. Recorded as R5. |
 | **D5** | **One `.githooks/pre-push` file with two stages**, not two hook files. Stage 1 runs the repository's own suites (M2); stage 2 reads the recorded quality-gates verdict (M4). | Git calls exactly one `pre-push` hook, so two responsibilities on the same event must share a file. M2 creates it, M4 appends to it. |
 | **D6** | The hook blocks on a failed suite, and on a recorded verdict of FAIL. A missing or stale verdict report allows the push with a one-line warning. A missing tool warns and allows. | Blocking every push without a fresh report would break trivial documentation pushes and teach users to disable the hook. The missing-tool rule follows the precedent `.githooks/reference-transaction` set: an unusable repository is worse than an unchecked push. |
@@ -283,7 +283,8 @@ detectably wrong instead of merely plausible.
 ### M4: Machine-readable verdict, and the second hook stage
 
 **JSON artifact.** Edit `SKILL.md` Step 5: after emitting the markdown report, write
-`.git/quality-gates-report.json` in the repository the gates ran against (skip this write, with
+`quality-gates-report.json` inside `git rev-parse --git-dir` (see D3; not a literal `.git/`, which
+breaks inside a worktree) in the repository the gates ran against (skip this write, with
 a note in the report, when the tree is not a git repository). Schema:
 
     {
@@ -322,7 +323,9 @@ the next reader finds a contradiction and trusts the weaker one.
 
 **Hook stage 2.** Append to the `.githooks/pre-push` file M2 created, after the suite stage:
 
-- Read `.git/quality-gates-report.json` via `python3 -c`; do not parse JSON in sh.
+- Read `quality-gates-report.json` from `$(git rev-parse --git-dir)` via `python3 -c`; do not parse
+  JSON in sh, and do not hardcode `.git/`. The skill writes it to the same resolved path, so a
+  worktree's hook reads that worktree's own verdict.
 - No report, or unreadable report: print one warning line naming the file and `/quality-gates`,
   then allow. A missing report is not proof of a problem.
 - Verdict `FAIL`: print the verdict, the recorded `head`, and the timestamp, then exit 1. Name
