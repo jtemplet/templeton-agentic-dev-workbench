@@ -29,11 +29,55 @@ case "$command" in
   *) quiet_exit ;;
 esac
 
-# Skip read-only subcommands — they don't mutate state.
-case "$command" in
-  *"br show"*|*"br ready"*|*"br list"*|*"br stats"*|*"br deps"*|*"br --help"*|*"br -h"*)
-    quiet_exit ;;
-esac
+# Skip only when EVERY br subcommand in the command is read-only.
+#
+# This replaced a substring test (`*"br show"*|*"br ready"*|...`) that asked
+# whether the command line mentioned a read-only subcommand anywhere. So
+# `br update x --claim && br show x` counted as read-only, the mutation went
+# uncommitted, and the tree stayed dirty: the exact outcome this hook exists to
+# prevent. Order made it worse, since only one of the two arrangements was wrong.
+#
+# An unrecognized subcommand counts as mutating. Erring toward committing is
+# cheap here, because the guards below still require .beads/issues.jsonl to be
+# the only dirty tracked file, so a false positive commits nothing. A false
+# negative leaves real work uncommitted.
+READ_ONLY_SUBCOMMANDS=" blocked capabilities changelog completions coordination"
+READ_ONLY_SUBCOMMANDS+=" count graph help info lint list orphans ready robot-docs"
+READ_ONLY_SUBCOMMANDS+=" scheduler schema search show stale stats status upgrade"
+READ_ONLY_SUBCOMMANDS+=" version where "
+
+# Prints the subcommand of each br invocation in $1, one per line. Splits on
+# shell separators first, then skips global flags and the value of --db, which is
+# the one flag that takes a separate argument.
+br_subcommands() {
+  echo "$1" | tr ';&|' '\n' | awk '
+    {
+      for (i = 1; i <= NF; i++) {
+        if ($i != "br") continue
+        for (j = i + 1; j <= NF; j++) {
+          if ($j == "--db") { j++; continue }
+          if ($j ~ /^-/) continue
+          print $j
+          break
+        }
+        break
+      }
+    }'
+}
+
+mutates=0
+while IFS= read -r sub; do
+  [[ -z "$sub" ]] && continue
+  case "$READ_ONLY_SUBCOMMANDS" in
+    *" $sub "*) ;;
+    *) mutates=1; break ;;
+  esac
+done < <(br_subcommands "$command")
+
+if (( mutates == 0 )); then
+  log "no mutating br subcommand in the command; skipping"
+  quiet_exit
+fi
 
 # Bail if the br command itself reported a hard error.
 stderr="$(echo "$payload" | jq -r '.tool_response.stderr // empty' 2>/dev/null || true)"

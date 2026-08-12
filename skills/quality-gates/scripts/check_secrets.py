@@ -83,8 +83,12 @@ EXCLUDED_GLOBS = (
 )
 FIXTURE_DIR_NAMES = ("fixtures", "__fixtures__", "testdata")
 
-# A key cannot hide in a file too large to be hand-written, and reading one
-# stalls the gate. 2 MiB is far above any source file and far below a data dump.
+# Default size above which the content scan skips a file. 2 MiB is far above any
+# source file and far below a data dump, and reading a dump stalls the gate.
+# Skipping is a default, not a rule: `--no-skip-large-files` scans everything,
+# because a key CAN sit in a generated config dump even though nobody typed it
+# there. Whatever is skipped gets named in the report, since a gate that prints
+# OK without saying what it did not read has overstated its own result.
 MAX_SCAN_BYTES = 2 * 1024 * 1024
 
 
@@ -98,6 +102,21 @@ class Finding:
 
     def __str__(self) -> str:
         return f"{self.path}:{self.line}  [{self.pattern}]"
+
+
+@dataclass(frozen=True)
+class Skipped:
+    """One file the content scan did not read, and why.
+
+    Reported rather than counted silently. "OK" after an unexamined file is a
+    claim the gate has not earned, and the reader cannot see the gap otherwise.
+    """
+
+    path: str
+    reason: str
+
+    def __str__(self) -> str:
+        return f"{self.path}  ({self.reason})"
 
 
 class GitUnavailable(Exception):
@@ -173,30 +192,47 @@ def has_secret_name(path: str) -> bool:
     return any(fnmatch.fnmatch(name, glob) for glob in SECRET_NAME_GLOBS)
 
 
-def content_findings(root: Path, path: str) -> list[Finding]:
+def content_findings(
+    root: Path,
+    path: str,
+    *,
+    skip_large_files: bool,
+    max_scan_bytes: int,
+) -> tuple[list[Finding], Skipped | None]:
     """Scan one file for prefixed key formats.
 
-    An unreadable or binary file yields nothing rather than raising: a gate that
-    dies on a stray binary reports neither that file nor the ones after it.
+    Returns the findings, plus a Skipped when the file was never read. An
+    unreadable or undecodable file yields no exception: a gate that dies on a
+    stray binary reports neither that file nor the ones after it. It does yield a
+    Skipped, so the omission reaches the report instead of vanishing.
     """
     full = root / path
     try:
-        if full.stat().st_size > MAX_SCAN_BYTES:
-            return []
+        if skip_large_files and full.stat().st_size > max_scan_bytes:
+            return [], Skipped(path, f"over {max_scan_bytes} bytes")
         text = full.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return []
+    except UnicodeDecodeError:
+        return [], Skipped(path, "not valid UTF-8")
+    except OSError as exc:
+        return [], Skipped(path, exc.strerror or "unreadable")
 
     findings: list[Finding] = []
     for lineno, line in enumerate(text.splitlines(), 1):
         for name, pattern in CONTENT_PATTERNS:
             if pattern.search(line):
                 findings.append(Finding(path, lineno, name))
-    return findings
+    return findings, None
 
 
-def check(root: Path, extra_excludes: list[str]) -> list[Finding]:
+def check(
+    root: Path,
+    extra_excludes: list[str],
+    *,
+    skip_large_files: bool = True,
+    max_scan_bytes: int = MAX_SCAN_BYTES,
+) -> tuple[list[Finding], list[Skipped]]:
     findings: list[Finding] = []
+    skipped: list[Skipped] = []
     for path in candidate_files(root):
         if is_excluded(path):
             continue
@@ -204,8 +240,16 @@ def check(root: Path, extra_excludes: list[str]) -> list[Finding]:
             continue
         if has_secret_name(path):
             findings.append(Finding(path, 0, "secret-file-name"))
-        findings.extend(content_findings(root, path))
-    return findings
+        file_findings, missed = content_findings(
+            root,
+            path,
+            skip_large_files=skip_large_files,
+            max_scan_bytes=max_scan_bytes,
+        )
+        findings.extend(file_findings)
+        if missed is not None:
+            skipped.append(missed)
+    return findings, skipped
 
 
 def main() -> int:
@@ -218,6 +262,20 @@ def main() -> int:
         metavar="GLOB",
         help="Path glob to skip; repeatable",
     )
+    parser.add_argument(
+        "--no-skip-large-files",
+        dest="skip_large_files",
+        action="store_false",
+        help="Scan large files too, instead of skipping them",
+    )
+    parser.add_argument(
+        "--max-scan-bytes",
+        type=int,
+        default=MAX_SCAN_BYTES,
+        metavar="N",
+        help=f"Skip files larger than N bytes (default {MAX_SCAN_BYTES})",
+    )
+    parser.set_defaults(skip_large_files=True)
     args = parser.parse_args()
 
     root = Path(args.repo_root).resolve()
@@ -227,9 +285,17 @@ def main() -> int:
     if not (root / ".git").exists():
         print(f"ERROR: {root} is not a git repository", file=sys.stderr)
         return 2
+    if args.max_scan_bytes < 1:
+        print("ERROR: --max-scan-bytes must be 1 or more", file=sys.stderr)
+        return 2
 
     try:
-        findings = check(root, args.exclude)
+        findings, skipped = check(
+            root,
+            args.exclude,
+            skip_large_files=args.skip_large_files,
+            max_scan_bytes=args.max_scan_bytes,
+        )
     except GitUnavailable as exc:
         # Exit 2, never 1. Exit 1 means "secrets found", and reporting a finding
         # the gate never looked for is as wrong as missing a real one.
@@ -239,9 +305,20 @@ def main() -> int:
     for finding in findings:
         print(finding)
 
+    # Printed before the verdict, so the reader sees the gap before the word OK.
+    # A skip is not a finding and does not change the exit status: a repository
+    # holding one undecodable file would otherwise fail this gate forever.
+    if skipped:
+        print(f"\n{len(skipped)} files not scanned for key formats:")
+        for missed in skipped:
+            print(f"  {missed}")
+
     if findings:
         print(f"\n{len(findings)} secret findings")
         return 1
+    if skipped:
+        print("OK: no secret files, and no prefixed key formats in what was scanned")
+        return 0
     print("OK: no secret files and no prefixed key formats found")
     return 0
 

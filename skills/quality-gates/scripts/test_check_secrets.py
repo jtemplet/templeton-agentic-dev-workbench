@@ -44,6 +44,17 @@ it; a rule with no test here is a rule nothing holds.
   Clean tree passes                             case_clean_tree
   This repository passes                        case_real_repo  (criterion 4)
 
+Beyond the prose, the large-file policy. Skipping is configurable and never
+silent, because "OK" after an unexamined file claims more than the gate checked:
+
+  Large files skipped by default                case_large_file_is_skipped
+  A skip is named in the report                 case_skip_is_reported
+  --no-skip-large-files scans them              case_no_skip_large_files_finds_it
+  A skip does not change the exit status        case_skip_alone_still_exits_0
+  A skip report carries no value                case_skip_report_never_prints_the_value
+  An undecodable file is a skip, not a crash    case_undecodable_file_is_reported
+  --max-scan-bytes must be positive             case_max_scan_bytes_must_be_positive
+
 Criterion 5 (bare python3, no third-party import) is pinned by
 case_no_third_party_imports plus the fact that this file runs at all.
 """
@@ -411,7 +422,11 @@ def case_value_never_printed() -> None:
 
 
 def case_secret_file_content_is_not_quoted() -> None:
-    """A .env is reported by name, and its contents stay unread."""
+    """A .env is reported by name, and no value inside it reaches the report.
+
+    Its contents ARE read: check() runs content_findings on every candidate,
+    secret-named or not. What this pins is that nothing read gets quoted.
+    """
     r = run(build({".env": "SUPER_SECRET_VALUE=hunter2\n"}))
     combined = r.stdout + r.stderr
     assert "hunter2" not in combined, "a secret file's contents reached the report"
@@ -421,6 +436,83 @@ for name, fn in [
     ("a finding is file:line plus the pattern name [criterion 3]", case_report_shape),
     ("the matched value never reaches stdout or stderr [criterion 3]", case_value_never_printed),
     ("a secret file's contents are never quoted", case_secret_file_content_is_not_quoted),
+]:
+    check(name, fn)
+
+
+print("\n  [large files: skipped by default, never in silence]")
+
+# Padding to push a file over a deliberately tiny --max-scan-bytes. Tests set the
+# cap rather than writing 2 MiB, so the policy is exercised without the bytes.
+TINY_CAP = "64"
+
+
+def large_file_repo() -> Path:
+    """A repo whose only key sits in a file bigger than TINY_CAP bytes."""
+    return build({"src/dump.json": f'{{"k": "{FAKE_AKIA}", "pad": "{"x" * 200}"}}\n'})
+
+
+def case_large_file_is_skipped() -> None:
+    r = run(large_file_repo(), "--max-scan-bytes", TINY_CAP)
+    assert r.returncode == 0, f"an oversized file must be skipped: {r.stdout}"
+    assert not findings(r), f"a skipped file yields no findings: {r.stdout}"
+
+
+def case_skip_is_reported() -> None:
+    """The load-bearing half. A silent skip is what made the old cap wrong."""
+    r = run(large_file_repo(), "--max-scan-bytes", TINY_CAP)
+    assert "src/dump.json" in r.stdout, f"the skip must name the file: {r.stdout}"
+    assert "not scanned" in r.stdout, f"the skip must say what happened: {r.stdout}"
+    assert "in what was scanned" in r.stdout, (
+        f"the verdict must not claim more than it checked: {r.stdout}"
+    )
+
+
+def case_no_skip_large_files_finds_it() -> None:
+    r = run(large_file_repo(), "--max-scan-bytes", TINY_CAP, "--no-skip-large-files")
+    assert r.returncode == 1, f"--no-skip-large-files must find the key: {r.stdout}"
+    assert any("aws-access-key-id" in f for f in findings(r)), r.stdout
+
+
+def case_skip_alone_still_exits_0() -> None:
+    """A skip is not a finding. A repo with one huge clean file must still pass."""
+    root = build({"src/big.txt": "y" * 300 + "\n"})
+    r = run(root, "--max-scan-bytes", TINY_CAP)
+    assert r.returncode == 0, f"a skip alone must not fail the gate: {r.stdout}"
+    assert "not scanned" in r.stdout, f"and must still be reported: {r.stdout}"
+
+
+def case_skip_report_never_prints_the_value() -> None:
+    r = run(large_file_repo(), "--max-scan-bytes", TINY_CAP)
+    combined = r.stdout + r.stderr
+    assert FAKE_AKIA not in combined, "the skip report leaked the value"
+    assert "A" * 16 not in combined, "the skip report leaked the key body"
+
+
+def case_undecodable_file_is_reported() -> None:
+    """A binary file is a skip with a reason, not a crash and not a silent pass."""
+    root = build({"src/app.py": "print('x')\n"})
+    (root / "blob.bin").write_bytes(b"\xff\xfe\x00\x01not utf8")
+    r = run(root)
+    assert r.returncode == 0, f"a binary file must not fail the gate: {r.stdout}"
+    assert "blob.bin" in r.stdout, f"the skip must name it: {r.stdout}"
+    assert "UTF-8" in r.stdout, f"and give the reason: {r.stdout}"
+    assert "Traceback" not in r.stderr, f"it must not crash: {r.stderr}"
+
+
+def case_max_scan_bytes_must_be_positive() -> None:
+    r = run(build({"src/app.py": "print('x')\n"}), "--max-scan-bytes", "0")
+    assert r.returncode == 2, f"a nonsense cap is operator error, got {r.returncode}"
+
+
+for name, fn in [
+    ("a file over the cap is skipped", case_large_file_is_skipped),
+    ("a skipped file is named in the report", case_skip_is_reported),
+    ("--no-skip-large-files scans it and finds the key", case_no_skip_large_files_finds_it),
+    ("a skip alone still exits 0", case_skip_alone_still_exits_0),
+    ("the skip report never prints the value", case_skip_report_never_prints_the_value),
+    ("an undecodable file is reported, not a crash", case_undecodable_file_is_reported),
+    ("--max-scan-bytes 0 exits 2", case_max_scan_bytes_must_be_positive),
 ]:
     check(name, fn)
 

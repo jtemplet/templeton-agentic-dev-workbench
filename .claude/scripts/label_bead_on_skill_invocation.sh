@@ -254,8 +254,11 @@ handle_pre() {
       log "pending $label for $RESOLVED_ID; Stop will check the QA report"
       ;;
     inject)
+      # Single-quote the path. This string is a shell command for someone to run
+      # later, so an unquoted path containing a space would arrive as two
+      # arguments and the command would fail where it is pasted, not here.
       local db_flag=""
-      [[ ${#br_cmd[@]} -gt 1 ]] && db_flag=" --db ${br_cmd[2]}"
+      [[ ${#br_cmd[@]} -gt 1 ]] && db_flag=" --db '${br_cmd[2]}'"
       jq -n --arg ctx "When this /${skill} run is complete, add the \`${label}\` label to bead ${RESOLVED_ID}, but ONLY if ${gate}. If it does not clear that gate, add no label and say so. The command is: br${db_flag} update ${RESOLVED_ID} --add-label ${label}" \
         '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$ctx}}'
       log "deferred $label for $RESOLVED_ID to the run's verdict"
@@ -316,10 +319,24 @@ handle_stop() {
   init_repo
   [[ -d "$MARKER_DIR" ]] || quiet_exit
 
-  local marker created bead_id report now
+  local marker basename_marker marker_label created bead_id report now
   now="$(date +%s)"
   for marker in "$MARKER_DIR"/*; do
     [[ -e "$marker" ]] || continue
+
+    # Read the label back from the filename, which gate mode writes as
+    # "${label}__${id}". Hardcoding "qa-d" here was correct only because gate
+    # mode is the sole marker writer and qa-d its only label. It would relabel a
+    # second gate-mode entry as qa-d in silence, and the filename already
+    # carries the answer.
+    basename_marker="$(basename "$marker")"
+    marker_label="${basename_marker%%__*}"
+    if [[ -z "$marker_label" || "$marker_label" == "$basename_marker" ]]; then
+      log "marker $basename_marker carries no label prefix; discarding"
+      rm -f "$marker"
+      continue
+    fi
+
     created="$(sed -n '1p' "$marker" 2>/dev/null)"
     bead_id="$(sed -n '2p' "$marker" 2>/dev/null)"
     [[ -z "$created" || -z "$bead_id" ]] && { rm -f "$marker"; continue; }
@@ -335,7 +352,7 @@ handle_stop() {
     [[ -z "$report" ]] && continue   # run still in progress
 
     if qa_report_passes "$report"; then
-      add_label "$bead_id" "qa-d"
+      add_label "$bead_id" "$marker_label"
     fi
     rm -f "$marker"
   done
