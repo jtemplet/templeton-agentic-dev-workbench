@@ -19,6 +19,8 @@ python3 skills/style-testing/scripts/check_framework_leak.py        # assert sty
 python3 skills/quality-gates/scripts/test_check_doc_paths.py        # regression suite for the doc-path checker
 python3 skills/quality-gates/scripts/check_doc_paths.py             # assert every documented path exists
 python3 skills/quality-gates/scripts/test_changed_set.py            # regression suite for the changed-set resolver
+python3 skills/quality-gates/scripts/test_check_secrets.py          # regression suite for the secret scanner
+python3 skills/quality-gates/scripts/test_check_hygiene.py          # regression suite for the hygiene counter
 claude plugin validate .                                      # parses every SKILL.md frontmatter
 python3 evals/run.py                                          # response-style evals
 ```
