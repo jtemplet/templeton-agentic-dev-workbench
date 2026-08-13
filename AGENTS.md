@@ -8,8 +8,10 @@ This is a personal Claude Code plugin repository - an agentic development workbe
 
 ## Commands for This Repo
 
-These are the checks that run against this repository itself. CI (`.github/workflows/lint.yml`)
-runs the first two on every push and pull request.
+These are the checks that run against this repository itself. CI
+(`.github/workflows/lint.yml`) runs the first four on every push and pull request.
+`.githooks/pre-push` runs all of them except the last three, so most of this list is enforced
+locally rather than remembered (see "Git hooks" below).
 
 ```bash
 rumdl fmt --check .                                          # what CI runs; ./lint.sh formats in place
@@ -20,26 +22,50 @@ python3 skills/quality-gates/scripts/test_check_doc_paths.py        # regression
 python3 skills/quality-gates/scripts/check_doc_paths.py             # assert every documented path exists
 python3 skills/quality-gates/scripts/test_changed_set.py            # regression suite for the changed-set resolver
 python3 skills/quality-gates/scripts/test_check_secrets.py          # regression suite for the secret scanner
+python3 skills/quality-gates/scripts/check_secrets.py                # assert no secret file or key sits in the tree
 python3 skills/quality-gates/scripts/test_check_hygiene.py          # regression suite for the hygiene counter
+python3 .githooks/test_prepush.py                             # regression suite for the pre-push hook
 claude plugin validate .                                      # parses every SKILL.md frontmatter
 python3 evals/run.py                                          # response-style evals
 ```
 
 Run `/validate-plugin` after adding or renaming a component.
 
-### Release gate (one-time setup per clone)
+### Git hooks (one-time setup per clone)
 
-`.githooks/reference-transaction` refuses to create a `v*` tag when
-`claude plugin validate` fails. Git has no pre-tag hook, so this is the only one that sees a
-tag being created and can still stop it. Wire it once per clone, because `core.hooksPath` is
-local config and does not travel with the repository:
+Two hooks live in `.githooks/`. Wire them once per clone, because `core.hooksPath` is local
+config and does not travel with the repository:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-It gates tags only. Commits, branches, and non-`v` tags are untouched. A missing `claude` on
-PATH warns and allows, since an untaggable repository is worse than an unchecked tag.
+One command serves both hooks, which is most of the argument for running it on a fresh clone.
+
+**`pre-push` runs the check list above**, minus the last three: `claude plugin validate .`
+(`reference-transaction` already gates it at the tag, and spawning the CLI is the slowest check),
+`python3 evals/run.py` (every case is a real model call, too slow and too costly for a push), and
+`python3 .githooks/test_prepush.py` (it pushes inside a fixture wired to this hook, so running it
+here would recurse).
+
+It takes about 20 seconds on a warm machine, nearly all of it in the four heaviest suites. Three
+behaviors are deliberate:
+
+- **Every check runs even after one fails**, and all failures report together. Stopping at the
+  first makes you push, fail, fix, push, and fail again on the next one.
+- **A missing tool warns by name and allows the push.** Neither `rumdl` nor `node` is universally
+  installed, and an unpushable clone is a worse failure than an unchecked push.
+- **`TADW_PREPUSH=off` skips it**, documented here rather than left as a workaround people invent
+  under deadline. It is exact: any other value, including empty, leaves the hook on.
+
+A push that only deletes a remote ref pushes no code, so it runs nothing. On success the hook
+prints one line. `.githooks/test_prepush.py` pins all of this against real `git push --dry-run`
+runs in a throwaway fixture.
+
+**`reference-transaction` refuses to create a `v*` tag** when `claude plugin validate` fails. Git
+has no pre-tag hook, so this is the only one that sees a tag being created and can still stop it.
+It gates tags only: commits, branches, and non-`v` tags are untouched. A missing `claude` on PATH
+warns and allows, since an untaggable repository is worse than an unchecked tag.
 
 ## Architecture
 

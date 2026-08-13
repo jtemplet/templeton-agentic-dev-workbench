@@ -1,0 +1,128 @@
+#!/usr/bin/env sh
+# tadw - run this repository's own checks before a push leaves the machine
+#
+# AGENTS.md lists the checks that run against this repository, and running them
+# was a convention rather than a mechanism. The only hard gate here was
+# reference-transaction, which fires on `v*` tags alone, so every commit and push
+# rode on the session remembering. The stakeholder is the author who pushes a
+# broken formatter or a failing suite and finds out late, or never.
+#
+# A LOCAL HOOK, NOT A HOSTED ONE. Author direction, recorded as D4 in
+# docs/plans/quality-gates-hardening.md: .github/workflows/lint.yml keeps the
+# checks it runs today and gains nothing new. The gate belongs where the work is,
+# so it fails in seconds instead of after a round trip.
+#
+# THREE BEHAVIORS CARRY THE DESIGN.
+#
+#   1. Every check runs even after one fails, and all failures report together. A
+#      hook that stops at the first failure makes the author push, fail, fix,
+#      push, and fail again on the next one.
+#   2. A MISSING TOOL WARNS AND ALLOWS, by name. This follows the precedent
+#      reference-transaction set for a missing `claude`: an unpushable clone is a
+#      worse failure than an unchecked push, and neither rumdl nor node is
+#      universally installed. Named, never silent, because a quiet skip would
+#      recreate the gap this hook exists to close.
+#   3. TADW_PREPUSH=off is a documented escape, the way TADW_STYLE_CORE=off is.
+#      An undocumented workaround is one people invent under deadline anyway.
+#
+# TWO CHECKS FROM THE AGENTS.md BLOCK ARE DELIBERATELY ABSENT.
+#
+#   `python3 evals/run.py` is every case a real model call: far too slow and too
+#   expensive to sit on a push.
+#
+#   `python3 .githooks/test_prepush.py` is this hook's own suite, and it pushes
+#   inside a throwaway fixture whose core.hooksPath points back here. Running it
+#   from here would recurse until something gave out.
+#
+# `claude plugin validate .` is absent for a third reason: reference-transaction
+# already gates it at the tag, which is the boundary where a broken manifest stops
+# being a local mistake, and spawning the claude CLI is the slowest check of the
+# set.
+#
+# This checks the WORKING TREE, not the commits being pushed. That matches how the
+# AGENTS.md block is meant to be run by hand, and it is the state the author can
+# actually fix right now.
+
+[ "$TADW_PREPUSH" = "off" ] && exit 0
+
+# stdin is one line per ref: <local ref> <local sha> <remote ref> <remote sha>.
+# Consume it whether or not we act on it, so git never writes into a closed pipe.
+# An all-zero local sha is a deletion, and deleting a remote ref pushes no code to
+# check, so a delete-only push has nothing to gate.
+pushing=''
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in
+    *[!0]*) pushing='yes' ;;
+  esac
+done
+[ -n "$pushing" ] || exit 0
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+cd "$root" || exit 0
+
+work=${TMPDIR:-/tmp}/tadw-prepush.$$
+mkdir -p "$work" || exit 0
+trap 'rm -rf "$work"' EXIT HUP INT TERM
+
+ran=0
+failed=0
+skipped=''
+
+# Runs one check, and never returns non-zero: the caller wants every check
+# attempted, so a failure is recorded rather than propagated.
+check() {
+  tool=$1
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    # Deduplicated, because python3 carries six of these checks and one warning
+    # about it is the useful number.
+    case " $skipped " in
+      *" $tool "*) ;;
+      *) skipped="$skipped$tool " ;;
+    esac
+    return 0
+  fi
+
+  ran=$((ran + 1))
+  if "$@" >"$work/out" 2>&1; then
+    return 0
+  fi
+
+  failed=$((failed + 1))
+  {
+    printf '\n----- FAILED: %s\n' "$*"
+    cat "$work/out"
+  } >>"$work/report"
+  return 0
+}
+
+started=$(date +%s)
+
+# In the AGENTS.md order, so the two lists read as one list.
+# test_prepush.py asserts they stay that way.
+check rumdl fmt --check .
+check node hooks/test-hooks.js
+check python3 skills/style-testing/scripts/test_check_framework_leak.py
+check python3 skills/style-testing/scripts/check_framework_leak.py
+check python3 skills/quality-gates/scripts/test_check_doc_paths.py
+check python3 skills/quality-gates/scripts/check_doc_paths.py
+check python3 skills/quality-gates/scripts/test_changed_set.py
+check python3 skills/quality-gates/scripts/test_check_secrets.py
+check python3 skills/quality-gates/scripts/check_secrets.py
+check python3 skills/quality-gates/scripts/test_check_hygiene.py
+
+elapsed=$(( $(date +%s) - started ))
+
+if [ -n "$skipped" ]; then
+  echo "tadw: WARNING - not on PATH, so its checks were skipped: $skipped" >&2
+fi
+
+if [ "$failed" -eq 0 ]; then
+  echo "tadw: pre-push checks passed ($ran ran, ${elapsed}s)" >&2
+  exit 0
+fi
+
+cat "$work/report" >&2
+echo "" >&2
+echo "tadw: refusing to push, $failed of $ran checks failed (${elapsed}s)" >&2
+echo "tadw: fix the failures above, or set TADW_PREPUSH=off to skip this hook" >&2
+exit 1
