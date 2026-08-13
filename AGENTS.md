@@ -18,6 +18,7 @@ python3 skills/style-testing/scripts/test_check_framework_leak.py   # regression
 python3 skills/style-testing/scripts/check_framework_leak.py        # assert style-testing stays framework-free
 python3 skills/quality-gates/scripts/test_check_doc_paths.py        # regression suite for the doc-path checker
 python3 skills/quality-gates/scripts/check_doc_paths.py             # assert every documented path exists
+python3 skills/quality-gates/scripts/test_changed_set.py            # regression suite for the changed-set resolver
 claude plugin validate .                                      # parses every SKILL.md frontmatter
 python3 evals/run.py                                          # response-style evals
 ```

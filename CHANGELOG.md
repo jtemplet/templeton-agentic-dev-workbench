@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.2] - 2026-08-13
+
+### Added
+
+- **The changed-set resolution is a tested script instead of a recipe the model retypes.**
+  `skills/quality-gates/scripts/changed_set.py` resolves the base and prints the changed paths, one
+  per line. Step 2 of the quality-gates skill was two git commands plus a base-resolution fallback,
+  reassembled on every run, and getting it wrong narrows every gate while the report still reads as
+  a scoped pass.
+
+  Three decisions are load-bearing. The diff is `git diff "$BASE"` with no `...HEAD`, because the
+  three-dot form stops at the last commit and this skill runs before a commit more often than after
+  one, so the very work being checked would drop out of scope. **An unresolvable base exits 3**,
+  distinct from exit 0 with no output and from exit 2 for operator error: the prose conflated the
+  first two, and treating a missing base as an empty diff covers nothing while reporting
+  confidently. The base SHA, the ref it came from, and the count go to stderr, so stdout stays a
+  path list a caller can pipe without filtering.
+
+  The base ref is resolved rather than assumed. `origin/HEAD` first, then `origin/main`, first merge
+  base wins, so a repository whose default branch is `trunk` or `master` still resolves. A path
+  whose name contains a newline is named on stderr and left out of stdout, because printing it would
+  hand every downstream reader two paths that do not exist.
+
+  `test_changed_set.py` pins it with 21 checks over throwaway origin-plus-clone fixtures, and is
+  registered in the `AGENTS.md` command block. Each of the five behaviors above was mutation-checked:
+  breaking it fails the case that owns it.
+
+  **Not wired in yet.** `SKILL.md` Step 2 still carries the prose recipe. Pointing the skill at this
+  script is a separate bead, so this release ships the script and its suite alone.
+
+### Fixed
+
+- **Three bead hooks under `.claude/scripts/` and the secrets gate, from a fresh-eyes pass over the
+  six files added in v2.7.1.** Eight findings, seven fixed. These landed in `main` after the v2.7.1
+  tag, so they ship here.
+
+  `close_bead_on_pr_merge.sh` could never close a bead in this repository: the id regex stopped after
+  one hyphen group, so `tadw-qg-script-secrets-gate-jbg` extracted as `tadw-qg` and resolved to
+  nothing. Resolution now verifies every candidate against the tracker, honors an explicit
+  `Bead: <id>` trailer, and fails closed when one source names two different real beads. A dead
+  `status == "unknown"` guard let a transient read failure fall through to a close, `br` ran unpinned
+  so a close from a worktree landed in that worktree's database copy, and an unanchored `failed`
+  match skipped the close whenever a check summary mentioned one failed check.
+
+  `autocommit_beads_after_br.sh` read `br update x --claim && br show x` as read-only, because it
+  substring-matched a read-only subcommand anywhere in the line, so the mutation went uncommitted.
+  `label_bead_on_skill_invocation.sh` hardcoded one label while the marker filename already encoded
+  it, which would mislabel a second gate-mode entry.
+
+  `check_secrets.py` skipped files over 2 MiB and undecodable files in silence, then printed OK.
+  Skipping is now configurable through `--max-scan-bytes`, never silent, and the clean verdict
+  narrows to "in what was scanned". A skip is not a finding and does not change the exit status, or
+  one undecodable file would fail this gate forever.
+
+  Still uncovered: the three shell hooks have no automated tests, so those six fixes rest on manual
+  verification. Tracked as `tadw-hooks-test-harness-12b`.
+
 ## [2.7.1] - 2026-08-12
 
 ### Added
@@ -1147,7 +1204,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.2...HEAD
+[2.7.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.1...v2.7.2
 [2.7.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.5.2...v2.6.0
