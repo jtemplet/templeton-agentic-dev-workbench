@@ -26,16 +26,19 @@ Every unit you write should be:
    the real pattern is visible. A base class or shared helper built for two callers is debt.
 
 2. **Keep units small and single-purpose.** A function, method, component, or type does
-   one thing. If you cannot name it without "and", it is doing too much. Aim for code that
-   reads without scrolling. No hard line limit; clarity is the test.
+   one thing, and its name says which thing. If you cannot name it without "and", it is
+   doing too much: split it into the units the name just described. A class has a single
+   responsibility, which means it has one reason to change. Aim for code that reads without
+   scrolling. No hard line limit; clarity is the test.
 
 3. **Keep interfaces simple.** Prefer four or fewer parameters. Replace long or
    boolean-flag parameter lists with a typed parameter object. A boolean that switches
    behavior usually wants to be two separate units.
 
 4. **Inject dependencies; do not hardcode them.** Pass collaborators in rather than
-   constructing or reaching for them inside. Depend on an interface/protocol/contract, not
-   a concrete implementation. This is what makes code testable and changeable.
+   constructing or reaching for them inside: a class takes them through its initializer, a
+   function takes them as parameters. Depend on an interface/protocol/contract, not a
+   concrete implementation. This is what makes code testable and changeable.
 
 5. **Tell, don't ask.** Send an object a message; do not pull out its internals and decide
    for it. Deep chaining (`a.b.c.d`) couples you to structure that will change. Move the
@@ -54,9 +57,9 @@ Every unit you write should be:
    sits at one level of abstraction. A reader should grasp intent from the top without
    diving into details.
 
-9. **Let names do the documenting.** Choose names that state intent so the code explains
-   itself. Make a name's length match its scope. A name that needs a comment to say what it
-   is usually wants to be renamed, not annotated.
+9. **Let names do the documenting.** Code should be self-documenting: choose names that
+   state intent so the code explains itself. Make a name's length match its scope. A name
+   that needs a comment to say what it is usually wants to be renamed, not annotated.
 
 10. **Comment only when necessary, and only the why.** Default to no comment: code with
     clear names and small units needs none. Add one only for what the code cannot say

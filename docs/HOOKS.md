@@ -42,8 +42,8 @@ hook output string at **10,000 characters**. The cap applies to plain stdout and
 `hookSpecificOutput.additionalContext` alike, so no output format avoids it. Anything longer
 is written to a file and replaced with a short preview plus that path.
 
-The combined payload is 19,996 characters (style core 4,499, response style 15,495), almost
-exactly twice the cap. Under a single entry the session received the first ~2,000 characters
+The combined payload is 20,275 characters (style core 4,780, response style 15,495), just
+over twice the cap. Under a single entry the session received the first ~2,000 characters
 and a file path. The coding core arrived truncated after principle 4, and **the response style
 never arrived at all**.
 

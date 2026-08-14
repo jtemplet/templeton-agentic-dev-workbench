@@ -10,7 +10,7 @@
 // Usage: session-start.js [payload-index]
 //
 // Claude Code caps each hook output string at 10,000 characters, so the combined
-// 19,996-character payload cannot ship from one entry. It is split across
+// 20,275-character payload cannot ship from one entry. It is split across
 // several manifest entries that differ only in this index; Claude receives the
 // additionalContext of every hook that matched the event. An index past the end
 // emits nothing, which keeps the manifest safe when the documents shrink.
