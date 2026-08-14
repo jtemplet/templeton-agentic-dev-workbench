@@ -1,0 +1,411 @@
+#!/usr/bin/env bash
+# Claude Code hook: label the bead a skill invocation acts on.
+#
+# Wired to three events and dispatches on hook_event_name:
+#
+#   PreToolUse (matcher Skill)  Claude invoked the Skill tool.
+#   UserPromptSubmit            A person typed the slash command, which
+#                               calls no tool, so PreToolUse never sees
+#                               it. Same flow, keyed on the command name.
+#   Stop                        Resolves labels that needed an outcome.
+#
+# Both entry points converge on run_label_flow, so a skill labels the same
+# whichever way it was started.
+#
+# Three modes, because a PreToolUse hook fires BEFORE the skill runs.
+# Measured: the PostToolUse hook for the same call fires ~30ms later, so
+# it is equally blind. Only Stop fires after the work.
+#
+#   apply   The label describes the invocation itself, so it is written
+#           immediately. /simplify, /code-review, /tadw:fresh-eyes-cr.
+#
+#   gate    The label describes an outcome that leaves a readable
+#           artifact. /qa writes .gstack/qa-reports/*.md. PreToolUse
+#           drops a pending marker; Stop reads the report and applies
+#           the label only if the report is newer than the marker and
+#           clears the gate. Deterministic, no model involvement.
+#
+#   inject  The label describes an outcome with no artifact.
+#           /verify-acceptance is report-only and its verdict exists
+#           solely in prose, so grepping for it would be string-matching
+#           against output formatting that can drift. PreToolUse emits
+#           an instruction naming the bead, the gate, and the command,
+#           and Claude applies the label at the end. Weaker than gate,
+#           and honest about being weaker.
+#
+# Every failure path logs to stderr and exits 0, so a skill runs whether
+# or not the bead could be labeled. Only inject mode writes to stdout,
+# and only well-formed hook JSON.
+
+set -uo pipefail
+
+BEADS_FILE=".beads/issues.jsonl"
+
+# What "everything passes" means for a /qa report. Tunable on purpose:
+# /qa fixes what it finds, so demanding zero issues found would deny the
+# label to a run that did its job. This asks instead that nothing
+# serious and nothing unfinished remain.
+QA_MAX_CRITICAL=0
+QA_MAX_HIGH=0
+QA_MAX_DEFERRED=0
+
+# A pending marker older than this is abandoned rather than resolved, so
+# a run that never finished cannot label a later unrelated turn.
+MARKER_TTL_SECONDS=21600  # 6 hours
+
+log() { echo "[bead-label] $*" >&2; }
+quiet_exit() { exit 0; }
+
+# ---------------------------------------------------------------------
+# Shared setup
+# ---------------------------------------------------------------------
+
+# Sets REPO_ROOT, MAIN_ROOT, br_cmd, MARKER_DIR. Exits when not usable.
+init_repo() {
+  REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || quiet_exit
+  cd "$REPO_ROOT" || quiet_exit
+
+  local t
+  for t in br jq git; do
+    command -v "$t" >/dev/null 2>&1 || { log "$t not on PATH"; quiet_exit; }
+  done
+
+  # Every worktree checks out its own copy of .beads/beads.db, so an
+  # unpinned br in a worktree would read and write that copy instead of
+  # the canonical tracker. Pin to the main checkout.
+  GIT_COMMON="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+  MAIN_ROOT="$(dirname "$GIT_COMMON")"
+  br_cmd=(br)
+  if [[ -n "$MAIN_ROOT" && -f "$MAIN_ROOT/.beads/beads.db" ]]; then
+    br_cmd=(br --db "$MAIN_ROOT/.beads/beads.db")
+  fi
+
+  # Markers live inside the git common dir: never tracked, never dirty
+  # the tree, and shared across worktrees.
+  MARKER_DIR="$GIT_COMMON/pending-bead-labels"
+}
+
+has_label() {
+  local json="$1" label="$2"
+  echo "$json" | jq -e --arg l "$label" \
+    '((.[0].labels // .labels) // []) | index($l)' >/dev/null 2>&1
+}
+
+add_label() {
+  local bead_id="$1" label="$2"
+  "${br_cmd[@]}" update "$bead_id" --add-label "$label" >/dev/null 2>&1 || {
+    log "br update $bead_id --add-label $label failed"
+    return 1
+  }
+  log "labeled $bead_id $label"
+  commit_beads "$bead_id" "$label"
+}
+
+# Commit only from the main checkout on main, and only when the beads
+# file is the sole dirty tracked file. Anywhere else the label waits for
+# the session-end protocol, so this adds no merge-conflict surface to a
+# feature branch. Mirrors the guard in autocommit_beads_after_br.sh.
+commit_beads() {
+  local bead_id="$1" label="$2" branch porcelain non_beads
+  branch="$(git branch --show-current 2>/dev/null || true)"
+  [[ "$branch" == "main" && "$REPO_ROOT" == "$MAIN_ROOT" ]] || return 0
+  [[ -d "$REPO_ROOT/.outrigger/lock.d" ]] && { log "outrigger lock active; leaving beads uncommitted"; return 0; }
+  [[ -f "$BEADS_FILE" ]] || return 0
+
+  porcelain="$(git status --porcelain --untracked-files=no)"
+  [[ -z "$porcelain" ]] && return 0
+
+  non_beads="$(echo "$porcelain" | awk -v f="$BEADS_FILE" 'substr($0,4) != f' | wc -l | tr -d ' ')"
+  if (( non_beads > 0 )); then
+    log "other tracked files are dirty; leaving beads uncommitted"
+    return 0
+  fi
+
+  git add "$BEADS_FILE"
+  git commit --quiet -m "beads: label ${bead_id} ${label}
+
+Auto-labeled by the Claude Code bead-label hook."
+  if git push --quiet 2>/dev/null; then
+    log "committed and pushed $label for $bead_id"
+  else
+    log "committed locally; push failed (run 'git push' manually)"
+  fi
+}
+
+# ---------------------------------------------------------------------
+# Bead resolution
+# ---------------------------------------------------------------------
+
+# Bead ids here range from a four-character suffix to a full slug, so
+# shape alone cannot tell an id from an ordinary hyphenated word. Every
+# candidate is verified against the tracker; the pattern only narrows
+# the search. Longest first, so a slug id beats its own prefix.
+resolve_bead() {
+  local args="$1" branch="$2" sources pr_id pr_json candidates candidate found id
+  sources="$args"$'\n'"${branch//\// }"
+
+  pr_id="$(echo "$args" | tr ' ' '\n' | awk '
+    /^#?[0-9]+$/      { gsub(/#/, ""); print; exit }
+    /github\.com.*pull\/[0-9]+/ {
+      sub(/.*\/pull\//, ""); sub(/[^0-9].*/, ""); print; exit
+    }
+  ')"
+  if [[ -n "$pr_id" ]] && command -v gh >/dev/null 2>&1; then
+    pr_json="$(gh pr view "$pr_id" --json title,headRefName,body 2>/dev/null || true)"
+    if [[ -n "$pr_json" ]]; then
+      sources+=$'\n'"$(echo "$pr_json" | jq -r '.title, (.headRefName | gsub("/"; " ")), (.body // "")' 2>/dev/null || true)"
+    fi
+  fi
+
+  candidates="$(echo "$sources" \
+    | grep -oE '[a-z][a-z0-9]*(-[a-z0-9]+)+(\.[0-9]+)*' \
+    | awk '{ print length, $0 }' \
+    | sort -rn -k1,1 \
+    | cut -d' ' -f2- \
+    | awk '!seen[$0]++')"
+  [[ -z "$candidates" ]] && return 1
+
+  while IFS= read -r candidate; do
+    [[ -z "$candidate" ]] && continue
+    found="$("${br_cmd[@]}" show "$candidate" --json 2>/dev/null || true)"
+    [[ -z "$found" ]] && continue
+    id="$(echo "$found" | jq -r '((.[0].id // .id) // empty)' 2>/dev/null || true)"
+    if [[ -n "$id" ]]; then
+      RESOLVED_ID="$id"
+      RESOLVED_JSON="$found"
+      return 0
+    fi
+  done <<< "$candidates"
+  return 1
+}
+
+# ---------------------------------------------------------------------
+# PreToolUse
+# ---------------------------------------------------------------------
+
+# Sets LABEL, MODE and GATE for a skill name. Returns 1 when unmapped.
+#
+# These are SKILL names, never command names. The PreToolUse payload field
+# is tool_input.skill, so a skill reaches this map under the name it was
+# resolved to. Where the command name differs it never matches here:
+# /tadw:fresh-eyes-cr invokes tadw:review-fresh-eyes, and /tadw:code-review
+# dispatches through the code-reviewer agent to a per-language review
+# skill. Before adding an entry, confirm the name against the plugin's
+# skills/ directory rather than its commands/ directory. To map a command
+# name, use skill_for_command below instead.
+#
+# Both the plugin-qualified and bare forms, since the payload may carry
+# either depending on how the skill was resolved.
+classify_skill() {
+  local skill="$1"
+  GATE=""
+  case "$skill" in
+    # Ordered the way the work moves: coding, simplified, reviewed, qa-d, accepted.
+    feature-development|tadw:feature-development)
+      LABEL="coding";     MODE="apply" ;;
+    simplify|tadw:code-simplify)
+      LABEL="simplified"; MODE="apply" ;;
+    code-review|code-review:code-review|\
+    review-fresh-eyes|tadw:review-fresh-eyes|\
+    review-python|tadw:review-python|\
+    review-rails|tadw:review-rails)
+      LABEL="reviewed";   MODE="apply" ;;
+    qa|gstack:qa|quality-gates|tadw:quality-gates)
+      LABEL="qa-d";       MODE="gate" ;;
+    verify-acceptance|tadw:verify-acceptance)
+      LABEL="accepted";   MODE="inject"
+      GATE="the final verdict is ACCEPTED, which means every criterion PASS and no gate FAIL (NOT ACCEPTED and INCONCLUSIVE both fail this gate)" ;;
+    *) return 1 ;;
+  esac
+  return 0
+}
+
+# The shared flow, once a skill name is known. $3 names the hook event so
+# inject mode can label its own output correctly.
+run_label_flow() {
+  local skill="$1" args="$2" event="$3" branch
+
+  init_repo
+  branch="$(git branch --show-current 2>/dev/null || true)"
+
+  resolve_bead "$args" "$branch" || {
+    log "no candidate resolved to a bead (branch '$branch')"
+    quiet_exit
+  }
+
+  if has_label "$RESOLVED_JSON" "$LABEL"; then
+    log "$RESOLVED_ID already labeled $LABEL"
+    quiet_exit
+  fi
+
+  case "$MODE" in
+    apply)
+      add_label "$RESOLVED_ID" "$LABEL"
+      ;;
+    gate)
+      mkdir -p "$MARKER_DIR" 2>/dev/null || quiet_exit
+      printf '%s\n%s\n%s\n' "$(date +%s)" "$RESOLVED_ID" "$skill" \
+        > "$MARKER_DIR/${LABEL}__${RESOLVED_ID}"
+      log "pending $LABEL for $RESOLVED_ID; Stop will check the QA report"
+      ;;
+    inject)
+      local db_flag=""
+      [[ ${#br_cmd[@]} -gt 1 ]] && db_flag=" --db ${br_cmd[2]}"
+      jq -n --arg event "$event" --arg ctx "When this /${skill} run is complete, add the \`${LABEL}\` label to bead ${RESOLVED_ID}, but ONLY if ${GATE}. If it does not clear that gate, add no label and say so. The command is: br${db_flag} update ${RESOLVED_ID} --add-label ${LABEL}" \
+        '{hookSpecificOutput:{hookEventName:$event,additionalContext:$ctx}}'
+      log "deferred $LABEL for $RESOLVED_ID to the run's verdict"
+      ;;
+  esac
+}
+
+handle_pre() {
+  local payload="$1" skill args
+
+  skill="$(echo "$payload" | jq -r '.tool_input.skill // empty' 2>/dev/null || true)"
+  [[ -z "$skill" ]] && quiet_exit
+  classify_skill "$skill" || quiet_exit
+
+  args="$(echo "$payload" | jq -r '.tool_input.args // ""' 2>/dev/null || true)"
+  run_label_flow "$skill" "$args" PreToolUse
+}
+
+# ---------------------------------------------------------------------
+# UserPromptSubmit
+# ---------------------------------------------------------------------
+
+# Maps a slash-command name to the skill it invokes, printing the skill
+# name. Returns 1 when the command is not one we label.
+#
+# This map exists because PreToolUse cannot see a typed slash command. It
+# fires on the Skill TOOL, and typing /foo calls no tool, so without this
+# the run finishes unlabeled. Worse for verify-acceptance, whose command
+# file tells the reader to open SKILL.md directly rather than invoke the
+# skill by name, making the documented path the unlabeled one.
+#
+# Keep this keyed on COMMAND names, the opposite of classify_skill. Where
+# the two differ, only the mapping below is correct.
+skill_for_command() {
+  case "$1" in
+    # No commands/feature-development.md shadows it, so the slash command
+    # resolves straight to the skill and both names are the same here.
+    feature-development|tadw:feature-development) echo "tadw:feature-development" ;;
+    simplify|tadw:code-simplify)              echo "tadw:code-simplify" ;;
+    code-review|code-review:code-review)      echo "code-review:code-review" ;;
+    fresh-eyes-cr|tadw:fresh-eyes-cr)         echo "tadw:review-fresh-eyes" ;;
+    qa|gstack:qa)                             echo "gstack:qa" ;;
+    quality-gates|tadw:quality-gates)         echo "tadw:quality-gates" ;;
+    verify-acceptance|tadw:verify-acceptance) echo "tadw:verify-acceptance" ;;
+    *) return 1 ;;
+  esac
+  return 0
+}
+
+handle_prompt() {
+  local payload="$1" prompt command skill args
+
+  prompt="$(echo "$payload" | jq -r '.prompt // empty' 2>/dev/null || true)"
+  [[ -z "$prompt" ]] && quiet_exit
+
+  # Only a prompt that STARTS with the command counts. A prompt merely
+  # mentioning /qa is talking about it, not running it.
+  [[ "$prompt" =~ ^[[:space:]]*/([A-Za-z0-9_:-]+)[[:space:]]*(.*)$ ]] || quiet_exit
+  command="${BASH_REMATCH[1]}"
+  args="${BASH_REMATCH[2]}"
+
+  skill="$(skill_for_command "$command")" || quiet_exit
+  classify_skill "$skill" || quiet_exit
+
+  run_label_flow "$skill" "$args" UserPromptSubmit
+}
+
+# ---------------------------------------------------------------------
+# Stop
+# ---------------------------------------------------------------------
+
+# Reads a "| Critical | 3 |" style row and prints the count, or nothing
+# when the row is absent or unparseable.
+report_count() {
+  local report="$1" row="$2"
+  grep -iE "^\|[[:space:]]*\**${row}\**[[:space:]]*\|" "$report" 2>/dev/null \
+    | head -1 \
+    | awk -F'|' '{ gsub(/[^0-9]/, "", $3); print $3 }'
+}
+
+# Prints the newest QA report written after the marker file $1, or
+# nothing. Compares against the marker's own mtime with `-newer`, which
+# is POSIX. BSD find rejects `-newermt @<epoch>` outright ("Can't parse
+# date/time"), and xargs -r is likewise a GNU extension, so neither is
+# safe here.
+newest_qa_report_after() {
+  local marker="$1" newest="" f
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    if [[ -z "$newest" || "$f" -nt "$newest" ]]; then newest="$f"; fi
+  done < <(find .gstack/qa-reports -maxdepth 1 -name 'qa-report-*.md' -type f -newer "$marker" 2>/dev/null)
+  [[ -n "$newest" ]] && echo "$newest"
+}
+
+# Fails closed: an unparseable report never earns the label.
+qa_report_passes() {
+  local report="$1" crit high deferred
+  crit="$(report_count "$report" Critical)"
+  high="$(report_count "$report" High)"
+  deferred="$(report_count "$report" Deferred)"
+
+  if [[ -z "$crit" || -z "$high" ]]; then
+    log "could not parse severity counts from $report; not labeling"
+    return 1
+  fi
+  # A report with no Ship Readiness block has nothing deferred.
+  [[ -z "$deferred" ]] && deferred=0
+
+  if (( crit > QA_MAX_CRITICAL || high > QA_MAX_HIGH || deferred > QA_MAX_DEFERRED )); then
+    log "QA gate not met (critical=$crit high=$high deferred=$deferred)"
+    return 1
+  fi
+  log "QA gate met (critical=$crit high=$high deferred=$deferred) via $report"
+  return 0
+}
+
+handle_stop() {
+  init_repo
+  [[ -d "$MARKER_DIR" ]] || quiet_exit
+
+  local marker created bead_id report now
+  now="$(date +%s)"
+  for marker in "$MARKER_DIR"/*; do
+    [[ -e "$marker" ]] || continue
+    created="$(sed -n '1p' "$marker" 2>/dev/null)"
+    bead_id="$(sed -n '2p' "$marker" 2>/dev/null)"
+    [[ -z "$created" || -z "$bead_id" ]] && { rm -f "$marker"; continue; }
+
+    if (( now - created > MARKER_TTL_SECONDS )); then
+      log "abandoning stale marker $(basename "$marker")"
+      rm -f "$marker"
+      continue
+    fi
+
+    # Only a report written after the marker can describe this run.
+    report="$(newest_qa_report_after "$marker")"
+    [[ -z "$report" ]] && continue   # run still in progress
+
+    if qa_report_passes "$report"; then
+      add_label "$bead_id" "qa-d"
+    fi
+    rm -f "$marker"
+  done
+}
+
+# ---------------------------------------------------------------------
+
+payload="$(cat)"
+event="$(echo "$payload" | jq -r '.hook_event_name // empty' 2>/dev/null || true)"
+
+case "$event" in
+  PreToolUse)       handle_pre "$payload" ;;
+  UserPromptSubmit) handle_prompt "$payload" ;;
+  Stop)             handle_stop ;;
+  *)                quiet_exit ;;
+esac
+
+exit 0
