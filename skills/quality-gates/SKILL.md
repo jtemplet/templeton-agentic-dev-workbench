@@ -69,22 +69,23 @@ Map every discovered command onto the gate it serves. A command that fits no gat
 
 **`--changed` is the default.** Run `--all` only when the caller asks for it, or when the base will not resolve.
 
-Resolve the base once:
+Run the bundled script. Do not hand-roll the base resolution or the file list.
 
 ```bash
-git merge-base HEAD "$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD || echo origin/main)"
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/changed_set.py" --repo-root .
 ```
 
-If that fails, on a repository with no remote, a shallow clone, or a first commit, run at `--all` and say so. An unresolvable base is not an empty diff, and treating it as one narrows every gate to nothing.
+It prints one changed path per line on stdout, so a caller can pipe stdout without filtering it. The base goes to stderr, as `base: <sha> (merge-base of HEAD and <ref>)`. **Keep that SHA. Gate 7 takes its `--base` from it**, and re-deriving it with `git merge-base` is the hand-rolling this script exists to replace.
 
-Then build the changed set from the working tree:
+| Exit | Status |
+|---|---|
+| 0 | The base resolved. stdout is the changed set, and no output means nothing changed |
+| 2 | BLOCKED. The operator gave it a root that is not a git repository, or git will not run |
+| 3 | The base will not resolve. Run at `--all`, and say so in the report |
 
-```bash
-git diff --name-only "$BASE"                # committed, staged, and unstaged
-git ls-files --others --exclude-standard    # new files, not yet tracked
-```
+**Exit 3 and an empty exit 0 are different answers.** A repository with no remote, a shallow clone, or a first commit produces exit 3. An unresolvable base is not an empty diff, and treating it as one narrows every gate to nothing while the report still reads confidently.
 
-Both lines matter. This skill runs before a commit more often than after one, so `git diff "$BASE"...HEAD` is the wrong basis: it stops at the last commit and misses the very work being checked. Untracked files need the second command, because `git diff` never sees them.
+**Why a script and not two git commands.** The script diffs the base against the working tree: `git diff "$BASE"`, with no `...HEAD`. Committed, staged, and unstaged changes all land in the set. This skill runs before a commit more often than after one, so `git diff "$BASE"...HEAD` is the wrong basis: it stops at the last commit and misses the very work being checked. It unions in `git ls-files --others --exclude-standard` as well, because `git diff` never sees an untracked file. Retyping those two commands and the base fallback on every run is how a scoped report comes to cover nothing.
 
 | Gate | At `--changed` (default) | At `--all` |
 |---|---|---|
@@ -221,28 +222,51 @@ A path that a documented tool creates at runtime is not a broken reference. `doc
 
 #### Gate 6: Secrets
 
-Prefer a scanner the project already configures (`gitleaks`, `detect-secrets`, `trufflehog`) and name it in the report. Otherwise run the built-in checks:
+Prefer a scanner the project already configures (`gitleaks`, `detect-secrets`, `trufflehog`) and name it in the report. Otherwise run the bundled script, which is the fallback rather than a replacement for a scanner the project already runs. Either way, do not hand-roll this check.
 
-1. **Secret files.** Search both `git ls-files` and `git ls-files --others --exclude-standard` for `.env`, `.env.*`, `*.pem`, `*.p12`, `id_rsa`, `*.keystore`, `*credential*`. Exclude `.env.example`, `.env.sample`, and `.env.template`. Scan the untracked list too: an untracked `.env` that git does not ignore is one `git add -A` away from being committed, and that is the case this gate exists to catch.
-2. **Prefixed key formats**, which are high-signal: `AKIA[0-9A-Z]{16}`, `ghp_`, `xox[baprs]-`, `sk-ant-`, `-----BEGIN [A-Z ]*PRIVATE KEY-----`.
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_secrets.py" --repo-root .
+```
 
-Exclude lockfiles, `vendor/`, `node_modules/`, `dist/`, `build/`, `*.min.*`, and fixture directories from both.
+It runs two checks over the whole tree: secret file names, and prefixed key formats in file content. `--exclude GLOB` is repeatable, for a path this project needs left out.
 
-Match on prefixed formats only. Generic long hex or base64 matching fires on lockfile hashes, test fixtures, and minified assets, and a gate that cries wolf gets ignored.
+| Exit | Status |
+|---|---|
+| 0 | PASS |
+| 1 | **FAIL**, with the reported findings. Unlike a stale doc reference, a key in the tree is not something to note and move past |
+| 2 | BLOCKED. The operator gave it a root that is not a git repository, or git will not run |
 
-Either check hitting is FAIL. **Report the `file:line` and the pattern name, never the matched value.** A report that quotes the secret copies it into one more place.
+Three rules the script encodes, stated here because the next person tempted to relax one reads this file rather than the script:
+
+- **The untracked half of the file check is the point.** It scans `git ls-files --others --exclude-standard` beside `git ls-files`, because an untracked `.env` that git does not ignore is one `git add -A` away from being committed. That is the case this gate exists to catch.
+- **Prefixed key formats only.** Generic long hex or base64 matching fires on lockfile hashes, test fixtures, and minified assets, and a gate that cries wolf gets ignored along with the real finding. Vendored, generated, minified, and fixture paths are excluded for the same reason.
+- **The matched value never reaches output.** A finding carries `file:line` and the pattern name, and nothing else. A report that quotes the secret copies it into one more place. That rule binds your report too, not just the script's.
+
+The script names any file it did not read, above its verdict, and a skipped file does not change the exit status. Carry that count into the report: "0 findings" above an unscanned file claims more than the gate checked.
 
 #### Gate 7: Hygiene
 
-Count `TODO`, `FIXME`, `HACK`, and `XXX` markers **added in the diff**:
+Run the bundled script. Do not hand-roll this check.
 
 ```bash
-git diff --unified=0 "$BASE" | grep -c '^+.*\(TODO\|FIXME\|HACK\|XXX\)' || true
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_hygiene.py" --base "$BASE"
 ```
 
-Keep the `|| true`. `grep -c` exits 1 when it counts zero, which is the clean result, and a bare non-zero exit here would be read as BLOCKED.
+`$BASE` is the SHA Step 2's script printed. The script counts the `TODO`, `FIXME`, `HACK`, and `XXX` markers the diff adds, and reports each with its `file:line`.
 
-Status is WARN when the count is above zero. Under `--all` you may report the repository total, labeled as context rather than as a finding. A count of markers someone else added years ago changes nothing the reader can act on.
+| Exit | Status |
+|---|---|
+| 0 | PASS, at zero markers added |
+| 1 | **WARN**, with the reported markers |
+| 2 | BLOCKED. A missing, empty, or unresolvable `--base`, a root that is not a git repository, or a diff it could not parse |
+
+**Exit 0 at zero markers is the rule the script exists to hold.** The recipe it replaces piped `git diff` into `grep -c`, which exits 1 when it counts zero. That line needed a `|| true` to stop the cleanest possible result from reading as BLOCKED, and retyping it without one reports a broken toolchain where the truth was good news.
+
+`git diff` never sees an untracked file, so a new file's markers stay invisible here until it is added. Say so rather than reporting zero as clean when Step 2's changed set holds untracked files.
+
+**Do not run it with no base.** Step 2 exits 3 on a repository with no remote, a shallow clone, or a first commit, and that run has no base, so a count of added markers does not exist. Record SKIP with that reason. Passing an empty `--base` exits 2, and BLOCKED fails the whole run, so mapping it that way would fail a push over a missing remote.
+
+Under `--all` you may report the repository total instead, labeled as context rather than as a finding. A count of markers someone else added years ago changes nothing the reader can act on.
 
 ### Step 4: Attribute Every Failure
 
@@ -306,9 +330,9 @@ This example is the run the Output Format section below reports, so the two can 
     {"name": "Change coverage", "status": "FAIL", "command": null, "detail": "case review over 6 cases: 5 of 6 have unit tests, 0 end-to-end, span 7 of 11"},
     {"name": "Lint", "status": "FAIL", "command": "ruff check src/export.py", "detail": "2 errors, 11 warnings"},
     {"name": "Type checking", "status": "BLOCKED", "command": "mypy .", "detail": "exit 127, mypy not installed"},
-    {"name": "Doc freshness", "status": "WARN", "command": null, "detail": "path check over 3 docs: 1 missing path"},
+    {"name": "Doc freshness", "status": "WARN", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py\" --repo-root .", "detail": "3 docs checked, 1 missing path"},
     {"name": "Secrets", "status": "PASS", "command": "gitleaks detect", "detail": "0 findings"},
-    {"name": "Hygiene", "status": "WARN", "command": null, "detail": "diff marker count: 2 TODOs added"},
+    {"name": "Hygiene", "status": "WARN", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_hygiene.py\" --base abc1234", "detail": "2 TODOs added"},
     {"name": "Project checks", "status": "PASS", "command": "node hooks/test-hooks.js", "detail": "19 checks, 0 failed"}
   ]
 }
@@ -318,7 +342,7 @@ Four rules the consumer depends on:
 
 - **`verdict` is one of `PASS`, `FAIL`, `INCOMPLETE`, or `NO GATES RAN`,** verbatim from the Verdict Rules. No other string, no lowercase, no added punctuation.
 - **`gates` carries one entry per row of the report table,** in the same order, with the same `status`. A SKIP, BLOCKED, or HANDOFF row gets its entry too. Count the array against the table before you write it: eight rows means eight entries. A short array contradicts a run the reader can see.
-- **`command` is `null` unless the cell holds a command someone can re-run.** Change coverage, doc freshness, and hygiene describe a method rather than name a command, so their `command` is `null` and the description moves into `detail`. A gate that never ran is `null` too. An invented command is worse than an absent one.
+- **`command` is `null` unless the cell holds a command someone can re-run.** Change coverage describes a method rather than naming a command, so its `command` is `null` and the description moves into `detail`. A gate that never ran is `null` too. An invented command is worse than an absent one.
 - **`scope` is `changed` or `all`,** matching what Step 2 set.
 
 `dirty` is for a human reader, and nothing automated reads it. It records that this skill runs before the commit most of the time, so `head` is usually the commit *before* the one that gets pushed. Nearly every honest report is dirty, and a gate blocking on that would block constantly.
@@ -338,9 +362,9 @@ Four rules the consumer depends on:
 | Change coverage | FAIL | case review over 6 cases | 5 of 6 have unit tests, 0 end-to-end, span 7 of 11 |
 | Lint | FAIL | `ruff check src/export.py` | 2 errors, 11 warnings |
 | Type checking | BLOCKED | `mypy .` | exit 127, mypy not installed |
-| Doc freshness | WARN | path check over 3 docs | 1 missing path |
+| Doc freshness | WARN | `python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py" --repo-root .` | 3 docs checked, 1 missing path |
 | Secrets | PASS | `gitleaks detect` | 0 findings |
-| Hygiene | WARN | diff marker count | 2 TODOs added |
+| Hygiene | WARN | `python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_hygiene.py" --base abc1234` | 2 TODOs added |
 | Project checks | PASS | `node hooks/test-hooks.js` | 19 checks, 0 failed |
 
 ### Overall: FAIL
