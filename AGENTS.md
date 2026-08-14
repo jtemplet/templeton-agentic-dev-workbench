@@ -54,13 +54,16 @@ behaviors are deliberate:
 - **Every check runs even after one fails**, and all failures report together. Stopping at the
   first makes you push, fail, fix, push, and fail again on the next one.
 - **A missing tool warns by name and allows the push.** Neither `rumdl` nor `node` is universally
-  installed, and an unpushable clone is a worse failure than an unchecked push.
+  installed, and an unpushable clone is a worse failure than an unchecked push. If every tool is
+  missing the push still proceeds, but the hook reports that nothing was verified instead of
+  reporting a pass: a run that checked nothing has not earned the word "passed".
 - **`TADW_PREPUSH=off` skips it**, documented here rather than left as a workaround people invent
   under deadline. It is exact: any other value, including empty, leaves the hook on.
 
-A push that only deletes a remote ref pushes no code, so it runs nothing. On success the hook
-prints one line. `.githooks/test_prepush.py` pins all of this against real `git push --dry-run`
-runs in a throwaway fixture.
+A push that only deletes a remote ref pushes no code, so it runs nothing. A push that deletes one
+ref and updates another does carry code, so it is checked. On success the hook prints one line,
+carrying how many checks ran and how long they took. `.githooks/test_prepush.py` pins all of this
+against real `git push --dry-run` runs in a throwaway fixture.
 
 **`reference-transaction` refuses to create a `v*` tag** when `claude plugin validate` fails. Git
 has no pre-tag hook, so this is the only one that sees a tag being created and can still stop it.

@@ -43,7 +43,11 @@ RULE-TO-TEST MAPPING. A rule with no test here is a rule nothing holds.
   The hook runs the AGENTS.md block, minus       case_command_list_matches_agents_md
     three documented exclusions
   A clean tree pushes, with one summary line     case_clean_push_is_quiet
+    carrying both the count and the elapsed time
   One warning per missing tool, not per check    case_missing_python3_warns_once
+  A run that checked nothing is not a pass      case_no_check_ran_is_not_a_pass
+  A push carrying code IS gated, even when it   case_mixed_delete_and_update_runs_checks
+    also deletes a ref
   POSIX sh, executable                          case_hook_is_executable_posix_sh
 
 Criterion 5 has a second reading this suite cannot cover: that
@@ -230,8 +234,8 @@ def build(*, stub_slow: bool = True, extra_branch: str | None = None) -> Fixture
 HOOK_TOOLS = ("sh", "date", "mkdir", "cat", "rm", "git", "node", "python3", "rumdl")
 
 
-def stub_path_without(*, drop: str) -> str:
-    """A PATH holding exactly what the hook needs, minus `drop`.
+def stub_path_without(*drop: str) -> str:
+    """A PATH holding exactly what the hook needs, minus every tool in `drop`.
 
     A hermetic directory of symlinks rather than a filtered PATH, and this is not
     over-engineering: `/usr/bin/python3` ships with macOS, so keeping `/usr/bin`
@@ -241,7 +245,7 @@ def stub_path_without(*, drop: str) -> str:
     stub = Path(tempfile.mkdtemp(prefix="tadw-bin-", dir=FIXTURE_ROOT))
     workspaces.append(stub)
     for tool in HOOK_TOOLS:
-        if tool == drop:
+        if tool in drop:
             continue
         real = shutil.which(tool)
         if real:
@@ -420,18 +424,18 @@ def case_missing_rumdl_warns_and_allows() -> None:
     gap the hook exists to close.
     """
     fixture = build()
-    result = fixture.push(env={"PATH": stub_path_without(drop="rumdl")})
+    result = fixture.push(env={"PATH": stub_path_without("rumdl")})
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a missing rumdl must still allow the push: {output}"
     assert "rumdl" in output, f"the skipped tool must be named: {output}"
     assert "WARNING" in output, f"the skip must be a warning, not silence: {output}"
-    assert "9 ran" in output, f"the other nine checks must still run: {output}"
+    assert "9 of 10" in output, f"the other nine checks must still run: {output}"
 
 
 def case_missing_python3_warns_once() -> None:
     """python3 carries six checks, and one warning about it is the useful number."""
     fixture = build()
-    result = fixture.push(env={"PATH": stub_path_without(drop="python3")})
+    result = fixture.push(env={"PATH": stub_path_without("python3")})
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a missing python3 must still allow the push: {output}"
     warning = [line for line in output.splitlines() if "WARNING" in line]
@@ -439,11 +443,29 @@ def case_missing_python3_warns_once() -> None:
     assert warning[0].count("python3") == 1, f"python3 named once: {warning[0]!r}"
 
 
+def case_no_check_ran_is_not_a_pass() -> None:
+    """Every tool missing still allows the push, and must never claim a pass.
+
+    The missing-tool rule is deliberate, so the push proceeds. What it must not do
+    is print "checks passed" having verified nothing: that is the
+    all-skipped-reports-PASS shape the quality-gates skill refuses by name, and
+    the reader would take it for a clean bill of health.
+    """
+    fixture = build()
+    result = fixture.push(env={"PATH": stub_path_without("rumdl", "node", "python3")})
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a toolless clone must still push: {output}"
+    assert "passed" not in output, f"nothing ran, so nothing passed: {output!r}"
+    assert "0 of 10" in output, f"it must say how little ran: {output!r}"
+    assert "nothing was verified" in output, f"and say what that means: {output!r}"
+
+
 for name, fn in [
     ("TADW_PREPUSH=off allows a push that would fail [criterion 2]", case_off_switch_allows_a_failing_push),
     ("only the documented off value disables the hook", case_off_switch_is_exact),
     ("a missing rumdl warns by name and allows [criterion 3]", case_missing_rumdl_warns_and_allows),
     ("a missing python3 warns once, not six times", case_missing_python3_warns_once),
+    ("every tool missing allows the push but claims no pass", case_no_check_ran_is_not_a_pass),
 ]:
     check(name, fn)
 
@@ -452,12 +474,35 @@ print("\n  [what the hook must not do]")
 
 
 def case_delete_only_push_runs_nothing() -> None:
-    """Criterion 6. Deleting a remote ref pushes no code, so there is nothing to gate."""
+    """Criterion 6. Deleting a remote ref pushes no code, so there is nothing to gate.
+
+    Proven against a tree that WOULD fail, so the silence is the deletion rule
+    rather than a tree that happens to be clean.
+    """
     fixture = build(extra_branch="doomed")
+    fixture.write(BREAKABLE_CHECK, FAILING_BODY)
+    fixture.commit_all("break one check")
     result = fixture.push("--delete", "doomed")
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a delete-only push must be allowed: {output}"
     assert "tadw:" not in output, f"no check may run for a deletion: {output!r}"
+
+
+def case_mixed_delete_and_update_runs_checks() -> None:
+    """The complement of criterion 6, and the half a delete-only case cannot prove.
+
+    `git push origin :doomed main` deletes one ref and updates another in one
+    invocation, so git sends two stdin lines: one all-zero, one real. Code is
+    being pushed, so the checks must run. A guard that skipped on seeing ANY
+    deletion would wave this through, and the delete-only case would still pass.
+    """
+    fixture = build(extra_branch="doomed")
+    fixture.write(BREAKABLE_CHECK, FAILING_BODY)
+    fixture.commit_all("break one check")
+    result = fixture.push(":doomed", "main")
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f"a push carrying code must be gated: {output}"
+    assert "refusing to push" in output, f"the failing check must refuse it: {output}"
 
 
 def case_hook_leaves_the_tree_alone() -> None:
@@ -490,11 +535,15 @@ def case_clean_push_is_quiet() -> None:
     lines = [line for line in output.splitlines() if line.startswith("tadw:")]
     assert len(lines) == 1, f"exactly one tadw line on success: {lines}"
     assert "passed" in lines[0], f"and it says so: {lines[0]!r}"
-    assert "10 ran" in lines[0], f"with the count it ran: {lines[0]!r}"
+    assert "10 of 10" in lines[0], f"with the count that ran: {lines[0]!r}"
+    # The elapsed time is the only number a reader can use to judge whether the
+    # hook is worth its place on every push, so it is asserted rather than assumed.
+    assert re.search(r"\b\d+s\b", lines[0]), f"and how long it took: {lines[0]!r}"
 
 
 for name, fn in [
     ("a delete-only push runs no checks [criterion 6]", case_delete_only_push_runs_nothing),
+    ("a mixed delete-and-update push does run the checks", case_mixed_delete_and_update_runs_checks),
     ("the hook modifies nothing, including the CI workflow [criterion 5]", case_hook_leaves_the_tree_alone),
     ("a clean push prints one summary line", case_clean_push_is_quiet),
 ]:

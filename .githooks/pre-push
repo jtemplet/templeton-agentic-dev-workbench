@@ -64,6 +64,7 @@ work=${TMPDIR:-/tmp}/tadw-prepush.$$
 mkdir -p "$work" || exit 0
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 
+total=0
 ran=0
 failed=0
 skipped=''
@@ -72,6 +73,7 @@ skipped=''
 # attempted, so a failure is recorded rather than propagated.
 check() {
   tool=$1
+  total=$((total + 1))
   if ! command -v "$tool" >/dev/null 2>&1; then
     # Deduplicated, because python3 carries six of these checks and one warning
     # about it is the useful number.
@@ -116,8 +118,17 @@ if [ -n "$skipped" ]; then
   echo "tadw: WARNING - not on PATH, so its checks were skipped: $skipped" >&2
 fi
 
+# Allowed, because every tool being absent is still a missing tool, and the rule
+# above is deliberate. Never reported as a pass, though: nothing was verified, and
+# "checks passed" is the one sentence a reader must not see here. This is the
+# all-skipped-run-reports-PASS shape the quality-gates skill refuses by name.
+if [ "$ran" -eq 0 ]; then
+  echo "tadw: WARNING - 0 of $total checks ran, so nothing was verified" >&2
+  exit 0
+fi
+
 if [ "$failed" -eq 0 ]; then
-  echo "tadw: pre-push checks passed ($ran ran, ${elapsed}s)" >&2
+  echo "tadw: pre-push checks passed ($ran of $total, ${elapsed}s)" >&2
   exit 0
 fi
 
