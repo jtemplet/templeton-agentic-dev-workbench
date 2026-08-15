@@ -132,6 +132,65 @@ regular expressions, matched case-insensitively against the answer.
 "always draw a table" fails the suite. Without it, a model that tables everything would
 score perfectly and you would never learn that it over-applies the rule.
 
+## Testing a skill against a planted defect
+
+The six response-style cases ask a question and grade the prose. Testing a skill such as
+`quality-gates` needs the opposite: a repository with a specific defect in it, and an
+assertion about what the skill reports. Two optional keys do that, and both default to the
+old behavior, so a case that omits them runs exactly as before.
+
+```json
+{
+  "prompt": "/quality-gates",
+  "why": "An all-skip run must report NO GATES RAN, never PASS.",
+  "fixture": "gates-all-skip",
+  "single_arm": true,
+  "checks": {
+    "require_regex": [{"pattern": "NO GATES RAN", "why": "the verdict rule under test"}],
+    "forbid_regex":  [{"pattern": "Overall: PASS", "why": "an all-skip run proves nothing"}]
+  }
+}
+```
+
+**`fixture`** names a directory under `evals/fixtures/`. The harness builds a throwaway
+repository from it under your temp directory and runs the model there instead of here.
+`--plugin-dir` still points at this working tree, so the plugin under test is your edits;
+only the repository the model looks at changes.
+
+A fixture holds up to two parts:
+
+| Directory | What happens to it |
+|---|---|
+| `base/` | Required. Copied in, committed as the one initial commit, and pushed to a bare origin beside the checkout |
+| `plant/` | Optional. Copied over the tree afterward and left **uncommitted** |
+
+**The split is the point.** A skill that scopes itself to the change compares the working
+tree against `origin/main`. A defect committed into `base/` would sit in the baseline, and
+the gate would correctly report nothing. So `base/` is the repository as it was, and
+`plant/` is the change under judgment. Put a `pyproject.toml` that configures an absent
+type checker in `base/`; put the untested function or the fake key in `plant/`.
+
+The bare origin exists for the same reason. Without `origin/main`,
+`skills/quality-gates/scripts/changed_set.py` exits 3, and the skill widens every gate to
+`--all`, so a scoped run cannot be tested at all.
+
+Each **run** gets its own copy, not each case. A skill can write into the tree it graded:
+`quality-gates` records its verdict at `<git-dir>/quality-gates-report.json`, and a second
+run sharing that tree could read the first run's answer instead of producing its own. Pass
+`--keep-fixtures` to leave each one on disk, with its path printed, which is how you inspect
+a case that failed for an unclear reason.
+
+**`single_arm`** runs the with-plugin arm only. Fixture cases want it, because their prompt
+is usually a slash command: `/quality-gates` does not exist without the plugin, so the
+baseline arm would measure nothing and would double the cost of every run. That is D7 in
+`docs/plans/quality-gates-hardening.md`. It is opt-in, so a case that omits it, or sets it
+to `false`, still runs both arms.
+
+A misnamed fixture is caught when the cases load, before any model call, since a typo should
+cost an error rather than the price of a run against the wrong directory.
+
+`evals/test_run.py` pins all of the above and calls no model, so it is free to run.
+
 ## Known limits
 
 - `max_sentence_words` strips fenced code blocks, inline code, and table rows before

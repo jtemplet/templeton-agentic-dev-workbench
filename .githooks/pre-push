@@ -75,8 +75,9 @@ check() {
   tool=$1
   total=$((total + 1))
   if ! command -v "$tool" >/dev/null 2>&1; then
-    # Deduplicated, because python3 carries six of these checks and one warning
-    # about it is the useful number.
+    # Deduplicated, because python3 carries most of these checks and one warning
+    # about it is the useful number. Not a count on purpose: the earlier wording
+    # said "six" and was stale at eight.
     case " $skipped " in
       *" $tool "*) ;;
       *) skipped="$skipped$tool " ;;
@@ -111,6 +112,7 @@ check python3 skills/quality-gates/scripts/test_changed_set.py
 check python3 skills/quality-gates/scripts/test_check_secrets.py
 check python3 skills/quality-gates/scripts/check_secrets.py
 check python3 skills/quality-gates/scripts/test_check_hygiene.py
+check python3 evals/test_run.py
 
 elapsed=$(( $(date +%s) - started ))
 

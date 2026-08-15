@@ -24,6 +24,7 @@ python3 skills/quality-gates/scripts/test_changed_set.py            # regression
 python3 skills/quality-gates/scripts/test_check_secrets.py          # regression suite for the secret scanner
 python3 skills/quality-gates/scripts/check_secrets.py                # assert no secret file or key sits in the tree
 python3 skills/quality-gates/scripts/test_check_hygiene.py          # regression suite for the hygiene counter
+python3 evals/test_run.py                                     # regression suite for the eval harness; calls no model
 python3 .githooks/test_prepush.py                             # regression suite for the pre-push hook
 claude plugin validate .                                      # parses every SKILL.md frontmatter
 python3 evals/run.py                                          # response-style evals
@@ -196,6 +197,22 @@ shell's PATH. Without it the core cannot be injected, and the wrapper emits
 
 These hooks fire in **every project** the plugin is loaded for, including non-coding sessions,
 because a `SessionStart` hook cannot see the task type.
+
+### Portable hooks for other repositories
+
+`scripts/` holds hooks that belong to a **project** rather than to this plugin, with an installer
+each. They are not wired here, and `plugin.json` does not reference them.
+
+- `scripts/label_bead_on_skill_invocation.sh` labels the bead a skill invocation acts on, wired to
+  `PreToolUse` (matcher `Skill`), `UserPromptSubmit`, and `Stop`. The copy of record lives in the
+  `atlas` repository; this one is a copy for distribution.
+- `scripts/install_label_bead_on_skill_invocation.sh` installs it into whatever repository you run
+  it from: it copies the hook to `.claude/scripts/`, backs up `.claude/settings.json`, and wires
+  the three events. Safe to re-run, and it repairs wiring that names an older path rather than
+  duplicating it. `--dest-dir` moves the destination.
+
+Note what this gives the target repository: a `br close` from `main` will commit and push
+`.beads/issues.jsonl` on its own. That is deliberate and it is also why `tadw-0j8` is open.
 
 ## Key Design Principles
 

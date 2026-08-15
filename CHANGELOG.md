@@ -7,6 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.3] - 2026-08-15
+
+Everything landed on `main` after the v2.7.2 tag. A patch rather than a minor because nothing
+here changes the plugin's shipped surface: no skill, agent, or command was added or renamed, and
+the new files are this repository's own tooling.
+
+### Added
+
+- **An eval case can now run against a fixture repository, so a skill's behavior is testable at
+  all.** `evals/run.py` hardcoded `cwd=REPO_ROOT` inside `ask()`, and that one line is why no case
+  could plant a defect. Two optional `case.json` keys fix it, both absent from the six shipped
+  cases: `fixture` names a directory under `evals/fixtures/`, and `single_arm` runs the
+  with-plugin arm alone.
+
+  A fixture is two directories, and the split is the design. `base/` is copied in, committed as
+  one commit, and pushed to a bare origin beside the checkout; `plant/` is copied over the tree
+  afterward and left **uncommitted**. A defect committed into `base/` would sit in the baseline a
+  changed-scope run compares against, so the gate under test would correctly report nothing. The
+  bare origin exists so `origin/main` resolves: without it `changed_set.py` exits 3 and every gate
+  widens to `--all`, so a scoped run could not be tested. A fresh fixture is built **per run**,
+  not per case, because `quality-gates` writes its verdict inside the git directory it graded and
+  a shared tree would let one run read another's answer. `--keep-fixtures` leaves them on disk.
+
+  `evals/test_run.py` pins all of it with 19 checks and no model call, using a fake `claude` on
+  `PATH` that reports its own working directory. That test is the one that matters: with it absent,
+  reverting `ask()` to `cwd=str(REPO_ROOT)`, the exact defect this work removes, passed all
+  fourteen other checks. Registered in the `AGENTS.md` block and in the pre-push hook.
+
+- **The repository's own checks run before a push, instead of being remembered.** `.githooks/pre-push`
+  runs eleven of the commands in the `AGENTS.md` block, about 21 seconds. Every check runs even
+  after one fails and all failures report together; a missing tool warns by name and allows, since
+  an unpushable clone is worse than an unchecked push; `TADW_PREPUSH=off` is a documented escape.
+  A run where every tool was missing used to print "checks passed", which is the one sentence it
+  must not print when nothing was verified, and it now reports how little ran. `test_prepush.py`
+  pins the behavior against real `git push --dry-run` runs in a throwaway fixture.
+
+- **The hygiene marker count is a tested script.** `skills/quality-gates/scripts/check_hygiene.py`
+  counts the `TODO`, `FIXME`, `HACK`, and `XXX` markers a diff adds. The shell recipe it replaces
+  carried a load-bearing `|| true`, because `grep -c` exits 1 when it counts zero, so retyping the
+  line without it reported a broken toolchain on the cleanest possible result. It also counts
+  markers rather than lines, requires a word boundary so `AUTODOC` is not a TODO, and identifies a
+  `+++` diff header structurally rather than by prefix.
+
+- **A portable installer for the bead-labeling hook**, under `scripts/`. Run it from any repository
+  and it copies the hook to `.claude/scripts/` and wires `PreToolUse`, `UserPromptSubmit`, and
+  `Stop` in that repository's `settings.json`, after backing it up. Re-running repairs wiring that
+  names an older path rather than duplicating it, a `statusMessage` edited by hand survives, and a
+  file that does not parse as JSON is refused rather than patched.
+
+### Changed
+
+- **The quality-gates skill now invokes the three bundled scripts instead of restating them.** The
+  v2.7.2 entry below closes with "Not wired in yet", and this is that wiring. Step 2, Gate 6, and
+  Gate 7 each carry a `python3 "${CLAUDE_PLUGIN_ROOT}/..."` invocation and an exit-status mapping
+  table; the inline key-format regexes, the file-glob list, and the `grep -c` recipe are gone. The
+  rationale prose stays, because the script encodes the rules and the prose is what stops a later
+  editor from relaxing them: why prefixed formats only, why an untracked `.env` matters, and why
+  `git diff "$BASE"...HEAD` is the wrong basis. Gate 6 still prefers a scanner the project already
+  configures.
+
+  Two consequences were handled in the same change. A repository with no remote made
+  `changed_set.py` exit 3, and Gate 7 would then have run with an empty `--base`, which exits 2,
+  which maps to BLOCKED, which fails the whole run; Gate 7 now records SKIP with that reason.
+  Hygiene and doc freshness now name re-runnable commands, so the artifact rule that sent them to
+  a null `command` applies to change coverage alone.
+
+- **The style core says outright what it used to leave implied.** A class has a single
+  responsibility, meaning one reason to change; a function's name says which one thing it does,
+  and "you cannot name it without and" now carries "split it"; a class takes its collaborators
+  through its initializer and a function takes them as parameters; names make code
+  self-documenting. The core is payload 0 of three `SessionStart` entries and is never split, so
+  it grew from 4,499 to 4,780 characters against a 10,000-character cap. The combined payload is
+  20,275 characters, corrected in the three places that documented it.
+
 ## [2.7.2] - 2026-08-13
 
 ### Added
@@ -1204,7 +1278,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.2...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.3...HEAD
+[2.7.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.2...v2.7.3
 [2.7.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.1...v2.7.2
 [2.7.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.6.0...v2.7.0
