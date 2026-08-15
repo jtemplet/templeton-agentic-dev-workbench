@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`close_bead_on_pr_merge.sh` now closes a bead after a local `git merge`, not only after
+  `gh pr merge`.** A repository can be configured to merge without a PR, and a person can merge
+  locally on one that usually does not. Either way the hook never fired, the bead stayed open, and
+  someone closed it by hand later without knowing why it had not closed itself.
+
+  The local path asks git what the PR path asks GitHub. `state == MERGED` becomes "is this ref an
+  ancestor of HEAD", which covers a merge stopped by conflicts, one refused by `--ff-only`, and a
+  ref that never existed. `git merge --abort`, `--quit`, and `--continue` are filtered out first
+  and on their own, because each contains the string `git merge` and the first of them means the
+  work was thrown away. The ref comes from the command, falling back to the reflog when git chose
+  it. The bead id is resolved from the ref name and the commits the merge brought in
+  (`HEAD@{1}..`, which is exactly that set), through the same verify-every-candidate,
+  refuse-to-guess path the PR sources use.
+
+  **It commits the close and does not push it.** After a PR merge the remote already holds the
+  merge, so pushing carries the tracker update alone. After a local merge it would carry the whole
+  merged branch, which the author has not pushed and may not be ready to: in a repository that
+  deploys on a push to main, a hook that pushes turns "I merged locally" into "I deployed".
+
+### Fixed
+
+- **The same hook could not close anything on br 0.2.15, and reported that only to a stream nobody
+  reads.** It ran `br update <id> --status=closed`, and br now refuses terminal-state transitions
+  through `update` so its close policy (reason, acceptance criteria, attribution) is enforced. The
+  failure arm logs to stderr and exits 0, by design, so the hook looked like it had worked: the
+  session continued, and the bead stayed open. Found when a merge in a consuming repository left
+  its bead open and the hook was read to find out why.
+
+  It now calls `br close --reason`, keeps the `update` form as a fallback for older br where
+  `close` may not exist, and when both fail it prints the command to run by hand.
+
 ## [2.7.3] - 2026-08-15
 
 Everything landed on `main` after the v2.7.2 tag. A patch rather than a minor because nothing

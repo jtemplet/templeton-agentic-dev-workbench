@@ -1,21 +1,33 @@
 #!/usr/bin/env bash
-# Claude Code PostToolUse hook: close the bead associated with a merged PR.
+# Claude Code PostToolUse hook: close the bead a merge landed.
 #
-# Triggered after any Bash invocation; only acts on successful `gh pr merge`
-# commands. Reads the hook payload from stdin per Claude Code's hook
-# contract:
+# Triggered after any Bash invocation, and acts on two shapes of merge:
+#
+#   PR    `gh pr merge ...`, where GitHub is the authority on whether it merged.
+#   LOCAL `git merge <ref>` run on main, where the repository is: the ref is an
+#         ancestor of HEAD afterwards, or the merge did not happen.
+#
+# The local shape exists because a repository can be configured to merge without
+# a PR, and because a person can merge locally on a repository that usually does
+# not. Either way the bead stayed open and someone closed it by hand later,
+# which is the failure this hook was written to prevent.
+#
+# The file name still says pr_merge. Renaming it would break the settings.json
+# entry in every repository that has installed it, and the name is cheaper to
+# explain than that is to fix.
+#
+# Reads the hook payload from stdin per Claude Code's hook contract:
 #   https://docs.anthropic.com/en/docs/claude-code/hooks
 #
 # Flow:
-#   1. Confirm the Bash command was `gh pr merge`.
-#   2. Extract the PR identifier (number or URL).
-#   3. Ask gh whether the PR actually merged.
-#   4. Extract the bead ID from the PR title, branch name, or commit
-#      messages.
-#   5. Pull main so we have the merged beads file as the base.
-#   6. Run `br update <id> --status=closed` and remove in-review /
-#      auto-ok / in-progress labels.
-#   7. Commit and push the beads file.
+#   1. Classify the command: a PR merge, a local merge, or neither.
+#   2. Confirm the merge actually landed. Ask gh for MERGED, or ask git whether
+#      the ref is now an ancestor of HEAD.
+#   3. Resolve the bead id from the sources that shape offers, verifying every
+#      candidate against the tracker and refusing to guess between two.
+#   4. Close it with `br close --reason`, then drop the workflow labels.
+#   5. Commit the beads file, and push it on the PR path only. See the note
+#      above the push for why the local path stops at the commit.
 #
 # The hook is best-effort: any failure prints to stderr and exits 0 so
 # the Claude session continues. On success it prints a one-line summary.
@@ -30,9 +42,19 @@ payload="$(cat)"
 command="$(echo "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null || true)"
 [[ -z "$command" ]] && quiet_exit
 
-# ---- Filter to `gh pr merge` ----
+# ---- Classify the trigger ----
+#
+# The mid-merge subcommands are checked first and on their own. `git merge
+# --abort` contains the string `git merge`, and treating it as a merge would
+# close a bead for work that was just thrown away.
 case "$command" in
-  *"gh pr merge"*) ;;
+  *"git merge --abort"*|*"git merge --quit"*|*"git merge --continue"*) quiet_exit ;;
+esac
+
+merge_kind=""
+case "$command" in
+  *"gh pr merge"*) merge_kind="pr" ;;
+  *"git merge"*)   merge_kind="local" ;;
   *) quiet_exit ;;
 esac
 
@@ -67,8 +89,11 @@ if [[ "$branch" != "main" ]]; then
   quiet_exit
 fi
 
-# Required tools
-for t in gh br jq git; do
+# Required tools. gh only on the PR path: a local merge never asks GitHub
+# anything, and a machine without gh should still close its beads.
+required_tools=(br jq git)
+[[ "$merge_kind" == "pr" ]] && required_tools+=(gh)
+for t in "${required_tools[@]}"; do
   command -v "$t" >/dev/null 2>&1 || { log "$t not on PATH"; quiet_exit; }
 done
 
@@ -90,32 +115,72 @@ if [[ -n "$GIT_COMMON" ]]; then
   fi
 fi
 
-# ---- Extract PR id from the command ----
-# Accepts: gh pr merge 208 --squash | gh pr merge --squash 208 |
-#          gh pr merge https://github.com/.../pull/208
-pr_id="$(echo "$command" | tr ' ' '\n' | awk '
-  /^[0-9]+$/        { print; exit }
-  /github\.com.*pull\/[0-9]+/ {
-    sub(/.*\/pull\//, ""); sub(/[^0-9].*/, ""); print; exit
-  }
-')"
+pr_id=""
+merged_ref=""
 
-# If no id was given, gh resolves the PR from the current branch.
-# That branch is gone by now (post-merge), so resolve via origin's
-# most recently merged PR. Best effort.
-if [[ -z "$pr_id" ]]; then
-  pr_id="$(gh pr list --state merged --limit 1 --json number -q '.[0].number' 2>/dev/null || true)"
-fi
-[[ -z "$pr_id" ]] && { log "could not determine PR id"; quiet_exit; }
+if [[ "$merge_kind" == "pr" ]]; then
+  # ---- Extract PR id from the command ----
+  # Accepts: gh pr merge 208 --squash | gh pr merge --squash 208 |
+  #          gh pr merge https://github.com/.../pull/208
+  pr_id="$(echo "$command" | tr ' ' '\n' | awk '
+    /^[0-9]+$/        { print; exit }
+    /github\.com.*pull\/[0-9]+/ {
+      sub(/.*\/pull\//, ""); sub(/[^0-9].*/, ""); print; exit
+    }
+  ')"
 
-# ---- Confirm the PR really merged ----
-pr_json="$(gh pr view "$pr_id" --json title,headRefName,state,body,commits 2>/dev/null || true)"
-[[ -z "$pr_json" ]] && { log "gh pr view $pr_id failed"; quiet_exit; }
+  # If no id was given, gh resolves the PR from the current branch.
+  # That branch is gone by now (post-merge), so resolve via origin's
+  # most recently merged PR. Best effort.
+  if [[ -z "$pr_id" ]]; then
+    pr_id="$(gh pr list --state merged --limit 1 --json number -q '.[0].number' 2>/dev/null || true)"
+  fi
+  [[ -z "$pr_id" ]] && { log "could not determine PR id"; quiet_exit; }
 
-state="$(echo "$pr_json" | jq -r '.state')"
-if [[ "$state" != "MERGED" ]]; then
-  log "PR #$pr_id is $state, not MERGED; skipping"
-  quiet_exit
+  # ---- Confirm the PR really merged ----
+  pr_json="$(gh pr view "$pr_id" --json title,headRefName,state,body,commits 2>/dev/null || true)"
+  [[ -z "$pr_json" ]] && { log "gh pr view $pr_id failed"; quiet_exit; }
+
+  state="$(echo "$pr_json" | jq -r '.state')"
+  if [[ "$state" != "MERGED" ]]; then
+    log "PR #$pr_id is $state, not MERGED; skipping"
+    quiet_exit
+  fi
+else
+  # ---- Find what the local merge merged ----
+  #
+  # The command is the statement of intent, so read it first, and cut it at the
+  # first shell operator: `git merge x && git push` must not offer `&&` as the
+  # ref. Flags are dropped, and what survives has to look like a ref.
+  merge_args="$(echo "$command" | sed -n 's/.*git merge[[:space:]]*//p' | sed 's/[;&|].*//')"
+  merged_ref="$(echo "$merge_args" \
+    | tr ' ' '\n' \
+    | grep -vE '^-' \
+    | grep -E '^[A-Za-z0-9._/@{}^~-]+$' \
+    | head -1 || true)"
+
+  # No ref in the command means git chose one (a configured upstream, or a merge
+  # already in progress). The reflog records what it picked: "merge <ref>: ...".
+  if [[ -z "$merged_ref" ]]; then
+    merged_ref="$(git reflog -1 --format=%gs 2>/dev/null \
+      | sed -n 's/^merge \([^:]*\):.*/\1/p' | head -1 || true)"
+  fi
+  [[ -z "$merged_ref" ]] && { log "could not tell what was merged"; quiet_exit; }
+
+  # ---- Confirm the merge really landed ----
+  #
+  # The authoritative check, and the local counterpart of state == MERGED. It
+  # covers the cases the stderr scan cannot: a merge that stopped on conflicts,
+  # one refused by --ff-only, and one whose ref never existed. Anything short of
+  # "this ref is now in main's history" closes nothing.
+  if ! git rev-parse --verify --quiet "$merged_ref" >/dev/null 2>&1; then
+    log "$merged_ref does not resolve; skipping"
+    quiet_exit
+  fi
+  if ! git merge-base --is-ancestor "$merged_ref" HEAD 2>/dev/null; then
+    log "$merged_ref is not an ancestor of HEAD, so the merge did not land; skipping"
+    quiet_exit
+  fi
 fi
 
 # ---- Find the bead id ----
@@ -173,10 +238,33 @@ resolve_ids_in() {
     | head -"$MAX_ID_CANDIDATES")
 }
 
-title="$(echo "$pr_json"  | jq -r '.title')"
-brref="$(echo "$pr_json"  | jq -r '.headRefName')"
-body="$(echo "$pr_json"   | jq -r '.body // ""')"
-commits="$(echo "$pr_json" | jq -r '.commits[].messageHeadline' 2>/dev/null || true)"
+# The four sources, filled from whichever trigger fired. The resolution below
+# reads them by name and does not care which shape produced them.
+if [[ "$merge_kind" == "pr" ]]; then
+  title="$(echo "$pr_json"  | jq -r '.title')"
+  brref="$(echo "$pr_json"  | jq -r '.headRefName')"
+  body="$(echo "$pr_json"   | jq -r '.body // ""')"
+  commits="$(echo "$pr_json" | jq -r '.commits[].messageHeadline' 2>/dev/null || true)"
+else
+  # A local merge has no title and no PR body. The ref name carries the same
+  # signal a head branch does, and the commits it brought in carry the rest.
+  #
+  # HEAD@{1} is main as it stood before this merge, so the range is exactly the
+  # commits the merge added. The reflog is one command old here, because this
+  # hook runs immediately after the merge. Where it is unavailable (a fresh
+  # clone, an expired reflog) fall back to the ref's own recent history, which
+  # over-reads rather than under-reads: every candidate is verified against the
+  # tracker anyway, and two real beads make it refuse rather than guess.
+  title=""
+  brref="$merged_ref"
+  if git rev-parse --verify --quiet 'HEAD@{1}' >/dev/null 2>&1; then
+    commits="$(git log --format=%s "$merged_ref" --not 'HEAD@{1}' 2>/dev/null || true)"
+    body="$(git log --format=%B "$merged_ref" --not 'HEAD@{1}' 2>/dev/null || true)"
+  else
+    commits="$(git log -30 --format=%s "$merged_ref" 2>/dev/null || true)"
+    body="$(git log -30 --format=%B "$merged_ref" 2>/dev/null || true)"
+  fi
+fi
 
 bead_id=""
 
@@ -211,14 +299,28 @@ if [[ -z "$bead_id" ]]; then
   done
 fi
 
-[[ -z "$bead_id" ]] && { log "no bead id found in PR #$pr_id title/branch/body/commits"; quiet_exit; }
+if [[ -z "$bead_id" ]]; then
+  if [[ "$merge_kind" == "pr" ]]; then
+    log "no bead id found in PR #$pr_id title/branch/body/commits"
+  else
+    log "no bead id found in the ref name or the commits $merged_ref brought in"
+  fi
+  quiet_exit
+fi
 
 # ---- Pull main so we close against the merged state ----
-git fetch --quiet 2>/dev/null || true
-git pull --quiet --ff-only 2>/dev/null || {
-  log "git pull --ff-only failed; skipping"
-  quiet_exit
-}
+#
+# PR path only. There the merge happened on the remote, so the local beads file
+# is behind by definition and closing without pulling writes against a stale
+# base. A local merge already has the merged state in the working tree, and
+# pulling there would drag in unrelated remote commits behind a tracker update.
+if [[ "$merge_kind" == "pr" ]]; then
+  git fetch --quiet 2>/dev/null || true
+  git pull --quiet --ff-only 2>/dev/null || {
+    log "git pull --ff-only failed; skipping"
+    quiet_exit
+  }
+fi
 
 # ---- Close the bead if not already closed ----
 status="$("${br_cmd[@]}" show "$bead_id" --json 2>/dev/null | jq -r '(.[0].status // .status) // "unknown"' 2>/dev/null || echo unknown)"
@@ -235,15 +337,53 @@ if [[ -z "$status" || "$status" == "unknown" ]]; then
   quiet_exit
 fi
 
-"${br_cmd[@]}" update "$bead_id" --status=closed       >/dev/null 2>&1 || { log "br status update failed"; quiet_exit; }
+# `br close`, not `br update --status=closed`.
+#
+# br 0.2.15 refuses the update form outright: terminal-state transitions have to
+# go through `br close` so the close policy (reason, acceptance criteria,
+# attribution) is enforced. This hook used the update form, and its failure arm
+# logs to stderr and exits 0, so on that version the hook was inert. It ran, it
+# said "br status update failed" into a stream nobody reads, and the bead stayed
+# open. The update form is kept as a fallback for older br, where `close` may
+# not exist.
+if [[ "$merge_kind" == "pr" ]]; then
+  close_reason="Merged in PR #${pr_id}, closed by the post-merge hook."
+else
+  close_reason="Merged ${merged_ref} into ${branch}, closed by the post-merge hook."
+fi
+
+if "${br_cmd[@]}" close "$bead_id" --reason "$close_reason" >/dev/null 2>&1; then
+  :
+elif "${br_cmd[@]}" update "$bead_id" --status=closed >/dev/null 2>&1; then
+  log "closed $bead_id through the older update form; br close was refused"
+else
+  log "could not close $bead_id: both 'br close' and 'br update --status=closed' failed"
+  log "close it by hand: br close $bead_id --reason '...'"
+  quiet_exit
+fi
+
 "${br_cmd[@]}" update "$bead_id" --remove-label in-review   >/dev/null 2>&1 || true
 "${br_cmd[@]}" update "$bead_id" --remove-label auto-ok     >/dev/null 2>&1 || true
 "${br_cmd[@]}" update "$bead_id" --remove-label in-progress >/dev/null 2>&1 || true
 
-# ---- Commit and push the beads file ----
-if ! git diff --quiet -- .beads/issues.jsonl; then
+# ---- Commit the beads file, and push only on the PR path ----
+#
+# The paths differ on the push, and the difference is deliberate.
+#
+# After a PR merge the remote already holds the merge, so pushing carries the
+# tracker update and nothing else. After a LOCAL merge it would carry the whole
+# merged branch, which the person has not pushed yet and may not be ready to:
+# in a repository that deploys on a push to main, a hook that pushes turns "I
+# merged locally" into "I deployed". So the local path commits and stops, and
+# the person's own push takes the tracker update with it.
+if git diff --quiet -- .beads/issues.jsonl; then
+  exit 0
+fi
+
+git add .beads/issues.jsonl
+
+if [[ "$merge_kind" == "pr" ]]; then
   repo="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "<repo>")"
-  git add .beads/issues.jsonl
   git commit --quiet -m "beads: close ${bead_id} (PR #${pr_id} merged)
 
 Auto-closed by post-merge Claude Code hook.
@@ -253,6 +393,12 @@ PR: https://github.com/${repo}/pull/${pr_id}"
   else
     log "closed $bead_id locally; push failed (run 'git push' manually)"
   fi
+else
+  git commit --quiet -m "beads: close ${bead_id} (merged ${merged_ref} into ${branch})
+
+Auto-closed by post-merge Claude Code hook. Not pushed: the merge itself is
+still local, and pushing it is the author's call."
+  log "closed $bead_id (merged $merged_ref); committed but not pushed"
 fi
 
 exit 0
