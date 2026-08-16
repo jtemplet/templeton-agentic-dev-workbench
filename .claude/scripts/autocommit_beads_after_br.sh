@@ -121,8 +121,15 @@ if (( non_beads > 0 )); then
 fi
 
 # Build a commit message from the br invocation itself.
+#
+# [:cntrl:] rather than a literal newline in the bracket expression. The pattern
+# embedded one through $'\n', and BSD grep rejects that outright with "brackets
+# ([ ]) not balanced", so on macOS this substitution produced nothing and every
+# subject fell through to the generic "beads: state update" below. GNU grep
+# accepts it, which is why it went unnoticed. A newline is a control character,
+# so the class excludes it on both.
 br_cmd="$(echo "$command" \
-  | grep -oE '(^|[[:space:];&|])br[[:space:]]+[^|;&'$'\n'']*' \
+  | grep -oE '(^|[[:space:];&|])br[[:space:]]+[^|;&[:cntrl:]]*' \
   | head -1 \
   | sed -E 's/^[[:space:];&|]+//; s/[[:space:]]+$//')"
 [[ -z "$br_cmd" ]] && br_cmd="br state update"
