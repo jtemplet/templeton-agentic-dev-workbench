@@ -233,7 +233,8 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
   betweenness, low-complexity flags) and degrades to `br` alone, saying so, when `bv` is absent
 - Ranks every candidate on one fixed rubric, `ROI = value ÷ effort`: value sums priority, user
   impact, unblock leverage, momentum, and a due-within-7-days bonus, and the size tier divides
-  (S by 1, M by 2, L by 4)
+  (S by 1, M by 1.5, L by 2.5, compressed on purpose so the least-evidenced input cannot outvote
+  the four value components combined)
 - Awards a point only when it can cite its evidence: a stored field, a count, a bead id, or a
   phrase from the body
 - Prefers stored effort evidence (`estimated_minutes`, then a `plan-to-beads` size band, then `bv`'s

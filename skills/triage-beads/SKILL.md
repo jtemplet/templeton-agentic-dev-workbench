@@ -254,7 +254,18 @@ never add points for it.
 
 ### Effort: the divisor
 
-S divides by 1, M by 2, L by 4. Prefer stored evidence over a read of the prose, in this order:
+S divides by 1, M by 1.5, L by 2.5.
+
+**Why the divisor is compressed rather than proportional to time.** The minute bands below imply
+a much wider spread, roughly 1 to 4 to 10. Dividing by those numbers would let the effort tier
+decide every ranking on its own, because value spans about 3 to 8 points on a typical backlog
+while a 1-to-10 divisor spans 10x. Effort is also the least evidenced input here: it is stored on
+a minority of beads and inferred on the rest. So the divisor is deliberately narrower than real
+time, sized to swing the score about as much as the four value components combined and no more.
+The consequence is intended: this ranks by value tilted toward the cheaper of two comparable
+beads, not by value per hour.
+
+Prefer stored evidence over a read of the prose, in this order:
 
 1. `estimated_minutes`, when set: 30 or less is S, 31 to 120 is M, more is L.
 2. An `## Estimated size` section, which `plan-to-beads` writes as
@@ -274,14 +285,18 @@ acceptance criterion" are different claims.
 
 ### Ranking and ties
 
-Compute `ROI = value / effort` for every candidate that survives the overrides. Break exact ties
+Compute `ROI = value / effort` for every candidate that survives the overrides, and **round to one
+decimal place** before comparing, because dividing by 1.5 and 2.5 produces repeating decimals that
+would otherwise separate two beads on a digit no reader can check. Break ties in the rounded score
 in this order: lower priority number, more unblocks, smaller effort, older `created_at`. The order
 is fixed so the pick is reproducible.
 
 Worked example: a P1 bug (5) with High impact (4) that unblocks two beads (4) in a hot thread (2)
-is value 15; at effort M it scores `15 ÷ 2 = 7.5`, and beats a P2 chore (3) that unblocks three
-(6) at effort S, which scores `9 ÷ 1 = 9.0`, only if the chore's evidence does not hold up. The
-arithmetic goes in the readout precisely so this comparison is visible.
+is value 15; at effort M it scores `15 ÷ 1.5 = 10.0` and takes the pick from a P2 chore (3) that
+unblocks three (6) at effort S, which scores `9 ÷ 1 = 9.0`. The chore is cheaper and has more
+leverage; the bug wins on priority and user impact, and the compressed divisor is what lets those
+two outweigh a one-tier size difference. The arithmetic goes in the readout precisely so this
+comparison is visible and arguable.
 
 **Cross-check against `bv`.** When this skill's top pick differs from `quick_ref.top_picks[0]`,
 say so in one line and name the component that moved it, usually user impact or effort, which `bv`
@@ -321,7 +336,7 @@ searches on the words the tracker holds.
 Leaderboard (value ÷ effort = ROI)
   #2  tadw-self-report-sentence-length-zxu  8.0 = 8 (P2 3 + High 4 + warm 1) ÷ S 1
       type bug, every session's self-report hits it · loses on leverage: unblocks 0
-  #3  tadw-qg-script-changed-set-jhb        5.5 = 11 (P2 3 + Low 0 + unblocks 3 ×2 + hot 2) ÷ M 2
+  #3  tadw-qg-script-changed-set-jhb        7.3 = 11 (P2 3 + Low 0 + unblocks 3 ×2 + hot 2) ÷ M 1.5
       most leverage on the board · loses on effort: 2 scripts + a resolver, inferred M
   #4  tadw-em-dash-cleanup-mtl              4.0 = 4 (P2 3 + Low 0 + warm 1) ÷ S 1
       bv: low complexity · loses on impact and leverage
