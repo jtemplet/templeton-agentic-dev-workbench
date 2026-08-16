@@ -275,7 +275,7 @@ recipes, the issue-management command set, and the git policy, lives in
 
 ### Workflow
 
-1. `bv --robot-next` - find out what to work on (or `/triage-beads` for a bucketed readout)
+1. `bv --robot-next` - find out what to work on (or `/triage-beads` for an ROI-ranked readout)
 2. `br update <id> --claim` - claim the issue
 3. Do the work
 4. `br close <id>` - close when done

@@ -1,23 +1,24 @@
 ---
 name: triage-beads
-description: "Triage the open beads in a br (beads_rust) tracker into a concise \"what to work on next\" readout: one Start-here pick plus Quick wins / User impact / Keep momentum buckets, then a priority-ordered tail. Use this whenever someone asks what to work on next, what to pick up, what is on their plate, or wants the backlog prioritized, even if they do not say beads or triage by name. Reads the tracker through the br and bv command-line tools only, never an MCP server. Takes readiness from br ready and br blocked, the measured graph facts (PageRank, betweenness, unblock counts) from bv --robot-triage, and adds its own read of each bead body for effort, user impact, and momentum, which bv does not score. Report-only: it never claims, closes, or edits a bead."
+description: "Rank the open beads in a br (beads_rust) tracker by ROI, value delivered per unit of effort, and answer one question: which single bead to pick up next. Use this whenever someone asks what to work on next, what to pick up, what has the highest ROI, what is on their plate, or wants the backlog prioritized, even if they do not say beads or triage by name. Reads the tracker through the br and bv command-line tools only, never an MCP server. Takes readiness from br ready and br blocked, the measured graph facts (unblock counts, PageRank) from bv --robot-triage, then scores every candidate on an explicit value-over-effort rubric in which every point cites evidence from a stored field or the bead body. Output: one top pick with the scoring arithmetic shown and its claim command, a scored leaderboard so the ranking can be audited, and the blocked list. Deterministic: the same tracker state always yields the same pick. Report-only: it never claims, closes, or edits a bead."
 ---
 
 # Triage Beads
 
-Answer one question fast: *what should I pick up next?* "Best" is one of three moods: a fast win,
-something that moves the needle for users, or the next link in a thread already being pulled. Those
-moods genuinely compete, and which one wins depends on the day. So surface all three and recommend
-one, rather than averaging them into a single score that hides the choice being made.
+Answer one question fast: *what is the single highest-ROI bead to pick up next?* ROI is value
+delivered divided by effort spent. Every candidate gets a score from the rubric in Step 3, the top
+score wins, and the readout prints the arithmetic, so the ranking is deterministic and auditable.
 
-The output is a tight terminal readout: one **Start here** pick, then **Quick wins / User impact /
-Keep momentum** buckets, then a priority-ordered tail.
+A single score can hide the choice being made, so the score never travels alone: each pick carries
+its component breakdown (priority, user impact, unblock leverage, momentum, effort), and the
+leaderboard shows the nearest alternatives with the component that separates them. A reader who
+disagrees with a weight can see exactly which one to argue with.
 
 ## When to Use
 
-- Someone asks what to work on next, what to pick up, or what is on their plate
+- Someone asks what to work on next, what to pick up, or what has the best ROI
 - At the start of a session, to choose the next bead before claiming it
-- After closing a bead, to find the next link in the same thread
+- After closing a bead, to re-rank with the newly released work included
 - When a backlog has grown past the point where `br ready` output is scannable
 
 ## When NOT to Use
@@ -27,20 +28,22 @@ Keep momentum** buckets, then a priority-ordered tail.
 - To create or decompose beads (use `plan-to-beads`)
 - When the user names a specific bead already; just `br show <id> --json` and start
 
-## Division of labor: bv scores the graph, this skill reads the prose
+## Division of labor: bv scores the graph, this skill scores ROI
 
 `bv` computes what can be measured: PageRank, betweenness, how many beads each one unblocks,
 staleness, and a composite score. Those are numbers, not guesses, so never invent a substitute for
 one. Readiness is the exception: `br` owns it, and `bv` only reflects it, sometimes by a different
 definition (see the `blocked_count` warning in Step 2).
 
-`bv` does not read a bead body for effort, user-visible impact, or thread continuity. That is this
-skill's job, and it is the part that produces the three buckets.
+`bv` does not read a bead body for effort, user-visible impact, or thread momentum, and its
+composite score is opaque. This skill reads the bodies, prices each candidate on the explicit
+rubric in Step 3, and shows the arithmetic. `bv`'s measured facts feed the rubric; they never
+replace it.
 
 | Signal | Source | Kind |
 |---|---|---|
 | Ready or blocked | `br ready`, `br blocked` | Computed by `br`; never re-derive it |
-| Graph importance, unblock count | `bv --robot-triage` | Measured |
+| Unblock count, graph importance | `bv --robot-triage` | Measured |
 | Priority, type, labels, due date | `br list --json` fields | Stored |
 | Effort | `estimated_minutes` if set, else the body | Stored if present, else inferred |
 | User impact | The body plus `dependents` | Inferred |
@@ -83,8 +86,8 @@ All optional, from `$ARGUMENTS`:
    `br blocked` default to 50, `br ready` defaults to 20. Pass `--limit 0` for unlimited on every
    call that feeds a ranking or a count.
 2. **"Open" and "ready" are different sets.** `br list --status=open` includes beads that are
-   blocked by an open dependency. `br ready` is open, unblocked, and not deferred. The actionable
-   buckets come from `br ready`; the tail and the blocked bucket need the open set too.
+   blocked by an open dependency. `br ready` is open, unblocked, and not deferred. The scored
+   candidates come from `br ready`; the tail and the blocked list need the open set too.
 3. **`draft` is a status, not a label.** A draft bead is not pickup-ready. `br ready` already
    excludes it, so do not add it back from the open set.
 
@@ -111,6 +114,9 @@ Note the shapes, which differ between commands:
   test for absence, not for null.
 
 Apply the scope filter, then drop anything claimed by someone else unless `--all` was passed.
+Drop beads whose `issue_type` is `epic`: the work lives in the children, so an epic never wins the
+pick. When a ready epic has no open children, flag it once as needing decomposition
+(`plan-to-beads`) rather than scoring it.
 
 If nothing survives, name the scope, so an empty result reads as "nothing matched *this filter*"
 rather than "the backlog is empty":
@@ -137,11 +143,11 @@ What to take from it:
 
 | Field | Use |
 |---|---|
-| `quick_ref.top_picks[]` | `bv`'s own top 3, with `score`, `reasons`, `unblocks` |
+| `blockers_to_clear[]` | `unblocks_count` and `unblocks_ids` per bead, plus `actionable`; feeds the leverage score |
+| `quick_ref.top_picks[]` | `bv`'s own top 3, with `score`, `reasons`, `unblocks`; a cross-check on this skill's ranking |
 | `recommendations[].breakdown` | `pagerank_norm`, `betweenness_norm`, `time_to_impact_explanation` |
 | `recommendations[].blocked_by` | Blocker ids, when the recommendation is not actionable |
-| `quick_wins[]` | Low-complexity candidates, with a short `reason` such as `Low complexity` |
-| `blockers_to_clear[]` | `unblocks_count` and `unblocks_ids` per bead, plus `actionable` |
+| `quick_wins[]` | Low-complexity candidates, with a short `reason` such as `Low complexity`; feeds the effort tier |
 | `status` | Which metrics were computed and which were skipped |
 
 **`recommendations` is not a claimable list.** It includes graph-important work that is blocked or
@@ -169,12 +175,13 @@ Filter the closed list client-side to the last 14 days on `updated_at`. The cap 
 place this skill does not pass `--limit 0`, because the closed list supplies momentum evidence
 rather than a ranking or a count. It is only safe while the oldest row it returns is already older
 than 14 days. When the 50th row is still inside the window, raise the limit and fetch again, or the
-momentum axis is reading a truncated history.
+momentum score is reading a truncated history.
 
 **`br show` returns a one-element array.** Index `.[0]`. It is the only call that carries edge
 *identity*: `dependencies[]` and `dependents[]`, each with the other bead's `id`, `title`,
 `status`, `priority`, and `dependency_type`. `br list` carries only `dependency_count` and
-`dependent_count`. Rank first, then `br show` the top ~12 in parallel.
+`dependent_count`. Score first, then `br show` the top ~12 in parallel to verify the edges behind
+their scores.
 
 **Only a `blocks` edge blocks or releases anything.** `dependency_type` is also `parent-child` (an
 epic and its members) or `related`, and the two counts on `br list` add up every type without
@@ -188,88 +195,129 @@ Unlike a Linear fetch, `br list --json` already carries the **full** `descriptio
 `acceptance_criteria`, and `notes`. There is no truncation to work around, so do not re-fetch a
 body you already have.
 
-## Step 3: Score on three axes, and do not average them
+## Step 3: Score ROI
 
-Judge each candidate from its body, its fields, and its edges. Quote the evidence in the "why"
-line: a phrase from the body, a count, or a bead id.
+**ROI = value ÷ effort.** Value is a point sum over four components plus a deadline bonus; effort
+is a divisor from the size tier. The rubric's weights encode judgment, and they are fixed so the
+same tracker state always produces the same ranking. Every point must cite evidence: a stored
+field, a count, a bead id, or a phrase from the body. A point that cannot name its evidence is not
+awarded.
 
-### Effort: S / M / L
+### Hard overrides, checked before any arithmetic
 
-Prefer stored evidence over a read of the prose.
+1. **Overdue `due_at` on a ready bead**: it is the pick, whatever its score. Lead with the date.
+2. **A ready P0**: it outranks every non-P0, whatever the arithmetic. The rubric usually agrees;
+   the override guards the edge where a large P0 would lose on division to a trivial P4.
+3. **`defer_until` in the future**: deferred on purpose. Keep it out unless `--include-deferred`.
 
-1. `estimated_minutes`, when set, decides it outright.
+**Neither `due_at` nor `defer_until` is in the `br ready` row.** Only `br list` and `br show`
+carry them, so read them from the open set or from the shortlist fetch. Looking for `due_at` in
+`br ready` output finds nothing and proves nothing.
+
+### Value: 0 to 23 points
+
+| Component | Points | Evidence source |
+|---|---|---|
+| Priority | P0 8 · P1 5 · P2 3 · P3 1 · P4 0 | stored `priority` |
+| User impact | High 4 · Med 2 · Low 0 | body plus type, rules below |
+| Unblock leverage | 2 per bead released, cap 6 | `bv` `unblocks_count`, verified as `blocks` edges |
+| Momentum | Hot 2 · Warm 1 · Cold 0 | signals below |
+| Due within 7 days | +3 | `due_at` from the open set |
+
+**User impact rules.**
+
+- **High**: `issue_type` is `bug` on a path a user touches; or the bead fixes broken, stale, or
+  wedged behavior. `chore` and `docs` skew Low; `feature` and `bug` skew High. The body overrides
+  the type.
+- **Low**: internal refactor, test determinism, tooling, or a schema tidy with no visible change.
+- Unblock leverage is scored separately, so releasing other work earns leverage points, not
+  impact points. Never count one fact twice.
+
+**Momentum rules, strongest signal first.** Momentum prices the context already loaded: the next
+link in an active thread costs less to start than a cold standalone.
+
+1. **Hot: a dependency edge whose other end just moved.** A bead whose blocker closed in the last
+   14 days, or whose `dependencies[]` contain something `in_progress`, is the next link.
+2. **Warm: shared label with an `in_progress` or recently closed bead**, especially a feature
+   label such as `qg-hardening`; or the same epic; or the same plan file. `plan-to-beads` writes
+   `Plan: docs/plans/<name>.md (M4)` into the body, and the milestone marker orders the thread.
+   Read epic membership from the child, not from the epic: the `dependencies[]` entry whose
+   `dependency_type` is `parent-child`, or the id itself, since `br create --parent <epic>` names
+   children `<epic-id>.1`, `<epic-id>.2`, and so on. `br epic status --json` reports only
+   `total_children`, `closed_children`, and `eligible_for_close`; it lists no member ids.
+3. **Cold**: standalone, no shared label, no recent activity on either end of an edge.
+
+**PageRank is not a value component.** It measures position in the dependency graph, which the
+leverage points already price through `unblocks_count`, and a high-PageRank chore is important to
+the *plan* while invisible to a user. Quote PageRank as supporting evidence in the "why" line;
+never add points for it.
+
+### Effort: the divisor
+
+S divides by 1, M by 1.5, L by 2.5.
+
+**Why the divisor is compressed rather than proportional to time.** The minute bands below imply
+a much wider spread, roughly 1 to 4 to 10. Dividing by those numbers would let the effort tier
+decide every ranking on its own, because value spans about 3 to 8 points on a typical backlog
+while a 1-to-10 divisor spans 10x. Effort is also the least evidenced input here: it is stored on
+a minority of beads and inferred on the rest. So the divisor is deliberately narrower than real
+time, sized to swing the score about as much as the four value components combined and no more.
+The consequence is intended: this ranks by value tilted toward the cheaper of two comparable
+beads, not by value per hour.
+
+Prefer stored evidence over a read of the prose, in this order:
+
+1. `estimated_minutes`, when set: 30 or less is S, 31 to 120 is M, more is L.
 2. An `## Estimated size` section, which `plan-to-beads` writes as
-   `2 files, about 70 LOC, band: Target`. Trust the band.
-3. Membership in `bv`'s `quick_wins`, whose `reason` is `Low complexity`. Its sibling
+   `2 files, about 70 LOC, band: Target`. Map the band by its file and LOC counts: one or two
+   files under ~100 LOC is S, a cross-surface or several-hundred-LOC band is L, the rest M.
+3. Membership in `bv`'s `quick_wins`, whose `reason` is `Low complexity`: S. Its sibling
    `time_to_impact_explanation` looks like an estimate and usually is not: on this repository all
    ten recommendations carry the identical `Leaf node, median estimate 60m`. Compare it across
    candidates before quoting it, and when they all match, it separates nothing and is not evidence.
 4. Failing all three, infer: **S** is one file or one concern, one to three acceptance criteria, no
-   new interface. **L** is `epic`, "Phase N", several deliverables, a new endpoint or migration, or
-   a cross-surface change. **M** is the rest.
+   new interface. **L** is "Phase N", several deliverables, a new endpoint or migration, or a
+   cross-surface change. **M** is the rest, and it is also the default when the body is too thin
+   to tell: never award S, and its ROI boost, to a bead whose size is a guess.
 
 Say which of the four you used. "estimated_minutes 45" and "no size signal, inferred from one
 acceptance criterion" are different claims.
 
-### User impact: High / Med / Low
+### Ranking and ties
 
-- **High**: `issue_type` is `bug` on a path a user touches; or the bead fixes broken, stale, or
-  wedged behavior; or it has a `blocks` dependent, so finishing it releases other work. A
-  `parent-child` or `related` dependent releases nothing and earns no credit here.
-- **Low**: internal refactor, test determinism, tooling, or a schema tidy with no visible change.
-- `chore` and `docs` skew Low; `feature` and `bug` skew High. The body overrides the type.
+Compute `ROI = value / effort` for every candidate that survives the overrides, and **round to one
+decimal place** before comparing, because dividing by 1.5 and 2.5 produces repeating decimals that
+would otherwise separate two beads on a digit no reader can check. Break ties in the rounded score
+in this order: lower priority number, more unblocks, smaller effort, older `created_at`. The order
+is fixed so the pick is reproducible.
 
-**PageRank is not user impact.** It measures position in the dependency graph. A high-PageRank
-chore is important to the *plan*, and invisible to a user. Report them as separate reasons and never
-let one stand in for the other.
+Worked example: a P1 bug (5) with High impact (4) that unblocks two beads (4) in a hot thread (2)
+is value 15; at effort M it scores `15 ÷ 1.5 = 10.0` and takes the pick from a P2 chore (3) that
+unblocks three (6) at effort S, which scores `9 ÷ 1 = 9.0`. The chore is cheaper and has more
+leverage; the bug wins on priority and user impact, and the compressed divisor is what lets those
+two outweigh a one-tier size difference. The arithmetic goes in the readout precisely so this
+comparison is visible and arguable.
 
-### Momentum: Hot / Warm / Cold
+**Cross-check against `bv`.** When this skill's top pick differs from `quick_ref.top_picks[0]`,
+say so in one line and name the component that moved it, usually user impact or effort, which `bv`
+does not read. A silent disagreement with the measured tool looks like an error even when it is a
+judgment.
 
-Strongest signal first:
-
-1. **A dependency edge whose other end just moved.** A bead whose blocker closed in the last 14
-   days, or whose `dependencies[]` contain something `in_progress`, is the next link. This is the
-   beads equivalent of "Phase 1 shipped yesterday".
-2. **Shared label with an `in_progress` or recently closed bead**, especially a feature label such
-   as `qg-hardening`.
-3. **Same epic.** Read membership from the child, not from the epic: the `dependencies[]` entry
-   whose `dependency_type` is `parent-child`, or the id itself, since `br create --parent <epic>`
-   names the child `<epic-id>.1`, `<epic-id>.2`, and so on. `br epic status --json` reports only
-   `total_children`, `closed_children`, and `eligible_for_close`; it lists no member ids, and
-   `br dep tree <epic>` returned the epic alone. Use it for epic progress, not for membership.
-4. **The same plan.** `plan-to-beads` writes `Plan: docs/plans/<name>.md (M4)` into the body. Two
-   beads naming one plan file are one thread, and the milestone marker orders them.
-5. **Cold**: standalone, no shared label, no recent activity on either end of an edge.
-
-### Priority and the two override fields
-
-`priority` is `0` critical through `4` backlog. Render it `P0` to `P4`. Use it as the tiebreaker,
-and let it override the axes: a P0 bug beats a cold refactor whatever the buckets say.
-
-Two stored fields outrank the moods when they are set:
-
-- `due_at` in the past or within days: lead with it, whatever bucket it lands in.
-- `defer_until` in the future: it is deferred on purpose. Keep it out unless `--include-deferred`.
-
-**Neither field is in the `br ready` row.** Only `br list` and `br show` carry them, so read them
-from the open set or from the shortlist fetch. Looking for `due_at` in `br ready` output finds
-nothing and proves nothing.
-
-### What stays out of the actionable buckets
+### What stays out of the scored set
 
 | Excluded | How to tell | Where it goes |
 |---|---|---|
-| Blocked | present in `br blocked` | Blocked bucket, naming the blocker |
+| Blocked | present in `br blocked` | Blocked list, naming the blocker |
 | Deferred | `status` is `deferred`, or `defer_until` is future | One count line |
 | Draft | `status` is `draft` | One count line |
+| Epic | `issue_type` is `epic` | Its children are scored instead; childless, flag for `plan-to-beads` |
 | Claimed by someone else | `assignee` set and not you | Omit, unless `--all` |
 | Marked not-ready by label | `BV_ROBOT_NOT_READY_LABELS`, or a repo convention such as a bead lacking `auto-ok` | Name it once, with the label |
 
 ## Step 4: Render
 
-Terse and scannable. One entry per bead, in the order `id  title  Pn - why`, wrapping onto an
-indented continuation line when a long id and title leave no room for the why. Cap each bucket at
-three. A bead may appear in two buckets when it genuinely qualifies. Omit an empty bucket entirely.
+Terse and scannable: one pick, one leaderboard, one blocked list, one footer. Cap the leaderboard
+at 5 and the tail at 10.
 
 Bead ids vary in length, from `tadw-op0` to `tadw-qg-prepush-verdict-gate-tug`, so do not expect a
 `FAC-388`-sized column. Never abbreviate an id: it gets copied into a command. A long title may be
@@ -277,32 +325,29 @@ truncated to about 60 characters with a trailing ellipsis, but never reworded, b
 searches on the words the tracker holds.
 
 ```text
-🎯 Start here: tadw-qg-eval-fixture-harness-e4i
+🎯 Next highest ROI: tadw-qg-eval-fixture-harness-e4i
    Teach the eval harness to run in a fixture repository
-   P2 · unblocks tadw-qg-eval-verdict-rules-xub; PageRank 91%, top of bv's picks; bv calls it low
-   effort and the bead lists 4 acceptance criteria. Quick win + hot thread (all 13 open
-   qg-hardening beads name the same plan file).
+   ROI 9.0 = value 9 (P2 3 + impact Low 0 + unblocks 2 ×2 + hot thread 2) ÷ effort S 1
+   Evidence: unblocks tadw-qg-eval-finding-cases-29f and tadw-qg-eval-verdict-rules-xub (bv,
+   verified blocks edges); bv quick-win "Low complexity" and 4 acceptance criteria (S);
+   13 open qg-hardening beads name the same plan file (hot). Agrees with bv's top pick.
    claim: br update tadw-qg-eval-fixture-harness-e4i --claim
 
-⚡ Quick wins (ship today)
-  tadw-qg-script-secrets-gate-jbg   Script the secrets gate           P2 · one script, 5 criteria
-  tadw-em-dash-cleanup-mtl          Remove the 104 remaining em-…     P2 · bv: low complexity
-
-👥 User impact (moves the needle)
-  tadw-self-report-sentence-length-zxu  Diagnose why the sentence limit fails in self-reports
-                                        P2 · type bug, every session's self-report hits it
-
-🔗 Keep momentum (next in an active thread)
-  tadw-qg-script-changed-set-jhb    Script the changed-set resolution  P2 · unblocks 2 in
-                                                                            qg-hardening
+Leaderboard (value ÷ effort = ROI)
+  #2  tadw-self-report-sentence-length-zxu  8.0 = 8 (P2 3 + High 4 + warm 1) ÷ S 1
+      type bug, every session's self-report hits it · loses on leverage: unblocks 0
+  #3  tadw-qg-script-changed-set-jhb        7.3 = 11 (P2 3 + Low 0 + unblocks 3 ×2 + hot 2) ÷ M 1.5
+      most leverage on the board · loses on effort: 2 scripts + a resolver, inferred M
+  #4  tadw-em-dash-cleanup-mtl              4.0 = 4 (P2 3 + Low 0 + warm 1) ÷ S 1
+      bv: low complexity · loses on impact and leverage
 
 ⛔ Blocked (6)
   tadw-qg-prepush-hook-suites-w8r   Add a pre-push hook that runs the repository's checks
                                     · blocked by 3, first is tadw-qg-script-changed-set-jhb
 
-Rest of the ready backlog, priority order (7 of 12 ready; the 6 blocked are above):
-  P2  tadw-qg-json-verdict-artifact-21l   Write the verdict as a JSON artifact
-  P2  tadw-qg-script-hygiene-count-rkd    Script the hygiene marker count
+Rest of the ready backlog, ROI order (7 of 12 ready; the 6 blocked are above):
+  3.0  tadw-qg-json-verdict-artifact-21l   Write the verdict as a JSON artifact
+  3.0  tadw-qg-script-hygiene-count-rkd    Script the hygiene marker count
   … and 5 more
 
 0 deferred, 0 draft, 0 in progress. Graph metrics: PageRank and betweenness computed
@@ -311,14 +356,16 @@ Rest of the ready backlog, priority order (7 of 12 ready; the 6 blocked are abov
 
 Rules for the readout:
 
-- **Start here is one bead**, the one that best combines the three axes weighted by priority and by
-  how much energy the moment calls for. Two sentences at most, naming which axes it wins. Always
+- **The pick is one bead** with its full arithmetic and its evidence, three to five lines. Always
   print its claim command, which is `br update <id> --claim` (atomic: assigns to you and sets
   `in_progress`). `bv` prints its own under `.triage.commands.claim_top`, in the longer
   `--status in_progress` form.
-- **"Why" is one clause of evidence**, never a restatement of the title.
-- **Numbers, not adjectives.** "unblocks 3", "PageRank 91%", "4 acceptance criteria", "P1".
-- **Mark what is inferred.** A stored number and a read of the prose are different claims.
+- **Every leaderboard row shows its arithmetic** and one clause naming the component that cost it
+  the top spot. That clause is how the user audits the pick without recomputing it.
+- **Numbers, not adjectives.** "unblocks 3", "4 acceptance criteria", "P1", "ROI 7.5".
+- **Mark what is inferred.** A stored number and a read of the prose are different claims. When
+  the pick's score rests on an inferred size or a thin body, say so on the evidence line and name
+  the runner-up that wins if the inference is wrong.
 - **One screen total.** Cap the tail at 10 and close it with `… and N more`. A full dump of the
   backlog is what `br list` already prints, and it buries the recommendation this skill exists to
   make.
@@ -328,7 +375,7 @@ Rules for the readout:
 Close with the next action and nothing more:
 
 ```text
-Pick one and tell me which, and I'll claim it and start.
+Say the word and I'll claim tadw-qg-eval-fixture-harness-e4i and start.
 ```
 
 Starting means `br update <id> --claim`, reading the bead's `acceptance_criteria`, and
@@ -336,8 +383,8 @@ implementing. The handoff carries the **bead id** only; everything else is re-re
 
 `--claim` refuses two cases with `VALIDATION_FAILED` and exit code 4: `cannot claim blocked issue`
 and `already assigned to <name>`. Treat either as evidence that this readout was built on stale
-data, re-fetch, and say so. It is also the reason blocked beads stay out of the actionable buckets:
-the command this skill prints would not work on them.
+data, re-fetch, and say so. It is also the reason blocked beads are never scored: the command this
+skill prints would not work on them.
 
 ## Command reference
 
@@ -345,17 +392,17 @@ Every call this skill makes, and why.
 
 | Call | Purpose |
 |---|---|
-| `br ready --json --limit 0` | The actionable candidate set |
-| `br blocked --json --limit 0` | The blocked bucket, with `blocked_by` ids |
-| `br list --status=open --limit 0 --json` | Open set for the tail and the counts |
+| `br ready --json --limit 0` | The scored candidate set |
+| `br blocked --json --limit 0` | The blocked list, with `blocked_by` ids |
+| `br list --status=open --limit 0 --json` | Open set for the tail, the counts, and `due_at` |
 | `br list --status=in_progress --limit 0 --json` | Hot threads |
-| `br list --status=closed -a --limit 10 --json --sort updated_at` | Recent closes, newest first |
+| `br list --status=closed -a --limit 50 --json --sort updated_at` | Recent closes, newest first |
 | `br show <id> --json` | Edge identity for the shortlist; returns a one-element array |
 | `br search "<text>" --json` | Wide or fuzzy scope filter |
 | `br epic status --json` | Epic progress only (`total_children`, `closed_children`); it carries no member ids |
 | `bv --robot-triage` | All graph facts in one call |
 | `bv --robot-triage --format toon` | Same, in fewer tokens, but only when the `tru` helper is on PATH. Without it `bv` prints `warning: tru not available; falling back to JSON` on **stderr** and emits ordinary JSON, so a piped call saves nothing and says so where you cannot see it |
-| `bv --robot-next` | The single top pick, when the user wants only that |
+| `bv --robot-next` | `bv`'s single top pick; a cross-check, not a substitute for the rubric |
 | `bv --robot-triage --label <label>` | Graph facts scoped to one label's subgraph |
 
 ## Notes
@@ -367,11 +414,14 @@ Every call this skill makes, and why.
 - **Readiness belongs to `br`.** It already walks the dependency graph and excludes deferred and
   draft beads. Recomputing it from raw JSONL invites a wrong answer, and a closed blocker is
   already gone from `br ready`.
+- **The rubric's weights are policy, not measurement.** They are fixed here so the pick is
+  reproducible across sessions and arguable in one place. Tuning a weight is an edit to this file,
+  never an in-session judgment call, or "deterministic" stops being true.
 - **Edges beat labels for "same thread".** A label is a coarse grouping and most of one person's
   work carries the same one, so it rarely separates candidates. A dependency edge whose other end
   just closed is the actual next link. Weight edges first, labels second.
 - **Thin body, thin claim.** When a bead has no `estimated_minutes`, no size band, and a two-line
-  description, say the evidence is thin in the "why" rather than inventing a size. That bead may
-  belong in `bead-audit` before it belongs in a bucket.
+  description, effort defaults to M and the "why" says the evidence is thin. That bead may belong
+  in `bead-audit` before it belongs on the leaderboard.
 - **Priority is inverted from what a reader expects.** `0` is the most urgent and `4` the least, so
-  sort ascending and never treat a higher number as more important.
+  a lower number means more points, and never treat a higher number as more important.

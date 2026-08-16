@@ -229,17 +229,29 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 - Reads the tracker through the `br` and `bv` command-line tools only; there is no MCP server
 - Takes readiness from `br ready` and `br blocked`, never from `bv`, whose `blocked_count` reads 0
   on a backlog full of dependency-blocked work
-- Takes every measured graph fact from one `bv --robot-triage` call (PageRank, betweenness, unblock
-  counts, low-complexity flags) and degrades to `br` alone, saying so, when `bv` is absent
-- Reads each bead body for the three axes `bv` does not score (effort, user impact, momentum) and
-  reports them separately instead of averaging them into one number that hides the choice
+- Takes every measured graph fact from one `bv --robot-triage` call (unblock counts, PageRank,
+  betweenness, low-complexity flags) and degrades to `br` alone, saying so, when `bv` is absent
+- Ranks every candidate on one fixed rubric, `ROI = value ÷ effort`: value sums priority, user
+  impact, unblock leverage, momentum, and a due-within-7-days bonus, and the size tier divides
+  (S by 1, M by 1.5, L by 2.5, compressed on purpose so the least-evidenced input cannot outvote
+  the four value components combined)
+- Awards a point only when it can cite its evidence: a stored field, a count, a bead id, or a
+  phrase from the body
 - Prefers stored effort evidence (`estimated_minutes`, then a `plan-to-beads` size band, then `bv`'s
-  own low-effort flag) over a read of the prose, and says which source it used
+  own low-complexity flag) over a read of the prose, and says which source it used
+- Checks three hard overrides before any arithmetic: an overdue ready bead is the pick, a ready P0
+  outranks every non-P0, and a bead deferred into the future stays out
+- Quotes PageRank as supporting evidence but never scores it, because unblock leverage already
+  prices graph position and a high-PageRank chore can be invisible to a user
 - Weights a dependency edge whose other end just closed above a shared label for "same thread"
-- Excludes blocked, deferred, draft, and other-assignee beads from the actionable buckets, listing
+- Excludes blocked, deferred, draft, epic, and other-assignee beads from the scored set, listing
   the blocked ones with the blocker that holds them
-- Caps the output at roughly one screen: one Start-here pick with its `br update <id> --claim`
-  command, three buckets of three, and a priority tail closed with `… and N more`
+- Says in one line when its own top pick differs from `bv`'s, naming the component that moved it
+- Caps the output at roughly one screen: one top pick with its arithmetic and its
+  `br update <id> --claim` command, a leaderboard of 5 naming what each runner-up lost on, and an
+  ROI-ordered tail of 10 closed with `… and N more`
+- Deterministic: the same tracker state always yields the same pick, with exact ties broken by
+  priority, then unblock count, then effort, then age
 - Report-only: it never claims, closes, defers, or re-prioritizes a bead
 
 ### Project Reporting
