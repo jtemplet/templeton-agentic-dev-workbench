@@ -198,6 +198,30 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 - Runs the four gates from `quality-gates` that can invalidate an acceptance claim
 - Report-only: it never edits code and never closes a bead
 
+**Land the accepted branch:** Use `/tadw:ship` (the `ship` skill directly; there is no command file)
+
+- The local counterpart of `/pr-maintain`: no pull request and no GitHub CI, so the repository's own
+  check suite, run locally on the rebased tip, is the entire gate
+- Refuses to start on the default branch, on a dirty tree, or with a rebase or merge already running
+- Resolves the bead from the argument or the `outrigger/<short-id>/<slug>` branch name, verifying
+  every candidate against `br` and refusing when two real beads resolve
+- Rebases onto `origin/main` before gating, so the gate grades the tree the squash-merge produces
+- Resolves a `.beads/issues.jsonl` conflict through the host repo's tracker merge tool or
+  `br sync --merge`, verifies the result parses, and aborts on any other conflict rather than
+  judging code someone else wrote
+- Detects the gate from `TADW_SHIP_CHECK`, then what `AGENTS.md`/`CLAUDE.md` declares, then a task
+  runner `check` target, then the stack's conventional runner; an undetected gate is a stop, not a
+  skip, and a non-zero exit stops the run before any merge
+- Squash-merges as `<type>: <title> (<bead-id>)` with a `Closes <bead-id>` body, closes the bead, and
+  folds the tracker export into the landing commit
+- Pushes main without ever forcing; a rejected push refetches, re-rebases, and re-gates, bounded at
+  three attempts, and it resets local main only after proving it carries nothing this run did not
+  create
+- Deletes the local branch and its remote ref only after checking that main holds the branch's
+  version of every file the branch touched
+- Unattended by design: it never asks a question, and it ends with exactly one machine-readable
+  `SHIP_DONE <hash>` or `SHIP_BLOCKED <reason>` line
+
 ### Backlog Triage
 
 **Decide what to work on next:** Use `/triage-beads` or the `triage-beads` skill directly

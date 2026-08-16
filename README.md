@@ -35,13 +35,14 @@ Everything in the plugin is namespaced under `tadw:`, so a skill or agent is add
 
 ### Pipeline B: Code Quality
 
-`/fresh-eyes-cr` → `/quality-gates` → `/verify-acceptance`
+`/fresh-eyes-cr` → `/quality-gates` → `/verify-acceptance` → `/tadw:ship`
 
 | Command | What it does |
 |---|---|
 | `/fresh-eyes-cr` | Review changed code with fresh eyes, find and fix bugs directly |
 | `/quality-gates` | QA the change, not the repository: runs the project's own checks and proves every case the change introduces is exercised at the unit and end-to-end level, spans its input/state/outcome classes, and hands browser UI to `/qa` |
 | `/verify-acceptance` | Grade the work against its bead's acceptance criteria and the QA gates; report-only verdict |
+| `/tadw:ship` | Land the accepted branch on main locally: rebase, run the repo's own checks as the gate, squash-merge, close the bead, push, delete the branch; ends with `SHIP_DONE`/`SHIP_BLOCKED` |
 
 ### Debugging
 
@@ -170,6 +171,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `verify-acceptance` | Grade a finished unit of work against its bead's `acceptance_criteria` and the QA gates; every criterion graded against a named test, a command's output, or a `file:line`, never the diff; report-only ACCEPTED / NOT ACCEPTED / INCONCLUSIVE | Deciding whether work is done, before `br close` or a PR |
 | `quality-gates` | QA the change rather than the repository: scoped to the diff by default, takes the gate list from `AGENTS.md`/CI/a task runner before guessing, and adds a change-coverage gate that enumerates the cases the diff introduces, requires a unit test for each plus an end-to-end test through the real entry point for every CLI command or HTTP route touched, and grades the span (input, boundary, state, outcome classes) while explicitly refusing cross-products and defensive code; browser UI is HANDOFF to `/qa`, an unrunnable gate is BLOCKED, and an all-skip run is not a pass; report-only | Ending a session, before a PR, or before `br close` |
 | `feature-development` | Implement a bead's spec in 5 phases (ground, orient, implement, simplify, lint): reads the spec from `br` instead of re-interviewing, reads the repo's conventions before writing, one test per acceptance criterion; leaves the bead open | Building a bead that is ready to implement |
+| `ship` | Land an accepted bead's feature branch on main locally, with no PR and no GitHub CI: rebases onto the base, resolves a `.beads/issues.jsonl` conflict through `br sync --merge` and no other conflict at all, runs the repository's own check suite on the rebased tip as the only gate, squash-merges as `<type>: <title> (<bead-id>)`, closes the bead and folds the export into the landing commit, pushes main without ever forcing, and deletes the branch after proving the content landed; unattended (it reports instead of asking) and ends with one `SHIP_DONE <hash>` / `SHIP_BLOCKED <reason>` line | Landing a bead that passed `/quality-gates` and `/verify-acceptance` |
 | `plan-to-beads` | Decompose a feature plan into `br` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) | A reviewed plan needs breaking into trackable issues |
 | `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards, and ground their claims in the code on `main`; separates content from structure (format-only issues are auto-fixable) and both from grounding (a bead whose code moved is `drifted`, not under-specified); honors native tracker fields, optional 0-100 scorecard banded Poor→Excellent and capped by verdict and by grounding, JSON output for backlog grooming | Before claiming a bead, or grooming a backlog at scale |
 | `triage-beads` | Turn the open `br` backlog into a one-screen "what next" readout: one Start-here pick with its claim command, then Quick wins / User impact / Keep momentum buckets, a blocked list naming each blocker, and a capped priority tail; takes readiness from `br ready`/`br blocked`, the measured graph facts (PageRank, betweenness, unblock counts) from `bv --robot-triage`, and reads each bead body for the three axes `bv` does not score; report-only, `br`/`bv` CLI only, no MCP | Choosing the next bead to claim, or when `br ready` output has stopped being scannable |

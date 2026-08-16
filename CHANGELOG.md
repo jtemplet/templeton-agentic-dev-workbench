@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-08-16
+
+A minor rather than a patch because it adds a skill, which is a change to the plugin's shipped
+surface. The rest of the release is this repository's own tooling, carried over from what had
+accumulated on `main` since the v2.7.3 tag.
+
 ### Added
+
+- **`ship` (39 skills now), the last step of the per-bead build loop.** It lands an accepted bead's
+  feature branch on `main` locally, with no pull request and no GitHub CI: the repository's own
+  check suite, run on the rebased tip, is the entire gate. Invoked as `/tadw:ship [<bead-id>]`, and
+  registered nowhere else, so it joins `business-ideas`, `idea-wizard`, and `triage-beads` as an
+  accepted `/validate-plugin` orphan.
+
+  It rebases before gating, so the gate grades the tree the squash-merge produces rather than a
+  tree that no longer exists. It resolves a `.beads/issues.jsonl` conflict through the host repo's
+  tracker merge tool or `br sync --merge`, and **aborts on any other conflict**: resolving a source
+  conflict means judging code, and this skill's remit is landing code that was already judged. It
+  squash-merges as `<type>: <title> (<bead-id>)`, closes the bead, folds the export into the
+  landing commit, pushes without ever forcing, and deletes the branch only after checking that
+  `main` holds the branch's version of every file the branch touched.
+
+  Two things are deliberate and worth not undoing. **An undetected gate is a stop, not a skip**
+  (`gate-not-detected`); "no check command found" is not evidence that the code is good, and
+  `TADW_SHIP_CHECK` is the escape hatch that keeps that honest. And it **never asks a question**,
+  because it is built to run inside an orchestrator, where a prompt hangs the loop. Every run ends
+  with one machine-readable `SHIP_DONE <hash>` or `SHIP_BLOCKED <reason>` line, with the reason
+  drawn from a fixed slug table.
+
+  Two defects came out of running the commands rather than reading them, and both would have fired
+  on the first real invocation. `git rev-parse --git-path rebase-merge` prints a path and exits 0
+  on a clean repository, so detecting an in-progress rebase by its exit code blocks every run; the
+  skill tests for the path instead. And `grep -c` exits 1 when it counts zero, so verifying the
+  merged tracker file that way turns the cleanest possible result into a failure, which is the same
+  trap `quality-gates` Gate 7 already carries a note about.
+
+  The worst one came from reading. Its `git -C <worktree>` scoping rule covered only the landing
+  step, while the push-recovery step also runs `git reset --hard origin/main`. Run from the feature
+  branch's own worktree, that resets the feature branch, which at that moment holds the only copy
+  of the work that has not landed. The rule now spans both steps and requires confirming the
+  checked-out branch before any command that moves a branch pointer.
 
 - **The three hooks in `.claude/scripts/` have a test suite**
   (`hooks/test-claude-scripts.sh`, 60 checks across 21 cases). They commit, push, close beads and
@@ -1349,7 +1389,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.3...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.8.0...HEAD
+[2.8.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.3...v2.8.0
 [2.7.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.2...v2.7.3
 [2.7.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.1...v2.7.2
 [2.7.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.0...v2.7.1
