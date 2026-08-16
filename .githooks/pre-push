@@ -104,6 +104,7 @@ started=$(date +%s)
 # test_prepush.py asserts they stay that way.
 check rumdl fmt --check .
 check node hooks/test-hooks.js
+check bash hooks/test-claude-scripts.sh
 check python3 skills/style-testing/scripts/test_check_framework_leak.py
 check python3 skills/style-testing/scripts/check_framework_leak.py
 check python3 skills/quality-gates/scripts/test_check_doc_paths.py

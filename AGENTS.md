@@ -16,6 +16,7 @@ locally rather than remembered (see "Git hooks" below).
 ```bash
 rumdl fmt --check .                                          # what CI runs; ./lint.sh formats in place
 node hooks/test-hooks.js                                      # hook suite, incl. the docs/HOOKS.md count assertion
+bash hooks/test-claude-scripts.sh                             # suite for the three .claude/scripts hooks
 python3 skills/style-testing/scripts/test_check_framework_leak.py   # regression suite for the leak checker
 python3 skills/style-testing/scripts/check_framework_leak.py        # assert style-testing stays framework-free
 python3 skills/quality-gates/scripts/test_check_doc_paths.py        # regression suite for the doc-path checker
@@ -49,7 +50,7 @@ One command serves both hooks, which is most of the argument for running it on a
 `python3 .githooks/test_prepush.py` (it pushes inside a fixture wired to this hook, so running it
 here would recurse).
 
-It takes about 20 seconds on a warm machine, nearly all of it in the four heaviest suites. Three
+It takes about 32 seconds on a warm machine, nearly all of it in the five heaviest suites. Three
 behaviors are deliberate:
 
 - **Every check runs even after one fails**, and all failures report together. Stopping at the

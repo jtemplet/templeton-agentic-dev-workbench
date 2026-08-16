@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The three hooks in `.claude/scripts/` have a test suite**
+  (`hooks/test-claude-scripts.sh`, 60 checks across 21 cases). They commit, push, close beads and
+  label them, which makes them the code here most able to do damage unasked, and they had no
+  automated coverage at all. Registered in the AGENTS.md command block and in `.githooks/pre-push`.
+
+  Each case builds a throwaway git repository and prepends a directory of stubs to PATH, so the
+  shipped scripts run unmodified with no test-only branch in them, and each stub records the argv
+  it received. `br` and `gh` are fully faked. **git is real, behind a recording stub** that blocks
+  any push to a non-local remote: a stub answering `rev-parse`, `status --porcelain`,
+  `merge-base --is-ancestor` and `log` is a git reimplementation, and the cases would then prove
+  that reimplementation right rather than the hook, which is the wrong subject when the guards
+  most worth testing are exactly the git-dependent ones.
+
+  Every fix from f8259ea has a case, and each was **observed** to fail against a copy of the
+  script with that one fix reverted, not assumed to. Eight of eight are pinned that way. The
+  mechanism is reusable: `TADW_HOOK_SCRIPTS_DIR` points the suite at a directory of modified
+  copies.
+
+  A filter matching no case now exits non-zero. It reported success while asserting nothing, which
+  made one fix look pinned by a case that never ran, and that hole was found while checking the
+  reverts rather than by reading.
+
+  **Every git command goes through one guarded wrapper that refuses a target outside the sandbox.**
+  This is the suite's own scar. `git -C ""` is not an error: it stays in the current directory,
+  which is the repository under test. An early version of the repository builder died under
+  `set -u` on macOS bash 3.2 and returned an empty path, and the helpers then created four
+  branches, committed, and registered two worktrees in this checkout, on a branch nobody asked
+  for. Nothing was pushed and it was fully recoverable, but a suite that writes to the repository
+  it is testing is the one failure that has to be impossible rather than unlikely. Three checks
+  now assert the guard fires, including on this repository's own root.
+
 - **`close_bead_on_pr_merge.sh` now closes a bead after a local `git merge`, not only after
   `gh pr merge`.** A repository can be configured to merge without a PR, and a person can merge
   locally on one that usually does not. Either way the hook never fired, the bead stayed open, and
@@ -39,6 +70,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   It now calls `br close --reason`, keeps the `update` form as a fallback for older br where
   `close` may not exist, and when both fail it prints the command to run by hand.
+
+- **`autocommit_beads_after_br.sh` named no br command in its commit subjects on macOS.** The
+  pattern that extracts the invocation embedded a literal newline in a bracket expression through
+  `$'\n'`, and BSD grep rejects that outright with "brackets ([ ]) not balanced". The substitution
+  therefore produced nothing and every subject fell through to the generic "beads: state update".
+  GNU grep accepts the pattern, which is why it survived review. `[:cntrl:]` excludes the newline
+  on both. Found by the new suite on its first run, which is the argument for the suite.
 
 ## [2.7.3] - 2026-08-15
 

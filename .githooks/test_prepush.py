@@ -17,8 +17,8 @@ the hook. `/tmp` walks correctly on both macOS and Linux.
 `case_fixture_is_walkable_by_rumdl` is the positive control that keeps this
 honest: it fails loudly rather than letting the suite pass vacuously.
 
-WHY FIVE CHECKS ARE STUBBED IN THE FIXTURE. Measured 2026-08-14, the five stubbed
-commands account for about 18 of the hook's 21 seconds, and each already owns a
+WHY SIX CHECKS ARE STUBBED IN THE FIXTURE. Measured 2026-08-15, the six stubbed
+commands account for about 29 of the hook's 32 seconds, and each already owns a
 regression suite. What this suite tests is the hook's ORCHESTRATION: run the
 whole list, aggregate every failure, warn by name on a missing tool, honor the
 off-switch, and leave the tree alone. Stubbing keeps the suite near a minute
@@ -99,6 +99,11 @@ SLOW_CHECKS = {
     # Builds git repositories in temp directories, the same shape as
     # test_changed_set.py above, and every push case here would pay for it again.
     "evals/test_run.py": "raise SystemExit(0)\n",
+    # The heaviest of the lot at about 14 seconds: it builds a repository, and
+    # often a merge or a worktree, for each of its cases. Same reason as the two
+    # above. `git archive` restores its executable bit and write_text keeps it,
+    # so the stub stays runnable as ./hooks/test-claude-scripts.sh.
+    "hooks/test-claude-scripts.sh": "#!/usr/bin/env bash\nexit 0\n",
 }
 
 # A file the fixture breaks to make rumdl fail. Tracked markdown, so it is in the
@@ -234,7 +239,7 @@ def build(*, stub_slow: bool = True, extra_branch: str | None = None) -> Fixture
 
 # Everything the hook reaches for: the checkers themselves, plus the four
 # utilities it shells out to, plus `sh` for its own `#!/usr/bin/env sh` line.
-HOOK_TOOLS = ("sh", "date", "mkdir", "cat", "rm", "git", "node", "python3", "rumdl")
+HOOK_TOOLS = ("sh", "bash", "date", "mkdir", "cat", "rm", "git", "node", "python3", "rumdl")
 
 
 def stub_path_without(*drop: str) -> str:
@@ -432,7 +437,7 @@ def case_missing_rumdl_warns_and_allows() -> None:
     assert result.returncode == 0, f"a missing rumdl must still allow the push: {output}"
     assert "rumdl" in output, f"the skipped tool must be named: {output}"
     assert "WARNING" in output, f"the skip must be a warning, not silence: {output}"
-    assert "10 of 11" in output, f"the other ten checks must still run: {output}"
+    assert "11 of 12" in output, f"the other eleven checks must still run: {output}"
 
 
 def case_missing_python3_warns_once() -> None:
@@ -455,11 +460,11 @@ def case_no_check_ran_is_not_a_pass() -> None:
     the reader would take it for a clean bill of health.
     """
     fixture = build()
-    result = fixture.push(env={"PATH": stub_path_without("rumdl", "node", "python3")})
+    result = fixture.push(env={"PATH": stub_path_without("rumdl", "node", "python3", "bash")})
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a toolless clone must still push: {output}"
     assert "passed" not in output, f"nothing ran, so nothing passed: {output!r}"
-    assert "0 of 11" in output, f"it must say how little ran: {output!r}"
+    assert "0 of 12" in output, f"it must say how little ran: {output!r}"
     assert "nothing was verified" in output, f"and say what that means: {output!r}"
 
 
@@ -538,7 +543,7 @@ def case_clean_push_is_quiet() -> None:
     lines = [line for line in output.splitlines() if line.startswith("tadw:")]
     assert len(lines) == 1, f"exactly one tadw line on success: {lines}"
     assert "passed" in lines[0], f"and it says so: {lines[0]!r}"
-    assert "11 of 11" in lines[0], f"with the count that ran: {lines[0]!r}"
+    assert "12 of 12" in lines[0], f"with the count that ran: {lines[0]!r}"
     # The elapsed time is the only number a reader can use to judge whether the
     # hook is worth its place on every push, so it is asserted rather than assumed.
     assert re.search(r"\b\d+s\b", lines[0]), f"and how long it took: {lines[0]!r}"
