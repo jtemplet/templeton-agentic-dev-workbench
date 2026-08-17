@@ -57,6 +57,25 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 done
 [ -n "$pushing" ] || exit 0
 
+# git exports GIT_DIR into every hook it runs, and the value is not portable. From
+# the main checkout it is the relative `.git`, which re-resolves under any
+# directory a check moves into, so a fixture that runs `git init` in a temp
+# directory stays inside that temp directory. From a LINKED WORKTREE it is an
+# absolute path to the main repository's gitdir, and `git -C <tmpdir>` does not
+# redirect it: the fixture's `git init` re-initializes THIS repository instead.
+# Four of the checks below build git fixtures, and one of them inits with
+# `-c core.excludesFile=/dev/null`.
+#
+# That is not hypothetical. A push from a linked worktree left the main checkout
+# with core.bare=true and core.excludesFile=/dev/null, which broke every work-tree
+# git operation in both checkouts until it was repaired by hand.
+#
+# Clear the inherited state before the first git call, so git rediscovers the
+# repository from the hook's own working directory, which git sets to the worktree
+# root. GIT_PREFIX is included because it is a path fragment relative to the gitdir
+# it came with, and it means nothing once that gitdir is gone.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_PREFIX
+
 root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$root" || exit 0
 

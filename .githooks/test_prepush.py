@@ -106,6 +106,27 @@ SLOW_CHECKS = {
     "hooks/test-claude-scripts.sh": "#!/usr/bin/env bash\nexit 0\n",
 }
 
+# One of the stubbed suites, restored to the only behavior that matters for the
+# leaked-GIT_DIR case: build a git repository in a temp directory, with the same
+# `-c` settings test_changed_set.py inits with. That is the whole mechanism, and
+# it runs in milliseconds instead of the twenty seconds the real suites cost.
+#
+# Written as its own check rather than by passing stub_slow=False, so the case
+# pins the HOOK's contract (no leaked GIT_DIR reaches a check) rather than the
+# suites' own defense against the same leak. Both layers exist; this tests one.
+GIT_FIXTURE_CANARY = """\
+import subprocess
+import tempfile
+
+with tempfile.TemporaryDirectory() as tmp:
+    subprocess.run(
+        ["git", "-c", "core.excludesFile=/dev/null", "-C", tmp, "init", "-q"],
+        check=True,
+    )
+raise SystemExit(0)
+"""
+GIT_FIXTURE_CANARY_PATH = "skills/quality-gates/scripts/test_changed_set.py"
+
 # A file the fixture breaks to make rumdl fail. Tracked markdown, so it is in the
 # tree rumdl walks, and named in the assertion so a reader can see what failed.
 BREAKABLE_DOC = "README.md"
@@ -132,9 +153,20 @@ def _cleanup() -> None:
 
 
 def git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    """A git command that must succeed. Fixture setup has no recoverable failure."""
+    """A git command that must succeed. Fixture setup has no recoverable failure.
+
+    A fixed identity and no global excludes file, so a case tests the hook rather
+    than the machine it runs on, matching the three suites under
+    skills/quality-gates/scripts. The excludes half is not decoration: a developer
+    whose global gitignore names `.docpaths-ignore` gets a fixture whose `git add
+    -A` silently drops it, because the file is untracked here even though it is
+    tracked upstream. The tar still puts it on disk, so a check reading it from
+    disk passes and only a checkout from the commit, such as a linked worktree,
+    reveals the gap.
+    """
     return subprocess.run(
-        [GIT, "-c", "user.email=t@t", "-c", "user.name=t", "-C", str(root), *args],
+        [GIT, "-c", "core.excludesFile=/dev/null", "-c", "user.email=t@t",
+         "-c", "user.name=t", "-C", str(root), *args],
         capture_output=True,
         text=True,
         check=True,
@@ -549,10 +581,53 @@ def case_clean_push_is_quiet() -> None:
     assert re.search(r"\b\d+s\b", lines[0]), f"and how long it took: {lines[0]!r}"
 
 
+def case_push_from_a_linked_worktree_spares_the_main_repository() -> None:
+    """A push from a linked worktree must not reach into the repository it belongs to.
+
+    git exports GIT_DIR into every hook. From the main checkout the value is the
+    relative `.git`, which re-resolves under any directory a check moves into.
+    From a LINKED WORKTREE it is an absolute path, and `git -C <tmpdir>` does not
+    redirect it, so a check that inits a git fixture inits the repository GIT_DIR
+    names instead. Four of the checks build such fixtures.
+
+    Observed before the hook cleared it: a push from a linked worktree left the
+    main checkout with core.bare=true and core.excludesFile=/dev/null, and every
+    work-tree git command in both checkouts failed until it was repaired by hand.
+    The main gitdir's config is therefore the evidence this case reads.
+
+    A linked worktree is built rather than GIT_DIR being set on the push, because
+    setting it there would redirect the push itself and never reach the hook.
+    """
+    fixture = build()
+    fixture.write(GIT_FIXTURE_CANARY_PATH, GIT_FIXTURE_CANARY)
+    fixture.commit_all("install the git-fixture canary")
+
+    linked = fixture.work.parent / "linked"
+    git(fixture.work, "worktree", "add", "-q", str(linked), "-b", "linked-work")
+
+    config = fixture.work / ".git" / "config"
+    before = config.read_text(encoding="utf-8")
+    result = subprocess.run(
+        [GIT, "-c", "user.email=t@t", "-c", "user.name=t", "-C", str(linked),
+         "push", "--dry-run", "origin", "linked-work"],
+        capture_output=True,
+        text=True,
+    )
+    output = result.stdout + result.stderr
+
+    assert result.returncode == 0, f"the push must still run and pass its checks: {output}"
+    assert config.read_text(encoding="utf-8") == before, (
+        f"the push rewrote the main repository's config:\n{config.read_text(encoding='utf-8')}"
+    )
+    bare = git(fixture.work, "rev-parse", "--is-bare-repository").stdout.strip()
+    assert bare == "false", "the push turned the main repository bare"
+
+
 for name, fn in [
     ("a delete-only push runs no checks [criterion 6]", case_delete_only_push_runs_nothing),
     ("a mixed delete-and-update push does run the checks", case_mixed_delete_and_update_runs_checks),
     ("the hook modifies nothing, including the CI workflow [criterion 5]", case_hook_leaves_the_tree_alone),
+    ("a push from a linked worktree spares the main repository", case_push_from_a_linked_worktree_spares_the_main_repository),
     ("a clean push prints one summary line", case_clean_push_is_quiet),
 ]:
     check(name, fn)
