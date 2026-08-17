@@ -63,25 +63,56 @@ quiet_exit() { exit 0; }
 # Shared setup
 # ---------------------------------------------------------------------
 
-# Sets REPO_ROOT, MAIN_ROOT, br_cmd, MARKER_DIR. Exits when not usable.
+# Sets REPO_ROOT, MAIN_ROOT, BACKEND, tracker_cmd, MARKER_DIR. Exits when
+# not usable.
 init_repo() {
   REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || quiet_exit
   cd "$REPO_ROOT" || quiet_exit
 
-  local t
-  for t in br jq git; do
-    command -v "$t" >/dev/null 2>&1 || { log "$t not on PATH"; quiet_exit; }
-  done
 
   # Every worktree checks out its own copy of .beads/beads.db, so an
   # unpinned br in a worktree would read and write that copy instead of
   # the canonical tracker. Pin to the main checkout.
   GIT_COMMON="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
   MAIN_ROOT="$(dirname "$GIT_COMMON")"
-  br_cmd=(br)
-  if [[ -n "$MAIN_ROOT" && -f "$MAIN_ROOT/.beads/beads.db" ]]; then
-    br_cmd=(br --db "$MAIN_ROOT/.beads/beads.db")
+  # Which tracker this repo runs, from what .beads/ holds rather than assumed.
+  # Three signals in strict order: metadata.json (the only declarative one, and
+  # the only one git carries), then any of bd's three database directory
+  # layouts, then a database file. br is considered last, because `bd init`
+  # leaves the pre-cutover SQLite file behind and a migrated repo looks like
+  # both; reading it the other way writes labels into a dead tracker.
+  local beads_dir="$MAIN_ROOT/.beads" db d
+  BACKEND=""
+  if [[ -f "$beads_dir/metadata.json" ]] \
+     && grep -q '"backend"[[:space:]]*:[[:space:]]*"dolt"' "$beads_dir/metadata.json" 2>/dev/null; then
+    BACKEND="bd"
+  else
+    for d in embeddeddolt dolt proxieddb; do
+      [[ -d "$beads_dir/$d" ]] && { BACKEND="bd"; break; }
+    done
   fi
+
+  if [[ "$BACKEND" == "bd" ]]; then
+    # No --db pin: bd resolves one workspace per repository through the git
+    # common dir, so it finds the same database from a worktree.
+    tracker_cmd=(bd)
+  else
+    # br gives each worktree its own SQLite copy, so an unpinned br there would
+    # read and write that copy instead of the canonical tracker. Any *.db,
+    # since br discovers its database by extension.
+    db=""
+    for d in "$beads_dir"/*.db; do
+      [[ -f "$d" ]] && { db="$d"; break; }
+    done
+    [[ -n "$db" ]] || { log "no tracker backend under $beads_dir"; quiet_exit; }
+    BACKEND="br"
+    tracker_cmd=(br --db "$db")
+  fi
+
+  local t
+  for t in "$BACKEND" jq git; do
+    command -v "$t" >/dev/null 2>&1 || { log "$t not on PATH"; quiet_exit; }
+  done
 
   # Markers live inside the git common dir: never tracked, never dirty
   # the tree, and shared across worktrees.
@@ -96,8 +127,8 @@ has_label() {
 
 add_label() {
   local bead_id="$1" label="$2"
-  "${br_cmd[@]}" update "$bead_id" --add-label "$label" >/dev/null 2>&1 || {
-    log "br update $bead_id --add-label $label failed"
+  "${tracker_cmd[@]}" update "$bead_id" --add-label "$label" >/dev/null 2>&1 || {
+    log "$BACKEND update $bead_id --add-label $label failed"
     return 1
   }
   log "labeled $bead_id $label"
@@ -110,6 +141,15 @@ add_label() {
 # feature branch. Mirrors the guard in autocommit_beads_after_br.sh.
 commit_beads() {
   local bead_id="$1" label="$2" branch porcelain non_beads
+  # Under bd, refresh the export instead of committing one. The label lives in
+  # a gitignored database, and .beads/issues.jsonl is a passive export bd never
+  # refreshes, so committing it carries a stale file into the diff while
+  # leaving it alone makes the label invisible to bv and Manifest.
+  if [[ "$BACKEND" == "bd" ]]; then
+    "${tracker_cmd[@]}" export -o "$BEADS_FILE" >/dev/null 2>&1 \
+      || log "export refresh failed; bv and Manifest will lag"
+    return 0
+  fi
   branch="$(git branch --show-current 2>/dev/null || true)"
   [[ "$branch" == "main" && "$REPO_ROOT" == "$MAIN_ROOT" ]] || return 0
   # Kept from the atlas original although this repository has no .outrigger:
@@ -172,7 +212,7 @@ resolve_bead() {
 
   while IFS= read -r candidate; do
     [[ -z "$candidate" ]] && continue
-    found="$("${br_cmd[@]}" show "$candidate" --json 2>/dev/null || true)"
+    found="$("${tracker_cmd[@]}" show "$candidate" --json 2>/dev/null || true)"
     [[ -z "$found" ]] && continue
     id="$(echo "$found" | jq -r '((.[0].id // .id) // empty)' 2>/dev/null || true)"
     if [[ -n "$id" ]]; then
@@ -254,12 +294,13 @@ handle_pre() {
       log "pending $label for $RESOLVED_ID; Stop will check the QA report"
       ;;
     inject)
-      # Single-quote the path. This string is a shell command for someone to run
-      # later, so an unquoted path containing a space would arrive as two
-      # arguments and the command would fail where it is pasted, not here.
-      local db_flag=""
-      [[ ${#br_cmd[@]} -gt 1 ]] && db_flag=" --db '${br_cmd[2]}'"
-      jq -n --arg ctx "When this /${skill} run is complete, add the \`${label}\` label to bead ${RESOLVED_ID}, but ONLY if ${gate}. If it does not clear that gate, add no label and say so. The command is: br${db_flag} update ${RESOLVED_ID} --add-label ${label}" \
+      # Single-quote the database path. This string is a shell command for
+      # someone to run later, so an unquoted path containing a space would
+      # arrive as two arguments and fail where it is pasted, not here. Only the
+      # br arm carries a path; bd resolves its own workspace and is one word.
+      local tracker_str="${tracker_cmd[0]}"
+      [[ ${#tracker_cmd[@]} -gt 2 ]] && tracker_str+=" ${tracker_cmd[1]} '${tracker_cmd[2]}'"
+      jq -n --arg ctx "When this /${skill} run is complete, add the \`${label}\` label to bead ${RESOLVED_ID}, but ONLY if ${gate}. If it does not clear that gate, add no label and say so. The command is: ${tracker_str} update ${RESOLVED_ID} --add-label ${label}" \
         '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$ctx}}'
       log "deferred $label for $RESOLVED_ID to the run's verdict"
       ;;

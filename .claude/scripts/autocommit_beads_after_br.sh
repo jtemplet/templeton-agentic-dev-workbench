@@ -18,6 +18,33 @@ set -uo pipefail
 log() { echo "[beads-autocommit] $*" >&2; }
 quiet_exit() { exit 0; }
 
+# Retired on a bd repo rather than ported. This whole hook is a br workaround:
+# br leaves the tree dirty after every mutation because it writes issue state
+# into a git-tracked export. bd writes to a gitignored database and never
+# refreshes that export, so there is nothing to commit.
+#
+# Checked before the `br ` command match below, so a `bd` mutation gets a log
+# line too. "It did nothing" and "it declined, here is why" look identical from
+# outside, and this hook's failure mode is silence.
+_beads_backend_is_bd() {
+  local root beads_dir d
+  root="$(git rev-parse --show-toplevel 2>/dev/null)" || return 1
+  beads_dir="$root/.beads"
+  if [[ -f "$beads_dir/metadata.json" ]] \
+     && grep -q '"backend"[[:space:]]*:[[:space:]]*"dolt"' "$beads_dir/metadata.json" 2>/dev/null; then
+    return 0
+  fi
+  for d in embeddeddolt dolt proxieddb; do
+    [[ -d "$beads_dir/$d" ]] && return 0
+  done
+  return 1
+}
+
+if _beads_backend_is_bd; then
+  log "backend is bd; nothing to auto-commit (bd does not write the tracker export)"
+  quiet_exit
+fi
+
 payload="$(cat)"
 command="$(echo "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null || true)"
 [[ -z "$command" ]] && quiet_exit

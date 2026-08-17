@@ -75,3 +75,11 @@ bd.db
 # They would override fork protection in .git/info/exclude.
 # Config files (metadata.json, config.yaml) are tracked by git by default
 # since no pattern above ignores them.
+
+# br-era local history backups (per-machine, not shared)
+.br_history/
+
+# Dolt database FILES (the shipped rules only match directory forms)
+dolt
+dolt-wal
+dolt-shm

@@ -107,11 +107,24 @@ done
 # shared library. This is the second occurrence, and the house rule is to leave
 # duplication at two and extract on the third.
 GIT_COMMON="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
-br_cmd=(br)
+BACKEND="bd"
+tracker_cmd=(bd)
 if [[ -n "$GIT_COMMON" ]]; then
   MAIN_ROOT="$(dirname "$GIT_COMMON")"
-  if [[ -f "$MAIN_ROOT/.beads/beads.db" ]]; then
-    br_cmd=(br --db "$MAIN_ROOT/.beads/beads.db")
+  beads_dir="$MAIN_ROOT/.beads"
+  # Three signals in strict order, matching the sibling hook: metadata.json,
+  # then any of bd's three database directory layouts, then a database file.
+  # br is considered last, because `bd init` leaves the pre-cutover SQLite file
+  # behind and a migrated repo therefore looks like both.
+  if [[ -f "$beads_dir/metadata.json" ]] \
+     && grep -q '"backend"[[:space:]]*:[[:space:]]*"dolt"' "$beads_dir/metadata.json" 2>/dev/null; then
+    :
+  elif [[ -d "$beads_dir/embeddeddolt" || -d "$beads_dir/dolt" || -d "$beads_dir/proxieddb" ]]; then
+    :
+  else
+    for _db in "$beads_dir"/*.db; do
+      [[ -f "$_db" ]] && { BACKEND="br"; tracker_cmd=(br --db "$_db"); break; }
+    done
   fi
 fi
 
@@ -221,7 +234,7 @@ resolve_ids_in() {
   local text="$1" candidate found id seen=""
   while IFS= read -r candidate; do
     [[ -z "$candidate" ]] && continue
-    found="$("${br_cmd[@]}" show "$candidate" --json 2>/dev/null || true)"
+    found="$("${tracker_cmd[@]}" show "$candidate" --json 2>/dev/null || true)"
     # A missing id prints its error to stderr and leaves stdout empty.
     [[ -z "$found" ]] && continue
     id="$(echo "$found" | jq -r '((.[0].id // .id) // empty)' 2>/dev/null || true)"
@@ -323,7 +336,7 @@ if [[ "$merge_kind" == "pr" ]]; then
 fi
 
 # ---- Close the bead if not already closed ----
-status="$("${br_cmd[@]}" show "$bead_id" --json 2>/dev/null | jq -r '(.[0].status // .status) // "unknown"' 2>/dev/null || echo unknown)"
+status="$("${tracker_cmd[@]}" show "$bead_id" --json 2>/dev/null | jq -r '(.[0].status // .status) // "unknown"' 2>/dev/null || echo unknown)"
 if [[ "$status" == "closed" ]]; then
   log "$bead_id already closed"
   quiet_exit
@@ -352,9 +365,9 @@ else
   close_reason="Merged ${merged_ref} into ${branch}, closed by the post-merge hook."
 fi
 
-if "${br_cmd[@]}" close "$bead_id" --reason "$close_reason" >/dev/null 2>&1; then
+if "${tracker_cmd[@]}" close "$bead_id" --reason "$close_reason" >/dev/null 2>&1; then
   :
-elif "${br_cmd[@]}" update "$bead_id" --status=closed >/dev/null 2>&1; then
+elif "${tracker_cmd[@]}" update "$bead_id" --status=closed >/dev/null 2>&1; then
   log "closed $bead_id through the older update form; br close was refused"
 else
   log "could not close $bead_id: both 'br close' and 'br update --status=closed' failed"
@@ -362,9 +375,9 @@ else
   quiet_exit
 fi
 
-"${br_cmd[@]}" update "$bead_id" --remove-label in-review   >/dev/null 2>&1 || true
-"${br_cmd[@]}" update "$bead_id" --remove-label auto-ok     >/dev/null 2>&1 || true
-"${br_cmd[@]}" update "$bead_id" --remove-label in-progress >/dev/null 2>&1 || true
+"${tracker_cmd[@]}" update "$bead_id" --remove-label in-review   >/dev/null 2>&1 || true
+"${tracker_cmd[@]}" update "$bead_id" --remove-label auto-ok     >/dev/null 2>&1 || true
+"${tracker_cmd[@]}" update "$bead_id" --remove-label in-progress >/dev/null 2>&1 || true
 
 # ---- Commit the beads file, and push only on the PR path ----
 #
@@ -376,6 +389,17 @@ fi
 # in a repository that deploys on a push to main, a hook that pushes turns "I
 # merged locally" into "I deployed". So the local path commits and stops, and
 # the person's own push takes the tracker update with it.
+# Under bd there is nothing for git to carry: the database is gitignored and
+# .beads/issues.jsonl is a passive export bd never refreshes, so committing it
+# would stage a file that has been stale since the cutover. Refresh the export
+# so bv and Manifest see the close, and stop.
+if [[ "$BACKEND" == "bd" ]]; then
+  bd export -o .beads/issues.jsonl >/dev/null 2>&1 \
+    || log "export refresh failed after closing $bead_id"
+  log "closed $bead_id; export refreshed, nothing committed"
+  exit 0
+fi
+
 if git diff --quiet -- .beads/issues.jsonl; then
   exit 0
 fi

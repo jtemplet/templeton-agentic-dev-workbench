@@ -225,6 +225,37 @@ esac
 exit 0
 STUB
 
+  # A bd stub mirroring the br one. It records into the same logs, so a case can
+  # assert on the argv either backend produced without knowing which ran.
+  #
+  # bd takes no --db: it resolves one workspace per repository through the git
+  # common dir. That is the difference the label hook's worktree pinning turns
+  # on, so a stub that accepted --db would hide a real regression.
+  cat > "$BINDIR/bd" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" >> "${BR_LOG:-/dev/null}"
+echo "$*" >> "${BR_CALLS:-/dev/null}"
+sub="${1:-}"; id="${2:-}"
+
+known() { case " ${BR_KNOWN:-} " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+
+case "$sub" in
+  show)
+    known "$id" || { echo '{"error":"no issues found"}' ; exit 1; }
+    printf '[{"id":"%s","status":"open","labels":[%s]}]\n' "$id" "${BR_LABELS_JSON:-}"
+    ;;
+  export)  : ;;                       # refreshing the export writes nothing here
+  comments) : ;;
+  update)
+    case "$*" in
+      *--add-label*)   echo "labeled $id" >> "$BR_REPO/.beads/issues.jsonl" ;;
+      *--status=closed*) echo "closed $id" >> "$BR_REPO/.beads/issues.jsonl" ;;
+    esac
+    ;;
+esac
+exit 0
+STUB
+
   cat > "$BINDIR/gh" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >> "${GH_LOG:-/dev/null}"
@@ -250,7 +281,7 @@ fi
 exec "$REAL_GIT" "\$@"
 STUB
 
-  chmod +x "$BINDIR/br" "$BINDIR/gh" "$BINDIR/git"
+  chmod +x "$BINDIR/br" "$BINDIR/bd" "$BINDIR/gh" "$BINDIR/git"
 }
 
 # ---------------------------------------------------------------------------
@@ -281,6 +312,23 @@ new_repo() {
     sgit "$dir" remote add origin "$SANDBOX/$name-origin.git"
     sgit "$dir" push --quiet -u origin main
   fi
+  echo "$dir"
+}
+
+# make_bd_repo <name> [with-origin]
+#
+# The same fixture, migrated: bd's declarative marker replaces br's database
+# file. Both markers are deliberately NOT left in place together here; that
+# combination is a migrated repo and the detector's precedence is pinned in
+# outrigger's own suite, not this one. What this fixture is for is proving the
+# hooks take their bd arm at all.
+make_bd_repo() {
+  local dir
+  dir="$(new_repo "$@")"
+  rm -f "$dir/.beads/beads.db"
+  printf '{"backend":"dolt"}\n' > "$dir/.beads/metadata.json"
+  sgit "$dir" add -A
+  sgit "$dir" commit --quiet -m "migrate to bd"
   echo "$dir"
 }
 
@@ -327,11 +375,14 @@ write_stubs
 # Case 0: the sandbox itself
 # ---------------------------------------------------------------------------
 
-if case_start "sandbox: br, git and gh resolve to the harness stubs"; then
+if case_start "sandbox: br, bd, git and gh resolve to the harness stubs"; then
   R="$(new_repo sandbox)"
-  out="$(cd "$R" && PATH="$BINDIR:$PATH" bash -c 'command -v br; command -v git; command -v gh')"
-  [[ "$(echo "$out" | grep -c "^$BINDIR/")" == "3" ]] \
-    && ok "all three resolve inside the harness bin" \
+  # bd is in here for a reason: its stub was added without a chmod, so it fell
+  # through to the real /opt/homebrew/bin/bd and ran against the sandbox. The
+  # case that caught it failed looking exactly like a hook bug.
+  out="$(cd "$R" && PATH="$BINDIR:$PATH" bash -c 'command -v br; command -v bd; command -v git; command -v gh')"
+  [[ "$(echo "$out" | grep -c "^$BINDIR/")" == "4" ]] \
+    && ok "all four resolve inside the harness bin" \
     || nope "all three resolve inside the harness bin" "$out"
 
   # The guard that keeps every git command inside the sandbox. Run in a
@@ -661,6 +712,57 @@ if case_start "registration: AGENTS.md names this suite and the path resolves"; 
   [[ -f "$REPO_ROOT/${named#./}" ]] \
     && ok "the path it names exists on disk" \
     || nope "the path it names exists on disk" "$named"
+fi
+
+# ---------------------------------------------------------------------------
+# The bd arm.
+#
+# Every fixture above is br-shaped, so until now these hooks were proven on one
+# backend only. The cases below build a MIGRATED repo and assert the arm that
+# repo takes, because each of these hooks fails SILENTLY on the wrong backend:
+# they log to stderr and exit 0, so the tool call they hang off still succeeds.
+# That is exactly how one of these hooks ran `br --db` against a migrated repo
+# for four days with nobody noticing.
+# ---------------------------------------------------------------------------
+
+if case_start "label/bd: labels through bd, with no --db pin"; then
+  R="$(make_bd_repo d1 with-origin)"
+  export BR_KNOWN="tadw-alpha-one" BR_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
+  assert_match "$R/.brcalls" "--add-label reviewed" "labeled it reviewed"
+  # bd resolves its own workspace. A --db here would mean the br arm ran.
+  assert_no_match "$R/.brlog" "[-][-]db" "sent no --db"
+fi
+
+if case_start "label/bd: refreshes the export instead of committing it"; then
+  R="$(make_bd_repo d2 with-origin)"
+  before="$(head_sha "$R")"
+  export BR_KNOWN="tadw-alpha-one" BR_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
+  # The export is what bv and Manifest read, so it must be refreshed...
+  assert_match "$R/.brcalls" "export -o" "refreshed the export"
+  # ...and NOT committed: bd never writes it, so the committed copy is stale.
+  assert_match_str "$(head_sha "$R")" "^$before\$" "created no commit"
+fi
+
+if case_start "label/bd: inject mode names bd and carries no database path"; then
+  R="$(make_bd_repo "d3 with space" with-origin)"
+  export BR_KNOWN="tadw-alpha-one" BR_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:verify-acceptance' 'tadw-alpha-one')"
+  jq -e . "$R/.hookout" >/dev/null 2>&1 && ok "the JSON parses" || nope "the JSON parses"
+  assert_match "$R/.hookout" "bd update tadw-alpha-one --add-label" "named bd"
+  # Inject mode has no artifact to check afterwards, so a br command handed to
+  # a bd repo would fail where it is pasted and nothing would report it.
+  assert_no_match "$R/.hookout" "[-][-]db" "carried no database path"
+fi
+
+if case_start "autocommit/bd: declines, and says which backend"; then
+  R="$(make_bd_repo d4 with-origin)"
+  before="$(head_sha "$R")"
+  run_hook "$AUTOCOMMIT" "$R" "$(payload PostToolUse 'bd update tadw-alpha-one --add-label reviewed')"
+  [[ "$HOOK_CODE" == "0" ]] && ok "exited 0" || nope "exited 0"
+  assert_match "$R/.hookerr" "backend is bd" "named the backend"
+  assert_match_str "$(head_sha "$R")" "^$before\$" "created no commit"
 fi
 
 # ---------------------------------------------------------------------------
