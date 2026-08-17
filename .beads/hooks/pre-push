@@ -1,0 +1,194 @@
+#!/usr/bin/env sh
+# tadw - run this repository's own checks before a push leaves the machine
+#
+# AGENTS.md lists the checks that run against this repository, and running them
+# was a convention rather than a mechanism. The only hard gate here was
+# reference-transaction, which fires on `v*` tags alone, so every commit and push
+# rode on the session remembering. The stakeholder is the author who pushes a
+# broken formatter or a failing suite and finds out late, or never.
+#
+# A LOCAL HOOK, NOT A HOSTED ONE. Author direction, recorded as D4 in
+# docs/plans/quality-gates-hardening.md: .github/workflows/lint.yml keeps the
+# checks it runs today and gains nothing new. The gate belongs where the work is,
+# so it fails in seconds instead of after a round trip.
+#
+# THREE BEHAVIORS CARRY THE DESIGN.
+#
+#   1. Every check runs even after one fails, and all failures report together. A
+#      hook that stops at the first failure makes the author push, fail, fix,
+#      push, and fail again on the next one.
+#   2. A MISSING TOOL WARNS AND ALLOWS, by name. This follows the precedent
+#      reference-transaction set for a missing `claude`: an unpushable clone is a
+#      worse failure than an unchecked push, and neither rumdl nor node is
+#      universally installed. Named, never silent, because a quiet skip would
+#      recreate the gap this hook exists to close.
+#   3. TADW_PREPUSH=off is a documented escape, the way TADW_STYLE_CORE=off is.
+#      An undocumented workaround is one people invent under deadline anyway.
+#
+# TWO CHECKS FROM THE AGENTS.md BLOCK ARE DELIBERATELY ABSENT.
+#
+#   `python3 evals/run.py` is every case a real model call: far too slow and too
+#   expensive to sit on a push.
+#
+#   `python3 .githooks/test_prepush.py` is this hook's own suite, and it pushes
+#   inside a throwaway fixture whose core.hooksPath points back here. Running it
+#   from here would recurse until something gave out.
+#
+# `claude plugin validate .` is absent for a third reason: reference-transaction
+# already gates it at the tag, which is the boundary where a broken manifest stops
+# being a local mistake, and spawning the claude CLI is the slowest check of the
+# set.
+#
+# This checks the WORKING TREE, not the commits being pushed. That matches how the
+# AGENTS.md block is meant to be run by hand, and it is the state the author can
+# actually fix right now.
+
+[ "$TADW_PREPUSH" = "off" ] && exit 0
+
+# stdin is one line per ref: <local ref> <local sha> <remote ref> <remote sha>.
+# Consume it whether or not we act on it, so git never writes into a closed pipe.
+# An all-zero local sha is a deletion, and deleting a remote ref pushes no code to
+# check, so a delete-only push has nothing to gate.
+pushing=''
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in
+    *[!0]*) pushing='yes' ;;
+  esac
+done
+[ -n "$pushing" ] || exit 0
+
+# git exports GIT_DIR into every hook it runs, and the value is not portable. From
+# the main checkout it is the relative `.git`, which re-resolves under any
+# directory a check moves into, so a fixture that runs `git init` in a temp
+# directory stays inside that temp directory. From a LINKED WORKTREE it is an
+# absolute path to the main repository's gitdir, and `git -C <tmpdir>` does not
+# redirect it: the fixture's `git init` re-initializes THIS repository instead.
+# Four of the checks below build git fixtures, and one of them inits with
+# `-c core.excludesFile=/dev/null`.
+#
+# That is not hypothetical. A push from a linked worktree left the main checkout
+# with core.bare=true and core.excludesFile=/dev/null, which broke every work-tree
+# git operation in both checkouts until it was repaired by hand.
+#
+# Clear the inherited state before the first git call, so git rediscovers the
+# repository from the hook's own working directory, which git sets to the worktree
+# root. GIT_PREFIX is included because it is a path fragment relative to the gitdir
+# it came with, and it means nothing once that gitdir is gone.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_PREFIX
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+cd "$root" || exit 0
+
+work=${TMPDIR:-/tmp}/tadw-prepush.$$
+mkdir -p "$work" || exit 0
+trap 'rm -rf "$work"' EXIT HUP INT TERM
+
+total=0
+ran=0
+failed=0
+skipped=''
+
+# Runs one check, and never returns non-zero: the caller wants every check
+# attempted, so a failure is recorded rather than propagated.
+check() {
+  tool=$1
+  total=$((total + 1))
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    # Deduplicated, because python3 carries most of these checks and one warning
+    # about it is the useful number. Not a count on purpose: the earlier wording
+    # said "six" and was stale at eight.
+    case " $skipped " in
+      *" $tool "*) ;;
+      *) skipped="$skipped$tool " ;;
+    esac
+    return 0
+  fi
+
+  ran=$((ran + 1))
+  if "$@" >"$work/out" 2>&1; then
+    return 0
+  fi
+
+  failed=$((failed + 1))
+  {
+    printf '\n----- FAILED: %s\n' "$*"
+    cat "$work/out"
+  } >>"$work/report"
+  return 0
+}
+
+started=$(date +%s)
+
+# In the AGENTS.md order, so the two lists read as one list.
+# test_prepush.py asserts they stay that way.
+check rumdl fmt --check .
+check node hooks/test-hooks.js
+check bash hooks/test-claude-scripts.sh
+check python3 skills/style-testing/scripts/test_check_framework_leak.py
+check python3 skills/style-testing/scripts/check_framework_leak.py
+check python3 skills/quality-gates/scripts/test_check_doc_paths.py
+check python3 skills/quality-gates/scripts/check_doc_paths.py
+check python3 skills/quality-gates/scripts/test_changed_set.py
+check python3 skills/quality-gates/scripts/test_check_secrets.py
+check python3 skills/quality-gates/scripts/check_secrets.py
+check python3 skills/quality-gates/scripts/test_check_hygiene.py
+check python3 evals/test_run.py
+
+elapsed=$(( $(date +%s) - started ))
+
+if [ -n "$skipped" ]; then
+  echo "tadw: WARNING - not on PATH, so its checks were skipped: $skipped" >&2
+fi
+
+# Allowed, because every tool being absent is still a missing tool, and the rule
+# above is deliberate. Never reported as a pass, though: nothing was verified, and
+# "checks passed" is the one sentence a reader must not see here. This is the
+# all-skipped-run-reports-PASS shape the quality-gates skill refuses by name.
+if [ "$ran" -eq 0 ]; then
+  echo "tadw: WARNING - 0 of $total checks ran, so nothing was verified" >&2
+  exit 0
+fi
+
+if [ "$failed" -eq 0 ]; then
+  echo "tadw: pre-push checks passed ($ran of $total, ${elapsed}s)" >&2
+  exit 0
+fi
+
+cat "$work/report" >&2
+echo "" >&2
+echo "tadw: refusing to push, $failed of $ran checks failed (${elapsed}s)" >&2
+echo "tadw: fix the failures above, or set TADW_PREPUSH=off to skip this hook" >&2
+exit 1
+
+# --- BEGIN BEADS INTEGRATION v1.1.2 ---
+# This section is managed by beads. Do not remove these markers.
+if command -v bd >/dev/null 2>&1; then
+  export BD_GIT_HOOK=1
+  _bd_timeout=${BEADS_HOOK_TIMEOUT:-300}
+  _bd_used_perl=0
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$_bd_timeout" bd hooks run pre-push "$@"
+    _bd_exit=$?
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$_bd_timeout" bd hooks run pre-push "$@"
+    _bd_exit=$?
+  elif command -v perl >/dev/null 2>&1; then
+    _bd_used_perl=1
+    perl -e 'alarm shift; exec @ARGV' "$_bd_timeout" bd hooks run pre-push "$@"
+    _bd_exit=$?
+  else
+    echo >&2 "beads: hook 'pre-push' running without timeout; install coreutils or perl to enable BEADS_HOOK_TIMEOUT"
+    bd hooks run pre-push "$@"
+    _bd_exit=$?
+  fi
+  if [ $_bd_exit -eq 124 ] || { [ $_bd_used_perl -eq 1 ] && [ $_bd_exit -eq 142 ]; }; then
+    echo >&2 "beads: hook 'pre-push' timed out after ${_bd_timeout}s — continuing without beads"
+    _bd_exit=0
+  fi
+  if [ $_bd_exit -eq 3 ]; then
+    echo >&2 "beads: database not initialized — skipping hook 'pre-push'"
+    _bd_exit=0
+  fi
+  if [ $_bd_exit -ne 0 ]; then exit $_bd_exit; fi
+fi
+# --- END BEADS INTEGRATION v1.1.2 ---

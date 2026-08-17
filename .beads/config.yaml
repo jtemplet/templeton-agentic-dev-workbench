@@ -1,7 +1,3 @@
-# Beads Project Configuration
-issue_prefix: tadw
-# default_priority: 2
-# default_type: task
-
-# Git branch for beads sync
-sync-branch: beads-sync
+issue-prefix: tadw
+sync:
+    remote: "git+ssh://git@github.com/jtemplet/templeton-agentic-dev-workbench.git"

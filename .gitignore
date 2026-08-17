@@ -48,3 +48,9 @@ skills/rails-conventions-BAK/
 # Eval run artifacts (real model output; regenerate with evals/run.py)
 evals/results/
 evals/results-*.json
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/

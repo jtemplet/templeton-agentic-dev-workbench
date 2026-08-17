@@ -1,51 +1,62 @@
 {
   "hooks": {
-    "PreToolUse": [
+    "PostToolUse": [
       {
-        "matcher": "Skill",
         "hooks": [
           {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.claude/scripts/label_bead_on_skill_invocation.sh\"",
-            "statusMessage": "simplify / code-review / fresh-eyes-cr / quality-gates / verify-acceptance: labeling bead..."
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; case \"$f\" in *.md) rumdl fmt \"$f\" ;; esac; } 2\u003e/dev/null || true",
+            "statusMessage": "Running rumdl fmt...",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Write|Edit"
+      },
+      {
+        "hooks": [
+          {
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/scripts/close_bead_on_pr_merge.sh\"",
+            "statusMessage": "Checking for bead to close...",
+            "type": "command"
+          },
+          {
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/scripts/autocommit_beads_after_br.sh\"",
+            "statusMessage": "Auto-committing beads state...",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/scripts/label_bead_on_skill_invocation.sh\"",
+            "statusMessage": "simplify / code-review / fresh-eyes-cr / quality-gates / verify-acceptance: labeling bead...",
+            "type": "command"
+          }
+        ],
+        "matcher": "Skill"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bd prime --hook-json",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
       }
     ],
     "Stop": [
       {
         "hooks": [
           {
-            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR/.claude/scripts/label_bead_on_skill_invocation.sh\"",
-            "statusMessage": "Resolving pending bead labels..."
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; case \"$f\" in *.md) rumdl fmt \"$f\" ;; esac; } 2>/dev/null || true",
-            "statusMessage": "Running rumdl fmt..."
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.claude/scripts/close_bead_on_pr_merge.sh\"",
-            "statusMessage": "Checking for bead to close..."
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.claude/scripts/autocommit_beads_after_br.sh\"",
-            "statusMessage": "Auto-committing beads state..."
+            "statusMessage": "Resolving pending bead labels...",
+            "type": "command"
           }
         ]
       }
