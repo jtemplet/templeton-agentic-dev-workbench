@@ -61,11 +61,27 @@ case_no_third_party_imports plus the fact that this file runs at all.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+# git exports GIT_DIR into any hook it runs, and from a linked worktree the value
+# is an absolute path to the main repository's gitdir. `git -C <tmpdir>` does not
+# redirect it, so every `git init` below would initialize that repository instead
+# of the fixture. .githooks/pre-push clears these before it runs any check;
+# repeating it here makes the suite safe to run by hand under a stray GIT_DIR too.
+for _leaked in (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_PREFIX",
+):
+    os.environ.pop(_leaked, None)
 
 CHECKER = Path(__file__).resolve().parent / "check_secrets.py"
 
@@ -586,7 +602,7 @@ def case_real_repo() -> None:
 def case_no_third_party_imports() -> None:
     """Criterion 5: stdlib only, in the script and in this suite."""
     stdlib = {
-        "__future__", "argparse", "fnmatch", "re", "subprocess", "sys",
+        "__future__", "argparse", "fnmatch", "os", "re", "subprocess", "sys",
         "tempfile", "dataclasses", "pathlib",
     }
     for path in (CHECKER, Path(__file__).resolve()):

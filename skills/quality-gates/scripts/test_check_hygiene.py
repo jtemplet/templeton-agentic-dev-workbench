@@ -51,11 +51,28 @@ plus the fact that this file runs at all.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+# git exports GIT_DIR into any hook it runs, and from a linked worktree the value
+# is an absolute path to the main repository's gitdir. `git -C <tmpdir>` does not
+# redirect it, so every `git init` below would initialize that repository instead
+# of the fixture, writing this file's `-c` settings into it. .githooks/pre-push
+# clears these before it runs any check; repeating it here makes the suite safe to
+# run by hand under a stray GIT_DIR too.
+for _leaked in (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_PREFIX",
+):
+    os.environ.pop(_leaked, None)
 
 SCRIPT = Path(__file__).resolve().parent / "check_hygiene.py"
 
@@ -520,7 +537,7 @@ def case_real_repo_runs_clean() -> None:
 
 def case_no_third_party_imports() -> None:
     stdlib = {
-        "__future__", "argparse", "dataclasses", "re", "subprocess", "sys",
+        "__future__", "argparse", "dataclasses", "os", "re", "subprocess", "sys",
         "tempfile", "pathlib",
     }
     for path in (SCRIPT, Path(__file__).resolve()):
