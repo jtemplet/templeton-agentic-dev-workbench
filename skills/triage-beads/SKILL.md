@@ -1,6 +1,6 @@
 ---
 name: triage-beads
-description: "Rank the open beads in a br (beads_rust) tracker by ROI, value delivered per unit of effort, and answer one question: which single bead to pick up next. Use this whenever someone asks what to work on next, what to pick up, what has the highest ROI, what is on their plate, or wants the backlog prioritized, even if they do not say beads or triage by name. Reads the tracker through the br and bv command-line tools only, never an MCP server. Takes readiness from br ready and br blocked, the measured graph facts (unblock counts, PageRank) from bv --robot-triage, then scores every candidate on an explicit value-over-effort rubric in which every point cites evidence from a stored field or the bead body. Output: one top pick with the scoring arithmetic shown and its claim command, a scored leaderboard so the ranking can be audited, and the blocked list. Deterministic: the same tracker state always yields the same pick. Report-only: it never claims, closes, or edits a bead."
+description: "Rank the open beads in a bd (beads) tracker by ROI, value delivered per unit of effort, and answer one question: which single bead to pick up next. Use this whenever someone asks what to work on next, what to pick up, what has the highest ROI, what is on their plate, or wants the backlog prioritized, even if they do not say beads or triage by name. Reads the tracker through the br and bv command-line tools only, never an MCP server. Takes readiness from bd ready and bd blocked, the measured graph facts (unblock counts, PageRank) from bv --robot-triage, then scores every candidate on an explicit value-over-effort rubric in which every point cites evidence from a stored field or the bead body. Output: one top pick with the scoring arithmetic shown and its claim command, a scored leaderboard so the ranking can be audited, and the blocked list. Deterministic: the same tracker state always yields the same pick. Report-only: it never claims, closes, or edits a bead."
 ---
 
 # Triage Beads
@@ -19,20 +19,20 @@ disagrees with a weight can see exactly which one to argue with.
 - Someone asks what to work on next, what to pick up, or what has the best ROI
 - At the start of a session, to choose the next bead before claiming it
 - After closing a bead, to re-rank with the newly released work included
-- When a backlog has grown past the point where `br ready` output is scannable
+- When a backlog has grown past the point where `bd ready` output is scannable
 
 ## When NOT to Use
 
 - To judge whether a bead is *well written* (use `bead-audit`)
 - To decide whether finished work met its criteria (use `verify-acceptance`)
 - To create or decompose beads (use `plan-to-beads`)
-- When the user names a specific bead already; just `br show <id> --json` and start
+- When the user names a specific bead already; just `bd show <id> --json` and start
 
 ## Division of labor: bv scores the graph, this skill scores ROI
 
 `bv` computes what can be measured: PageRank, betweenness, how many beads each one unblocks,
 staleness, and a composite score. Those are numbers, not guesses, so never invent a substitute for
-one. Readiness is the exception: `br` owns it, and `bv` only reflects it, sometimes by a different
+one. Readiness is the exception: `bd` owns it, and `bv` only reflects it, sometimes by a different
 definition (see the `blocked_count` warning in Step 2).
 
 `bv` does not read a bead body for effort, user-visible impact, or thread momentum, and its
@@ -42,9 +42,9 @@ replace it.
 
 | Signal | Source | Kind |
 |---|---|---|
-| Ready or blocked | `br ready`, `br blocked` | Computed by `br`; never re-derive it |
+| Ready or blocked | `bd ready`, `bd blocked` | Computed by `bd`; never re-derive it |
 | Unblock count, graph importance | `bv --robot-triage` | Measured |
-| Priority, type, labels, due date | `br list --json` fields | Stored |
+| Priority, type, labels, due date | `bd list --json` fields | Stored |
 | Effort | `estimated_minutes` if set, else the body | Stored if present, else inferred |
 | User impact | The body plus `dependents` | Inferred |
 | Momentum | Dependency edges, labels, recent closes | Inferred |
@@ -55,61 +55,61 @@ All optional, from `$ARGUMENTS`:
 
 - **free text**: a scope filter, matched case-insensitively against title, description, and labels.
 - `--label <label>`: scope to one label's subgraph. This is the closest thing beads has to a
-  Linear team or project. Repeatable in `br`; `bv` takes one.
+  Linear team or project. Repeatable in `bd`; `bv` takes one.
 - `--repo <prefix>`: in a multi-repo workspace, scope to one repository's beads. `bv` takes
-  `--repo` directly; `br` has no such flag, so filter its output on the `source_repo` field
+  `--repo` directly; `bd` has no such flag, so filter its output on the `source_repo` field
   client-side, or the two halves of the readout will cover different sets.
 - `--all`: include beads assigned to someone else. Default is unassigned plus your own.
 - `--include-deferred`: include beads someone deliberately pushed out. Default excludes them.
 
 ## Step 0: Pre-flight
 
-1. **`br` must exist.** Run `which br`. If it is missing, say
-   `br not found on PATH: install beads_rust, or paste the beads you want triaged.` and stop.
-2. **`bv` is optional.** Run `which bv`. If it is missing, run the whole triage from `br` alone and
+1. **`bd` must exist.** Run `which br`. If it is missing, say
+   `br not found on PATH: install beads, or paste the beads you want triaged.` and stop.
+2. **`bv` is optional.** Run `which bv`. If it is missing, run the whole triage from `bd` alone and
    say so in one line at the top of the readout. Do not silently drop the graph facts and present
    the result as if they were included. Substitute the unblock count with the number of
-   `dependents[]` entries whose `dependency_type` is `blocks`, read from `br show`. Do not use
-   `dependent_count` from `br list` for this: it sums every edge type (see the `dependency_type`
-   warning in Step 2), and the `br ready` row does not carry it at all.
+   `dependents[]` entries whose `dependency_type` is `blocks`, read from `bd show`. Do not use
+   `dependent_count` from `bd list` for this: it sums every edge type (see the `dependency_type`
+   warning in Step 2), and the `bd ready` row does not carry it at all.
 3. **Never run bare `bv`.** It launches an interactive TUI and blocks the session. Every `bv` call
    here carries a `--robot-*` flag.
-4. **A stale database gives a wrong readout.** If `br` warns that the database is stale, run
-   `br sync --import-only` before fetching, then continue.
+4. **A stale database gives a wrong readout.** If `bd` warns that the database is stale, run
+   `bd import .beads/issues.jsonl` before fetching, then continue.
 5. **Parse the arguments** listed above.
 
 ## Step 1: Fetch candidates
 
 **Three traps, all of which silently shrink or pad the candidate set.**
 
-1. **Every listing command has a default limit and truncates without complaining.** `br list` and
-   `br blocked` default to 50, `br ready` defaults to 20. Pass `--limit 0` for unlimited on every
+1. **Every listing command has a default limit and truncates without complaining.** `bd list` and
+   `bd blocked` default to 50, `bd ready` defaults to 20. Pass `--limit 0` for unlimited on every
    call that feeds a ranking or a count.
-2. **"Open" and "ready" are different sets.** `br list --status=open` includes beads that are
-   blocked by an open dependency. `br ready` is open, unblocked, and not deferred. The scored
-   candidates come from `br ready`; the tail and the blocked list need the open set too.
-3. **`draft` is a status, not a label.** A draft bead is not pickup-ready. `br ready` already
+2. **"Open" and "ready" are different sets.** `bd list --status=open` includes beads that are
+   blocked by an open dependency. `bd ready` is open, unblocked, and not deferred. The scored
+   candidates come from `bd ready`; the tail and the blocked list need the open set too.
+3. **`draft` is a status, not a label.** A draft bead is not pickup-ready. `bd ready` already
    excludes it, so do not add it back from the open set.
 
 ```bash
-br ready --json --limit 0                # actionable: open, unblocked, not deferred, not draft
-br blocked --json --limit 0              # blocked, each with blocked_by ids
-br list --status=open --limit 0 --json   # full open set, for the tail and the counts
+bd ready --json --limit 0                # actionable: open, unblocked, not deferred, not draft
+bd blocked --json --limit 0              # blocked, each with blocked_by ids
+bd list --status=open --limit 0 --json   # full open set, for the tail and the counts
 ```
 
-Add `--include-deferred` to `br ready` when the user passed that argument. Without the flag, a
+Add `--include-deferred` to `bd ready` when the user passed that argument. Without the flag, a
 deferred bead never appears, which is the default this skill wants.
 
-Add `--label <label>` to any of the three to scope. `br list` also has `--title-contains` and
+Add `--label <label>` to any of the three to scope. `bd list` also has `--title-contains` and
 `--desc-contains`, but they are separate AND-ed flags, so a single free-text scope that should match
 *either* is cleaner client-side over the fetched JSON. For a wide or fuzzy scope, use
-`br search "<text>" --json` instead.
+`bd search "<text>" --json` instead.
 
 Note the shapes, which differ between commands:
 
-- `br list` returns an envelope: `{"issues": [...], "total": N, "has_more": bool}`. Check
+- `bd list` returns an envelope: `{"issues": [...], "total": N, "has_more": bool}`. Check
   `has_more`; if it is true you truncated.
-- `br ready` and `br blocked` return a bare array.
+- `bd ready` and `bd blocked` return a bare array.
 - Null fields are **omitted** from the JSON. A bead with no assignee has no `assignee` key, so
   test for absence, not for null.
 
@@ -151,7 +151,7 @@ What to take from it:
 | `status` | Which metrics were computed and which were skipped |
 
 **`recommendations` is not a claimable list.** It includes graph-important work that is blocked or
-already assigned. Only `quick_ref.top_picks` and beads present in `br ready` are claimable.
+already assigned. Only `quick_ref.top_picks` and beads present in `bd ready` are claimable.
 
 **Check `status` before quoting a metric.** On a small graph `bv` skips Eigenvector, HITS, critical
 path, cycles, and k-core, and marks betweenness `approximate`. A metric marked `skipped` is absent,
@@ -159,16 +159,16 @@ not zero.
 
 **Do not take the blocked count from `quick_ref.blocked_count`.** It counts beads whose *status* is
 `blocked`, which almost nothing sets, so it reads `0` on a backlog with plenty of dependency-blocked
-work. The count that matches reality is the length of `br blocked`, and `bv` reports the same number
+work. The count that matches reality is the length of `bd blocked`, and `bv` reports the same number
 as `project_health.counts.dependency_blocked`. On this repository at the time of writing:
-`blocked_count` 0, `dependency_blocked` 6, `br blocked` 6 rows.
+`blocked_count` 0, `dependency_blocked` 6, `bd blocked` 6 rows.
 
-Three cheap `br` reads complete the momentum picture:
+Three cheap `bd` reads complete the momentum picture:
 
 ```bash
-br list --status=in_progress --limit 0 --json                  # threads that are hot right now
-br list --status=closed -a --limit 50 --json --sort updated_at # most recent first; --reverse flips it
-br show <id> --json                                            # per-candidate edges, for the shortlist
+bd list --status=in_progress --limit 0 --json                  # threads that are hot right now
+bd list --status=closed -a --limit 50 --json --sort updated_at # most recent first; --reverse flips it
+bd show <id> --json                                            # per-candidate edges, for the shortlist
 ```
 
 Filter the closed list client-side to the last 14 days on `updated_at`. The cap of 50 is the one
@@ -177,21 +177,21 @@ rather than a ranking or a count. It is only safe while the oldest row it return
 than 14 days. When the 50th row is still inside the window, raise the limit and fetch again, or the
 momentum score is reading a truncated history.
 
-**`br show` returns a one-element array.** Index `.[0]`. It is the only call that carries edge
+**`bd show` returns a one-element array.** Index `.[0]`. It is the only call that carries edge
 *identity*: `dependencies[]` and `dependents[]`, each with the other bead's `id`, `title`,
-`status`, `priority`, and `dependency_type`. `br list` carries only `dependency_count` and
-`dependent_count`. Score first, then `br show` the top ~12 in parallel to verify the edges behind
+`status`, `priority`, and `dependency_type`. `bd list` carries only `dependency_count` and
+`dependent_count`. Score first, then `bd show` the top ~12 in parallel to verify the edges behind
 their scores.
 
 **Only a `blocks` edge blocks or releases anything.** `dependency_type` is also `parent-child` (an
-epic and its members) or `related`, and the two counts on `br list` add up every type without
+epic and its members) or `related`, and the two counts on `bd list` add up every type without
 distinguishing them. A bead whose single `dependencies[]` entry is its open parent epic is *ready*,
 and a bead whose single `dependents[]` entry is a `related` bead releases *nothing* by closing. So
 filter on `dependency_type == "blocks"` before you call an edge a blocker or count it as an unblock.
-Verified: a child created with `br create --parent <epic>` shows `dependency_count` 1 and appears in
-`br ready` at the same time.
+Verified: a child created with `bd create --parent <epic>` shows `dependency_count` 1 and appears in
+`bd ready` at the same time.
 
-Unlike a Linear fetch, `br list --json` already carries the **full** `description`, `design`,
+Unlike a Linear fetch, `bd list --json` already carries the **full** `description`, `design`,
 `acceptance_criteria`, and `notes`. There is no truncation to work around, so do not re-fetch a
 body you already have.
 
@@ -210,9 +210,9 @@ awarded.
    the override guards the edge where a large P0 would lose on division to a trivial P4.
 3. **`defer_until` in the future**: deferred on purpose. Keep it out unless `--include-deferred`.
 
-**Neither `due_at` nor `defer_until` is in the `br ready` row.** Only `br list` and `br show`
+**Neither `due_at` nor `defer_until` is in the `bd ready` row.** Only `bd list` and `bd show`
 carry them, so read them from the open set or from the shortlist fetch. Looking for `due_at` in
-`br ready` output finds nothing and proves nothing.
+`bd ready` output finds nothing and proves nothing.
 
 ### Value: 0 to 23 points
 
@@ -242,8 +242,8 @@ link in an active thread costs less to start than a cold standalone.
    label such as `qg-hardening`; or the same epic; or the same plan file. `plan-to-beads` writes
    `Plan: docs/plans/<name>.md (M4)` into the body, and the milestone marker orders the thread.
    Read epic membership from the child, not from the epic: the `dependencies[]` entry whose
-   `dependency_type` is `parent-child`, or the id itself, since `br create --parent <epic>` names
-   children `<epic-id>.1`, `<epic-id>.2`, and so on. `br epic status --json` reports only
+   `dependency_type` is `parent-child`, or the id itself, since `bd create --parent <epic>` names
+   children `<epic-id>.1`, `<epic-id>.2`, and so on. `bd epic status --json` reports only
    `total_children`, `closed_children`, and `eligible_for_close`; it lists no member ids.
 3. **Cold**: standalone, no shared label, no recent activity on either end of an edge.
 
@@ -307,7 +307,7 @@ judgment.
 
 | Excluded | How to tell | Where it goes |
 |---|---|---|
-| Blocked | present in `br blocked` | Blocked list, naming the blocker |
+| Blocked | present in `bd blocked` | Blocked list, naming the blocker |
 | Deferred | `status` is `deferred`, or `defer_until` is future | One count line |
 | Draft | `status` is `draft` | One count line |
 | Epic | `issue_type` is `epic` | Its children are scored instead; childless, flag for `plan-to-beads` |
@@ -331,7 +331,7 @@ searches on the words the tracker holds.
    Evidence: unblocks tadw-qg-eval-finding-cases-29f and tadw-qg-eval-verdict-rules-xub (bv,
    verified blocks edges); bv quick-win "Low complexity" and 4 acceptance criteria (S);
    13 open qg-hardening beads name the same plan file (hot). Agrees with bv's top pick.
-   claim: br update tadw-qg-eval-fixture-harness-e4i --claim
+   claim: bd update tadw-qg-eval-fixture-harness-e4i --claim
 
 Leaderboard (value ÷ effort = ROI)
   #2  tadw-self-report-sentence-length-zxu  8.0 = 8 (P2 3 + High 4 + warm 1) ÷ S 1
@@ -357,7 +357,7 @@ Rest of the ready backlog, ROI order (7 of 12 ready; the 6 blocked are above):
 Rules for the readout:
 
 - **The pick is one bead** with its full arithmetic and its evidence, three to five lines. Always
-  print its claim command, which is `br update <id> --claim` (atomic: assigns to you and sets
+  print its claim command, which is `bd update <id> --claim` (atomic: assigns to you and sets
   `in_progress`). `bv` prints its own under `.triage.commands.claim_top`, in the longer
   `--status in_progress` form.
 - **Every leaderboard row shows its arithmetic** and one clause naming the component that cost it
@@ -367,7 +367,7 @@ Rules for the readout:
   the pick's score rests on an inferred size or a thin body, say so on the evidence line and name
   the runner-up that wins if the inference is wrong.
 - **One screen total.** Cap the tail at 10 and close it with `… and N more`. A full dump of the
-  backlog is what `br list` already prints, and it buries the recommendation this skill exists to
+  backlog is what `bd list` already prints, and it buries the recommendation this skill exists to
   make.
 
 ## Step 5: Handoff
@@ -378,8 +378,8 @@ Close with the next action and nothing more:
 Say the word and I'll claim tadw-qg-eval-fixture-harness-e4i and start.
 ```
 
-Starting means `br update <id> --claim`, reading the bead's `acceptance_criteria`, and
-implementing. The handoff carries the **bead id** only; everything else is re-read from `br`.
+Starting means `bd update <id> --claim`, reading the bead's `acceptance_criteria`, and
+implementing. The handoff carries the **bead id** only; everything else is re-read from `bd`.
 
 `--claim` refuses two cases with `VALIDATION_FAILED` and exit code 4: `cannot claim blocked issue`
 and `already assigned to <name>`. Treat either as evidence that this readout was built on stale
@@ -392,14 +392,14 @@ Every call this skill makes, and why.
 
 | Call | Purpose |
 |---|---|
-| `br ready --json --limit 0` | The scored candidate set |
-| `br blocked --json --limit 0` | The blocked list, with `blocked_by` ids |
-| `br list --status=open --limit 0 --json` | Open set for the tail, the counts, and `due_at` |
-| `br list --status=in_progress --limit 0 --json` | Hot threads |
-| `br list --status=closed -a --limit 50 --json --sort updated_at` | Recent closes, newest first |
-| `br show <id> --json` | Edge identity for the shortlist; returns a one-element array |
-| `br search "<text>" --json` | Wide or fuzzy scope filter |
-| `br epic status --json` | Epic progress only (`total_children`, `closed_children`); it carries no member ids |
+| `bd ready --json --limit 0` | The scored candidate set |
+| `bd blocked --json --limit 0` | The blocked list, with `blocked_by` ids |
+| `bd list --status=open --limit 0 --json` | Open set for the tail, the counts, and `due_at` |
+| `bd list --status=in_progress --limit 0 --json` | Hot threads |
+| `bd list --status=closed -a --limit 50 --json --sort updated_at` | Recent closes, newest first |
+| `bd show <id> --json` | Edge identity for the shortlist; returns a one-element array |
+| `bd search "<text>" --json` | Wide or fuzzy scope filter |
+| `bd epic status --json` | Epic progress only (`total_children`, `closed_children`); it carries no member ids |
 | `bv --robot-triage` | All graph facts in one call |
 | `bv --robot-triage --format toon` | Same, in fewer tokens, but only when the `tru` helper is on PATH. Without it `bv` prints `warning: tru not available; falling back to JSON` on **stderr** and emits ordinary JSON, so a piped call saves nothing and says so where you cannot see it |
 | `bv --robot-next` | `bv`'s single top pick; a cross-check, not a substitute for the rubric |
@@ -411,9 +411,9 @@ Every call this skill makes, and why.
   bead to `in_progress` happens when the work actually starts, and it is the user's call.
 - **Default scope is actionable, unassigned or yours.** That is the daily-driver case. `--all`
   widens to work others hold; a free-text argument or `--label` narrows to a thread.
-- **Readiness belongs to `br`.** It already walks the dependency graph and excludes deferred and
+- **Readiness belongs to `bd`.** It already walks the dependency graph and excludes deferred and
   draft beads. Recomputing it from raw JSONL invites a wrong answer, and a closed blocker is
-  already gone from `br ready`.
+  already gone from `bd ready`.
 - **The rubric's weights are policy, not measurement.** They are fixed here so the pick is
   reproducible across sessions and arguable in one place. Tuning a weight is an edit to this file,
   never an in-session judgment call, or "deterministic" stops being true.

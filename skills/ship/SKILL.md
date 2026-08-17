@@ -124,7 +124,7 @@ Verify every candidate against the tracker, longest candidate first, and never t
 alone:
 
 ```bash
-br show <candidate> --json
+bd show <candidate> --json
 ```
 
 Three outcomes:
@@ -132,7 +132,7 @@ Three outcomes:
 - **Exactly one candidate resolves.** That is the bead. Say which, and how you found it.
 - **Two or more resolve.** Stop with `bead-ambiguous`. Refusing beats closing the wrong bead, which
   is silent and tedious to undo.
-- **None resolves, and a tracker exists** (`br` is on PATH and `.beads/` exists). Stop with
+- **None resolves, and a tracker exists** (`bd` is on PATH and `.beads/` exists). Stop with
   `bead-unresolved`. Landing work whose bead you cannot name defeats the point of the loop.
 - **No tracker at all.** Proceed tracker-free: no close, no sync, and the commit subject carries no
   bead id. Say so in the report, twice: in the header and in the summary.
@@ -140,14 +140,14 @@ Three outcomes:
 Read `status` from the same JSON. A bead that is already `closed` stops the run with
 `bead-already-closed`; something landed this work already, and finding out which is a human's job.
 
-**Pin `br` to the main checkout's database when you are in a linked worktree.** Every worktree
-carries its own copy of `.beads/beads.db`, so an unpinned `br` writes the close into a throwaway
+**Pin `bd` to the main checkout's database when you are in a linked worktree.** Every worktree
+carries its own copy of `.beads/beads.db`, so an unpinned `bd` writes the close into a throwaway
 database while the real bead stays open:
 
 ```bash
 GIT_COMMON="$(git rev-parse --path-format=absolute --git-common-dir)"
 MAIN_ROOT="$(dirname "$GIT_COMMON")"
-# use: br --db "$MAIN_ROOT/.beads/beads.db" ...   when that file exists
+# use: bd ...   when that file exists
 ```
 
 ### Step 2: Bring the Branch Current
@@ -333,8 +333,8 @@ the report which of the two you ran.
 Step 1 found no tracker; there is nothing to close and nothing to export.
 
 ```bash
-br close <id> --reason "shipped: <subject>"
-br sync --flush-only --force
+bd close <id> --reason "shipped: <subject>"
+bd export -o .beads/issues.jsonl
 git status --porcelain .beads/
 ```
 
@@ -411,7 +411,7 @@ Emit the report below, then the machine line, then stop. On any stop, label the 
 Step 1 resolved one:
 
 ```bash
-br update <id> --add-label needs-human
+bd update <id> --add-label needs-human
 ```
 
 Several stops happen before a bead resolves (`dirty-tree`, `on-default-branch`, `bead-unresolved`).
@@ -501,7 +501,7 @@ not remove that worktree, and do not detach its HEAD.
 timeout that clips a real suite converts a passing repository into `gate-blocked`. Raise
 `TADW_SHIP_CHECK_TIMEOUT` rather than narrowing the gate.
 
-**The bead has open blocking dependencies.** `br close` refuses without `--force`. Do not pass
+**The bead has open blocking dependencies.** `bd close` refuses without `--force`. Do not pass
 `--force`. Stop with `internal-error`, naming the blockers; a bead that cannot close is a fact about
 the graph, and overriding it here hides that from everyone.
 

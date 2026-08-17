@@ -10,13 +10,13 @@ inlining this content, which keeps the top-level agent instructions scannable.
 
 ---
 
-This project uses [beads_rust](https://github.com/Dicklesworthstone/beads_rust) (`br`) for issue tracking and [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) (`bv`) for graph-aware triage. Issues are stored in `.beads/` and tracked in git. Current `br` workspaces normally export `.beads/issues.jsonl`; older `bd`/legacy workspaces may use `.beads/beads.jsonl`. `bv` auto-discovers the supported JSONL files, so agents should use `br`/`bv` commands instead of hard-coding a single filename.
+This project uses [beads](https://github.com/Dicklesworthstone/beads) (`bd`) for issue tracking and [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) (`bv`) for graph-aware triage. Issues are stored in `.beads/` and tracked in git. Current `bd` workspaces normally export `.beads/issues.jsonl`; older `bd`/legacy workspaces may use `.beads/beads.jsonl`. `bv` auto-discovers the supported JSONL files, so agents should use `bd`/`bv` commands instead of hard-coding a single filename.
 
 ## Using bv as an AI sidecar
 
 bv is a graph-aware triage engine for Beads projects. Instead of parsing .beads/issues.jsonl / .beads/beads.jsonl directly or hallucinating graph traversal, use robot flags for deterministic, dependency-aware outputs with precomputed metrics (PageRank, betweenness, critical path, cycles, HITS, eigenvector, k-core).
 
-**Scope boundary:** bv handles *what to work on* (triage, priority, planning). `br` handles creating, modifying, and closing beads.
+**Scope boundary:** bv handles *what to work on* (triage, priority, planning). `bd` handles creating, modifying, and closing beads.
 
 **CRITICAL: Use ONLY --robot-* flags. Bare bv launches an interactive TUI that blocks your session.**
 
@@ -39,7 +39,7 @@ bv --robot-next          # Minimal: just the single top pick + claim command
 bv --robot-triage --format toon
 ```
 
-Before claiming, verify current state with `br show <id> --json` or `br ready --json`. `recommendations` can include graph-important blocked or assigned work; only `quick_ref.top_picks` and non-empty `claim_command` fields represent claimable work.
+Before claiming, verify current state with `bd show <id> --json` or `bd ready --json`. `recommendations` can include graph-important blocked or assigned work; only `quick_ref.top_picks` and non-empty `claim_command` fields represent claimable work.
 
 #### Other bv Commands
 
@@ -65,34 +65,34 @@ bv --recipe high-impact --robot-triage       # Pre-filter: top PageRank scores
 ### br Commands for Issue Management
 
 ```bash
-br ready --json                       # Show issues ready to work (no blockers)
-br list --status=open --json          # All open issues
-br show <id> --json                   # Full issue details with dependencies
-br create --title="..." --type=task --priority=2 --json
-br update <id> --status=in_progress --json
-br close <id> --reason="Completed" --json
-br close <id1> <id2> --reason="Completed" --json
-br sync --flush-only                  # Export DB to JSONL after Beads mutations
+bd ready --json                       # Show issues ready to work (no blockers)
+bd list --status=open --json          # All open issues
+bd show <id> --json                   # Full issue details with dependencies
+bd create --title="..." --type=task --priority=2 --json
+bd update <id> --status=in_progress --json
+bd close <id> --reason="Completed" --json
+bd close <id1> <id2> --reason="Completed" --json
+bd export -o .beads/issues.jsonl                  # Export DB to JSONL after Beads mutations
 ```
 
 ### Workflow Pattern
 
 1. **Triage**: Run `bv --robot-triage` to find the highest-impact actionable work
-2. **Claim**: Use `br update <id> --status=in_progress --json`
+2. **Claim**: Use `bd update <id> --status=in_progress --json`
 3. **Work**: Implement the task
-4. **Complete**: Use `br close <id> --reason="Completed" --json`
-5. **Sync**: Run `br sync --flush-only` after Beads mutations so the JSONL export is current
+4. **Complete**: Use `bd close <id> --reason="Completed" --json`
+5. **Sync**: Run `bd export -o .beads/issues.jsonl` after Beads mutations so the JSONL export is current
 
 ### Key Concepts
 
-- **Dependencies**: Issues can block other issues. `br ready --json` shows only unblocked work.
+- **Dependencies**: Issues can block other issues. `bd ready --json` shows only unblocked work.
 - **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers 0-4, not words)
 - **Types**: task, bug, feature, epic, chore, docs, question
-- **Blocking**: `br dep add <issue> <depends-on>` to add dependencies
+- **Blocking**: `bd dep add <issue> <depends-on>` to add dependencies
 
 ### Git Policy
 
-`br` never commits or pushes. Follow this repository's own git instructions before staging, committing, or pushing. If the repository says "commit only when asked," that rule overrides any generic workflow advice.
+`bd` never commits or pushes. Follow this repository's own git instructions before staging, committing, or pushing. If the repository says "commit only when asked," that rule overrides any generic workflow advice.
 
 <!-- end-bv-agent-instructions -->
 
@@ -108,10 +108,10 @@ These were extracted from `AGENTS.md` when its inline command reference was remo
 > `(.triage // .)` so both shapes work. The `triage-beads` skill does exactly that.
 
 ```bash
-br sync --import-only                 # Import JSONL -> DB (after git pull)
+bd import .beads/issues.jsonl                 # Import JSONL -> DB (after git pull)
 br sync --merge                       # 3-way merge after pull conflicts
-br dep add <issue> <depends-on>       # Add a blocking dependency
-br dep tree <issue>                   # Show the dependency tree
-br label list-all                     # All labels with counts
-br update <id> --claim                # Atomic: assign to self + set in_progress
+bd dep add <issue> <depends-on>       # Add a blocking dependency
+bd dep tree <issue>                   # Show the dependency tree
+bd label list-all                     # All labels with counts
+bd update <id> --claim                # Atomic: assign to self + set in_progress
 ```

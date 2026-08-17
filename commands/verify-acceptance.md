@@ -11,7 +11,7 @@ Read the file rather than invoking the skill by name. `commands/verify-acceptanc
 
 The skill will:
 
-1. Resolve the bead from `br list --status in_progress`, the branch name, or the commit messages
+1. Resolve the bead from `bd list --status in_progress`, the branch name, or the commit messages
 2. Read its `acceptance_criteria` (and any `## Done when` block in `notes`)
 3. Grade each criterion PASS / FAIL / UNVERIFIABLE against evidence, never against the diff
 4. Run the QA gates (tests, linting, type checking, security) and record their real counts

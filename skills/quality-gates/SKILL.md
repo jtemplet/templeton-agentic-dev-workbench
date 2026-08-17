@@ -14,7 +14,7 @@ The subject is **the change**, not the repository. A repository-wide sweep that 
 Use when:
 
 - Ending a work session, as step 2 of "Landing the Plane"
-- Before opening a pull request, or before `br close`
+- Before opening a pull request, or before `bd close`
 - After a fresh-eyes review, as the last step of the code-quality pipeline
 - When asked "does this pass QA?", "run the checks", or "is the build clean?"
 

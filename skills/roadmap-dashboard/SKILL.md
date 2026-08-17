@@ -35,7 +35,7 @@ the primary failure mode. Detailed guidance lives in the reference files; load t
    python3 <skill>/scripts/collect_beads.py --out /tmp/roadmap-beads.json
    ```
 
-   It refreshes the JSONL (`br sync --flush-only` when `br` is present), parses it, skips
+   It refreshes the JSONL (`bd export -o .beads/issues.jsonl` when `bd` is present), parses it, skips
    tombstones, normalizes priorities, filters dependency edges to the blocking ones, and
    annotates each issue with `ready`/`blocked`/`blocked_by`. It always exits 0 and writes the
    `--out` file. When no `.beads/` exists (or the tracker is empty) it emits an empty shape

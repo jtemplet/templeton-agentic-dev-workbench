@@ -15,7 +15,7 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 **Feature Development:** Use `/build <bead-id>` or the `software-engineer` agent + `feature-development` skill
 
 - 5-phase workflow: ground the spec, orient in the repo, implement, simplify, lint
-- Reads the spec from `br show <id> --json` rather than interviewing about what the bead records
+- Reads the spec from `bd show <id> --json` rather than interviewing about what the bead records
 - Loads `style-python` for Python file style decisions, plus `style-testing` for tests
 - Runs `ruff` for linting, or the command the project declares
 - Leaves the bead open; grading is `/quality-gates` then `/verify-acceptance`
@@ -192,7 +192,7 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 
 **Grade work against its criteria:** Use `/verify-acceptance` or the `verify-acceptance` skill
 
-- Resolves the bead from `br`, the branch name, or the commit messages
+- Resolves the bead from `bd`, the branch name, or the commit messages
 - Grades each acceptance criterion against a named test, a command's output, or a `file:line`,
   never against the diff
 - Runs the four gates from `quality-gates` that can invalidate an acceptance claim
@@ -204,7 +204,7 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
   check suite, run locally on the rebased tip, is the entire gate
 - Refuses to start on the default branch, on a dirty tree, or with a rebase or merge already running
 - Resolves the bead from the argument or the `outrigger/<short-id>/<slug>` branch name, verifying
-  every candidate against `br` and refusing when two real beads resolve
+  every candidate against `bd` and refusing when two real beads resolve
 - Rebases onto `origin/main` before gating, so the gate grades the tree the squash-merge produces
 - Resolves a `.beads/issues.jsonl` conflict through the host repo's tracker merge tool or
   `br sync --merge`, verifies the result parses, and aborts on any other conflict rather than
@@ -226,11 +226,11 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 
 **Decide what to work on next:** Use `/triage-beads` or the `triage-beads` skill directly
 
-- Reads the tracker through the `br` and `bv` command-line tools only; there is no MCP server
-- Takes readiness from `br ready` and `br blocked`, never from `bv`, whose `blocked_count` reads 0
+- Reads the tracker through the `bd` and `bv` command-line tools only; there is no MCP server
+- Takes readiness from `bd ready` and `bd blocked`, never from `bv`, whose `blocked_count` reads 0
   on a backlog full of dependency-blocked work
 - Takes every measured graph fact from one `bv --robot-triage` call (unblock counts, PageRank,
-  betweenness, low-complexity flags) and degrades to `br` alone, saying so, when `bv` is absent
+  betweenness, low-complexity flags) and degrades to `bd` alone, saying so, when `bv` is absent
 - Ranks every candidate on one fixed rubric, `ROI = value ÷ effort`: value sums priority, user
   impact, unblock leverage, momentum, and a due-within-7-days bonus, and the size tier divides
   (S by 1, M by 1.5, L by 2.5, compressed on purpose so the least-evidenced input cannot outvote
@@ -248,7 +248,7 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
   the blocked ones with the blocker that holds them
 - Says in one line when its own top pick differs from `bv`'s, naming the component that moved it
 - Caps the output at roughly one screen: one top pick with its arithmetic and its
-  `br update <id> --claim` command, a leaderboard of 5 naming what each runner-up lost on, and an
+  `bd update <id> --claim` command, a leaderboard of 5 naming what each runner-up lost on, and an
   ROI-ordered tail of 10 closed with `… and N more`
 - Deterministic: the same tracker state always yields the same pick, with exact ties broken by
   priority, then unblock count, then effort, then age

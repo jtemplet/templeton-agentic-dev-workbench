@@ -13,7 +13,7 @@ Use when:
 
 - A fresh-eyes review just finished and you are deciding whether the work is done
 - Before opening a pull request, to see which criteria are still unmet
-- Before running `br close`, as the check that the bead earned its close
+- Before running `bd close`, as the check that the bead earned its close
 - When asked "is this done?", "did this meet the criteria?", or "did this pass QA?"
 
 Do NOT use when:
@@ -33,12 +33,12 @@ This is the same rule as the house response style's: report the evidence, not th
 
 ### Step 1: Resolve the Unit of Work
 
-If the caller named a bead id, grade that bead and skip the search. Confirm it exists with `br show <id> --json` first; if it does not, say so and stop rather than falling back to auto-resolution.
+If the caller named a bead id, grade that bead and skip the search. Confirm it exists with `bd show <id> --json` first; if it does not, say so and stop rather than falling back to auto-resolution.
 
 Otherwise find the bead this work belongs to. Try in order, stopping at the first hit:
 
 ```bash
-br list --status in_progress --json      # the claimed bead, if one is claimed
+bd list --status in_progress --json      # the claimed bead, if one is claimed
 git rev-parse --abbrev-ref HEAD          # a branch often carries the bead id
 git log --oneline main..HEAD             # commit messages often cite it
 ```
@@ -46,7 +46,7 @@ git log --oneline main..HEAD             # commit messages often cite it
 If a branch or commit names an id, confirm it:
 
 ```bash
-br show <id> --json
+bd show <id> --json
 ```
 
 **If exactly one bead resolves,** use it and say which and how you found it.
@@ -57,7 +57,7 @@ br show <id> --json
 
 ### Step 2: Read the Criteria
 
-From `br show <id> --json`, read:
+From `bd show <id> --json`, read:
 
 - `acceptance_criteria` - the authoritative list, usually numbered Given/When/Then
 - `notes` - often carries a `## Done when (Acceptance)` block that adds to it
@@ -160,7 +160,7 @@ A skipped gate does not change the verdict. A BLOCKED gate does, because a check
 
 **Never:**
 
-- Edit code in the working tree, write the `quality-gates` JSON artifact, run `br close`, or change a bead's status (this skill is report-only and writes no file at all)
+- Edit code in the working tree, write the `quality-gates` JSON artifact, run `bd close`, or change a bead's status (this skill is report-only and writes no file at all)
 - Infer acceptance criteria when the bead has none
 - Grade a criterion from the diff alone
 - Call a criterion PASS because the code looks like it should satisfy it

@@ -34,7 +34,7 @@ Do NOT use this skill when:
 **With a bead id.** Read it, and do not interview the user about what it already says.
 
 ```bash
-br show <id> --json
+bd show <id> --json
 ```
 
 Read four fields: `title`, `description` (the Why), `design` (the How), and `acceptance_criteria` (the Done when). Check `notes` for a `## Estimated size` block and an out-of-scope list.

@@ -1,9 +1,9 @@
 ---
-description: "Decompose a feature plan into br (beads_rust) issues with dependencies"
+description: "Decompose a feature plan into bd (beads) issues with dependencies"
 argument-hint: "[path-to-plan-file]"
 ---
 
-**Read** `${CLAUDE_PLUGIN_ROOT}/skills/plan-to-beads/SKILL.md` and follow it to decompose a feature plan into trackable `br` issues.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/plan-to-beads/SKILL.md` and follow it to decompose a feature plan into trackable `bd` issues.
 
 Read the file rather than invoking the skill by name. `commands/plan-to-beads.md` and
 `skills/plan-to-beads/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
@@ -17,7 +17,7 @@ The skill will:
 2. Identify natural work units, articulate Marr Levels 1 (Why) and 2 (How) for each, and audit every bead before presenting
 3. Map the dependency graph (preferring parallel tracks)
 4. **Present the full issue list, including each bead's Why and How, and wait for your confirmation**
-5. Create issues with `br create -d <body>`, wire dependencies with `br dep add`
-6. Run `br sync --flush-only` and report the final state
+5. Create issues with `bd create -d <body>`, wire dependencies with `bd dep add`
+6. Run `bd export -o .beads/issues.jsonl` and report the final state
 
 If no argument is provided, the skill will list available plans in `docs/plans/` and ask which to decompose.

@@ -42,7 +42,7 @@ For promotion, the skill defers to the `bead-audit` and `plan-to-beads` standard
 - **Confirm before mutating shared state.** Present drafted beads and wait for explicit user confirmation before creating or folding any. Creating issues is a side effect the user owns.
 - **Reconcile, do not duplicate.** On a refresh, every finding gets exactly one of four outcomes: new bead, skip, fold into an existing bead, or close. Surface fold-in candidates (same surface + overlapping evidence) instead of filing near-duplicates.
 - **Additive, not destructive.** Adding frontmatter and correcting stale facts is additive and allowed; it is not "overwriting a human-authored tree." Preserve human prose and nuance.
-- **Least surprise on the tracker.** Use whatever issue CLI the repo already uses (`br`, `bd`, ...); stay tracker-agnostic.
+- **Least surprise on the tracker.** Use whatever issue CLI the repo already uses (`bd`, `bd`, ...); stay tracker-agnostic.
 
 ## Output format
 

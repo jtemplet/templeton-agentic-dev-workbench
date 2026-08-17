@@ -213,7 +213,7 @@ each. They are not wired here, and `plugin.json` does not reference them.
   the three events. Safe to re-run, and it repairs wiring that names an older path rather than
   duplicating it. `--dest-dir` moves the destination.
 
-Note what this gives the target repository: a `br close` from `main` will commit and push
+Note what this gives the target repository: a `bd close` from `main` will commit and push
 `.beads/issues.jsonl` on its own. That is deliberate and it is also why `tadw-0j8` is open.
 
 ## Key Design Principles
@@ -265,21 +265,21 @@ skill is still reachable, not as a requirement that something point at it.
 
 ## Issue Tracking (br + bv)
 
-This project uses **br** (beads_rust) for issue CRUD and **bv** (beads_viewer) for triage and planning.
+This project uses **bd** (beads) for issue CRUD and **bv** (beads_viewer) for triage and planning.
 
-**Key principle:** `br` never auto-commits or runs git commands. All git operations are explicit.
+**Key principle:** `bd` never auto-commits or runs git commands. All git operations are explicit.
 
-Full `br` and `bv` usage for agents, covering the `--robot-*` triage flags, scoping and filtering
+Full `bd` and `bv` usage for agents, covering the `--robot-*` triage flags, scoping and filtering
 recipes, the issue-management command set, and the git policy, lives in
 [docs/beads-workflow.md](docs/beads-workflow.md). Read it before running any tracker command.
 
 ### Workflow
 
 1. `bv --robot-next` - find out what to work on (or `/triage-beads` for an ROI-ranked readout)
-2. `br update <id> --claim` - claim the issue
+2. `bd update <id> --claim` - claim the issue
 3. Do the work
-4. `br close <id>` - close when done
-5. `br sync --flush-only` - export to JSONL before committing
+4. `bd close <id>` - close when done
+5. `bd export -o .beads/issues.jsonl` - export to JSONL before committing
 
 ## Landing the Plane (Session Completion)
 
@@ -287,17 +287,17 @@ recipes, the issue-management command set, and the git policy, lives in
 
 **MANDATORY WORKFLOW:**
 
-1. **File issues for remaining work** - Use `br create` for anything that needs follow-up
+1. **File issues for remaining work** - Use `bd create` for anything that needs follow-up
 2. **Run quality gates** (if code changed) - Use `/quality-gates` to run tests, linters, type checks, doc freshness, and security scan
 3. **Grade the work against its bead** (if it has one) - Use `/verify-acceptance`, which cites the
    gate results from step 2 rather than re-deriving them. A NOT ACCEPTED verdict means the work is
    not done; fix it or reopen the bead rather than closing it in step 4.
-4. **Update issue status** - `br close` finished work, `br update` in-progress items
+4. **Update issue status** - `bd close` finished work, `bd update` in-progress items
 5. **PUSH TO REMOTE** - This is MANDATORY:
 
    ```bash
    git pull --rebase
-   br sync --flush-only
+   bd export -o .beads/issues.jsonl
    git push
    git status  # MUST show "up to date with origin"
    ```

@@ -17,12 +17,12 @@ This command is for grooming the whole backlog at once. For a single bead, use `
 
 ## Workflow
 
-1. **Verify `br` is available.** Run `which br`. If it is missing, this command cannot enumerate; tell the user and offer to audit bead bodies they paste instead (the `bead-audit` skill is tracker-agnostic and takes pasted content).
+1. **Verify `bd` is available.** Run `which br`. If it is missing, this command cannot enumerate; tell the user and offer to audit bead bodies they paste instead (the `bead-audit` skill is tracker-agnostic and takes pasted content).
 
 2. **Enumerate in one unlimited page.** Fetch every bead in scope with a single call:
 
    ```bash
-   br list --status open --limit 0 --json
+   bd list --status open --limit 0 --json
    ```
 
    `--limit` defaults to 50, so omitting `--limit 0` would silently audit only the first 50 beads and then report a clean sweep. Always pass `--limit 0` (unlimited), and after reading confirm `has_more` is false. For `all`, repeat the flag per status: `--status open --status in_progress --status deferred --status closed`.
@@ -44,7 +44,7 @@ This command is for grooming the whole backlog at once. For a single bead, use `
 
    **Confirm before scoring.** The file you read must contain the headings "Scorecard", "Bands, capped by verdict", and "4. Grounding Audit". If it does not, you have the wrong file: stop and say so rather than scoring from memory. A wrong number here is indistinguishable from a right one downstream.
 
-5. **Audit each bead once.** Apply the rubric you just read to every bead, treating `br`'s native fields (`design`, `notes`, `acceptance_criteria`) as canonical structure per ADR 0001 (`docs/decisions/0001-native-tracker-fields-are-canonical.md`). Produce the scorecard so each bead gets a score and band, showing the per-dimension verdicts and the weighted sum beside it so the arithmetic stays checkable. Audit each bead exactly once; do not re-audit.
+5. **Audit each bead once.** Apply the rubric you just read to every bead, treating `bd`'s native fields (`design`, `notes`, `acceptance_criteria`) as canonical structure per ADR 0001 (`docs/decisions/0001-native-tracker-fields-are-canonical.md`). Produce the scorecard so each bead gets a score and band, showing the per-dimension verdicts and the weighted sum beside it so the arithmetic stays checkable. Audit each bead exactly once; do not re-audit.
 
    Grounding is the one dimension that costs repository reads, so it scales with backlog size. On a large backlog, ground the beads you will act on and mark the rest `ungroundable` with the reason "not checked at this scope". Never let an unchecked bead report `grounded`.
 
@@ -70,7 +70,7 @@ This command is for grooming the whole backlog at once. For a single bead, use `
 
 7. **Do not write back.** This command reports; it never edits a bead, and it never edits code to make a bead's claim true.
 
-   To apply a fix, draft the correction for that one bead here, against the rubric you already read in step 4, and confirm it with the user before any `br update`. Do **not** hand off to `/bead-audit`: that command still redirects to itself rather than loading the rubric (the collision described in step 4), so the handoff would drop the audit standards on the floor at exactly the moment they matter most, when text is about to be written back to the tracker.
+   To apply a fix, draft the correction for that one bead here, against the rubric you already read in step 4, and confirm it with the user before any `bd update`. Do **not** hand off to `/bead-audit`: that command still redirects to itself rather than loading the rubric (the collision described in step 4), so the handoff would drop the audit standards on the floor at exactly the moment they matter most, when text is about to be written back to the tracker.
 
 ## Why this is single-pass, not a goal loop
 

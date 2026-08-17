@@ -18,7 +18,7 @@ completion percentage. Do the analysis first; render second.
 
 SKILL.md step 1 covers running the collector (`collect_beads.py --out ...`) and reading its
 JSON back; do not repeat that here. Flags worth knowing: `--jsonl PATH` points at an explicit
-export instead of auto-discovering `.beads/`; `--no-refresh` skips the `br sync --flush-only`.
+export instead of auto-discovering `.beads/`; `--no-refresh` skips the `bd export -o .beads/issues.jsonl`.
 The output shape (a `summary` block plus per-issue fields) is documented field-by-field in
 `references/beads-extraction.md`.
 

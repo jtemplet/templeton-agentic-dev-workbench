@@ -86,11 +86,11 @@ If content for a section is found only under a variant (or as labeled inline pro
 
 ### Trackers with native structured fields
 
-Some trackers expose first-class fields for sections that this skill otherwise expects as body headings. For example, `br` has dedicated `acceptance_criteria`, `design`, and `notes` fields separate from `description`, and surfaces them as their own blocks in `br show`. Other tooling (`br ready`, reporting, dashboards) reads those native fields directly.
+Some trackers expose first-class fields for sections that this skill otherwise expects as body headings. For example, `bd` has dedicated `acceptance_criteria`, `design`, and `notes` fields separate from `description`, and surfaces them as their own blocks in `bd show`. Other tooling (`bd ready`, reporting, dashboards) reads those native fields directly.
 
 When a tracker has a native field for a section, **the audit applies to that field's content, not to a body heading**, and the field counts as canonical structure:
 
-| Canonical section | Maps to native field (when the tracker has one) | Example: `br` |
+| Canonical section | Maps to native field (when the tracker has one) | Example: `bd` |
 |---|---|---|
 | Acceptance Criteria | the acceptance-criteria field | `--acceptance-criteria` (alias `--acceptance`) |
 | How (Algorithmic) | the design / approach field | `--design` |
@@ -101,7 +101,7 @@ Rules when native fields are present:
 
 - A section whose content lives in the correct native field is `structure: canonical`. Do not flag it for "missing heading."
 - A section's content duplicated into the body when a native field exists for it is `structure: variant` (reformat: move it to the native field, do not embed a heading in the description).
-- When **drafting a fix**, populate the native field rather than appending a heading to the body. For `br`, that means `br update <id> --acceptance-criteria "..."` and `br update <id> --design "..."`, not stuffing `## Acceptance Criteria` into `--description`.
+- When **drafting a fix**, populate the native field rather than appending a heading to the body. For `bd`, that means `bd update <id> --acceptance-criteria "..."` and `bd update <id> --design "..."`, not stuffing `## Acceptance Criteria` into `--description`.
 - The canonical headings still govern plain-markdown trackers (GitHub Issues, a pasted blob) and the in-body fallback when no native field exists.
 
 If you cannot tell whether the tracker has native fields (e.g., the user pasted a plain body), audit against the canonical headings and note that a fix may belong in a native field if the destination tracker has one.
@@ -375,7 +375,7 @@ Accept bead content in whatever form the user provides:
 
 - **Pasted body text** - the user pastes the bead body directly
 - **File path** - read the file at the given path
-- **Issue tracker output** - the user pastes or pipes the output of their CLI (`bd show <id>`, `br show <id>`, `gh issue view <id>`, etc.)
+- **Issue tracker output** - the user pastes or pipes the output of their CLI (`bd show <id>`, `bd show <id>`, `gh issue view <id>`, etc.)
 - **Multiple beads** - any of the above repeated, or a file containing multiple bead bodies
 
 Do not assume any particular CLI is available. If the user provides IDs but no content, ask how to fetch the bodies. If nothing is provided, ask for at least one bead.
@@ -397,7 +397,7 @@ For each bead, evaluate every applicable dimension. Produce a content verdict an
 **Then run the Grounding Audit.** Do this once per repository, not once per bead: resolve the ref and sha first, then check every bead's claims against it.
 
 1. Resolve the baseline. `git rev-parse origin/main` (falling back to `main`, and saying which was used). Record the short sha. If neither resolves, or there is no repository, mark every bead `ungroundable` with that reason and skip to Step 4.
-2. Confirm the beads belong to this repository. When the tracker records an origin (`br` sets `source_repo` and `source_repo_path`), compare it to the repository in front of you. A mismatch is `ungroundable`, not a finding against the bead, and the report must name both repositories.
+2. Confirm the beads belong to this repository. When the tracker records an origin (`bd` sets `source_repo` and `source_repo_path`), compare it to the repository in front of you. A mismatch is `ungroundable`, not a finding against the bead, and the report must name both repositories.
 3. For each bead, extract its load-bearing current-state claims from Why, How, and Steps to Reproduce. Check each with the existence, pattern, stack, and behavior checks. Read main with `git show` and `git grep`, never the working tree.
 4. Run the inverse check on Done when and Acceptance Criteria: does the desired end state already hold on main? If so, the bead is `satisfied`.
 5. Roll up to one grounding verdict per bead.
@@ -537,7 +537,7 @@ A draft is `applyable: true` only when (1) and (2) hold and (3) finds no placeho
 Field semantics for a caller (e.g., a `/goal` loop):
 
 - `corrected_body` is the full markdown fix (canonical headings). `null` for PASS beads.
-- `corrected_fields` is the optional native-field breakdown for trackers like `br` (write `acceptance_criteria` to `--acceptance-criteria`, `design` to `--design`, etc., instead of one body blob). Omit or null when the tracker has no native fields.
+- `corrected_fields` is the optional native-field breakdown for trackers like `bd` (write `acceptance_criteria` to `--acceptance-criteria`, `design` to `--design`, etc., instead of one body blob). Omit or null when the tracker has no native fields.
 - `score`, `band`, `score_denominator`, and `excluded_dimensions` come from the Scorecard. Emit them only when scoring was requested; omit for a plain pass/fail audit. `score` is capped by verdict, so `band` may be lower than the raw `score` alone would imply.
 - `score_denominator` is the sum of the weights of every dimension that applies to the bead, including Structure (weight 10) and, for a `bug`, Steps to Reproduce (weight 10). Do not compute it as "100 minus excluded weights": that is right for a `task`/`feature` (denominator 100) and an `epic` (90, size excluded) but wrong for a `bug`, whose base is 110. Excluding a dimension removes its weight from this sum.
 - Per-check `points` cover only the content dimensions in the `checks` array; they do **not** include the Structure contribution, which is computed once as `10 × (canonical required sections ÷ total required sections)` and is not itself a `checks` entry. The raw numerator is `sum(checks[].points) + structure_points`; `score = round(100 × numerator ÷ score_denominator)`. A consumer recomputing the score must add the structure term separately.
@@ -615,7 +615,7 @@ Reproduce the bead using the byte-exact headings from "Canonical Bead Structure"
 
 - Separate the content verdict from the structure verdict. Never FAIL a section for heading format alone; a substantively complete section in a variant format is a REFORMAT.
 - Read the full bead body before auditing; do not infer content from the title alone.
-- When the tracker has native fields (e.g., `br`'s acceptance_criteria / design / notes), audit the field's content, treat the field as canonical structure, and write a fix to the native field rather than embedding a heading in the description body.
+- When the tracker has native fields (e.g., `bd`'s acceptance_criteria / design / notes), audit the field's content, treat the field as canonical structure, and write a fix to the native field rather than embedding a heading in the description body.
 - Evaluate every applicable dimension. Skip size only for epics and operational beads, and record those as N/A rather than as a finding.
 - Default the type to `task` if it cannot be determined, and flag it as a WARN.
 - Use the byte-exact headings from "Canonical Bead Structure" when drafting, so a fixed bead re-passes the audit.

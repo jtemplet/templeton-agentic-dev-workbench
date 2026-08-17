@@ -26,7 +26,7 @@ description: "Record architectural decisions with context, options considered, a
 3. **Identify the options** — what alternatives were considered and why
 4. **Document the decision** — using the template below
 5. **Write the file** — save to `docs/decisions/NNNN-<title-in-kebab-case>.md`
-6. **Create a tracking issue** — if status is "Proposed", use `br create` to track approval
+6. **Create a tracking issue** — if status is "Proposed", use `bd create` to track approval
 
 ## ADR Template
 

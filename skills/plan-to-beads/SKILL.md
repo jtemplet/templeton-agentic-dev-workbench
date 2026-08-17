@@ -1,11 +1,11 @@
 ---
 name: plan-to-beads
-description: Decompose a feature implementation plan into trackable br (beads_rust) issues with a dependency graph. Each bead requires Why (Marr L1), How (Marr L2), and Done when (acceptance criteria) before creation. Presents the full list for confirmation, then creates issues and wires dependencies. Keeps the graph shallow and prefers parallel tracks.
+description: Decompose a feature implementation plan into trackable bd (beads) issues with a dependency graph. Each bead requires Why (Marr L1), How (Marr L2), and Done when (acceptance criteria) before creation. Presents the full list for confirmation, then creates issues and wires dependencies. Keeps the graph shallow and prefers parallel tracks.
 ---
 
 # Plan to Beads
 
-A systematic technique for converting a written feature plan into actionable `br` issues. Each issue is self-contained (1 to 3 days of focused work) and the dependency graph is shallow enough to support parallel execution.
+A systematic technique for converting a written feature plan into actionable `bd` issues. Each issue is self-contained (1 to 3 days of focused work) and the dependency graph is shallow enough to support parallel execution.
 
 ## When to Use
 
@@ -15,9 +15,9 @@ A systematic technique for converting a written feature plan into actionable `br
 
 ## When NOT to Use
 
-- For a single-issue task (just `br create` directly)
+- For a single-issue task (just `bd create` directly)
 - For exploratory work where the scope is not yet known
-- When `br` is not installed or not available in the environment
+- When `bd` is not installed or not available in the environment
 
 ## The Marr Audit Standard
 
@@ -35,9 +35,9 @@ Every bead must articulate at least **Marr Levels 1 and 2** before it is created
 
 Every issue carries this set of sections. Sections marked with a type tag are required only for beads of that type.
 
-The headings below define each section's **content and canonical wording**. Where that content is *stored* depends on the tracker: per ADR 0001, a section goes to the tracker's native field when one exists (on `br`: How to `--design`, Done when and Out of scope to `--notes`, Acceptance Criteria to `--acceptance-criteria`), and to the description body otherwise. On a tracker with no native fields, the whole set lives in the body exactly as written here.
+The headings below define each section's **content and canonical wording**. Where that content is *stored* depends on the tracker: per ADR 0001, a section goes to the tracker's native field when one exists (on `bd`: How to `--design`, Done when and Out of scope to `--notes`, Acceptance Criteria to `--acceptance-criteria`), and to the description body otherwise. On a tracker with no native fields, the whole set lives in the body exactly as written here.
 
-**This template shows content, not storage. Do not paste it verbatim into `br create -d`.** On `br`, the `→` annotations below say which native field each section belongs in; putting How/Done when/Acceptance Criteria in the description body instead produces a bead that fails `bead-audit`'s structure check on day one. Step 5 has the exact create-then-update commands; follow those, not this block.
+**This template shows content, not storage. Do not paste it verbatim into `bd create -d`.** On `bd`, the `→` annotations below say which native field each section belongs in; putting How/Done when/Acceptance Criteria in the description body instead produces a bead that fails `bead-audit`'s structure check on day one. Step 5 has the exact create-then-update commands; follow those, not this block.
 
 ````markdown
 ## Why (Computational)                         <!-- br: --description body -->
@@ -322,16 +322,16 @@ Show the user the complete list, and surface the Why, How, Done when, type-speci
 ### Step 4: Verify br is Available
 
 ```bash
-which br && br list --limit 1
+which br && bd list --limit 1
 ```
 
-If `br` is not found, stop and inform the user.
+If `bd` is not found, stop and inform the user.
 
 ### Step 5: Create Issues
 
-**Write each section to its canonical destination.** Per ADR 0001 (`docs/decisions/0001-native-tracker-fields-are-canonical.md`), when the tracker exposes a first-class field for a section, that field is canonical and the description body carries only what has no native slot. `br create` cannot set these fields, so creation is two calls: create, then immediately populate.
+**Write each section to its canonical destination.** Per ADR 0001 (`docs/decisions/0001-native-tracker-fields-are-canonical.md`), when the tracker exposes a first-class field for a section, that field is canonical and the description body carries only what has no native slot. `bd create` cannot set these fields, so creation is two calls: create, then immediately populate.
 
-| Section | `br` destination |
+| Section | `bd` destination |
 |---|---|
 | Why (Computational) | `--description` body |
 | How (Algorithmic) | `--design` |
@@ -345,7 +345,7 @@ Writing everything into `-d` instead produces a bead that fails `bead-audit`'s s
 **task or feature:**
 
 ```bash
-id=$(br create "<Title>" -p <priority> -t task -l "<labels>" --silent -d "$(cat <<'EOF'
+id=$(bd create "<Title>" -p <priority> -t task -l "<labels>" --silent -d "$(cat <<'EOF'
 ## Why (Computational)
 <L1 content>
 
@@ -354,7 +354,7 @@ id=$(br create "<Title>" -p <priority> -t task -l "<labels>" --silent -d "$(cat 
 EOF
 )")
 
-br update "$id" \
+bd update "$id" \
   --design "<L2 content>" \
   --notes "$(cat <<'EOF'
 ## Done when (Acceptance)
@@ -371,12 +371,12 @@ EOF
 
 Use the quoted `cat <<'EOF'` heredoc, not `printf`, for these values. Acceptance criteria and Done-when lines routinely contain a literal `%` (for example "95% of requests return 200"), and `printf` would interpret it as a format directive and silently corrupt the text; a quoted heredoc passes every character through verbatim.
 
-**The two calls are not atomic.** If `br update` fails, the bead exists carrying only a Why and a size estimate, which is worse than not creating it. On a failed update, stop and report the bead ID and the missing sections explicitly; do not proceed to the next bead. Treat it as the partial-failure case in Step 5b.
+**The two calls are not atomic.** If `bd update` fails, the bead exists carrying only a Why and a size estimate, which is worse than not creating it. On a failed update, stop and report the bead ID and the missing sections explicitly; do not proceed to the next bead. Treat it as the partial-failure case in Step 5b.
 
 **bug:** same two-call shape. Steps to Reproduce has no native slot, so it stays in the body alongside Why and Estimated size.
 
 ```bash
-id=$(br create "<Title>" -p <priority> -t bug -l "<labels>" --silent -d "$(cat <<'EOF'
+id=$(bd create "<Title>" -p <priority> -t bug -l "<labels>" --silent -d "$(cat <<'EOF'
 ## Why (Computational)
 <L1 content>
 
@@ -393,7 +393,7 @@ id=$(br create "<Title>" -p <priority> -t bug -l "<labels>" --silent -d "$(cat <
 EOF
 )")
 
-br update "$id" \
+bd update "$id" \
   --design "<L2 content>" \
   --notes "$(cat <<'EOF'
 ## Done when (Acceptance)
@@ -410,7 +410,7 @@ EOF
 **epic:** Success Criteria has no native slot, so it stays in the body. Epics carry no size estimate.
 
 ```bash
-id=$(br create "<Title>" -p <priority> -t epic -l "<labels>" --silent -d "$(cat <<'EOF'
+id=$(bd create "<Title>" -p <priority> -t epic -l "<labels>" --silent -d "$(cat <<'EOF'
 ## Why (Computational)
 <L1 content>
 
@@ -420,7 +420,7 @@ id=$(br create "<Title>" -p <priority> -t epic -l "<labels>" --silent -d "$(cat 
 EOF
 )")
 
-br update "$id" \
+bd update "$id" \
   --design "<L2 content>" \
   --notes "$(cat <<'EOF'
 ## Done when (Acceptance)
@@ -430,50 +430,50 @@ EOF
 )"
 ```
 
-Capture the issue ID from each creation output (`--silent` prints only the ID). If either `br create` or its follow-up `br update` exits non-zero, stop and proceed to Step 5b; do not retry blindly.
+Capture the issue ID from each creation output (`--silent` prints only the ID). If either `bd create` or its follow-up `bd update` exits non-zero, stop and proceed to Step 5b; do not retry blindly.
 
-`br create` defaults the status to `open`. If a bead should start as `deferred` or `in_progress`, pass `-s <status>`.
+`bd create` defaults the status to `open`. If a bead should start as `deferred` or `in_progress`, pass `-s <status>`.
 
 ### Step 5b: Handle Partial Failure
 
-If any `br create` or `br update` exited non-zero before all beads were fully written, do not proceed to Step 6. Issue creation is a side effect on shared state; the user owns the recovery decision.
+If any `bd create` or `bd update` exited non-zero before all beads were fully written, do not proceed to Step 6. Issue creation is a side effect on shared state; the user owns the recovery decision.
 
 Because each bead is now two calls (create, then populate native fields), a failure lands the beads into one of three states. Classify every bead before presenting:
 
-- **Fully written**: `br create` and its follow-up `br update` both succeeded.
-- **Created but unpopulated**: `br create` succeeded and its `br update` failed. The bead exists in the tracker carrying only a Why and (if applicable) a size estimate; it has no How, Done when, or Acceptance Criteria. This is the failure mode the two-call model introduces, and it is worse than a missing bead because it looks real but fails its own audit.
+- **Fully written**: `bd create` and its follow-up `bd update` both succeeded.
+- **Created but unpopulated**: `bd create` succeeded and its `bd update` failed. The bead exists in the tracker carrying only a Why and (if applicable) a size estimate; it has no How, Done when, or Acceptance Criteria. This is the failure mode the two-call model introduces, and it is worse than a missing bead because it looks real but fails its own audit.
 - **Never attempted**: neither call ran.
 
 Then:
 
 1. Capture the fully-written IDs (with titles).
-2. Capture every created-but-unpopulated bead: its ID, its title, and the exact `br update` error.
+2. Capture every created-but-unpopulated bead: its ID, its title, and the exact `bd update` error.
 3. Capture the never-attempted beads.
 4. Present all three lists to the user, then ask which path to take:
 
-   - **Fix and resume**: address the cause of the failure. For a created-but-unpopulated bead, re-run only its `br update` (not `br create`, which would duplicate it). For a never-attempted bead, run its full two-call sequence. Fully-written beads stay in place.
-   - **Delete and retry**: close the created and created-but-unpopulated beads with `br update <id> --status closed` (preferred over a hard delete; preserves the audit trail), fix the cause, then re-run Step 5 with the full list.
+   - **Fix and resume**: address the cause of the failure. For a created-but-unpopulated bead, re-run only its `bd update` (not `bd create`, which would duplicate it). For a never-attempted bead, run its full two-call sequence. Fully-written beads stay in place.
+   - **Delete and retry**: close the created and created-but-unpopulated beads with `bd update <id> --status closed` (preferred over a hard delete; preserves the audit trail), fix the cause, then re-run Step 5 with the full list.
    - **Keep as is**: accept the partial state, file a follow-up bead documenting what's missing, then proceed to Step 6 wiring only the fully-written IDs. Do not wire a created-but-unpopulated bead into the graph as if it were complete.
 
-5. Never re-run `br create` for a bead whose create already succeeded; that produces a duplicate title with an empty body. Resume such a bead only through `br update`.
-6. Do not pick for the user. Wait for an explicit choice before any further `br` command.
+5. Never re-run `bd create` for a bead whose create already succeeded; that produces a duplicate title with an empty body. Resume such a bead only through `bd update`.
+6. Do not pick for the user. Wait for an explicit choice before any further `bd` command.
 
 ### Step 6: Wire Dependencies
 
 For each dependency relationship:
 
 ```bash
-br dep add <issue-id> <depends-on-id>
+bd dep add <issue-id> <depends-on-id>
 ```
 
-Step 5's auto-flush usually handles this. If the run used `--no-auto-flush`, run `br sync --flush-only` between Steps 5 and 6 so dependency wiring can resolve the new IDs.
+Step 5's auto-flush usually handles this. If the run used `--no-auto-flush`, run `bd export -o .beads/issues.jsonl` between Steps 5 and 6 so dependency wiring can resolve the new IDs.
 
 The acyclicity rule is enforced via the Never list above; if A depends on B, B must not depend on A directly or transitively.
 
 ### Step 7: Sync and Report
 
 ```bash
-br sync --flush-only
+bd export -o .beads/issues.jsonl
 ```
 
 Then present the final report:
@@ -515,8 +515,8 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 - Estimate size (files + LOC + band) for every bead before presenting
 - Run the full audit on every bead (Marr AND size AND type-specific section) and rewrite, split, or demote failures before the confirmation gate
 - Present the complete issue list, including each bead's type, Why, How, Done when, type-specific sections, AND size estimate, and WAIT for user confirmation before creating
-- Verify `br` is available before attempting to create issues
-- Write every section to its canonical destination per ADR 0001: native tracker fields where they exist (`--design`, `--notes`, `--acceptance-criteria` on `br`), the description body only for sections with no native slot. Never drop a section to save a call
+- Verify `bd` is available before attempting to create issues
+- Write every section to its canonical destination per ADR 0001: native tracker fields where they exist (`--design`, `--notes`, `--acceptance-criteria` on `bd`), the description body only for sections with no native slot. Never drop a section to save a call
 - Make each issue self-contained with enough context to implement independently
 - Keep the dependency graph shallow, prefer parallel tracks over deep chains
 
@@ -527,7 +527,7 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 - Create a bead that fails the type-specific section audit (missing `## Acceptance Criteria` for task/feature/bug, missing `## Steps to Reproduce` for bug, or missing `## Success Criteria` for epic)
 - Create issues without user confirmation
 - Create circular dependencies
-- Assume `br` is installed without checking
+- Assume `bd` is installed without checking
 
 ## Quality Checklist
 
@@ -537,7 +537,7 @@ Before reporting completion, verify:
 - [ ] Each issue has a clear, action-oriented title with no work-unit-bundling conjunction
 - [ ] Every issue has an explicit type (`task`, `feature`, `bug`, or `epic`)
 - [ ] Every issue carries Why, How, and Done when, each written to its canonical destination per ADR 0001 (native field where one exists, description body otherwise)
-- [ ] No bead was left in the partial state of a successful `br create` followed by a failed `br update`
+- [ ] No bead was left in the partial state of a successful `bd create` followed by a failed `bd update`
 - [ ] Every `## Done when` section contains at least one condition a second person could verify independently
 - [ ] Every task, feature, and bug bead includes `## Acceptance Criteria` with at least one testable, observable condition
 - [ ] Every bug bead includes `## Steps to Reproduce` with numbered steps and expected vs. actual behavior
@@ -547,5 +547,5 @@ Before reporting completion, verify:
 - [ ] Trivial-band work units were demoted to direct commits and listed in the final report
 - [ ] Dependencies are correct and acyclic
 - [ ] Longest dependency chain is at most 3 issues; if longer, a parallel split was missed
-- [ ] `br sync --flush-only` was run
+- [ ] `bd export -o .beads/issues.jsonl` was run
 - [ ] Execution order is logical and maximizes parallelism
