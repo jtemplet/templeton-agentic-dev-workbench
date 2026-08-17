@@ -7,6 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-08-17
+
+A minor rather than a patch because `quality-gates` gains a gate that sends real network requests.
+Nothing about the existing gates changed, so a run over a diff with no HTTP surface reports exactly
+what it reported before, one extra SKIP row aside.
+
+### Added
+
+- **`quality-gates` now picks the QA method from the diff instead of only counting tests.** A new
+  Step 3 classifies every changed file into a surface and routes each one: `http-api` to a live curl
+  probe, `browser-ui` to `/qa`, `mobile-ui` to `/ios-qa`, and `cli`/`library`/`prompt-assets`/`infra`
+  to a coverage review alone. A full-stack diff gets several methods at once, and each handoff surface
+  takes its own row in the report, because a FAIL and a HANDOFF mean different next moves and one
+  status cannot hold both.
+- **Gate 8, a live API probe.** It sends actual `curl` requests at the endpoints the diff changed, one
+  probe per case rather than per route, and grades status, headers, and body. It answers the question
+  a green unit test cannot: whether the endpoint works through the real stack. A worked example in the
+  skill shows the shape it catches, a route whose validator test passes while the route itself
+  answers 500.
+- **`skills/quality-gates/scripts/route_qa.py`**, the router, with `test_route_qa.py`. It exists as a
+  script rather than prose because a model told to "detect the shape of what changed" reads six file
+  extensions and hands a REST-only diff to a browser tool. Content evidence outranks path evidence, so
+  a `.json.jbuilder` view is an API and not a template, and a Next.js `app/api/**/route.ts` is an API
+  and not a library. Every content rule is confined to its own language: the router classified
+  *itself* as a REST API and a SwiftUI screen before that, because it holds every pattern it searches
+  for.
+- **`skills/quality-gates/scripts/probe_api.py`**, the prober, with `test_probe_api.py`. Three of its
+  rules are in a script because they cannot survive as prose: it probes `http://127.0.0.1:3000` unless
+  the caller names another URL and never infers a host from a config file or a URL found in the
+  repository, because it sends DELETE; it stops any server it started in a `finally`, so an aborted run
+  leaks no listener onto the port the next run probes; and it separates a refused connection from a
+  failing endpoint, because BLOCKED and FAIL send the author to different files.
+
+  A supplied host outside `localhost`, `127.0.0.0/8`, and `::1` is used as given, since supplying it is
+  the caller saying so, and `--base-url` points one spec somewhere else without editing it. What
+  replaces a refusal is that it cannot go unmentioned: the host rides the summary line on stdout,
+  marked `(NOT this machine)`, which is the line the skill copies into its report. A spec that starts a
+  local server and then probes a remote host draws its own warning, since that combination reads as a
+  working gate while the local server answers nothing.
+
+### Changed
+
+- **`quality-gates` no longer mentions an issue tracker.** Its whole input is the diff, and the
+  `br close` reference in "When to use" implied otherwise. `/verify-acceptance` remains the skill that
+  grades against written criteria.
+- **The report and its JSON artifact carry a `routing` block**, so a consumer can tell a PASS that
+  probed endpoints from a PASS over a diff whose only surface was handed off.
+- **`.githooks/pre-push` runs the two new suites**, which takes it from about 32 seconds to about 46.
+  Roughly 11 of those are `test_probe_api.py`, which starts real servers on real sockets; that is the
+  only way to prove which host it addresses and that no process leaks.
+
+### Fixed
+
+- **`.githooks/test_prepush.py` derived its check counts from three hardcoded `12`s**, so adding any
+  check to `AGENTS.md` broke three unrelated cases. They now read the count from the hook's own list,
+  the same drift the hook's own comment warns about.
+- **Seven defects in the two new scripts, found by a fresh-eyes pass before either shipped.** Four
+  were reproduced by running them; three were found by reading and then reproduced against a copy
+  with the one fix reverted. Each has a named case in its suite.
+  - **A binary response body crashed the gate.** `subprocess.run(text=True)` decodes strictly, so an
+    endpoint answering with a PNG, PDF, or gzip body raised `UnicodeDecodeError` and ended the run in
+    a traceback rather than any of the three statuses it can report. An export endpoint is the
+    example this skill ships. It now reads bytes and decodes with replacement, as
+    `check_hygiene.py` already does.
+  - **`api.get('/x')` in a `.tsx` file routed a React change to curl.** That is how an axios or fetch
+    wrapper is CALLED from a component, and reading it as a route definition scored the component
+    http-api at specificity 3, outranking its own `.tsx` rule. The browser-ui surface vanished and
+    the `/qa` handoff with it: the exact misroute the router exists to prevent, pointing the other
+    way. `api` is no longer a route receiver and the Express extractor skips JSX entirely.
+  - **`diff.mnemonicPrefix` in a caller's git config blanked every `changed` flag.** That key writes
+    `+++ w/path` instead of `+++ b/path`, so no path key matched, every endpoint reported
+    `changed: false`, the probe spec came out empty, and the gate checked nothing while reading as
+    fine. All four prefix keys are now pinned, which is what `check_hygiene.py` already did and what
+    this script copied incompletely.
+  - **A malformed expectation was skipped rather than refused.** `"header_contains": ["content-type"]`
+    was silently ignored, so a probe with one real expectation and one malformed one reported PASS.
+    Both `header_contains` and `body_json` now raise.
+  - **`0.0.0.0` with a declared server printed a false warning** that the probes would not reach the
+    server it starts. The check read the warning list instead of the host, and `0.0.0.0` reaches the
+    local server where it works at all.
+  - **An HTTP status of `000` was graded as a failing endpoint.** curl writes that when a request went
+    out and no HTTP response came back, which is BLOCKED, not FAIL.
+  - **`tempfile.mkstemp` leaked its descriptor**, since only the path half of its return value was
+    kept.
+
+- **Ten cases the change-coverage gate found untested, all now covered.** Running `/quality-gates`
+  against this change failed its own Gate 2: six of the nine endpoint extractors had no case, and
+  neither did `insecure_tls`, `--paths-from FILE`, the `unread` warning, or the no-HTTP-status guard.
+  The suites go to 39 and 38 cases. Each new case was verified by mutation: the extractor or branch it
+  covers was disabled on a copy, and the case was observed to fail. Two notes on how two of them are
+  tested, since neither is obvious:
+  - **`insecure_tls` asserts on the printed command, not on a TLS handshake.** What can break is the
+    flag not being passed, and the printed command is where that is observable through the real entry
+    point. Whether curl then accepts a self-signed certificate is curl's behavior, and proving it
+    would cost the suite an openssl dependency.
+  - **The no-HTTP-status guard stubs `curl` on PATH**, the way `hooks/test-claude-scripts.sh` stubs
+    `br` and `gh`. No real server reaches that branch: an empty reply exits 52 and a timeout exits 28,
+    both already caught by the returncode branch.
+
 ## [2.8.0] - 2026-08-16
 
 A minor rather than a patch because it adds a skill, which is a change to the plugin's shipped
@@ -1389,7 +1488,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.8.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.0...HEAD
+[2.9.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.3...v2.8.0
 [2.7.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.2...v2.7.3
 [2.7.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.1...v2.7.2

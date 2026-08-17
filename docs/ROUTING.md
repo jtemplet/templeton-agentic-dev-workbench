@@ -174,15 +174,32 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
   because a type error surfaces in the consumer. The secret scan always covers the whole tree
 - Discovers the gate set from `AGENTS.md`, then CI config, then a task runner, and falls back to
   language auto-detect only when none of those names a check; the report says which source it used
+- **Picks the QA method from the diff, not from what is cheap to run.** A bundled router classifies
+  every changed file into a surface and routes each one: `http-api` to a live curl probe, `browser-ui`
+  to `/qa`, `mobile-ui` to `/ios-qa`, and `cli`/`library`/`prompt-assets`/`infra` to a coverage review
+  alone. A full-stack diff gets several methods at once, and each handoff surface takes its own row in
+  the report so a FAIL and a HANDOFF never collapse into one status
+- **Drives the endpoints for real when the change is REST.** It sends actual curl requests, one probe
+  per case rather than per route, and grades status, headers, and body. It probes
+  `http://127.0.0.1:3000` unless the caller names another URL, and never infers a host from a config
+  file or a URL found in the repository, because it sends POST, PUT, PATCH, and DELETE. A supplied
+  remote host is used as given and marked `(NOT this machine)` in the summary the report copies. It
+  starts a server only when the project declares a start command, always stops it, and SKIPs rather
+  than guessing one. A refused connection is BLOCKED, never a failing endpoint
 - **Change coverage is the gate that earns the run.** It enumerates the cases the diff introduces,
   requires a unit test for each, and requires an end-to-end test through the real entry point for
-  every CLI command or HTTP route touched; an in-process call of a handler does not count
+  every CLI command or HTTP route touched; an in-process call of a handler does not count. A passing
+  live probe does not satisfy it: the probe measures this build and leaves no test behind, so a REST
+  change with a green probe and no committed request-level test is still a finding
 - Grades the **span** of each case (input, boundary, state, and outcome classes) and names the
   classes nothing covers, weighing each by what a failure there would cost
 - Stays proportionate on purpose: one test per span class, never the cross-product, never a test
   for an unreachable branch, and never defensive code around a failure that cannot happen
 - Hands a browser or mobile UI change to `/qa` (or `/qa-only` for a report) as HANDOFF, which makes
   the overall verdict INCOMPLETE rather than PASS
+- Needs no issue tracker: its whole input is the diff, so no bead and no written acceptance criteria
+  are involved. `/verify-acceptance` is the skill that grades against criteria, and it cites this
+  report rather than re-deriving it
 - Records a configured gate it could not run as BLOCKED, which fails the run; a missing binary is
   not a skip, and an all-skip run reports NO GATES RAN rather than PASS
 - Reports the exact command and real counts for every gate, and says whether each failure looks new

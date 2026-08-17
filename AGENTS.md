@@ -25,6 +25,8 @@ python3 skills/quality-gates/scripts/test_changed_set.py            # regression
 python3 skills/quality-gates/scripts/test_check_secrets.py          # regression suite for the secret scanner
 python3 skills/quality-gates/scripts/check_secrets.py                # assert no secret file or key sits in the tree
 python3 skills/quality-gates/scripts/test_check_hygiene.py          # regression suite for the hygiene counter
+python3 skills/quality-gates/scripts/test_route_qa.py                # regression suite for the QA-method router
+python3 skills/quality-gates/scripts/test_probe_api.py               # regression suite for the live API probe
 python3 evals/test_run.py                                     # regression suite for the eval harness; calls no model
 python3 .githooks/test_prepush.py                             # regression suite for the pre-push hook
 claude plugin validate .                                      # parses every SKILL.md frontmatter
@@ -50,8 +52,10 @@ One command serves both hooks, which is most of the argument for running it on a
 `python3 .githooks/test_prepush.py` (it pushes inside a fixture wired to this hook, so running it
 here would recurse).
 
-It takes about 32 seconds on a warm machine, nearly all of it in the five heaviest suites. Three
-behaviors are deliberate:
+It takes about 46 seconds on a warm machine, nearly all of it in the six heaviest suites.
+`test_probe_api.py` accounts for roughly 11 of those seconds and cannot be made much faster: it
+starts real servers and waits on real sockets, which is the only way to check which host it
+addresses and that it leaks no process. Three behaviors are deliberate:
 
 - **Every check runs even after one fails**, and all failures report together. Stopping at the
   first makes you push, fail, fix, push, and fail again on the next one.

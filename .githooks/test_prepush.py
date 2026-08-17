@@ -96,6 +96,11 @@ SLOW_CHECKS = {
     "skills/quality-gates/scripts/test_check_secrets.py": "raise SystemExit(0)\n",
     "skills/quality-gates/scripts/test_check_hygiene.py": "raise SystemExit(0)\n",
     "skills/quality-gates/scripts/test_changed_set.py": "raise SystemExit(0)\n",
+    "skills/quality-gates/scripts/test_route_qa.py": "raise SystemExit(0)\n",
+    # About 11 seconds on its own: it starts real HTTP servers and waits on real
+    # sockets, which is the only way to pin which host it addresses and that it
+    # leaks no process. Every push case here would pay for that again.
+    "skills/quality-gates/scripts/test_probe_api.py": "raise SystemExit(0)\n",
     # Builds git repositories in temp directories, the same shape as
     # test_changed_set.py above, and every push case here would pay for it again.
     "evals/test_run.py": "raise SystemExit(0)\n",
@@ -469,11 +474,14 @@ def case_missing_rumdl_warns_and_allows() -> None:
     assert result.returncode == 0, f"a missing rumdl must still allow the push: {output}"
     assert "rumdl" in output, f"the skipped tool must be named: {output}"
     assert "WARNING" in output, f"the skip must be a warning, not silence: {output}"
-    assert "11 of 12" in output, f"the other eleven checks must still run: {output}"
+    total = len(commands_in_hook())
+    assert f"{total - 1} of {total}" in output, (
+        f"every check but the rumdl one must still run: {output}"
+    )
 
 
 def case_missing_python3_warns_once() -> None:
-    """python3 carries six checks, and one warning about it is the useful number."""
+    """python3 carries most of the checks, and one warning about it is the useful number."""
     fixture = build()
     result = fixture.push(env={"PATH": stub_path_without("python3")})
     output = result.stdout + result.stderr
@@ -496,7 +504,9 @@ def case_no_check_ran_is_not_a_pass() -> None:
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a toolless clone must still push: {output}"
     assert "passed" not in output, f"nothing ran, so nothing passed: {output!r}"
-    assert "0 of 12" in output, f"it must say how little ran: {output!r}"
+    assert f"0 of {len(commands_in_hook())}" in output, (
+        f"it must say how little ran: {output!r}"
+    )
     assert "nothing was verified" in output, f"and say what that means: {output!r}"
 
 
@@ -575,7 +585,11 @@ def case_clean_push_is_quiet() -> None:
     lines = [line for line in output.splitlines() if line.startswith("tadw:")]
     assert len(lines) == 1, f"exactly one tadw line on success: {lines}"
     assert "passed" in lines[0], f"and it says so: {lines[0]!r}"
-    assert "12 of 12" in lines[0], f"with the count that ran: {lines[0]!r}"
+    # Derived from the hook's own list, never hardcoded. Three of these
+    # assertions carried a literal 12 and all three broke the day a check was
+    # added, which is the same drift the hook's own comment warns about.
+    total = len(commands_in_hook())
+    assert f"{total} of {total}" in lines[0], f"with the count that ran: {lines[0]!r}"
     # The elapsed time is the only number a reader can use to judge whether the
     # hook is worth its place on every push, so it is asserted rather than assumed.
     assert re.search(r"\b\d+s\b", lines[0]), f"and how long it took: {lines[0]!r}"

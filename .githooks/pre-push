@@ -132,6 +132,8 @@ check python3 skills/quality-gates/scripts/test_changed_set.py
 check python3 skills/quality-gates/scripts/test_check_secrets.py
 check python3 skills/quality-gates/scripts/check_secrets.py
 check python3 skills/quality-gates/scripts/test_check_hygiene.py
+check python3 skills/quality-gates/scripts/test_route_qa.py
+check python3 skills/quality-gates/scripts/test_probe_api.py
 check python3 evals/test_run.py
 
 elapsed=$(( $(date +%s) - started ))
