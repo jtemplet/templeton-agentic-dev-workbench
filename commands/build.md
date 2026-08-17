@@ -14,11 +14,14 @@ The skill will:
 1. **Ground** - Read the bead's Why, How, and Done when. Stop if the criteria are too thin to build against, or if its own notes say to split it first
 2. **Orient** - Read `AGENTS.md`/`CLAUDE.md`, the dependency manifest, and the two or three existing files nearest the change, then load the matching style skills (`style-python`, `style-rails`, `style-frontend`, or `style-swift`), plus `style-testing` for any test file and any project-local style skill
 3. **Implement** - Code criterion by criterion, each with a test named after the criterion it proves
-4. **Simplify** - Apply the `code-simplify` skill, then re-run the tests
+4. **Simplify** - Apply the `/simplify` command, then re-run the tests
 5. **Lint** - Run the project's own linter, or the language's standard one
 
 If no arguments are provided, the skill will ask for a bead id or a feature description.
 
-It stops at implemented. It does not claim the bead, change its status, or close it, and it does not grade its own work. Run `/quality-gates` and then `/verify-acceptance` for that.
+It stops at implemented. It does not claim the bead, change its status, or close
+it, and it does not grade its own work. Run `/quality-gates` and then
+ `/verify-acceptance` for that.
 
-This workflow is language-agnostic: the skill picks the style guide, test runner, and linter from what the repository actually contains.
+This workflow is language-agnostic: the skill picks the style guide, test runner,
+and linter from what the repository actually contains.
