@@ -89,14 +89,6 @@ if [[ "$branch" != "main" ]]; then
   quiet_exit
 fi
 
-# Required tools. gh only on the PR path: a local merge never asks GitHub
-# anything, and a machine without gh should still close its beads.
-required_tools=(br jq git)
-[[ "$merge_kind" == "pr" ]] && required_tools+=(gh)
-for t in "${required_tools[@]}"; do
-  command -v "$t" >/dev/null 2>&1 || { log "$t not on PATH"; quiet_exit; }
-done
-
 # Pin br to the MAIN checkout's database. Every worktree checks out its own copy
 # of .beads/beads.db, so an unpinned br run from a worktree reads and writes that
 # copy instead of the canonical tracker: the close would land in a throwaway
@@ -127,6 +119,16 @@ if [[ -n "$GIT_COMMON" ]]; then
     done
   fi
 fi
+
+# Required tools, checked AFTER detection so the binary named is the one this
+# repo actually uses. Naming br up front would exit on a bd repo before the
+# detection above ever ran. gh only on the PR path: a local merge never asks
+# GitHub anything, and a machine without gh should still close its beads.
+required_tools=("$BACKEND" jq git)
+[[ "$merge_kind" == "pr" ]] && required_tools+=(gh)
+for t in "${required_tools[@]}"; do
+  command -v "$t" >/dev/null 2>&1 || { log "$t not on PATH"; quiet_exit; }
+done
 
 pr_id=""
 merged_ref=""
