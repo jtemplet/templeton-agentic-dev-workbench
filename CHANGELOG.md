@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.1] - 2026-08-18
+
+A patch: `ship` gains one command and loses three instructions that named tools `bd` does not have.
+Nothing else about a ship run changes.
+
+### Fixed
+
+- **`ship` now runs `bd dolt push` after `git push`.** `bd` keeps its database out of git, so issue
+  history travels under `refs/dolt/data` and a landed branch left every close on the machine that
+  made it. The committed JSONL export is not a substitute: import is upsert-only and cannot
+  represent a deletion. A failure there is reported as a warning rather than a stop, since the code
+  has already landed and the bead is already closed by that point.
+- **Tracker conflicts resolve by re-exporting from the database.** The instruction was to run
+  `br sync --merge` as a three-way merge against `.beads/beads.base.jsonl`. Neither the command nor
+  that file exists under `bd`, where the database is the source of truth and the JSONL is derived,
+  so taking either side and re-running `bd export` is the whole resolution.
+- **Worktree handling verifies instead of pinning.** It claimed "every worktree carries its own copy
+  of `.beads/beads.db`" and pinned `bd` to the main checkout. `bd` discovers one database per
+  repository through the git common directory, so worktrees already share it. The step is now to
+  confirm with `bd where` and stop if the answer names a database under the worktree.
+- **The close step stages whatever `.beads/` reports dirty**, not `issues.jsonl` alone, since `bd`'s
+  auto-staging covers only the path in `export.path`.
+
+Verified against bd 1.2.2.
+
 ## [2.9.0] - 2026-08-17
 
 A minor rather than a patch because `quality-gates` gains a gate that sends real network requests.
@@ -1488,7 +1513,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.1...HEAD
+[2.9.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.0...v2.9.1
 [2.9.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.3...v2.8.0
 [2.7.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.2...v2.7.3
