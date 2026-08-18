@@ -47,7 +47,8 @@ should do next. A half-landed branch that nobody can describe costs more than an
 
 **3. The tracker file is merged by its own tooling, never by hand.** `.beads/issues.jsonl` is an
 export of a database. Hand-editing it during a conflict writes a state the database does not hold,
-and the next export silently reverts it. `br sync --merge` exists for this.
+and the next export silently reverts it. Under `bd` the resolution is to take either side and
+re-export from the database, which is authoritative; there is no JSONL three-way merge to run.
 
 **4. Unattended means report, never ask.** No prompt, no confirmation, no question. When required
 input is missing, stop with a report and the machine line. A skill that blocks on a question inside
@@ -140,15 +141,21 @@ Three outcomes:
 Read `status` from the same JSON. A bead that is already `closed` stops the run with
 `bead-already-closed`; something landed this work already, and finding out which is a human's job.
 
-**Pin `bd` to the main checkout's database when you are in a linked worktree.** Every worktree
-carries its own copy of `.beads/beads.db`, so an unpinned `bd` writes the close into a throwaway
-database while the real bead stays open:
+**Confirm which database `bd` resolved to when you are in a linked worktree.** Under `bd` this is
+usually already right: it discovers one database per repository through the git common directory, so
+a worktree shares the main checkout's database and a close made there is visible everywhere at once.
+That is a change from `br`, which gave every worktree its own SQLite cache and required pinning.
+
+Verify rather than assume, because a wrong answer here closes a bead in a throwaway database while
+the real one stays open:
 
 ```bash
-GIT_COMMON="$(git rev-parse --path-format=absolute --git-common-dir)"
-MAIN_ROOT="$(dirname "$GIT_COMMON")"
-# use: bd ...   when that file exists
+bd where            # prints the resolved .beads directory and database path
+bd worktree info    # says whether this is a linked worktree at all
 ```
+
+If `bd where` names a database under the worktree rather than the main checkout, stop with
+`tracker-not-detected` and say so. Do not close a bead against a database you cannot place.
 
 ### Step 2: Bring the Branch Current
 
@@ -179,13 +186,21 @@ git diff --name-only --diff-filter=U
 1. **A deterministic tracker merge the host repository ships.** Outrigger's `merge-tracker`
    subcommand is the shape to look for. Probe before calling it (`outrigger merge-tracker --help`);
    not every version has one, and a call to a subcommand that does not exist reads as a failed merge.
-2. **`br sync --merge`**, the three-way merge of `.beads/beads.base.jsonl`, the database, and the
-   JSONL. On a semantic conflict it refuses without `--force-db`, `--force-jsonl`, or `--force`. Pass
-   `--force`, which keeps the newer timestamp, and say in the report that you did.
+2. **Re-export from the database.** Under `bd` the Dolt database is the source of truth and the
+   JSONL is only its export, so a conflict in the export is not a conflict in the data. Take either
+   side to clear the markers, then regenerate:
 
-**When both are unavailable, or the one you ran exits non-zero,** abort the rebase and stop with
-`tracker-merge-failed`. Do not fall back to `git checkout --ours`, `--theirs`, or an edit. Rule 3
-has no exception, and a JSONL that disagrees with the database is worse than an unlanded branch.
+   ```bash
+   git checkout --ours .beads/issues.jsonl   # either side; the next line overwrites it
+   bd export -o .beads/issues.jsonl
+   ```
+
+   This is not the `br` case, where JSONL was canonical and a three-way merge was the only way to
+   avoid losing a write. `br sync --merge` does not exist under `bd` and must not be reached for.
+
+**When neither is available, or the one you ran exits non-zero,** abort the rebase and stop with
+`tracker-merge-failed`. Do not fall back to a hand edit of the file. Rule 3 has no exception, and a
+JSONL that disagrees with the database is worse than an unlanded branch.
 
 Then verify the result before continuing, because a resolution you did not check is a guess:
 
@@ -334,9 +349,12 @@ Step 1 found no tracker; there is nothing to close and nothing to export.
 
 ```bash
 bd close <id> --reason "shipped: <subject>"
-bd export -o .beads/issues.jsonl
+bd export -o .beads/issues.jsonl   # no-op when export.auto is on; harmless either way
 git status --porcelain .beads/
 ```
+
+Stage whatever `.beads/` reports, not `issues.jsonl` alone. A repository may also track
+`interactions.jsonl`, and `bd`'s auto-staging covers only the path in `export.path`.
 
 Three states are possible, and all three are normal:
 
@@ -347,6 +365,21 @@ Three states are possible, and all three are normal:
 | Nothing changed | The close was already exported. Say so. |
 
 Report the landing commit's hash after any amend. That hash is what the machine line carries.
+
+**Then publish the database, after `git push` succeeds.** Skip when Step 1 found no tracker.
+
+```bash
+bd dolt push
+```
+
+This is the step a `git push` does not cover and the one most often missed. `bd` keeps its database
+out of git: issue history travels under `refs/dolt/data`, so a landed branch with no `bd dolt push`
+leaves every close on the machine that made it. The committed export does not substitute for it,
+because JSONL import is upsert-only and cannot represent a deletion.
+
+Treat a failure here as a warning, not a stop. The code has already landed and the bead is already
+closed; a failed push is recoverable by running it again. Name it in the report and carry on to the
+branch delete.
 
 **A note for whoever reads this next.** In a repository running the `close_bead_on_pr_merge.sh` hook,
 the `git merge --squash` here does trip the hook, and the hook does nothing: it requires the merged
@@ -519,8 +552,9 @@ carries the work.
 - Rebase before the gate, so the gate grades the tree that lands
 - Name the gate source, the exact command, its exit code, and its real counts
 - Stop before the merge on any gate result other than exit 0
-- Resolve a tracker conflict through `br sync --merge` or the host repo's tracker merge tool, then
-  verify the file parses and holds no conflict markers
+- Resolve a tracker conflict by re-exporting from the database, or through the host repo's tracker
+  merge tool, then verify the file parses and holds no conflict markers
+- Run `bd dolt push` after `git push`, so issue state leaves the machine with the code
 - Abort a rebase you cannot finish, and confirm the branch tip is back where it started
 - Verify the content landed before deleting a branch
 - Confirm you are on the default branch before any command that moves its pointer, and scope the
