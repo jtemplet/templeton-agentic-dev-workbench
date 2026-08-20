@@ -273,6 +273,23 @@ This project uses **bd** (beads) for issue CRUD and **bv** (beads_viewer) for tr
 
 **Key principle:** `bd` never auto-commits or runs git commands. All git operations are explicit.
 
+### The author never handles tracker plumbing
+
+Standing instruction from the repository owner, and it outranks any workflow step below.
+
+1. **Never ask the author to run `bd export`, and never ask about `.beads/issues.jsonl`.** That
+   file is a passive export, not something a person maintains. An agent that needs it current
+   runs the export itself, silently, as part of whatever it was already doing.
+2. **Never ask the author to sync the Dolt remote.** Syncing is a machine's job. An agent that
+   is already pushing runs the sync too, or it says nothing about it.
+3. **Report tracker plumbing only when it fails.** A successful export is not news. A failed
+   one is, because the beads then exist on one machine only.
+
+This constrains agents, not `bd` itself. `bd` stays explicit, per the key principle above. The
+automation belongs in this repository's own `.githooks/`, where it is tracked in git and the
+author can read it. `tadw-pm8` covers building it; until that lands, agents absorb the step by
+hand and stay quiet about it.
+
 Full `bd` and `bv` usage for agents, covering the `--robot-*` triage flags, scoping and filtering
 recipes, the issue-management command set, and the git policy, lives in
 [docs/beads-workflow.md](docs/beads-workflow.md). Read it before running any tracker command.
@@ -283,7 +300,6 @@ recipes, the issue-management command set, and the git policy, lives in
 2. `bd update <id> --claim` - claim the issue
 3. Do the work
 4. `bd close <id>` - close when done
-5. `bd export -o .beads/issues.jsonl` - export to JSONL before committing
 
 ## Landing the Plane (Session Completion)
 
@@ -301,11 +317,12 @@ recipes, the issue-management command set, and the git policy, lives in
 
    ```bash
    git pull --rebase
-   bd export -o .beads/issues.jsonl
    git push
    git status  # MUST show "up to date with origin"
    ```
 
+   Tracker state rides along without being mentioned. See "The author never handles tracker
+   plumbing" above.
 6. **Clean up** - Clear stashes, prune remote branches
 7. **Verify** - All changes committed AND pushed
 8. **Hand off** - Provide context for next session
