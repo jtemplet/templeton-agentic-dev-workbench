@@ -99,8 +99,8 @@ fallback.
 
 ### Decision
 
-**Option A. The orchestrator dispatches four concurrent subagents, and every dispatch passes
-`run_in_background: false`.**
+**Option A. The orchestrator dispatches one concurrent subagent per lane, and every dispatch
+passes `run_in_background: false`.**
 
 `agents/quality-gates-orchestrator.md` (the name Question 1 selects) declares
 `tools: ["Agent", ...]`, spelled `Agent` and not `Task`, since
@@ -109,9 +109,12 @@ actually receives.
 
 The fallback in Option B is not taken. Plan criterion 9 stays a speedup check.
 
+The lane count is left to Question 3, which reduces it from four to three. The blocking rule does
+not depend on the count: every dispatch blocks, however many there are.
+
 Milestone 2 must state the blocking requirement as a rule of the orchestrator, not as an
 implementation note, and milestone 2's Done-when should require the transcript to show
-`run_in_background: false` on all four dispatches. Finding 4 is a silent-loss defect: without that
+`run_in_background: false` on every dispatch. Finding 4 is a silent-loss defect: without that
 check, a regression looks like a short report rather than a failure.
 
 ## Question 1: does `commands/quality-gates.md` collide with `agents/quality-gates.md`?
