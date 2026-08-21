@@ -19,7 +19,7 @@ This blocks the planned bead-refinement loop (`docs/plans/feature-plan-bead-refi
 
 ### Option A: Native fields are canonical
 
-Amend `plan-to-beads` to write How to `--design`, Done when and Out of scope to `--notes`, and Acceptance Criteria to `--acceptance-criteria`, leaving Why and Estimated size in the description body.
+Amend `plan-to-beads` to write How to `--design`, Done when and Out of scope to `--notes`, and Acceptance Criteria to `--acceptance`, leaving Why and Estimated size in the description body.
 
 - **Pros:** `bd ready`, `bd show`, `bd list --json`, and any dashboard read the native fields directly, so the content becomes queryable rather than trapped in a markdown blob. Aligns the generator with the auditor. Uses the tracker as designed.
 - **Cons:** Touches a shipped skill. Every existing bead is non-canonical until refined. `bd create` cannot set these fields, so creation becomes two calls (create, then update).
@@ -50,7 +50,7 @@ For `bd`, the mapping is:
 | How (Algorithmic) | `--design` |
 | Done when (Acceptance) | `--notes` |
 | Out of scope | `--notes` |
-| Acceptance Criteria | `--acceptance-criteria` |
+| Acceptance Criteria | `--acceptance` |
 | Estimated size | `--description` body |
 | Steps to Reproduce / Success Criteria | `--description` body (no native slot) |
 
@@ -71,5 +71,16 @@ The migration cost that argued against Option A is real but bounded, and it is e
 - Bead creation is now two calls rather than one, because `bd create` exposes no flag for `design`, `notes`, or `acceptance_criteria`. `plan-to-beads` must create then immediately update, and must handle a failure between the two (a bead created but not populated).
 - Every bead created before this decision is structurally non-canonical and will be flagged by any audit until refined.
 - The canonical structure is now tracker-dependent. A repo using plain GitHub Issues still puts everything in the body, so `bead-audit` must keep both paths, and it already does.
+
+**Correction, 2026-08-21.** This ADR was written against an earlier tracker CLI and named the
+acceptance flag `--acceptance-criteria`. The tracker is `bd`, where the flag is `--acceptance`;
+`bd` rejects `--acceptance-criteria` as an unknown flag. The flag names above are corrected. The
+decision itself is unchanged: native fields are still canonical.
+
+Two consequences recorded above are also stale against `bd`, and are left in place as the
+reasoning of the time rather than rewritten. `bd create` **does** accept `--design`,
+`--notes`, and `--acceptance`, so creation need not be two calls and the accepted risk below
+need not be taken. Whether `plan-to-beads` moves to a single call is an open decision, not
+something this correction settles.
 
 **Accepted risk:** the create-then-update sequence is not atomic. If the update fails, a bead exists with a Why but no How, Done when, or Acceptance Criteria, which is worse than the old single-call failure mode. `plan-to-beads` must report any bead left in that state explicitly rather than silently continuing.

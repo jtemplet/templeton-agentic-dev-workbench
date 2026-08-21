@@ -144,7 +144,7 @@ Read `status` from the same JSON. A bead that is already `closed` stops the run 
 **Confirm which database `bd` resolved to when you are in a linked worktree.** Under `bd` this is
 usually already right: it discovers one database per repository through the git common directory, so
 a worktree shares the main checkout's database and a close made there is visible everywhere at once.
-That is a change from `br`, which gave every worktree its own SQLite cache and required pinning.
+An older tracker gave every worktree its own SQLite cache and required pinning; `bd` does not.
 
 Verify rather than assume, because a wrong answer here closes a bead in a throwaway database while
 the real one stays open:
@@ -195,8 +195,9 @@ git diff --name-only --diff-filter=U
    bd export -o .beads/issues.jsonl
    ```
 
-   This is not the `br` case, where JSONL was canonical and a three-way merge was the only way to
-   avoid losing a write. `br sync --merge` does not exist under `bd` and must not be reached for.
+   This is not the older arrangement, where the JSONL was canonical and a three-way merge was the
+   only way to avoid losing a write. `bd` has no `sync` command at all, so there is no merge
+   subcommand to reach for.
 
 **When neither is available, or the one you ran exits non-zero,** abort the rebase and stop with
 `tracker-merge-failed`. Do not fall back to a hand edit of the file. Rule 3 has no exception, and a

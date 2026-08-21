@@ -299,7 +299,7 @@ and their names were replaced in docs (done in Phase 3). This phase adds *new do
    README tables). `/validate-plugin` check #5 is the net, but grep each old name explicitly.
 6. **Not a Node project today** - keep it that way. `test-hooks.js` uses only Node built-ins; no
    `package.json`, no `npm install`. Run it as `node hooks/test-hooks.js`.
-7. **Out of scope / untouched:** `.in_use/` (gitignored session leases), `.beads/` (empty br
+7. **Out of scope / untouched:** `.in_use/` (gitignored session leases), `.beads/` (empty tracker
    tracker), `.code-workspace` (glob-based skill refs, needs no edit). `agentic-clean-code` gets a
    light touch only and does not seed the injected core.
 

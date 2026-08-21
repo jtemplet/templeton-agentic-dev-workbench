@@ -1,6 +1,6 @@
 ---
 name: feature-development
-description: "Implement a spec in the house style, invoked as /build. Takes a bead id (preferred) or a feature description, reads the spec from br rather than re-interviewing you, learns the repo's language, framework, and local conventions before writing anything, loads the matching style skills, implements criterion by criterion with a test per criterion, then simplifies and lints. Stops at implemented; grading and closing belong to /quality-gates and /verify-acceptance."
+description: "Implement a spec in the house style, invoked as /build. Takes a bead id (preferred) or a feature description, reads the spec from bd rather than re-interviewing you, learns the repo's language, framework, and local conventions before writing anything, loads the matching style skills, implements criterion by criterion with a test per criterion, then simplifies and lints. Stops at implemented; grading and closing belong to /quality-gates and /verify-acceptance."
 ---
 
 # Feature Development

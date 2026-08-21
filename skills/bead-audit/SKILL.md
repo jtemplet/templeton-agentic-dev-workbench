@@ -1,6 +1,6 @@
 ---
 name: bead-audit
-description: "Audit one or more bead issue bodies against the Marr audit, size audit, type-specific section audit, and a grounding audit against the current main branch. Separates three independent verdicts: content (is the substance there?), structure (is it under the canonical heading or native field?), and grounding (is the bead still true of the code as it is today?), so a substantively complete bead in the wrong format is an auto-fixable reformat, and a well-written bead whose target code moved is stale rather than under-specified. Produces an optional weighted scorecard (0-100, banded Poor/Weak/Adequate/Great/Excellent) derived from the verdicts and capped so the band can never contradict the pass/fail verdict or outrank the grounding verdict, for ranking a backlog or targeting a quality band. Honors trackers with native fields (e.g. br's acceptance_criteria/design/notes), self-verifies every drafted fix so it re-passes, and gates write-back with an applyable flag so placeholder-bearing drafts never reach the tracker. Supports a machine-readable JSON output mode for backlog-scale grooming."
+description: "Audit one or more bead issue bodies against the Marr audit, size audit, type-specific section audit, and a grounding audit against the current main branch. Separates three independent verdicts: content (is the substance there?), structure (is it under the canonical heading or native field?), and grounding (is the bead still true of the code as it is today?), so a substantively complete bead in the wrong format is an auto-fixable reformat, and a well-written bead whose target code moved is stale rather than under-specified. Produces an optional weighted scorecard (0-100, banded Poor/Weak/Adequate/Great/Excellent) derived from the verdicts and capped so the band can never contradict the pass/fail verdict or outrank the grounding verdict, for ranking a backlog or targeting a quality band. Honors trackers with native fields (e.g. bd's acceptance_criteria/design/notes), self-verifies every drafted fix so it re-passes, and gates write-back with an applyable flag so placeholder-bearing drafts never reach the tracker. Supports a machine-readable JSON output mode for backlog-scale grooming."
 ---
 
 # Bead Audit
@@ -92,7 +92,7 @@ When a tracker has a native field for a section, **the audit applies to that fie
 
 | Canonical section | Maps to native field (when the tracker has one) | Example: `bd` |
 |---|---|---|
-| Acceptance Criteria | the acceptance-criteria field | `--acceptance-criteria` (alias `--acceptance`) |
+| Acceptance Criteria | the acceptance-criteria field | `--acceptance` |
 | How (Algorithmic) | the design / approach field | `--design` |
 | Done when / Out of scope / supporting detail | the notes field | `--notes` |
 | Why, and anything without a native slot | the description / body field | `-d` / `--description` |
@@ -101,7 +101,7 @@ Rules when native fields are present:
 
 - A section whose content lives in the correct native field is `structure: canonical`. Do not flag it for "missing heading."
 - A section's content duplicated into the body when a native field exists for it is `structure: variant` (reformat: move it to the native field, do not embed a heading in the description).
-- When **drafting a fix**, populate the native field rather than appending a heading to the body. For `bd`, that means `bd update <id> --acceptance-criteria "..."` and `bd update <id> --design "..."`, not stuffing `## Acceptance Criteria` into `--description`.
+- When **drafting a fix**, populate the native field rather than appending a heading to the body. For `bd`, that means `bd update <id> --acceptance "..."` and `bd update <id> --design "..."`, not stuffing `## Acceptance Criteria` into `--description`.
 - The canonical headings still govern plain-markdown trackers (GitHub Issues, a pasted blob) and the in-body fallback when no native field exists.
 
 If you cannot tell whether the tracker has native fields (e.g., the user pasted a plain body), audit against the canonical headings and note that a fix may belong in a native field if the destination tracker has one.
@@ -537,7 +537,7 @@ A draft is `applyable: true` only when (1) and (2) hold and (3) finds no placeho
 Field semantics for a caller (e.g., a `/goal` loop):
 
 - `corrected_body` is the full markdown fix (canonical headings). `null` for PASS beads.
-- `corrected_fields` is the optional native-field breakdown for trackers like `bd` (write `acceptance_criteria` to `--acceptance-criteria`, `design` to `--design`, etc., instead of one body blob). Omit or null when the tracker has no native fields.
+- `corrected_fields` is the optional native-field breakdown for trackers like `bd` (write `acceptance_criteria` to `--acceptance`, `design` to `--design`, etc., instead of one body blob). Omit or null when the tracker has no native fields.
 - `score`, `band`, `score_denominator`, and `excluded_dimensions` come from the Scorecard. Emit them only when scoring was requested; omit for a plain pass/fail audit. `score` is capped by verdict, so `band` may be lower than the raw `score` alone would imply.
 - `score_denominator` is the sum of the weights of every dimension that applies to the bead, including Structure (weight 10) and, for a `bug`, Steps to Reproduce (weight 10). Do not compute it as "100 minus excluded weights": that is right for a `task`/`feature` (denominator 100) and an `epic` (90, size excluded) but wrong for a `bug`, whose base is 110. Excluding a dimension removes its weight from this sum.
 - Per-check `points` cover only the content dimensions in the `checks` array; they do **not** include the Structure contribution, which is computed once as `10 × (canonical required sections ÷ total required sections)` and is not itself a `checks` entry. The raw numerator is `sum(checks[].points) + structure_points`; `score = round(100 × numerator ÷ score_denominator)`. A consumer recomputing the score must add the structure term separately.

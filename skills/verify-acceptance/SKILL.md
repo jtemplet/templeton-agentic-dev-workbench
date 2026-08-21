@@ -1,6 +1,6 @@
 ---
 name: verify-acceptance
-description: "Check a finished unit of work against its bead's acceptance criteria and the QA gates. Resolves the bead from br, grades each criterion against evidence rather than against the diff, runs the QA gates, and reports one verdict table. Report-only: it writes no file and closes no bead."
+description: "Check a finished unit of work against its bead's acceptance criteria and the QA gates. Resolves the bead from bd, grades each criterion against evidence rather than against the diff, runs the QA gates, and reports one verdict table. Report-only: it writes no file and closes no bead."
 ---
 
 # Verify Acceptance
@@ -109,7 +109,7 @@ Output the report below, then stop.
 ## Acceptance Verification
 
 **Unit of work:** <bead-id> - <title>
-**Resolved by:** <br list --status in_progress | branch name | commit message>
+**Resolved by:** <bd list --status in_progress | branch name | commit message>
 
 ### Acceptance Criteria
 

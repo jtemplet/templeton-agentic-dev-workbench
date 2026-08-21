@@ -1,6 +1,6 @@
 ---
 name: triage-beads
-description: "Rank the open beads in a bd (beads) tracker by ROI, value delivered per unit of effort, and answer one question: which single bead to pick up next. Use this whenever someone asks what to work on next, what to pick up, what has the highest ROI, what is on their plate, or wants the backlog prioritized, even if they do not say beads or triage by name. Reads the tracker through the br and bv command-line tools only, never an MCP server. Takes readiness from bd ready and bd blocked, the measured graph facts (unblock counts, PageRank) from bv --robot-triage, then scores every candidate on an explicit value-over-effort rubric in which every point cites evidence from a stored field or the bead body. Output: one top pick with the scoring arithmetic shown and its claim command, a scored leaderboard so the ranking can be audited, and the blocked list. Deterministic: the same tracker state always yields the same pick. Report-only: it never claims, closes, or edits a bead."
+description: "Rank the open beads in a bd (beads) tracker by ROI, value delivered per unit of effort, and answer one question: which single bead to pick up next. Use this whenever someone asks what to work on next, what to pick up, what has the highest ROI, what is on their plate, or wants the backlog prioritized, even if they do not say beads or triage by name. Reads the tracker through the bd and bv command-line tools only, never an MCP server. Takes readiness from bd ready and bd blocked, the measured graph facts (unblock counts, PageRank) from bv --robot-triage, then scores every candidate on an explicit value-over-effort rubric in which every point cites evidence from a stored field or the bead body. Output: one top pick with the scoring arithmetic shown and its claim command, a scored leaderboard so the ranking can be audited, and the blocked list. Deterministic: the same tracker state always yields the same pick. Report-only: it never claims, closes, or edits a bead."
 ---
 
 # Triage Beads
@@ -64,8 +64,8 @@ All optional, from `$ARGUMENTS`:
 
 ## Step 0: Pre-flight
 
-1. **`bd` must exist.** Run `which br`. If it is missing, say
-   `br not found on PATH: install beads, or paste the beads you want triaged.` and stop.
+1. **`bd` must exist.** Run `bd list --limit 1`. If it fails, say
+   `bd not found on PATH: install beads, or paste the beads you want triaged.` and stop.
 2. **`bv` is optional.** Run `which bv`. If it is missing, run the whole triage from `bd` alone and
    say so in one line at the top of the readout. Do not silently drop the graph facts and present
    the result as if they were included. Substitute the unblock count with the number of
@@ -107,9 +107,11 @@ Add `--label <label>` to any of the three to scope. `bd list` also has `--title-
 
 Note the shapes, which differ between commands:
 
-- `bd list` returns an envelope: `{"issues": [...], "total": N, "has_more": bool}`. Check
-  `has_more`; if it is true you truncated.
-- `bd ready` and `bd blocked` return a bare array.
+- `bd list`, `bd ready`, and `bd blocked` all return a bare array of issues. There is no envelope
+  and no `has_more` flag, so guard against truncation with `--limit 0` (unlimited) rather than by
+  reading a field. `--limit` defaults to 50.
+- `--status` takes a comma-separated list in one flag (`--status open,in_progress`). Repeating the
+  flag silently keeps only the last value.
 - Null fields are **omitted** from the JSON. A bead with no assignee has no `assignee` key, so
   test for absence, not for null.
 

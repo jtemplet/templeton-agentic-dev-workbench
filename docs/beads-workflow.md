@@ -1,4 +1,4 @@
-# Beads Workflow (br + bv)
+# Beads Workflow (bd + bv)
 
 Detailed tracker usage for agents working in this repository. `AGENTS.md` links here rather than
 inlining this content, which keeps the top-level agent instructions scannable.
@@ -62,7 +62,7 @@ bv --recipe actionable --robot-plan          # Pre-filter: ready to work (no blo
 bv --recipe high-impact --robot-triage       # Pre-filter: top PageRank scores
 ```
 
-### br Commands for Issue Management
+### bd Commands for Issue Management
 
 ```bash
 bd ready --json                       # Show issues ready to work (no blockers)
@@ -96,7 +96,7 @@ bd export -o .beads/issues.jsonl                  # Export DB to JSONL after Bea
 
 <!-- end-bv-agent-instructions -->
 
-## Additional br commands
+## Additional bd commands
 
 Hand-maintained, outside the generated block above so a `bv` re-injection cannot overwrite them.
 These were extracted from `AGENTS.md` when its inline command reference was removed.
@@ -109,7 +109,6 @@ These were extracted from `AGENTS.md` when its inline command reference was remo
 
 ```bash
 bd import .beads/issues.jsonl                 # Import JSONL -> DB (after git pull)
-br sync --merge                       # 3-way merge after pull conflicts
 bd dep add <issue> <depends-on>       # Add a blocking dependency
 bd dep tree <issue>                   # Show the dependency tree
 bd label list-all                     # All labels with counts

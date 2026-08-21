@@ -63,9 +63,9 @@
         "problemMatcher": []
       },
       {
-        "label": "Sync Beads (flush)",
+        "label": "Export Beads to JSONL",
         "type": "shell",
-        "command": "br sync --flush-only",
+        "command": "bd export -o .beads/issues.jsonl",
         "problemMatcher": []
       }
     ]

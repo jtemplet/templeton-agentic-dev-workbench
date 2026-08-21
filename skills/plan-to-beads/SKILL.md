@@ -35,26 +35,26 @@ Every bead must articulate at least **Marr Levels 1 and 2** before it is created
 
 Every issue carries this set of sections. Sections marked with a type tag are required only for beads of that type.
 
-The headings below define each section's **content and canonical wording**. Where that content is *stored* depends on the tracker: per ADR 0001, a section goes to the tracker's native field when one exists (on `bd`: How to `--design`, Done when and Out of scope to `--notes`, Acceptance Criteria to `--acceptance-criteria`), and to the description body otherwise. On a tracker with no native fields, the whole set lives in the body exactly as written here.
+The headings below define each section's **content and canonical wording**. Where that content is *stored* depends on the tracker: per ADR 0001, a section goes to the tracker's native field when one exists (on `bd`: How to `--design`, Done when and Out of scope to `--notes`, Acceptance Criteria to `--acceptance`), and to the description body otherwise. On a tracker with no native fields, the whole set lives in the body exactly as written here.
 
 **This template shows content, not storage. Do not paste it verbatim into `bd create -d`.** On `bd`, the `→` annotations below say which native field each section belongs in; putting How/Done when/Acceptance Criteria in the description body instead produces a bead that fails `bead-audit`'s structure check on day one. Step 5 has the exact create-then-update commands; follow those, not this block.
 
 ````markdown
-## Why (Computational)                         <!-- br: --description body -->
+## Why (Computational)                         <!-- bd: --description body -->
 
 [The problem this solves. The stakeholder or motivating constraint. What depends on this.]
 
-## How (Algorithmic)                           <!-- br: --design field, NOT the body -->
+## How (Algorithmic)                           <!-- bd: --design field, NOT the body -->
 
 [The approach, strategy, or representation. Key data flows, contracts, or sequencing.]
 
-## Done when (Acceptance)                       <!-- br: --notes field, NOT the body -->
+## Done when (Acceptance)                       <!-- bd: --notes field, NOT the body -->
 
 [Specific, verifiable conditions. Two people must be able to agree independently whether each
 criterion is satisfied without asking the author. Prefer observable behavior, named tests,
 or measurable thresholds over subjective judgements.]
 
-<!-- Required for type: task, feature, bug. br: --acceptance-criteria field, NOT the body -->
+<!-- Required for type: task, feature, bug. bd: --acceptance field, NOT the body -->
 ## Acceptance Criteria
 
 [Formal, testable conditions written from the user or system perspective. Use Given/When/Then
@@ -319,13 +319,13 @@ Show the user the complete list, and surface the Why, How, Done when, type-speci
 
 **WAIT for user confirmation before proceeding.** The user may want to adjust titles, priorities, dependencies, Why/How, or Done when content. Treat any edit as a re-audit: confirm the rewrite still passes before moving on.
 
-### Step 4: Verify br is Available
+### Step 4: Verify bd is Available
 
 ```bash
-which br && bd list --limit 1
+bd list --limit 1
 ```
 
-If `bd` is not found, stop and inform the user.
+If `bd` is not found, or the command fails, stop and inform the user.
 
 ### Step 5: Create Issues
 
@@ -336,7 +336,7 @@ If `bd` is not found, stop and inform the user.
 | Why (Computational) | `--description` body |
 | How (Algorithmic) | `--design` |
 | Done when (Acceptance), Out of scope | `--notes` |
-| Acceptance Criteria | `--acceptance-criteria` |
+| Acceptance Criteria | `--acceptance` |
 | Estimated size | `--description` body |
 | Steps to Reproduce, Success Criteria | `--description` body (no native slot) |
 
@@ -362,12 +362,14 @@ bd update "$id" \
 - <criterion 2>
 EOF
 )" \
-  --acceptance-criteria "$(cat <<'EOF'
+  --acceptance "$(cat <<'EOF'
 1. Given <precondition>, when <action>, then <observable result>.
 2. ...
 EOF
 )"
 ```
+
+The flag is `--acceptance`; `bd` rejects `--acceptance-criteria` as an unknown flag.
 
 Use the quoted `cat <<'EOF'` heredoc, not `printf`, for these values. Acceptance criteria and Done-when lines routinely contain a literal `%` (for example "95% of requests return 200"), and `printf` would interpret it as a format directive and silently corrupt the text; a quoted heredoc passes every character through verbatim.
 
@@ -401,7 +403,7 @@ bd update "$id" \
 - <criterion 2>
 EOF
 )" \
-  --acceptance-criteria "$(cat <<'EOF'
+  --acceptance "$(cat <<'EOF'
 1. Given <precondition>, when <action>, then <observable result>.
 EOF
 )"
@@ -499,7 +501,7 @@ Then present the final report:
 
 ### Step 7b (optional): Record the decomposition in the plan file
 
-Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, see br <id-range>`. This lets the next agent reading the plan know it has been decomposed without re-running the skill. Skip if the plan file is read-only or if the user prefers tracking elsewhere.
+Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, see bd <id-range>`. This lets the next agent reading the plan know it has been decomposed without re-running the skill. Skip if the plan file is read-only or if the user prefers tracking elsewhere.
 
 ## Critical Rules
 
@@ -516,7 +518,7 @@ Append a one-line note to the plan's Status section: `Decomposed: <YYYY-MM-DD>, 
 - Run the full audit on every bead (Marr AND size AND type-specific section) and rewrite, split, or demote failures before the confirmation gate
 - Present the complete issue list, including each bead's type, Why, How, Done when, type-specific sections, AND size estimate, and WAIT for user confirmation before creating
 - Verify `bd` is available before attempting to create issues
-- Write every section to its canonical destination per ADR 0001: native tracker fields where they exist (`--design`, `--notes`, `--acceptance-criteria` on `bd`), the description body only for sections with no native slot. Never drop a section to save a call
+- Write every section to its canonical destination per ADR 0001: native tracker fields where they exist (`--design`, `--notes`, `--acceptance` on `bd`), the description body only for sections with no native slot. Never drop a section to save a call
 - Make each issue self-contained with enough context to implement independently
 - Keep the dependency graph shallow, prefer parallel tracks over deep chains
 

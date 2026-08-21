@@ -223,9 +223,9 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 - Resolves the bead from the argument or the `outrigger/<short-id>/<slug>` branch name, verifying
   every candidate against `bd` and refusing when two real beads resolve
 - Rebases onto `origin/main` before gating, so the gate grades the tree the squash-merge produces
-- Resolves a `.beads/issues.jsonl` conflict through the host repo's tracker merge tool or
-  `br sync --merge`, verifies the result parses, and aborts on any other conflict rather than
-  judging code someone else wrote
+- Resolves a `.beads/issues.jsonl` conflict through the host repo's tracker merge tool or by
+  re-exporting from the database with `bd export`, verifies the result parses, and aborts on any
+  other conflict rather than judging code someone else wrote
 - Detects the gate from `TADW_SHIP_CHECK`, then what `AGENTS.md`/`CLAUDE.md` declares, then a task
   runner `check` target, then the stack's conventional runner; an undetected gate is a stop, not a
   skip, and a non-zero exit stops the run before any merge
@@ -238,6 +238,81 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
   version of every file the branch touched
 - Unattended by design: it never asks a question, and it ends with exactly one machine-readable
   `SHIP_DONE <hash>` or `SHIP_BLOCKED <reason>` line
+
+### Bead Authoring
+
+**Decompose a plan into beads:** Use `/plan-to-beads` or the `project-manager` agent + `plan-to-beads` skill
+
+- Reads a written plan (the path given as an argument, or the most recent file in `docs/plans/`) and
+  splits it into self-contained work units of one to three days each
+- Checks first whether beads already exist for the plan, and presents a diff of new, changed, and
+  removed beads for confirmation instead of silently re-creating them
+- Requires Marr Level 1 (Why) and Level 2 (How) plus a Done when a second person can verify, on
+  every bead, before it is created; Level 3 implementation detail stays optional
+- Traces each plan-level acceptance criterion to the bead that proves it, and names both failure
+  modes: a criterion no bead proves (a decomposition gap) and a bead proving no criterion (scope the
+  plan never asked for)
+- Sizes every bead against the diff-size window (Target is 1 to 5 files and 20 to 300 LOC, Stretch up
+  to 10 files and 600 LOC), splits anything above it, and demotes Trivial-band units to direct commits
+- Presents the full list, including each bead's Why, How, Done when, type-specific sections, and size
+  estimate, and waits for confirmation before the first `bd create`
+- Writes each section to its canonical destination per ADR 0001
+  (`docs/decisions/0001-native-tracker-fields-are-canonical.md`): `--design`, `--notes`, and
+  `--acceptance`, with the description body carrying only what has no native field
+- Classifies a partial failure into fully written, created-but-unpopulated, and never attempted, and
+  asks which recovery path to take rather than retrying blindly; it never re-runs `bd create` for a
+  bead that already exists
+- Wires dependencies with `bd dep add`, keeps the graph acyclic and shallow (longest chain at most 3),
+  and prefers parallel tracks over deep chains
+
+**File one bead:** Use `/bead-create` (the `bead-create` skill directly; there is no command file)
+
+- The single-bead counterpart to `plan-to-beads`: it files one bead from a request, a bug report, a
+  review finding, or a session-close follow-up, when no plan document exists to decompose
+- Reads the rubric from `skills/bead-audit/SKILL.md` rather than restating it, so the bead is drafted
+  against the same standard that will later grade it
+- Infers what the code, the commits, and the failing test can answer, and batches what only a person
+  can answer into one exchange; it never invents a stakeholder, an approach, or an acceptance criterion
+- Searches the tracker for a duplicate before drafting, and hands a near-match back to the author to
+  resolve instead of deciding alone
+- Grounds every current-state claim against `origin/main` (never the working tree, which on a feature
+  branch already contains the change), cites `path:line`, and records the sha; a claim that is already
+  satisfied means the work is done and no bead is filed
+- Estimates the size band, splits anything above Stretch, and refuses the trivial bead by offering to
+  make the change instead
+- Self-audits the draft against the `bead-audit` dimensions and rewrites until it passes, then presents
+  the bead and waits for confirmation; a draft still carrying an `[AUTHOR TO COMPLETE]` placeholder is
+  never filed
+- Creates it in one `bd create` call with `--design`, `--notes`, and `--acceptance` populated, labels it
+  with a category plus `auto-ok`, wires parent and dependency edges, reads it back with `bd show` to
+  prove the native fields landed, and exports the tracker silently
+
+**Grade and repair beads that already exist:** Use `/bead-audit` (the `bead-audit` skill directly; there is no command file), or `/bead-audit-all` to sweep the whole backlog
+
+- Audits the text of a bead body, so it works on `bd show` output, a file, or a pasted blob; the other
+  two skills in this section write beads, this one grades them
+- Separates three independent verdicts: content (is the substance there?), structure (is it under the
+  byte-exact canonical heading, or in the native field?), and grounding (is it still true of the code
+  on main?), so a substantively complete bead in the wrong format is an auto-fixable REFORMAT rather
+  than a failure
+- Treats `bd`'s native `design`, `notes`, and `acceptance_criteria` fields as canonical structure per
+  ADR 0001, and drafts a fix into the field rather than embedding a heading in the description
+- Runs the same Marr, size, and type-specific section audits as `plan-to-beads`, then adds a grounding
+  audit that reads `origin/main` with `git show` and `git grep` and records the sha every claim was
+  checked against
+- Never marks a bead drifted because its acceptance criteria do not hold yet, since unmet criteria are
+  the bead's reason to exist; it runs those sections the other way instead and reports `satisfied` when
+  main already meets them, which is the cheapest finding in a backlog to resolve
+- Produces an optional 0 to 100 scorecard, banded Poor to Excellent, derived from the verdicts and
+  capped so a band can never outrank the pass/fail verdict or the grounding verdict
+- Drafts corrected bodies, self-verifies each by re-auditing its own draft, and gates write-back behind
+  an `applyable` flag: a placeholder-bearing draft, a drifted bead, or a satisfied bead goes to a person
+  instead of the tracker
+- `--json` mode emits per-bead verdicts, scores, corrected fields, and the `applyable` flag, so a
+  grooming loop can apply the safe fixes and route the rest
+- `/bead-audit-all` enumerates the backlog in one unlimited page (`bd list --status open --limit 0 --json`),
+  resolves the grounding baseline once for every bead, and reports a health table ranked worst band
+  first; it is report-only and does not write back
 
 ### Backlog Triage
 

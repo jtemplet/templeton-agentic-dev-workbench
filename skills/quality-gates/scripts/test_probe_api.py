@@ -576,7 +576,7 @@ def case_no_http_status_is_blocked_not_failed() -> None:
 
     A REAL server cannot produce this: an empty reply exits 52 and a timeout exits
     28, both of which the returncode branch already catches. So this case stubs
-    `curl` on PATH, the way `hooks/test-claude-scripts.sh` stubs `br` and `gh`.
+    `curl` on PATH, the way `hooks/test-claude-scripts.sh` stubs `bd` and `gh`.
     The rule is worth pinning because status 0 graded against an expected 200
     would report a failing endpoint where no endpoint replied, which contradicts
     what this script's own docstring promises.

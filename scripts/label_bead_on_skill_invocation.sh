@@ -60,7 +60,7 @@ quiet_exit() { exit 0; }
 # Shared setup
 # ---------------------------------------------------------------------
 
-# Sets REPO_ROOT, MAIN_ROOT, BACKEND, tracker_cmd, MARKER_DIR. Exits when
+# Sets REPO_ROOT, MAIN_ROOT, MARKER_DIR. Exits when
 # not usable.
 init_repo() {
   REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || quiet_exit
@@ -69,42 +69,13 @@ init_repo() {
   GIT_COMMON="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
   MAIN_ROOT="$(dirname "$GIT_COMMON")"
 
-  # Which tracker this repo runs, from what .beads/ holds rather than assumed.
-  # Three signals in strict order: metadata.json (the only declarative one, and
-  # the only one git carries), then any of bd's three database directory
-  # layouts, then a database file. br is considered last, because `bd init`
-  # leaves the pre-cutover SQLite file behind and a migrated repo looks like
-  # both; reading it the other way writes labels into a dead tracker.
-  local beads_dir="$MAIN_ROOT/.beads" db d
-  BACKEND=""
-  if [[ -f "$beads_dir/metadata.json" ]] \
-     && grep -q '"backend"[[:space:]]*:[[:space:]]*"dolt"' "$beads_dir/metadata.json" 2>/dev/null; then
-    BACKEND="bd"
-  else
-    for d in embeddeddolt dolt proxieddb; do
-      [[ -d "$beads_dir/$d" ]] && { BACKEND="bd"; break; }
-    done
-  fi
-
-  if [[ "$BACKEND" == "bd" ]]; then
-    # No --db pin: bd resolves one workspace per repository through the git
-    # common dir, so it finds the same database from a worktree.
-    tracker_cmd=(bd)
-  else
-    # br gives each worktree its own SQLite copy, so an unpinned br there would
-    # read and write that copy instead of the canonical tracker. Any *.db,
-    # since br discovers its database by extension.
-    db=""
-    for d in "$beads_dir"/*.db; do
-      [[ -f "$d" ]] && { db="$d"; break; }
-    done
-    [[ -n "$db" ]] || { log "no tracker backend under $beads_dir"; quiet_exit; }
-    BACKEND="br"
-    tracker_cmd=(br --db "$db")
-  fi
-
+  # bd is the only tracker this hook supports. It takes no --db pin: it resolves
+  # one workspace per repository through the git common dir, so it finds the
+  # same database from a worktree as from the main checkout.
+  local beads_dir="$MAIN_ROOT/.beads"
+  [[ -d "$beads_dir" ]] || { log "no beads workspace under $beads_dir"; quiet_exit; }
   local t
-  for t in "$BACKEND" jq git; do
+  for t in bd jq git; do
     command -v "$t" >/dev/null 2>&1 || { log "$t not on PATH"; quiet_exit; }
   done
 
@@ -121,52 +92,21 @@ has_label() {
 
 add_label() {
   local bead_id="$1" label="$2"
-  "${tracker_cmd[@]}" update "$bead_id" --add-label "$label" >/dev/null 2>&1 || {
-    log "$BACKEND update $bead_id --add-label $label failed"
+  bd update "$bead_id" --add-label "$label" >/dev/null 2>&1 || {
+    log "bd update $bead_id --add-label $label failed"
     return 1
   }
   log "labeled $bead_id $label"
-  commit_beads "$bead_id" "$label"
+  refresh_export
 }
 
-# Commit only from the main checkout on main, and only when the beads
-# file is the sole dirty tracked file. Anywhere else the label waits for
-# the session-end protocol, so this adds no merge-conflict surface to a
-# feature branch. Mirrors the guard in autocommit_beads_after_br.sh.
-commit_beads() {
-  local bead_id="$1" label="$2" branch porcelain non_beads
-  # Under bd, refresh the export instead of committing one. The label lives in
-  # a gitignored database, and .beads/issues.jsonl is a passive export bd never
-  # refreshes, so committing it carries a stale file into the diff while
-  # leaving it alone makes the label invisible to bv and Manifest.
-  if [[ "$BACKEND" == "bd" ]]; then
-    "${tracker_cmd[@]}" export -o "$BEADS_FILE" >/dev/null 2>&1 \
-      || log "export refresh failed; bv and Manifest will lag"
-    return 0
-  fi
-  branch="$(git branch --show-current 2>/dev/null || true)"
-  [[ "$branch" == "main" && "$REPO_ROOT" == "$MAIN_ROOT" ]] || return 0
-  [[ -d "$REPO_ROOT/.outrigger/lock.d" ]] && { log "outrigger lock active; leaving beads uncommitted"; return 0; }
-  [[ -f "$BEADS_FILE" ]] || return 0
-
-  porcelain="$(git status --porcelain --untracked-files=no)"
-  [[ -z "$porcelain" ]] && return 0
-
-  non_beads="$(echo "$porcelain" | awk -v f="$BEADS_FILE" 'substr($0,4) != f' | wc -l | tr -d ' ')"
-  if (( non_beads > 0 )); then
-    log "other tracked files are dirty; leaving beads uncommitted"
-    return 0
-  fi
-
-  git add "$BEADS_FILE"
-  git commit --quiet -m "beads: label ${bead_id} ${label}
-
-Auto-labeled by the Claude Code bead-label hook."
-  if git push --quiet 2>/dev/null; then
-    log "committed and pushed $label for $bead_id"
-  else
-    log "committed locally; push failed (run 'git push' manually)"
-  fi
+# Refresh the export rather than commit it. The label lives in a gitignored bd
+# database, and .beads/issues.jsonl is a passive export bd never refreshes on
+# its own: committing it would carry a stale file into the diff, while leaving
+# it alone would make the label invisible to bv and Manifest.
+refresh_export() {
+  bd export -o "$BEADS_FILE" >/dev/null 2>&1 \
+    || log "export refresh failed; bv and Manifest will lag"
 }
 
 # ---------------------------------------------------------------------
@@ -204,7 +144,7 @@ resolve_bead() {
 
   while IFS= read -r candidate; do
     [[ -z "$candidate" ]] && continue
-    found="$("${tracker_cmd[@]}" show "$candidate" --json 2>/dev/null || true)"
+    found="$(bd show "$candidate" --json 2>/dev/null || true)"
     [[ -z "$found" ]] && continue
     id="$(echo "$found" | jq -r '((.[0].id // .id) // empty)' 2>/dev/null || true)"
     if [[ -n "$id" ]]; then
@@ -286,13 +226,9 @@ run_label_flow() {
       log "pending $LABEL for $RESOLVED_ID; Stop will check the QA report"
       ;;
     inject)
-      # Single-quote the database path. This string is a shell command for
-      # someone to run later, so an unquoted path containing a space would
-      # arrive as two arguments and fail where it is pasted, not here. Only the
-      # br arm carries a path; bd resolves its own workspace and is one word.
-      local tracker_str="${tracker_cmd[0]}"
-      [[ ${#tracker_cmd[@]} -gt 2 ]] && tracker_str+=" ${tracker_cmd[1]} '${tracker_cmd[2]}'"
-      jq -n --arg event "$event" --arg ctx "When this /${skill} run is complete, add the \`${LABEL}\` label to bead ${RESOLVED_ID}, but ONLY if ${GATE}. If it does not clear that gate, add no label and say so. The command is: ${tracker_str} update ${RESOLVED_ID} --add-label ${LABEL}" \
+      # The command in this string is for someone to run later. bd resolves its
+      # own workspace, so it is one bare word with no path to quote.
+      jq -n --arg event "$event" --arg ctx "When this /${skill} run is complete, add the \`${LABEL}\` label to bead ${RESOLVED_ID}, but ONLY if ${GATE}. If it does not clear that gate, add no label and say so. The command is: bd update ${RESOLVED_ID} --add-label ${LABEL}" \
         '{hookSpecificOutput:{hookEventName:$event,additionalContext:$ctx}}'
       log "deferred $LABEL for $RESOLVED_ID to the run's verdict"
       ;;

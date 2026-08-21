@@ -5,9 +5,9 @@ This is the deterministic data layer for the `roadmap-dashboard` skill. It answe
 question: "what does the beads tracker say about the outstanding work?" and emits a
 stable JSON shape the dashboard builder can consume without re-deriving the parsing each run.
 
-Source of truth: the beads JSONL export (`.beads/issues.jsonl`). When `br` is available and
-a DB exists, the JSONL is refreshed first (`br sync --flush-only`) so the export is current;
-the JSONL is then parsed directly, because it carries full records including dependencies.
+Source of truth: the beads JSONL export (`.beads/issues.jsonl`). When `bd` is available, the
+JSONL is refreshed first (`bd export -o .beads/issues.jsonl`) so the export is current; the
+JSONL is then parsed directly, because it carries full records including dependencies.
 
 Usage:
     collect_beads.py [--dir PATH] [--jsonl PATH] [--out PATH] [--no-refresh]
@@ -47,18 +47,16 @@ def find_beads_dir(start: Path) -> Path | None:
 
 
 def refresh_jsonl(beads_dir: Path) -> None:
-    """Best-effort flush of the beads DB to JSONL so the export is current.
+    """Best-effort export of the beads database to JSONL so the export is current.
 
-    Silent no-op when `br` is not on PATH or the flush fails; the caller falls back
+    Silent no-op when `bd` is not on PATH or the export fails; the caller falls back
     to whatever JSONL already exists on disk.
     """
-    if shutil.which("br") is None:
-        return
-    if not any(beads_dir.glob("*.db")):
+    if shutil.which("bd") is None:
         return
     try:
         subprocess.run(
-            ["br", "sync", "--flush-only"],
+            ["bd", "export", "-o", str(beads_dir / "issues.jsonl")],
             cwd=beads_dir.parent,
             capture_output=True,
             timeout=30,
@@ -215,7 +213,7 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=None,
                         help="Write JSON here instead of stdout")
     parser.add_argument("--no-refresh", action="store_true",
-                        help="Do not run `br sync --flush-only` before reading the JSONL")
+                        help="Do not run `bd export` before reading the JSONL")
     args = parser.parse_args()
 
     if args.jsonl is not None:

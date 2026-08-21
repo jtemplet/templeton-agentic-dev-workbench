@@ -32,7 +32,7 @@ behavior, so a regression in the prose ships silently.
   is the only check that exercises the skill's behavior rather than its scripts.
 
 **Status.** Decomposed 2026-08-10 into 13 beads, all labeled `qg-hardening`. List them with
-`br list --label qg-hardening`, or scope a subgraph with `bv --robot-plan --label qg-hardening`.
+`bd list --label qg-hardening`, or scope a subgraph with `bv --robot-plan --label qg-hardening`.
 Re-running `/plan-to-beads` on this file must diff against that label rather than create a
 second set.
 
@@ -531,7 +531,7 @@ change: the skill grading its own hardening is the acceptance test, and its repo
 the new scripts under the Tests gate and the JSON artifact in `.git/`.
 
 Land per "Landing the Plane" in `AGENTS.md`: file follow-up beads (section 7), close finished
-beads, `git pull --rebase`, `br sync --flush-only`, push, and verify `git status` is clean and
+beads, `git pull --rebase`, `bd export -o .beads/issues.jsonl`, push, and verify `git status` is clean and
 up to date.
 
 **Then execute M7.** The release is the last act, after every check above is green. Tagging a
@@ -540,7 +540,7 @@ behind the verification rather than beside the work.
 
 ## 7. Follow-ups to file as beads, not to build now
 
-File both with `br create`, category label per the tracker convention, referencing this plan.
+File both with `bd create`, category label per the tracker convention, referencing this plan.
 
 **F1: Coverage-tool cross-check for Gate 2.** When the project configures a coverage tool
 (`pytest --cov`, simplecov, istanbul), run the selected tests under it and report changed-line

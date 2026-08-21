@@ -16,7 +16,7 @@ locally rather than remembered (see "Git hooks" below).
 ```bash
 rumdl fmt --check .                                          # what CI runs; ./lint.sh formats in place
 node hooks/test-hooks.js                                      # hook suite, incl. the docs/HOOKS.md count assertion
-bash hooks/test-claude-scripts.sh                             # suite for the three .claude/scripts hooks
+bash hooks/test-claude-scripts.sh                             # suite for the two .claude/scripts hooks
 python3 skills/style-testing/scripts/test_check_framework_leak.py   # regression suite for the leak checker
 python3 skills/style-testing/scripts/check_framework_leak.py        # assert style-testing stays framework-free
 python3 skills/quality-gates/scripts/test_check_doc_paths.py        # regression suite for the doc-path checker
@@ -112,6 +112,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Land a finished bead's branch on main | `/tadw:ship` (the skill itself) | `ship` |
 | Plan a feature | `/plan-feature`, `/plan-review` | `feature-planner` agent, `plan-review` |
 | Break a plan into issues | `/plan-to-beads` | `project-manager` agent |
+| File one well-crafted bead | `/bead-create` (the skill itself) | `bead-create` |
 | Audit issue quality | `/bead-audit` (the skill itself), `/bead-audit-all` | `bead-audit` |
 | Decide what to work on next | `/triage-beads` (the skill itself) | `triage-beads` |
 | Product strategy | `/competitive-analysis`, `/product-research`, `/product-roadmap`, `/product-brief`, `/ab-test-design` | `product-manager` agent |
@@ -151,12 +152,12 @@ every invocation path at once, including the ones hardcoded in other repos, so t
 change. It was `templeton-agentic-dev-workbench` before 2.0.0. Unrelated to the namespace despite the
 shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue prefix.
 
-**Registered Skills** (39). One-line descriptions live in the `README.md` skills
+**Registered Skills** (40). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
 `ab-test-design` `agentic-clean-code` `architecture-decision-record` `aso-audit` `bead-audit`
-`business-ideas` `code-simplify` `competitive-analysis` `feature-development`
+`bead-create` `business-ideas` `code-simplify` `competitive-analysis` `feature-development`
 `house-response-style` `idea-wizard` `plan-review` `plan-to-beads` `pr-maintenance`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `quality-gates` `research-ingest` `review-fresh-eyes` `review-python` `review-rails`
@@ -217,8 +218,10 @@ each. They are not wired here, and `plugin.json` does not reference them.
   the three events. Safe to re-run, and it repairs wiring that names an older path rather than
   duplicating it. `--dest-dir` moves the destination.
 
-Note what this gives the target repository: a `bd close` from `main` will commit and push
-`.beads/issues.jsonl` on its own. That is deliberate and it is also why `tadw-0j8` is open.
+Note what this gives the target repository: labeling a bead refreshes `.beads/issues.jsonl` with
+`bd export`, so the export stays current for `bv` and dashboards. It commits nothing and pushes
+nothing. The hook used to commit and push that file, which is what `tadw-0j8` was filed against;
+the commit path went away with the `bd` cutover, and that bead is closed.
 
 ## Key Design Principles
 
@@ -262,12 +265,12 @@ command wins, so a command body saying "Use the `<name>` skill" resolves back to
 command a different name, delete it (the skill then takes the slash name), or have it
 `**Read** ${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md` instead of invoking it.
 
-`business-ideas`, `idea-wizard`, `ship`, and `triage-beads` are referenced by no agent and no
-command, which `/validate-plugin` reports as orphans. That is accepted: all four are invoked
-directly as `/<name>`, so a referrer would add nothing. Treat the orphan rule as a prompt to check the
+`bead-create`, `business-ideas`, `idea-wizard`, `ship`, and `triage-beads` are referenced by no
+agent and no command, which `/validate-plugin` reports as orphans. That is accepted: all five are
+invoked directly as `/<name>`, so a referrer would add nothing. Treat the orphan rule as a prompt to check the
 skill is still reachable, not as a requirement that something point at it.
 
-## Issue Tracking (br + bv)
+## Issue Tracking (bd + bv)
 
 This project uses **bd** (beads) for issue CRUD and **bv** (beads_viewer) for triage and planning.
 

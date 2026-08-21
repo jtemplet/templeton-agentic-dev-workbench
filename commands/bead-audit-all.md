@@ -17,7 +17,7 @@ This command is for grooming the whole backlog at once. For a single bead, use `
 
 ## Workflow
 
-1. **Verify `bd` is available.** Run `which br`. If it is missing, this command cannot enumerate; tell the user and offer to audit bead bodies they paste instead (the `bead-audit` skill is tracker-agnostic and takes pasted content).
+1. **Verify `bd` is available.** Run `bd list --limit 1`. If that fails, this command cannot enumerate; tell the user and offer to audit bead bodies they paste instead (the `bead-audit` skill is tracker-agnostic and takes pasted content).
 
 2. **Enumerate in one unlimited page.** Fetch every bead in scope with a single call:
 
@@ -25,7 +25,7 @@ This command is for grooming the whole backlog at once. For a single bead, use `
    bd list --status open --limit 0 --json
    ```
 
-   `--limit` defaults to 50, so omitting `--limit 0` would silently audit only the first 50 beads and then report a clean sweep. Always pass `--limit 0` (unlimited), and after reading confirm `has_more` is false. For `all`, repeat the flag per status: `--status open --status in_progress --status deferred --status closed`.
+   `--limit` defaults to 50, so omitting `--limit 0` would silently audit only the first 50 beads and then report a clean sweep. Always pass `--limit 0` (unlimited). `bd list --json` returns a bare array with no `has_more` flag, so confirm the sweep is complete by comparing the row count against the open count `bd stats` reports. For `all`, pass the statuses comma-separated in one flag: `--status open,in_progress,deferred,closed`. Repeating `--status` silently keeps only the last value, which would audit one status and report a whole-backlog sweep.
 
    If the backlog is empty, say so and stop; there is nothing to audit.
 

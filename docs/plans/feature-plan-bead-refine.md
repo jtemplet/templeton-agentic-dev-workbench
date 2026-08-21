@@ -17,7 +17,7 @@ Naming follows the repo's existing convention of a noun skill with a verb comman
 2. Nothing enumerates open beads. `skills/bead-audit/SKILL.md:10` explicitly makes fetching the caller's job.
 3. Nothing writes back. `skills/bead-audit/SKILL.md:386` states the skill issues no tracker write commands.
 
-The beneficiary is anyone inheriting or maintaining a backlog written before the current standard existed. Beads created ad hoc via `br create "title"` carry no Why, no How, and no acceptance criteria, so they cannot be picked up without asking the author, which is exactly the failure `plan-to-beads` was built to prevent at creation time. This closes the same gap retroactively.
+The beneficiary is anyone inheriting or maintaining a backlog written before the current standard existed. Beads created ad hoc via `bd create "title"` carry no Why, no How, and no acceptance criteria, so they cannot be picked up without asking the author, which is exactly the failure `plan-to-beads` was built to prevent at creation time. This closes the same gap retroactively.
 
 ## Scope
 
@@ -35,7 +35,7 @@ The beneficiary is anyone inheriting or maintaining a backlog written before the
 - Auto-merging or auto-closing duplicate beads. Detection reports; a human decides. Merging is destructive and irreversible from a loop.
 - Changing a bead's title, type, priority, status, or dependency edges. The loop only touches audited content fields.
 - Refining beads whose status is anything other than `open`. Closed, deferred, and `in_progress` beads are never fetched. Excluding `in_progress` is deliberate: it is what lets the driver skip work another agent or human has claimed, without claiming anything itself.
-- Support for trackers other than `br` in v1. The audit stays tracker-agnostic; the driver targets `br` first and isolates tracker calls so a second adapter is additive.
+- Support for trackers other than `bd` in v1. The audit stays tracker-agnostic; the driver targets `bd` first and isolates tracker calls so a second adapter is additive.
 - Creating new beads to fill gaps. The loop improves existing beads only.
 
 ## Technical Approach
@@ -50,7 +50,7 @@ Two layers with a clean seam, mirroring the split the repo already uses for `pr-
                    state, write-back)            score, corrected fields)
 ```
 
-`bead-audit` stays pure: text in, verdict + score + corrected content out. It gains scoring but no tracker coupling and no write commands. `bead-refinement` owns everything side-effecting: `br list`, `br update`, `br sync`. This preserves the One Tool One Job and No Surprise Side Effects principles in `skills/agentic-clean-code/SKILL.md`, and keeps `bead-audit` usable standalone by a human pasting a body.
+`bead-audit` stays pure: text in, verdict + score + corrected content out. It gains scoring but no tracker coupling and no write commands. `bead-refinement` owns everything side-effecting: `bd list`, `bd update`, `bd export`. This preserves the One Tool One Job and No Surprise Side Effects principles in `skills/agentic-clean-code/SKILL.md`, and keeps `bead-audit` usable standalone by a human pasting a body.
 
 ### Key Components
 
@@ -108,20 +108,20 @@ Rows 1, 2, and 4 are why the caps exist: each is a bead the audit calls NEEDS WO
 
 ### Enumeration
 
-One call returns everything the audit needs: `br list --status open --limit 0 --json` emits `{issues, total, limit, offset, has_more}`, with `description`, `design`, `notes`, and `acceptance_criteria` all inline. No per-bead `br show` is required.
+One call returns everything the audit needs: `bd list --status open --limit 0 --json` emits a JSON array of issues, each carrying `description`, `design`, `notes`, and `acceptance_criteria` inline. No per-bead `bd show` is required. (Verified 2026-08-21. The earlier CLI wrapped the rows in an envelope carrying `total` and `has_more`; `bd` does not, so a driver counts the array itself.)
 
 Two verified details the driver must honor:
 
-- **`--limit` defaults to 50.** Omitting it silently truncates any backlog larger than 50 beads and would then report convergence, precisely the "no silent caps" failure. Pass `--limit 0` (unlimited) and assert `has_more == false` after reading.
+- **`--limit` defaults to 50.** Omitting it silently truncates any backlog larger than 50 beads and would then report convergence, precisely the "no silent caps" failure. Pass `--limit 0` (unlimited). There is no `has_more` flag to assert against on `bd`, so compare the row count to `bd stats` instead, or re-read with an explicit high limit and check the count does not grow.
 - **`--status open` excludes `in_progress` and `deferred`.** Beads a human or another agent has claimed are never fetched, so the loop cannot clobber active work without needing to claim anything itself.
 
 ### Write-back
 
-Fixes go to their canonical destinations per ADR 0001: `--design` for How, `--notes` for Done when and Out of scope, `--acceptance-criteria` for Acceptance Criteria, and `--description` for Why, Estimated size, Steps to Reproduce, and Success Criteria. Note `br update` has **no `-d` short form**; that alias exists only on `br create`.
+Fixes go to their canonical destinations per ADR 0001: `--design` for How, `--notes` for Done when and Out of scope, `--acceptance` for Acceptance Criteria, and `--description` for Why, Estimated size, Steps to Reproduce, and Success Criteria. On `bd`, `-d` is a short form of `--description` on both `create` and `update` (verified 2026-08-21).
 
-**Content-preservation guard.** `br update --description` replaces the field wholesale, and `bead-audit`'s drafting template emits canonical sections only (`bead-audit:385` forbids adding sections not required for the type). Any author content that is not a canonical section (context links, a scratch checklist, prior discussion) would be silently destroyed. Before any description write, the driver diffs the pre-image against the draft and **refuses the write, routing the bead to a human, if any non-whitespace content in the original has no counterpart in the draft.** Across an unattended sweep this is the highest-consequence failure mode in the design.
+**Content-preservation guard.** `bd update --description` replaces the field wholesale, and `bead-audit`'s drafting template emits canonical sections only (`bead-audit:385` forbids adding sections not required for the type). Any author content that is not a canonical section (context links, a scratch checklist, prior discussion) would be silently destroyed. Before any description write, the driver diffs the pre-image against the draft and **refuses the write, routing the bead to a human, if any non-whitespace content in the original has no counterpart in the draft.** Across an unattended sweep this is the highest-consequence failure mode in the design.
 
-The driver never claims a bead. Claiming sets status to `in_progress`, which this plan places out of scope, and would surface refinement as phantom work in `bv --robot-next` and `br ready`.
+The driver never claims a bead. Claiming sets status to `in_progress`, which this plan places out of scope, and would surface refinement as phantom work in `bv --robot-next` and `bd ready`.
 
 ### Loop state and termination
 
@@ -155,10 +155,10 @@ Every write is recoverable, and the driver prints this procedure in its iteratio
 
 ```bash
 git checkout .beads/issues.jsonl   # restore the last committed backlog state
-br sync --import-only              # re-import JSONL into the local DB
+bd import .beads/issues.jsonl     # re-import JSONL into the local database
 ```
 
-This works because `.beads/issues.jsonl` is git-tracked and `br update` auto-flushes to it. **The restore is indiscriminate**: it discards all uncommitted bead state, including unrelated beads created in the same session. That is why the dirty-tree pre-flight above is a refusal rather than a warning.
+This works because `.beads/issues.jsonl` is git-tracked, provided `bd export` has been run since the last mutation. `bd` does not refresh the export on its own, so the driver must export before relying on this rollback. **The restore is indiscriminate**: it discards all uncommitted bead state, including unrelated beads created in the same session. That is why the dirty-tree pre-flight above is a refusal rather than a warning.
 
 ### Duplicate detection
 
@@ -193,8 +193,8 @@ The five fixtures, authored as part of milestone 1: `excellent-task`, `reformat-
 12. Given the same bead id written twice within one run, when the ledger detects it, then the driver emits `REFINE: HALTED <id> oscillation` and stops.
 13. Given `--target great` on a backlog of Great-band beads, when `/bead-refine` runs, then it writes nothing and converges, proving the target is honored rather than hard-coded.
 14. Given `--max-writes 5` on a backlog of 20 refinable beads, when `/bead-refine` runs, then exactly 5 beads are written and the report states how many were deferred.
-15. Given `--dry-run`, when `/bead-refine` runs, then it prints the intended updates and `br sync --flush-only` afterward reports no dirty issues.
-16. Given a backlog of more than 50 open beads, when `/bead-refine` enumerates, then every open bead is audited and `has_more` is false, proving the default 50-row page cap was overridden.
+15. Given `--dry-run`, when `/bead-refine` runs, then it prints the intended updates and `git diff --quiet .beads/issues.jsonl` afterward reports no change.
+16. Given a backlog of more than 50 open beads, when `/bead-refine` enumerates, then every open bead is audited and the row count matches the open count `bd stats` reports, proving the default 50-row page cap was overridden.
 17. Given a bead whose status is closed, deferred, or `in_progress`, when `/bead-refine` runs, then it is never fetched or modified.
 18. Given a working tree where `.beads/issues.jsonl` is uncommitted, when `/bead-refine` runs without `--dry-run`, then it refuses to start and names the dirty file.
 19. Given a backlog in which no bead is yet structurally canonical, when `/bead-refine` runs without `--dry-run`, then it refuses and directs the user to dry-run first.
@@ -214,16 +214,19 @@ The five fixtures, authored as part of milestone 1: `excellent-task`, `reformat-
 | Description write destroys non-canonical author content | High | Medium | Pre-write diff refuses any write dropping unmatched content (criterion 11); the guard is a refusal, not a warning |
 | Non-termination: convergence unreachable for weak-but-complete beads | High | Medium | Third terminal category (stalled); criterion 9 |
 | Oscillation across iterations from non-deterministic judgment | Medium | Medium | Per-run ledger halts on a repeat write or a repeated score (criterion 12) |
-| Silent truncation: only the first page groomed, then convergence reported | High | Medium | `--limit 0` plus a `has_more == false` assertion; criterion 16 |
+| Silent truncation: only the first page groomed, then convergence reported | High | Medium | `--limit 0` plus a row-count assertion against `bd stats`; criterion 16 |
 | Renormalization abused to shrink the denominator | Medium | Medium | Applicability restricted to `issue_type == epic` or an explicit human-set `operational` label; never inferred |
 | First run restructures an entire legacy backlog unattended | Medium | Medium | Refuses a non-dry-run first contact with a fully non-canonical backlog (criterion 19) |
 | Rollback discards unrelated uncommitted bead state | Medium | Medium | Dirty-tree pre-flight refusal (criterion 18); rollback text states the restore is indiscriminate |
 | Unattended write-back applies placeholder-bearing drafts | High | Low | `bead-audit`'s existing rule: never write `applyable: false`; driver re-checks before every write |
-| `br` JSON shape changes between versions | Medium | Low | All `br` invocations isolated in one section; fail loudly with raw output rather than parsing defensively |
+| `bd` JSON shape changes between versions | Medium | Low | All `bd` invocations isolated in one section; fail loudly with raw output rather than parsing defensively |
 
 ## Dependencies
 
-- `br` (beads_rust) on PATH. Required flags verified present: `br update --design`, `--notes`, `--acceptance-criteria`, `--description`; `br list --status`, `--limit`, `--json`; `br sync --flush-only`, `--import-only`.
+- `bd` on PATH. Verified 2026-08-21: `bd update --design`, `--notes`, `--acceptance`,
+  `--description` and `bd list --status`, `--limit`, `--json` all exist. The acceptance flag is
+  `--acceptance`; `bd` rejects `--acceptance-criteria` as an unknown flag. `bd` has no `sync`
+  command, so this plan's flush and import steps are written against `bd export` and `bd import`.
 - ADR 0001 (`docs/decisions/0001-native-tracker-fields-are-canonical.md`), which settles that native fields are canonical. Already accepted, and `plan-to-beads` already updated to comply.
 - `bead-audit` must gain scoring (milestone 1) before the driver can target a band. Milestones 2-4 depend on 1.
 
@@ -238,11 +241,11 @@ The five fixtures, authored as part of milestone 1: `excellent-task`, `reformat-
 
 ## Resolved Decisions
 
-- **Native fields versus description body.** Settled by ADR 0001: native tracker fields are canonical. `plan-to-beads` now writes How to `--design`, Done when to `--notes`, and Acceptance Criteria to `--acceptance-criteria`, so newly generated beads are born canonical. This removes the conflict that would otherwise have made a default-target run rewrite every bead the repo's own generator produces.
+- **Native fields versus description body.** Settled by ADR 0001: native tracker fields are canonical. `plan-to-beads` now writes How to `--design`, Done when to `--notes`, and Acceptance Criteria to `--acceptance`, so newly generated beads are born canonical. This removes the conflict that would otherwise have made a default-target run rewrite every bead the repo's own generator produces.
 - **Default target is Excellent, not Great.** The first draft proposed Great. Computing the bands disproved it: a bead missing its Acceptance Criteria entirely scores 78, which bands as Great, so a Great-targeted loop would skip the exact defect this feature exists to fix. Band caps resolve the contradiction, and with ADR 0001 in place the residual Great-to-Excellent distance is mechanical.
-- **The driver does not claim beads.** Claiming sets status to `in_progress`, already out of scope, and would surface refinement as phantom work in `bv --robot-next`. The concurrency concern is handled for free, since `br list --status open` excludes `in_progress`.
+- **The driver does not claim beads.** Claiming sets status to `in_progress`, already out of scope, and would surface refinement as phantom work in `bv --robot-next`. The concurrency concern is handled for free, since `bd list --status open` excludes `in_progress`.
 
 ## Open Questions
 
 - None blocking milestone 1 (shipped).
-- **Before milestone 2 (the driver):** the "Loop state and termination" section must be respecified as an explicit state machine before any code is written. Two independent reviews found the prose version non-exhaustive and self-contradictory: `stalled` and `regression` claim the same state with opposite outcomes (a write that leaves the score unchanged), and a bead whose score *decreases* between iterations reaches none of the three terminal categories. Redefine `regression` as a score that fell, evaluate `stalled` first, and prove exhaustiveness over {score-up, score-down, score-unchanged, not-applyable} with a transition table. Also fold in the round-2 factual fixes: rollback uses `br sync --rebuild` (not `--import-only`), drop `.claude-plugin/plugin.json` from registration scope (skills are auto-discovered), rewrite criterion 15 as `git diff --quiet .beads/issues.jsonl`, and define the content-preservation guard's diff over the union of all four native fields.
+- **Before milestone 2 (the driver):** the "Loop state and termination" section must be respecified as an explicit state machine before any code is written. Two independent reviews found the prose version non-exhaustive and self-contradictory: `stalled` and `regression` claim the same state with opposite outcomes (a write that leaves the score unchanged), and a bead whose score *decreases* between iterations reaches none of the three terminal categories. Redefine `regression` as a score that fell, evaluate `stalled` first, and prove exhaustiveness over {score-up, score-down, score-unchanged, not-applyable} with a transition table. Also fold in the round-2 factual fixes: rollback uses `bd import` against the restored JSONL, drop `.claude-plugin/plugin.json` from registration scope (skills are auto-discovered), rewrite criterion 15 as `git diff --quiet .beads/issues.jsonl`, and define the content-preservation guard's diff over the union of all four native fields.

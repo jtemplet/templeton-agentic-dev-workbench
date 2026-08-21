@@ -27,7 +27,7 @@ tmp/
 temp/
 *.tmp
 
-# Beads (br) - runtime artifacts handled by .beads/.gitignore
+# Beads (bd) - runtime artifacts handled by .beads/.gitignore
 # Only need to ignore files not covered there
 .beads/daemon.log
 .beads/.local_version

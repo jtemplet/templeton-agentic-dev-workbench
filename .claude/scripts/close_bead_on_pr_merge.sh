@@ -25,7 +25,7 @@
 #      the ref is now an ancestor of HEAD.
 #   3. Resolve the bead id from the sources that shape offers, verifying every
 #      candidate against the tracker and refusing to guess between two.
-#   4. Close it with `br close --reason`, then drop the workflow labels.
+#   4. Close it with `bd close --reason`, then drop the workflow labels.
 #   5. Commit the beads file, and push it on the PR path only. See the note
 #      above the push for why the local path stops at the commit.
 #
@@ -65,8 +65,7 @@ esac
 # A successful merge whose summary mentioned one failed check therefore matched,
 # and the bead never closed. Best practice is to gate on authoritative state
 # rather than on text: the `state == MERGED` check below is the real gate, and
-# this is only a cheap early-out. Mirrors the anchoring in
-# autocommit_beads_after_br.sh.
+# this is only a cheap early-out.
 stderr="$(echo "$payload" | jq -r '.tool_response.stderr // empty' 2>/dev/null || true)"
 if echo "$stderr" | grep -qiE '^(error|fatal)[:[:space:]]'; then
   log "merge command reported an error, skipping"
@@ -77,7 +76,8 @@ fi
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || quiet_exit
 cd "$REPO_ROOT" || quiet_exit
 
-# Defer to outrigger if it's mid-run (see autocommit_beads_after_br.sh).
+# Defer to outrigger if it's mid-run: it manages its own tracker and git state,
+# and a hook closing a bead underneath it races that.
 if [[ -d "$REPO_ROOT/.outrigger/lock.d" ]]; then
   log "outrigger lock active; skipping bead close"
   quiet_exit
@@ -89,42 +89,14 @@ if [[ "$branch" != "main" ]]; then
   quiet_exit
 fi
 
-# Pin br to the MAIN checkout's database. Every worktree checks out its own copy
-# of .beads/beads.db, so an unpinned br run from a worktree reads and writes that
-# copy instead of the canonical tracker: the close would land in a throwaway
-# database and the real bead would stay open. The branch guard above does not
-# prevent this, because a worktree can also be on main.
-#
-# Duplicated from label_bead_on_skill_invocation.sh rather than extracted into a
-# shared library. This is the second occurrence, and the house rule is to leave
-# duplication at two and extract on the third.
-GIT_COMMON="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
-BACKEND="bd"
-tracker_cmd=(bd)
-if [[ -n "$GIT_COMMON" ]]; then
-  MAIN_ROOT="$(dirname "$GIT_COMMON")"
-  beads_dir="$MAIN_ROOT/.beads"
-  # Three signals in strict order, matching the sibling hook: metadata.json,
-  # then any of bd's three database directory layouts, then a database file.
-  # br is considered last, because `bd init` leaves the pre-cutover SQLite file
-  # behind and a migrated repo therefore looks like both.
-  if [[ -f "$beads_dir/metadata.json" ]] \
-     && grep -q '"backend"[[:space:]]*:[[:space:]]*"dolt"' "$beads_dir/metadata.json" 2>/dev/null; then
-    :
-  elif [[ -d "$beads_dir/embeddeddolt" || -d "$beads_dir/dolt" || -d "$beads_dir/proxieddb" ]]; then
-    :
-  else
-    for _db in "$beads_dir"/*.db; do
-      [[ -f "$_db" ]] && { BACKEND="br"; tracker_cmd=(br --db "$_db"); break; }
-    done
-  fi
-fi
-
-# Required tools, checked AFTER detection so the binary named is the one this
-# repo actually uses. Naming br up front would exit on a bd repo before the
-# detection above ever ran. gh only on the PR path: a local merge never asks
-# GitHub anything, and a machine without gh should still close its beads.
-required_tools=("$BACKEND" jq git)
+# bd is the only tracker this hook supports. It takes no --db pin: it resolves
+# one workspace per repository through the git common dir, so a run from a
+# worktree reaches the same database as a run from the main checkout. That
+# matters here because the branch guard above does not exclude a worktree; a
+# worktree can also be on main.
+# Required tools. gh only on the PR path: a local merge never asks GitHub
+# anything, and a machine without gh should still close its beads.
+required_tools=(bd jq git)
 [[ "$merge_kind" == "pr" ]] && required_tools+=(gh)
 for t in "${required_tools[@]}"; do
   command -v "$t" >/dev/null 2>&1 || { log "$t not on PATH"; quiet_exit; }
@@ -227,7 +199,7 @@ BEAD_ID_RE='[a-z][a-z0-9]*(-[a-z0-9]+)+(\.[0-9]+)*'
 
 # Candidates verified per source. Bounded because this runs on a PostToolUse
 # hook: a long PR body can hold dozens of hyphenated words, and each candidate
-# costs one br call.
+# costs one bd call.
 MAX_ID_CANDIDATES=25
 
 # Prints the distinct tracker ids named in $1, longest candidate first so a full
@@ -236,7 +208,7 @@ resolve_ids_in() {
   local text="$1" candidate found id seen=""
   while IFS= read -r candidate; do
     [[ -z "$candidate" ]] && continue
-    found="$("${tracker_cmd[@]}" show "$candidate" --json 2>/dev/null || true)"
+    found="$(bd show "$candidate" --json 2>/dev/null || true)"
     # A missing id prints its error to stderr and leaves stdout empty.
     [[ -z "$found" ]] && continue
     id="$(echo "$found" | jq -r '((.[0].id // .id) // empty)' 2>/dev/null || true)"
@@ -257,7 +229,7 @@ resolve_ids_in() {
 # reads them by name and does not care which shape produced them.
 if [[ "$merge_kind" == "pr" ]]; then
   title="$(echo "$pr_json"  | jq -r '.title')"
-  brref="$(echo "$pr_json"  | jq -r '.headRefName')"
+  branchref="$(echo "$pr_json"  | jq -r '.headRefName')"
   body="$(echo "$pr_json"   | jq -r '.body // ""')"
   commits="$(echo "$pr_json" | jq -r '.commits[].messageHeadline' 2>/dev/null || true)"
 else
@@ -271,7 +243,7 @@ else
   # over-reads rather than under-reads: every candidate is verified against the
   # tracker anyway, and two real beads make it refuse rather than guess.
   title=""
-  brref="$merged_ref"
+  branchref="$merged_ref"
   if git rev-parse --verify --quiet 'HEAD@{1}' >/dev/null 2>&1; then
     commits="$(git log --format=%s "$merged_ref" --not 'HEAD@{1}' 2>/dev/null || true)"
     body="$(git log --format=%B "$merged_ref" --not 'HEAD@{1}' 2>/dev/null || true)"
@@ -300,7 +272,7 @@ fi
 
 # Rules 3 and 4: priority order, one source at a time, refusing to guess.
 if [[ -z "$bead_id" ]]; then
-  for src_name in title brref body commits; do
+  for src_name in title branchref body commits; do
     matches="$(resolve_ids_in "${!src_name}")"
     [[ -z "$matches" ]] && continue
     if [[ "$(echo "$matches" | wc -l | tr -d ' ')" -gt 1 ]]; then
@@ -338,12 +310,12 @@ if [[ "$merge_kind" == "pr" ]]; then
 fi
 
 # ---- Close the bead if not already closed ----
-status="$("${tracker_cmd[@]}" show "$bead_id" --json 2>/dev/null | jq -r '(.[0].status // .status) // "unknown"' 2>/dev/null || echo unknown)"
+status="$(bd show "$bead_id" --json 2>/dev/null | jq -r '(.[0].status // .status) // "unknown"' 2>/dev/null || echo unknown)"
 if [[ "$status" == "closed" ]]; then
   log "$bead_id already closed"
   quiet_exit
 fi
-# Empty as well as "unknown". `br show <missing-id> --json` writes its error to
+# Empty as well as "unknown". `bd show <missing-id> --json` writes its error to
 # stderr and leaves stdout empty, and jq exits 0 on empty input, so the `|| echo
 # unknown` above never fires and this guard read as dead code. Without the -z
 # arm, an unreadable bead falls through to the close below.
@@ -352,79 +324,43 @@ if [[ -z "$status" || "$status" == "unknown" ]]; then
   quiet_exit
 fi
 
-# `br close`, not `br update --status=closed`.
+# `close`, not `update --status=closed`.
 #
-# br 0.2.15 refuses the update form outright: terminal-state transitions have to
-# go through `br close` so the close policy (reason, acceptance criteria,
-# attribution) is enforced. This hook used the update form, and its failure arm
-# logs to stderr and exits 0, so on that version the hook was inert. It ran, it
-# said "br status update failed" into a stream nobody reads, and the bead stayed
-# open. The update form is kept as a fallback for older br, where `close` may
-# not exist.
+# A tracker can refuse the update form outright, because a terminal-state
+# transition has to go through `close` for the close policy (reason, acceptance
+# criteria, attribution) to be enforced. This hook once used only the update
+# form, and its failure arm logs to stderr and exits 0, so against such a
+# tracker the hook was inert: it ran, it logged into a stream nobody reads, and
+# the bead stayed open. The update form is kept as a fallback for a build where
+# `close` is missing.
 if [[ "$merge_kind" == "pr" ]]; then
   close_reason="Merged in PR #${pr_id}, closed by the post-merge hook."
 else
   close_reason="Merged ${merged_ref} into ${branch}, closed by the post-merge hook."
 fi
 
-if "${tracker_cmd[@]}" close "$bead_id" --reason "$close_reason" >/dev/null 2>&1; then
+if bd close "$bead_id" --reason "$close_reason" >/dev/null 2>&1; then
   :
-elif "${tracker_cmd[@]}" update "$bead_id" --status=closed >/dev/null 2>&1; then
-  log "closed $bead_id through the older update form; br close was refused"
+elif bd update "$bead_id" --status=closed >/dev/null 2>&1; then
+  log "closed $bead_id through the older update form; close was refused"
 else
-  log "could not close $bead_id: both 'br close' and 'br update --status=closed' failed"
-  log "close it by hand: br close $bead_id --reason '...'"
+  log "could not close $bead_id: both 'bd close' and 'bd update --status=closed' failed"
+  log "close it by hand: bd close $bead_id --reason '...'"
   quiet_exit
 fi
 
-"${tracker_cmd[@]}" update "$bead_id" --remove-label in-review   >/dev/null 2>&1 || true
-"${tracker_cmd[@]}" update "$bead_id" --remove-label auto-ok     >/dev/null 2>&1 || true
-"${tracker_cmd[@]}" update "$bead_id" --remove-label in-progress >/dev/null 2>&1 || true
+bd update "$bead_id" --remove-label in-review   >/dev/null 2>&1 || true
+bd update "$bead_id" --remove-label auto-ok     >/dev/null 2>&1 || true
+bd update "$bead_id" --remove-label in-progress >/dev/null 2>&1 || true
 
-# ---- Commit the beads file, and push only on the PR path ----
+# ---- Refresh the export ----
 #
-# The paths differ on the push, and the difference is deliberate.
-#
-# After a PR merge the remote already holds the merge, so pushing carries the
-# tracker update and nothing else. After a LOCAL merge it would carry the whole
-# merged branch, which the person has not pushed yet and may not be ready to:
-# in a repository that deploys on a push to main, a hook that pushes turns "I
-# merged locally" into "I deployed". So the local path commits and stops, and
-# the person's own push takes the tracker update with it.
-# Under bd there is nothing for git to carry: the database is gitignored and
-# .beads/issues.jsonl is a passive export bd never refreshes, so committing it
-# would stage a file that has been stale since the cutover. Refresh the export
-# so bv and Manifest see the close, and stop.
-if [[ "$BACKEND" == "bd" ]]; then
-  bd export -o .beads/issues.jsonl >/dev/null 2>&1 \
-    || log "export refresh failed after closing $bead_id"
-  log "closed $bead_id; export refreshed, nothing committed"
-  exit 0
-fi
-
-if git diff --quiet -- .beads/issues.jsonl; then
-  exit 0
-fi
-
-git add .beads/issues.jsonl
-
-if [[ "$merge_kind" == "pr" ]]; then
-  repo="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "<repo>")"
-  git commit --quiet -m "beads: close ${bead_id} (PR #${pr_id} merged)
-
-Auto-closed by post-merge Claude Code hook.
-PR: https://github.com/${repo}/pull/${pr_id}"
-  if git push --quiet 2>/dev/null; then
-    log "closed $bead_id (PR #$pr_id)"
-  else
-    log "closed $bead_id locally; push failed (run 'git push' manually)"
-  fi
-else
-  git commit --quiet -m "beads: close ${bead_id} (merged ${merged_ref} into ${branch})
-
-Auto-closed by post-merge Claude Code hook. Not pushed: the merge itself is
-still local, and pushing it is the author's call."
-  log "closed $bead_id (merged $merged_ref); committed but not pushed"
-fi
-
+# There is nothing for git to carry: the bd database is gitignored, and
+# .beads/issues.jsonl is a passive export bd never refreshes on its own, so
+# committing it would stage a file that has been stale since the cutover.
+# Refresh the export so bv and Manifest see the close, and stop. The person's
+# own next commit takes the refreshed export with it.
+bd export -o .beads/issues.jsonl >/dev/null 2>&1 \
+  || log "export refresh failed after closing $bead_id"
+log "closed $bead_id; export refreshed, nothing committed"
 exit 0

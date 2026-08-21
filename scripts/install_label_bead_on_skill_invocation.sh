@@ -53,7 +53,7 @@ Options:
                    root. Default: .claude/scripts
   -h, --help       Print this and exit.
 
-Requires git and jq on PATH. The hook itself needs br, jq, and git at runtime.
+Requires git and jq on PATH. The hook itself needs bd, jq, and git at runtime.
 USAGE
 }
 

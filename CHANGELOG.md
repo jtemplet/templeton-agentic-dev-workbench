@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+The tracker is `bd` and only `bd`. The earlier CLI is not installed, and three shipped skills opened
+with a gate that could never pass on this machine, so the cutover is a correctness fix rather than a
+rename.
+
+### Added
+
+- **`bead-create`, a skill for authoring one bead and filing it.** `plan-to-beads` decomposes a plan
+  into many beads; this files a single one from a request, a bug, or a review finding, and does the
+  work a plan would otherwise supply: it interviews only for what no artifact can answer, searches
+  the tracker for a duplicate before drafting, grounds every current-state claim against
+  `origin/main` and records the sha, estimates the diff-size band and splits or refuses, then
+  self-audits the draft with the `bead-audit` rubric until it passes. It waits for confirmation, and
+  it reads the bead back after creating it, because a create that reports success while leaving
+  `design`, `notes`, and `acceptance_criteria` empty is the exact defect ADR 0001 exists to prevent.
+  Invoked as `/bead-create`, or by saying "create a bead".
+
+### Fixed
+
+- **`--acceptance`, not `--acceptance-criteria`.** `bd` rejects the longer form as an unknown flag,
+  so every `bd update` that `plan-to-beads` prescribed would have failed at the moment it populated
+  a new bead. The name came from the earlier CLI and had spread to `bead-audit`, ADR 0001, and the
+  bead-refine plan. Verified by creating a bead in a throwaway tracker and reading all four fields
+  back.
+- **Three availability gates that could never pass.** `plan-to-beads`, `/bead-audit-all`, and
+  `triage-beads` each opened with `which br`, whose failure short-circuited the `bd` check beside it
+  and made each skill report a working tracker as missing.
+- **`collect_beads.py` refreshes the export again.** It shelled out to a command that no longer
+  exists and required a `*.db` file that a Dolt workspace does not have, so its refresh had been a
+  silent no-op: the dashboard read whatever stale JSONL was on disk. It now runs
+  `bd export -o .beads/issues.jsonl`.
+
+### Changed
+
+- **Both `.claude/scripts` hooks are single-backend.** They carried a detector that chose between
+  two trackers and a `--db` pin for the one that needed it. `bd` resolves one workspace per
+  repository through the git common directory, so the detector, the pin, and the `BACKEND` and
+  `tracker_cmd` indirection are gone, and the hooks call `bd` directly.
+- **Neither hook commits or pushes the tracker export any more.** Under `bd` the database is
+  gitignored and `.beads/issues.jsonl` is a passive export, so committing it staged a file that had
+  been stale since the cutover. Both hooks now refresh the export in place and stop. This is what
+  makes AGENTS.md's "`bd` never auto-commits or runs git commands" true again.
+- **The hook test suite runs on one tracker.** The stub pair became one `bd` stub, the fixture is
+  bd-shaped, and the two cases that asserted a `--db` pin were replaced by worktree cases asserting
+  that a close and a label from a worktree reach the canonical tracker carrying no pin. 60 checks,
+  down from 63, and the suite header records which retired cases lost their subject rather than
+  leaving its "every fix has a case" claim silently false.
+
+### Removed
+
+- **`.claude/scripts/autocommit_beads_after_br.sh`**, and its wiring in `.claude/settings.json`. It
+  existed to commit a tracker that wrote its state into a git-tracked export. Its first act was to
+  detect a `bd` backend and exit, so on this repository it could never do anything. Deleting it
+  closed `tadw-0j8`, which was filed against the commits it made unasked.
+
 ## [2.9.1] - 2026-08-18
 
 A patch: `ship` gains one command and loses three instructions that named tools `bd` does not have.
