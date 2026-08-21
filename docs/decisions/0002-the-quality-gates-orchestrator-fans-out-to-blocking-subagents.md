@@ -102,7 +102,8 @@ fallback.
 **Option A. The orchestrator dispatches four concurrent subagents, and every dispatch passes
 `run_in_background: false`.**
 
-`agents/quality-gates.md` declares `tools: ["Agent", ...]`, spelled `Agent` and not `Task`, since
+`agents/quality-gates-orchestrator.md` (the name Question 1 selects) declares
+`tools: ["Agent", ...]`, spelled `Agent` and not `Task`, since
 Finding 2 shows both resolve to a tool named `Agent` and the frontmatter should name what the agent
 actually receives.
 
@@ -174,7 +175,7 @@ bead, the gate, and the command, and the model applies the label at the end of t
 - **Pros:** fires at dispatch time, which is when the current hook fires.
 - **Cons:** matcher `Agent` fires on *every* agent dispatch in every project the hook is installed
   in, and the hook would have to re-derive which skill an arbitrary agent stands for. The hook's own
-  comment at `:174-181` warns that the map holds skill names and never command names, precisely
+  comment at `:176-183` warns that the map holds skill names and never command names, precisely
   because the payload field is `tool_input.skill`; keying it on `subagent_type` adds a second,
   differently-shaped namespace to the same map. The distribution copy at
   `scripts/label_bead_on_skill_invocation.sh` would need the same change, and the two copies have
@@ -213,7 +214,7 @@ exactly what **gate** mode is built to read: gate mode drops a pending marker at
 it is machine-readable, and it carries the verdict.
 
 Reading the verdict from `quality-gates-report.json` converts `qa-d` from inject mode, which the hook
-itself calls "weaker than gate, and honest about being weaker" (`:35-36`), into a deterministic check
+itself calls "weaker than gate, and honest about being weaker" (`:36-37`), into a deterministic check
 with no model involvement. That is a strict improvement independent of this refactor, and it is what
 makes the dispatch irrelevant: `Stop` never asks which tool ran.
 
@@ -299,7 +300,8 @@ after this ADR reads:
 | `cli`, `library`, `prompt-assets`, `infra`, `unknown` | `backend-unit` lane |
 | `http-api`, both unit and end to end | `integration` lane |
 | `docs` (a SKIP carrying its reason) | Orchestrator |
-| `mobile-ui`, `browser-ui` (handoff surfaces, so no graded Gate 2 row of their own) | Orchestrator, as the `Handoff: <surface>` rows it already owned |
+| `mobile-ui` (a handoff surface, so no graded Gate 2 row of its own) | Orchestrator, as the `Handoff: mobile-ui` row it already owned (plan `:188-189`) |
+| `browser-ui` (a handoff surface, so no graded Gate 2 row of its own) | `frontend` lane, as the `Handoff: browser-ui` row it already owned (plan `:176`) |
 | Gate 2's own HANDOFF status, when every routed surface is a handoff (`SKILL.md:180-181`) | Orchestrator, unchanged |
 
 All nine surfaces `route_qa.py:83-93` defines still have an owner, and the reduction rule for a file
