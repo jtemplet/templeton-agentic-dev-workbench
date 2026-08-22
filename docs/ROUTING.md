@@ -144,6 +144,33 @@ reach for per task, and what each one does. The workflow pipelines live in `READ
 
 ### Ideation & Planning
 
+**Alignment Before Planning:** Use `/grill-me [topic]` or the `grilling` skill
+
+- Interviews you until every branch of the design tree is resolved, so a plan is drafted against
+  decisions you made rather than assumptions the agent invented
+- Computes the **frontier** (the questions whose prerequisites are settled) and asks that whole set
+  in one numbered round, with a recommended answer per question, then waits
+- Defers any question that depends on another question still open in the same round, so no decision
+  is put to you twice
+- Finds every fact itself, dispatching subagents for the slow ones, and asks you only for decisions
+- Stops when the frontier is empty and waits for you to confirm alignment before writing anything
+- Feeds `/plan-feature`, `/bead-create`, `/plan-to-beads`, or `/build`; it produces alignment, never
+  an artifact
+
+**Shared Language:** Use the `domain-modeling` skill
+
+- Builds and sharpens the project's glossary in `CONTEXT.md`: one word per concept, with the
+  rejected synonyms listed so the choice is visible
+- Five active behaviors: challenge a term that conflicts with the glossary, sharpen an overloaded
+  word, stress-test relationships with edge-case scenarios, check a claim against the code, and write
+  a resolved term down immediately rather than batching it
+- Keeps `CONTEXT.md` a glossary and nothing else, with every implementation detail out of it
+- Reads `${CLAUDE_PLUGIN_ROOT}/skills/domain-modeling/CONTEXT-FORMAT.md` for the format, covering
+  both a single root `CONTEXT.md` and a multi-context repository indexed by `CONTEXT-MAP.md`
+- Delegates any ADR to `architecture-decision-record`, keeping only the three-part offer gate: hard
+  to reverse, surprising without context, the result of a real trade-off
+- Pairs with `grilling` when an interview is also teaching you the project's vocabulary
+
 **Idea Generation:** Use `/idea-wizard` or the `idea-wizard` skill
 
 - Generates 30 improvement ideas for the current project

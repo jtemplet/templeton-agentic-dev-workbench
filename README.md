@@ -33,6 +33,10 @@ Everything in the plugin is namespaced under `tadw:`, so a skill or agent is add
 | `/plan-review <path>` | Gate on acceptance criteria, ground claims in the codebase, evaluate 7 dimensions (incl. MECE audit), render verdict; drafts missing criteria/test plan |
 | `/plan-to-beads <path>` | Decompose plan into `bd` issues; each bead audited for Why, How, and Done when |
 
+Run `/grill-me` before `/plan-feature` when the idea is still fuzzy. It interviews you until the
+design tree is resolved, so the plan is drafted against decisions you made rather than assumptions
+the agent had to invent.
+
 ### Pipeline B: Code Quality
 
 `/fresh-eyes-cr` → `/quality-gates` → `/verify-acceptance` → `/tadw:ship`
@@ -114,6 +118,7 @@ Pair with `/loop` to run on a schedule:
 
 | Command | Description |
 |---|---|
+| `/grill-me [topic]` | Get interviewed until every branch of the design tree is resolved: one numbered round of questions per frontier, a recommended answer for each, facts found by the agent rather than asked of you |
 | `/build <bead-id>` | Implement a bead's spec: read the bead, learn the repo's conventions, code criterion by criterion with a test each, simplify, lint. Accepts a free-text description when no bead exists |
 | `/adr <topic>` | Record an architectural decision with context and rationale |
 | `/agentic-clean-code [target]` | Design or review agentic code (tools, prompts, orchestration) against Clean Code + POODR |
@@ -166,6 +171,8 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `idea-wizard` | Structured ideation: generate, evaluate, distill | Reviewing a codebase for improvements, or stuck and needing options |
 | `architecture-decision-record` | ADR format with context, options, and rationale | You made a non-obvious choice future-you will question |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis | A project needs to justify its investment or find revenue angles |
+| `grilling` | Relentless interview that resolves a design tree branch by branch: computes the **frontier** (the questions whose prerequisites are settled), asks the whole frontier in one numbered round with a recommended answer each, finds every fact itself (dispatching subagents) and asks you only for decisions, then recomputes the frontier from your answers; stops when the frontier is empty and waits for you to confirm alignment | Before `/plan-feature`, `/bead-create`, or `/build`, whenever you want the agent to interview you first |
+| `domain-modeling` | Build and sharpen the project's shared language: challenge a term that conflicts with `CONTEXT.md`, sharpen an overloaded word into one canonical term, stress-test relationships with edge-case scenarios, cross-check claims against the code, and write resolved terms into `CONTEXT.md` inline; delegates ADRs to `architecture-decision-record` | Naming a new concept, editing a `CONTEXT.md`, or when two words are being used for one thing |
 | `plan-review` | Acceptance-criteria gate + codebase grounding + 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability); report-only, drafts missing criteria/test plan | After writing a plan, as the gate before decomposing it |
 | `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan | Before an app launch, or when organic installs are low |
 | `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report | Auditing the UX of a running web app |

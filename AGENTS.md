@@ -110,6 +110,8 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Run the QA gates | `/quality-gates` | `quality-gates` |
 | Grade work against its bead | `/verify-acceptance` | `verify-acceptance` |
 | Land a finished bead's branch on main | `/tadw:ship` (the skill itself) | `ship` |
+| Align before planning or building | `/grill-me` | `grilling` |
+| Sharpen the project's vocabulary | - | `domain-modeling` |
 | Plan a feature | `/plan-feature`, `/plan-review` | `feature-planner` agent, `plan-review` |
 | Break a plan into issues | `/plan-to-beads` | `project-manager` agent |
 | File one well-crafted bead | `/bead-create` (the skill itself) | `bead-create` |
@@ -152,13 +154,14 @@ every invocation path at once, including the ones hardcoded in other repos, so t
 change. It was `templeton-agentic-dev-workbench` before 2.0.0. Unrelated to the namespace despite the
 shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue prefix.
 
-**Registered Skills** (40). One-line descriptions live in the `README.md` skills
+**Registered Skills** (42). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
 `ab-test-design` `agentic-clean-code` `architecture-decision-record` `aso-audit` `bead-audit`
-`bead-create` `business-ideas` `code-simplify` `competitive-analysis` `feature-development`
-`house-response-style` `idea-wizard` `plan-review` `plan-to-beads` `pr-maintenance`
+`bead-create` `business-ideas` `code-simplify` `competitive-analysis` `domain-modeling`
+`feature-development` `grilling` `house-response-style` `idea-wizard` `plan-review`
+`plan-to-beads` `pr-maintenance`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `quality-gates` `research-ingest` `review-fresh-eyes` `review-python` `review-rails`
 `roadmap-dashboard` `ship` `style-fizzy` `style-frontend` `style-go` `style-python` `style-rails`
@@ -172,11 +175,11 @@ each `agents/<name>.md` frontmatter.
 `product-cartographer` `product-manager` `project-manager` `research-librarian`
 `software-engineer` `ux-product-designer` `ux-product-designer-ios`
 
-**Registered Commands** (29). Descriptions live in the `README.md` command tables
+**Registered Commands** (30). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
 `/adr` `/agentic-clean-code` `/aso-audit` `/bead-audit-all` `/build` `/code-review` `/diagnose`
-`/fresh-eyes-cr` `/frontend-code-review` `/plan-feature` `/plan-review` `/plan-to-beads`
+`/fresh-eyes-cr` `/frontend-code-review` `/grill-me` `/plan-feature` `/plan-review` `/plan-to-beads`
 `/pr-maintain` `/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
 `/quality-gates` `/rails-code-review` `/research-ingest` `/response-style`
 `/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-audit`
@@ -265,10 +268,12 @@ command wins, so a command body saying "Use the `<name>` skill" resolves back to
 command a different name, delete it (the skill then takes the slash name), or have it
 `**Read** ${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md` instead of invoking it.
 
-`bead-create`, `business-ideas`, `idea-wizard`, `ship`, and `triage-beads` are referenced by no
-agent and no command, which `/validate-plugin` reports as orphans. That is accepted: all five are
-invoked directly as `/<name>`, so a referrer would add nothing. Treat the orphan rule as a prompt to check the
-skill is still reachable, not as a requirement that something point at it.
+`bead-create`, `business-ideas`, `domain-modeling`, `idea-wizard`, `ship`, and `triage-beads` are
+referenced by no agent and no command, which `/validate-plugin` reports as orphans. That is
+accepted: all six are invoked directly as `/<name>`, so a referrer would add nothing.
+`domain-modeling` is additionally reachable from the `grilling` skill, which the orphan check does
+not see, because it only follows agent and command references. Treat the orphan rule as a prompt to
+check the skill is still reachable, not as a requirement that something point at it.
 
 ## Issue Tracking (bd + bv)
 
