@@ -7,12 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-The tracker is `bd` and only `bd`. The earlier CLI is not installed, and three shipped skills opened
-with a gate that could never pass on this machine, so the cutover is a correctness fix rather than a
-rename.
+## [2.10.0] - 2026-08-21
+
+Two things ship together. The tracker is `bd` and only `bd`: the earlier CLI is not installed, and
+three shipped skills opened with a gate that could never pass on this machine, so the cutover is a
+correctness fix rather than a rename. Alongside it, the plugin gains the two skills it had no
+equivalent for, both adapted from Matt Pocock's MIT-licensed set: an interview that runs *before* a
+plan exists, and a glossary discipline that gives a project one word per concept.
 
 ### Added
 
+- **`grilling`, and `/grill-me`.** The gap it fills: `/plan-feature` explores the codebase and
+  drafts a plan, `plan-review` critiques a plan that already exists, and neither one asks the author
+  anything first. This interviews you until the design tree is resolved. It computes the
+  **frontier**, the questions whose prerequisites are already settled, asks that whole set in one
+  numbered round with a recommended answer per question, then recomputes the frontier from your
+  answers. A question that depends on another question still open in the same round is deferred, so
+  you never answer twice. Facts are the agent's job: it dispatches subagents for anything that takes
+  digging and asks you only for decisions. It stops when the frontier is empty and waits for you to
+  confirm alignment before anything is written. Its `❓`/`➡️` round format is an explicit, documented
+  override of the house response style, which loads in every session and would otherwise argue with
+  it. Adapted from <https://github.com/mattpocock/skills>.
+- **`domain-modeling`, plus its `CONTEXT-FORMAT.md`.** A project glossary in `CONTEXT.md`, and the
+  five active behaviors that keep it true: challenge a term that conflicts with what the glossary
+  already says, sharpen an overloaded word into one canonical term, stress-test relationships with
+  concrete edge-case scenarios, check a claim against what the code actually does, and write a
+  resolved term down the moment it crystallizes rather than batching it. `CONTEXT.md` stays a
+  glossary and nothing else: no spec, no scratch pad, no implementation decisions. The original
+  shipped its own ADR format writing to `docs/adr/`; that half was dropped, because
+  `architecture-decision-record` already owns the format here and writes to `docs/decisions/`. Only
+  the three-part offer gate survived (hard to reverse, surprising without context, the result of a
+  real trade-off). Adapted from <https://github.com/mattpocock/skills>.
 - **`bead-create`, a skill for authoring one bead and filing it.** `plan-to-beads` decomposes a plan
   into many beads; this files a single one from a request, a bug, or a review finding, and does the
   work a plan would otherwise supply: it interviews only for what no artifact can answer, searches
@@ -1567,7 +1592,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.0...HEAD
+[2.10.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.1...v2.10.0
 [2.9.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.0...v2.9.1
 [2.9.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.7.3...v2.8.0
