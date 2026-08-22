@@ -17,3 +17,14 @@ docs/roadmap-v*.html
 # exist yet is the plan working, not a stale reference. `doc:` skips the whole
 # document, so the ignore file does not become a second copy of the plan.
 doc:docs/plans/*
+
+# Named by docs/decisions/0002-*.md, which decides what milestone 2 of
+# docs/plans/quality-gates-agent-refactor.md builds and what it does not.
+# An ADR is not a plan, so it is not covered by the `doc:` line above, and
+# blanket-skipping docs/decisions/ would hide genuinely stale ADR references.
+#
+# Milestone 2 creates this. Remove the entry when it lands.
+agents/quality-gates-orchestrator.md
+# The name that ADR 0002 rejects, kept in the text so the rejection is legible.
+# This file is never created, so this entry is permanent.
+agents/quality-gates.md
