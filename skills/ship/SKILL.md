@@ -166,10 +166,28 @@ compares against:
 BRANCH_TIP="$(git rev-parse HEAD)"
 ```
 
-Fetch, then rebase onto the base:
+Fetch, then ask whether there is anything left to land at all:
 
 ```bash
-git fetch origin            # skip entirely when there is no origin
+git fetch origin                                   # skip entirely when there is no origin
+FILES="$(git diff --name-only origin/main...HEAD)" # the files this branch touched
+[ -n "$FILES" ] && git diff HEAD origin/main -- $FILES
+```
+
+**Printing nothing means the work already landed.** Main holds this branch's version of every file
+it touched, so there is nothing to rebase, nothing to gate, and nothing to merge. Go to the
+already-merged path in Edge Cases: close the bead, clean up, and emit `SHIP_DONE` with the hash on
+main that carries the work. An empty `$FILES` means the same thing and is the same answer.
+
+**This check runs BEFORE the rebase, and the order is load-bearing.** A squash-merge collapses the
+branch's commits into one commit with a new patch id, so git cannot recognize the originals as
+already applied. Replaying them conflicts with their own landed result, on every file the branch
+touched. Reach the rebase first and a shipped bead reports `SHIP_BLOCKED rebase-conflict`, which is
+the opposite of the truth. That is not hypothetical; it is what this check was added to stop.
+
+Then rebase onto the base:
+
+```bash
 git rebase origin/main      # or the local default branch when there is no origin
 ```
 
@@ -435,9 +453,30 @@ landed. When that diff prints anything, keep the branch, say which files still d
 human decide. Concurrent edits to the same file on main are the usual cause, and they are not a
 reason to delete evidence.
 
-When the branch has its own worktree, deleting the branch fails while the worktree holds it. Report
-the branch and the worktree path as left behind, with the `git worktree remove` command. Removing a
-worktree is not this skill's job.
+**When a worktree holds the branch, remove the worktree first.** `git branch -D` refuses while one
+does, so the order is fixed: leave the worktree, remove it, then delete the branch.
+
+```bash
+git worktree list --porcelain                       # find the worktree holding <branch>
+cd <main-checkout>                                  # LEAVE the worktree before removing it
+git -C <main-checkout> worktree remove <worktree-path>
+git -C <main-checkout> branch -D <branch>
+```
+
+Three rules, each of which has its own failure:
+
+- **Leave the worktree before removing it, and run the removal from the main checkout.** This skill
+  is usually invoked from inside the very worktree it is about to delete. Remove the directory you
+  are standing in and every command after it fails on a working directory that no longer exists,
+  including the ones that would have reported what happened. `cd` to the main checkout first, and
+  say in the report that the caller's shell moved.
+- **Never remove the worktree that holds the default branch.** Read `git worktree list --porcelain`
+  and match on the branch you are shipping, never on position. Removing main's worktree destroys the
+  checkout this step just pushed from.
+- **A dirty worktree stops the removal, and that is correct.** `git worktree remove` refuses when
+  the tree has changes, and forcing it would discard work this skill never looked at. Report the
+  worktree as left behind with the path and the reason, delete nothing, and let the run still count
+  as shipped: the code landed, and only the cleanup is outstanding.
 
 ### Step 6: Report
 
@@ -465,7 +504,9 @@ On success:
 **Landed:** `d4e5f6a` `feat: Create the ship skill (tadw-ship-command-4kx)`
 **Tracker:** closed tadw-ship-command-4kx, export folded into the landing commit
 **Pushed:** origin/main, attempt 1 of 3
-**Cleaned up:** deleted the local branch and origin/outrigger/4kx/create-ship-command
+**Cleaned up:** removed the worktree at .outrigger/worktrees/4kx-create-ship-command, deleted the
+local branch and origin/outrigger/4kx/create-ship-command. Your shell was inside that worktree, so
+it is now in /Users/you/Dev/project
 
 SHIP_DONE d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3
 ```
@@ -529,7 +570,8 @@ up the local branch only. Say "no remote" in the report rather than reporting a 
 happened.
 
 **The default branch is checked out in another worktree.** Run Step 4 with `git -C <that-path>`. Do
-not remove that worktree, and do not detach its HEAD.
+not remove that worktree, and do not detach its HEAD. This is the opposite of Step 5, which does
+remove the worktree holding the FEATURE branch: match on the branch, so the two never get confused.
 
 **The gate is slow.** A 900-second default is deliberate: the gate is the entire safety story, and a
 timeout that clips a real suite converts a passing repository into `gate-blocked`. Raise
@@ -541,10 +583,21 @@ the graph, and overriding it here hides that from everyone.
 
 **Two beads on one branch.** `bead-ambiguous`. Splitting the branch is a human's call.
 
-**The branch is already merged.** The rebase produces an empty branch, and `git merge --squash` stages
-nothing, so `git commit` fails with nothing to commit. Report it as already landed, close the bead if
-it is open, clean up the branch, and emit `SHIP_DONE` with the hash of the commit on main that
-carries the work.
+**The branch is already merged.** Step 2's pre-rebase check catches this: the diff of the branch's
+own files against main prints nothing. Report it as already landed, close the bead if it is open,
+clean up per Step 5, and emit `SHIP_DONE` with the hash of the commit on main that carries the work.
+Run no gate and attempt no merge; there is no tree to grade and nothing to commit.
+
+How it landed decides what the rebase would have done, which is why the check does not rely on one:
+
+| How the work reached main | What `git rebase origin/main` does |
+|---|---|
+| Fast-forward, or a merge commit | Drops every commit as already applied, leaving an empty branch |
+| **Squash-merge** (a GitHub "Squash and merge", or this skill's own Step 4) | **Conflicts on every file the branch touched**, because the squash commit carries a new patch id |
+
+The second row is the common one, since it is how this skill lands work and how most pull requests
+are merged. A run that reaches the rebase and reads that conflict at face value aborts and reports
+`rebase-conflict` about a bead that shipped cleanly.
 
 ## Critical Rules
 
@@ -557,7 +610,10 @@ carries the work.
   merge tool, then verify the file parses and holds no conflict markers
 - Run `bd dolt push` after `git push`, so issue state leaves the machine with the code
 - Abort a rebase you cannot finish, and confirm the branch tip is back where it started
-- Verify the content landed before deleting a branch
+- Check whether the work already landed BEFORE rebasing, since a squash-merge makes the rebase
+  conflict rather than go empty
+- Verify the content landed before deleting a branch or removing a worktree
+- Leave a worktree before removing it, and run the removal from the main checkout
 - Confirm you are on the default branch before any command that moves its pointer, and scope the
   main-side commands with `git -C` when another worktree holds it
 - Label the bead `needs-human` on every stop, when Step 1 resolved one
@@ -571,6 +627,8 @@ carries the work.
 - Run `git reset --hard`, `git switch`, or `git pull` against the default branch from a worktree
   that has the feature branch checked out
 - Leave a rebase in progress without saying so in the first lines of the report
+- Remove the worktree holding the default branch, or force-remove a dirty one
+- Read a rebase conflict as a real conflict without first checking whether the work already landed
 - Reset local main when it carries a commit this run did not create
 - Ask the user a question; stop with a report instead
 - Resolve a source-code conflict, fix a failing test, or edit the branch's code in any way
@@ -590,7 +648,9 @@ Before emitting the report, verify:
 - [ ] The landing commit's subject carries the bead id, and its body carries `Closes <id>`
 - [ ] The bead is closed and the export is committed, or the report says why neither happened
 - [ ] main was pushed, or the report says there is no origin
+- [ ] The content-landed check ran before the rebase, not after it
 - [ ] The branch was deleted only after the content-landed check passed
+- [ ] The worktree was removed from the main checkout, or the report says why it was left behind
 - [ ] On a stop, the report names the step, the state on disk, and the human's next action
 - [ ] The last line is exactly one `SHIP_DONE <hash>` or `SHIP_BLOCKED <reason>`, with a slug from
       the table above

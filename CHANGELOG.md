@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`/ship` no longer reports a shipped bead as blocked.** Its already-merged edge case assumed the
+  rebase would produce an empty branch. That holds for a fast-forward or a merge commit, and not for
+  a squash-merge, which collapses the branch's commits into one carrying a new patch id. Replaying
+  the originals then conflicts with their own landed result, on every file the branch touched, and
+  the run aborted with `SHIP_BLOCKED rebase-conflict` about work that had landed cleanly. The case
+  is common rather than exotic: it is how most pull requests merge, and how `/ship` itself lands
+  work in Step 4, so every bead it shipped was one a later run would misread. Step 2 now compares
+  the branch's own files against main **before** rebasing, and routes an empty diff straight to the
+  already-merged path.
+- **`/ship` now removes the worktree it shipped from.** It previously attempted `git branch -D`,
+  watched git refuse because a worktree held the branch, and left both behind with a note that
+  removing a worktree was not its job. It now leaves the worktree, removes it from the main
+  checkout, then deletes the branch. Three guards come with it: the removal runs from the main
+  checkout, because deleting the directory the caller is standing in breaks every command after it;
+  the worktree holding the default branch is never removed, matched by branch rather than by
+  position; and a dirty worktree stops the removal rather than being forced, since the run still
+  shipped and only the cleanup is outstanding.
+
 ## [2.10.0] - 2026-08-21
 
 Two things ship together. The tracker is `bd` and only `bd`: the earlier CLI is not installed, and
