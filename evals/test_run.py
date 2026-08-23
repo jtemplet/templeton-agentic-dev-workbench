@@ -627,6 +627,48 @@ for name, fn in [
     check(name, fn)
 
 
+print("\n  [this suite is a measurement, not a merge gate]")
+
+AGENTS = harness.REPO_ROOT / "AGENTS.md"
+
+
+def case_agents_md_takes_the_evals_out_of_the_ship_gate() -> None:
+    """`/tadw:ship` reads the AGENTS.md command block and treats the whole list as its gate.
+
+    That put a non-deterministic, paid suite in front of every merge. Two finished
+    branches were blocked by it in one session, neither for a reason they caused.
+    The exclusion lives in prose beside the list, the way the three pre-push
+    exclusions do, so this asserts the sentence is still there and still names
+    this command.
+    """
+    text = AGENTS.read_text(encoding="utf-8")
+    assert "The ship gate is this list minus `python3 evals/run.py`." in text, (
+        "AGENTS.md must state the ship-gate exclusion verbatim, or /tadw:ship reads the "
+        "whole block as its gate again and every merge waits on twelve model calls"
+    )
+
+
+def case_the_evals_command_is_still_documented() -> None:
+    """Excluded from the gate, not hidden from the reader.
+
+    Deleting the line would also break `.githooks/test_prepush.py`, which asserts
+    every command it documents as excluded from the hook is still in AGENTS.md.
+    """
+    text = AGENTS.read_text(encoding="utf-8")
+    block = text.split("## Commands for This Repo", 1)[1].split("```", 2)[1]
+    assert "python3 evals/run.py" in block, (
+        "the command must stay in the block; the exclusion is about when it runs, not whether "
+        "anyone can find it"
+    )
+
+
+for name, fn in [
+    ("AGENTS.md takes the evals out of the ship gate [criterion 1]", case_agents_md_takes_the_evals_out_of_the_ship_gate),
+    ("the evals command is still in the command block [criterion 2]", case_the_evals_command_is_still_documented),
+]:
+    check(name, fn)
+
+
 print("\n  [the CLI, through its real entry point]")
 
 

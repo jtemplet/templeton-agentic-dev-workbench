@@ -35,6 +35,16 @@ python3 evals/run.py                                          # response-style e
 
 Run `/validate-plugin` after adding or renaming a component.
 
+**The ship gate is this list minus `python3 evals/run.py`.** `/tadw:ship` takes its gate from
+this block, and the response-style evals are the wrong shape for one. They are graded against
+model prose, so they are not deterministic: `plain-sentences` measures sentence length against a
+35-word ceiling, and runs on 2026-08-22 and 2026-08-23 produced 40, 38, 37, 34, 26, and 22 words.
+A gate that fails at random teaches people to re-run until it is green, which is how a gate stops
+meaning anything. Each run also costs twelve real model calls and several minutes.
+
+Run them deliberately, to measure whether the style rules still change the model's behavior. The
+number to read is the delta between the two arms, not a pass or a fail.
+
 ### Git hooks (one-time setup per clone)
 
 Two hooks live in `.githooks/`. Wire them once per clone, because `core.hooksPath` is local
