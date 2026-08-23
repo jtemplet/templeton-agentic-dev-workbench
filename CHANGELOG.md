@@ -5,6 +5,38 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **`/build` now labels its bead `implemented` when the run completes.** The bead-labeling hook
+  (both `scripts/label_bead_on_skill_invocation.sh`, which ships to other repositories, and the
+  `.claude/scripts/` copy wired here) maps `feature-development` to `implemented` in inject mode,
+  gated on the run's own "Feature complete" report with every criterion met. It replaces the
+  `coding` label, which the distributed copy applied at invocation and the wired copy never
+  applied at all. Apply mode was wrong for this label: the hook fires before the skill runs, so a
+  `/build` that stops at Ground for a thin spec would have been labeled implemented. The
+  distributed copy also maps the typed `/build` and `/tadw:build` commands, which it previously
+  did not recognize, so a typed command labels the same as a Skill-tool invocation.
+- **`/quality-gates` now labels its bead `qa-d` from the verdict file, not from an instruction.**
+  The hook maps `quality-gates` to gate mode and, at `Stop`, reads
+  `<git-dir>/quality-gates-report.json`, the JSON the skill already writes with its verdict verbatim.
+  Only a report newer than the pending marker with `"verdict": "PASS"` earns the label; FAIL,
+  INCOMPLETE, NO GATES RAN, and an unreadable file leave the bead unlabeled and clear the marker.
+  This is what ADR 0002 decided (`docs/decisions/0002-the-quality-gates-orchestrator-fans-out-to-blocking-subagents.md`),
+  and it closes `tadw-ci8`: the label no longer depends on which tool ran the gates or on Claude
+  honoring an injected instruction. Before this, the distributed copy already used gate mode for
+  `quality-gates` but its `Stop` reader knew only `.gstack/qa-reports/*.md`, so the marker sat for
+  six hours and expired unlabeled; the wired copy used inject mode, which a typed `/quality-gates`
+  never triggered because that command reads `SKILL.md` instead of invoking the skill. The
+  marker's third line names the skill, and `Stop` picks the reader from it, so a `/qa` marker
+  still reads its `.gstack` report.
+- **The two hook copies are one file again.** `.claude/scripts/label_bead_on_skill_invocation.sh`
+  is now installed verbatim from `scripts/` by the installer, which also wired `UserPromptSubmit`
+  into `.claude/settings.json`. The wired copy's extra `reviewed` entries (`style-frontend`,
+  `style-swift`, `style-go`, `terraform-iac-expert`, `agentic-clean-code`) moved into the
+  distributed copy first, so nothing it labeled is lost.
+
 ## [2.10.1] - 2026-08-21
 
 ### Fixed

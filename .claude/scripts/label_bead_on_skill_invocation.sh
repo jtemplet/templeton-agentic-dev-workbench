@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 # Claude Code hook: label the bead a skill invocation acts on.
 #
-# Wired to two events and dispatches on hook_event_name:
+# Wired to three events and dispatches on hook_event_name:
 #
-#   PreToolUse (matcher Skill)  Decides what a skill invocation means.
+#   PreToolUse (matcher Skill)  Claude invoked the Skill tool.
+#   UserPromptSubmit            A person typed the slash command, which
+#                               calls no tool, so PreToolUse never sees
+#                               it. Same flow, keyed on the command name.
 #   Stop                        Resolves labels that needed an outcome.
+#
+# Both entry points converge on run_label_flow, so a skill labels the same
+# whichever way it was started.
 #
 # Three modes, because a PreToolUse hook fires BEFORE the skill runs.
 # Measured: the PostToolUse hook for the same call fires ~30ms later, so
@@ -14,24 +20,20 @@
 #           immediately. /simplify, /code-review, /tadw:fresh-eyes-cr.
 #
 #   gate    The label describes an outcome that leaves a readable
-#           artifact. /qa writes .gstack/qa-reports/*.md. PreToolUse
-#           drops a pending marker; Stop reads the report and applies
-#           the label only if the report is newer than the marker and
-#           clears the gate. Deterministic, no model involvement.
-#
-#           This repository has no .gstack/ and /qa is a gstack skill,
-#           so gate mode is dormant here: the marker is written and Stop
-#           finds no report, leaving it to expire at MARKER_TTL_SECONDS.
-#           It is retained rather than deleted because /qa is invocable
-#           from any project once gstack is installed, and a browser QA
-#           run in this repository would then be graded correctly. This
-#           repository's own QA path is /tadw:quality-gates, which is
-#           report-only prose and therefore uses inject mode.
+#           artifact. /qa writes .gstack/qa-reports/*.md, and
+#           /quality-gates writes <git-dir>/quality-gates-report.json
+#           carrying its verdict verbatim. PreToolUse drops a pending
+#           marker naming the skill; Stop reads that skill's report and
+#           applies the label only if the report is newer than the
+#           marker and clears the gate. Deterministic, no model
+#           involvement.
 #
 #   inject  The label describes an outcome with no artifact.
 #           /verify-acceptance is report-only and its verdict exists
 #           solely in prose, so grepping for it would be string-matching
-#           against output formatting that can drift. PreToolUse emits
+#           against output formatting that can drift. /build is the
+#           same: it ends in a "Feature complete" report, and a run that
+#           stops at Ground never earns "implemented". PreToolUse emits
 #           an instruction naming the bead, the gate, and the command,
 #           and Claude applies the label at the end. Weaker than gate,
 #           and honest about being weaker.
@@ -69,10 +71,6 @@ init_repo() {
   REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || quiet_exit
   cd "$REPO_ROOT" || quiet_exit
 
-
-  # MAIN_ROOT is the main checkout, which is where the tracker lives. A worktree
-  # has its own .beads/ copy, and work done from one must still land in the
-  # canonical tracker.
   GIT_COMMON="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
   MAIN_ROOT="$(dirname "$GIT_COMMON")"
 
@@ -167,26 +165,33 @@ resolve_bead() {
 # PreToolUse
 # ---------------------------------------------------------------------
 
-handle_pre() {
-  local payload="$1" skill label mode gate args branch
-
-  skill="$(echo "$payload" | jq -r '.tool_input.skill // empty' 2>/dev/null || true)"
-  [[ -z "$skill" ]] && quiet_exit
-
-  # These are SKILL names, never command names. The payload field is
-  # tool_input.skill, so a slash command reaches this map only under the
-  # name of the skill it invokes. Where the two differ the command name
-  # never matches: /tadw:fresh-eyes-cr invokes tadw:review-fresh-eyes,
-  # and /tadw:code-review dispatches through the code-reviewer agent to
-  # a per-language review skill. Before adding an entry, confirm the
-  # name against the plugin's skills/ directory rather than its
-  # commands/ directory.
-  #
-  # Both the plugin-qualified and bare forms, since the payload may
-  # carry either depending on how the skill was resolved.
+# Sets LABEL, MODE and GATE for a skill name. Returns 1 when unmapped.
+#
+# These are SKILL names, never command names. The PreToolUse payload field
+# is tool_input.skill, so a skill reaches this map under the name it was
+# resolved to. Where the command name differs it never matches here:
+# /tadw:fresh-eyes-cr invokes tadw:review-fresh-eyes, and /tadw:code-review
+# dispatches through the code-reviewer agent to a per-language review
+# skill. Before adding an entry, confirm the name against the plugin's
+# skills/ directory rather than its commands/ directory. To map a command
+# name, use skill_for_command below instead.
+#
+# Both the plugin-qualified and bare forms, since the payload may carry
+# either depending on how the skill was resolved.
+classify_skill() {
+  local skill="$1"
+  GATE=""
   case "$skill" in
+    # Ordered the way the work moves: implemented, simplified, reviewed, qa-d, accepted.
+    #
+    # "implemented" is an outcome, not an invocation: /build stops at Ground
+    # when the spec is too thin, and a label applied up front would call that
+    # run implemented. So it waits for the run's own "Feature complete" report.
+    feature-development|tadw:feature-development)
+      LABEL="implemented"; MODE="inject"
+      GATE="the run reached its Feature complete report with every acceptance criterion met and its tests passing (a run that stopped at Ground, reported a criterion not met, or ended with a failing test does not clear this gate)" ;;
     simplify|tadw:code-simplify)
-      label="simplified"; mode="apply" ;;
+      LABEL="simplified"; MODE="apply" ;;
     code-review|code-review:code-review|\
     review-fresh-eyes|tadw:review-fresh-eyes|\
     review-python|tadw:review-python|\
@@ -196,20 +201,25 @@ handle_pre() {
     style-go|tadw:style-go|\
     terraform-iac-expert|tadw:terraform-iac-expert|\
     agentic-clean-code|tadw:agentic-clean-code)
-      label="reviewed";   mode="apply" ;;
-    qa|gstack:qa)
-      label="qa-d";       mode="gate" ;;
-    quality-gates|tadw:quality-gates)
-      label="qa-d";       mode="inject"
-      gate="the overall verdict is PASS (INCOMPLETE, NO GATES RAN, and any FAIL or BLOCKED gate all fail this gate)" ;;
+      LABEL="reviewed";   MODE="apply" ;;
+    # Both leave an artifact Stop can read, one each; the marker records
+    # which skill ran, and Stop picks the reader from that.
+    qa|gstack:qa|quality-gates|tadw:quality-gates)
+      LABEL="qa-d";       MODE="gate" ;;
     verify-acceptance|tadw:verify-acceptance)
-      label="accepted";   mode="inject"
-      gate="the final verdict is ACCEPTED, which means every criterion PASS and no gate FAIL (NOT ACCEPTED and INCONCLUSIVE both fail this gate)" ;;
-    *) quiet_exit ;;
+      LABEL="accepted";   MODE="inject"
+      GATE="the final verdict is ACCEPTED, which means every criterion PASS and no gate FAIL (NOT ACCEPTED and INCONCLUSIVE both fail this gate)" ;;
+    *) return 1 ;;
   esac
+  return 0
+}
+
+# The shared flow, once a skill name is known. $3 names the hook event so
+# inject mode can label its own output correctly.
+run_label_flow() {
+  local skill="$1" args="$2" event="$3" branch
 
   init_repo
-  args="$(echo "$payload" | jq -r '.tool_input.args // ""' 2>/dev/null || true)"
   branch="$(git branch --show-current 2>/dev/null || true)"
 
   resolve_bead "$args" "$branch" || {
@@ -217,29 +227,91 @@ handle_pre() {
     quiet_exit
   }
 
-  if has_label "$RESOLVED_JSON" "$label"; then
-    log "$RESOLVED_ID already labeled $label"
+  if has_label "$RESOLVED_JSON" "$LABEL"; then
+    log "$RESOLVED_ID already labeled $LABEL"
     quiet_exit
   fi
 
-  case "$mode" in
+  case "$MODE" in
     apply)
-      add_label "$RESOLVED_ID" "$label"
+      add_label "$RESOLVED_ID" "$LABEL"
       ;;
     gate)
       mkdir -p "$MARKER_DIR" 2>/dev/null || quiet_exit
       printf '%s\n%s\n%s\n' "$(date +%s)" "$RESOLVED_ID" "$skill" \
-        > "$MARKER_DIR/${label}__${RESOLVED_ID}"
-      log "pending $label for $RESOLVED_ID; Stop will check the QA report"
+        > "$MARKER_DIR/${LABEL}__${RESOLVED_ID}"
+      log "pending $LABEL for $RESOLVED_ID; Stop will check the run's report"
       ;;
     inject)
       # The command in this string is for someone to run later. bd resolves its
       # own workspace, so it is one bare word with no path to quote.
-      jq -n --arg ctx "When this /${skill} run is complete, add the \`${label}\` label to bead ${RESOLVED_ID}, but ONLY if ${gate}. If it does not clear that gate, add no label and say so. The command is: bd update ${RESOLVED_ID} --add-label ${label}" \
-        '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$ctx}}'
-      log "deferred $label for $RESOLVED_ID to the run's verdict"
+      jq -n --arg event "$event" --arg ctx "When this /${skill} run is complete, add the \`${LABEL}\` label to bead ${RESOLVED_ID}, but ONLY if ${GATE}. If it does not clear that gate, add no label and say so. The command is: bd update ${RESOLVED_ID} --add-label ${LABEL}" \
+        '{hookSpecificOutput:{hookEventName:$event,additionalContext:$ctx}}'
+      log "deferred $LABEL for $RESOLVED_ID to the run's verdict"
       ;;
   esac
+}
+
+handle_pre() {
+  local payload="$1" skill args
+
+  skill="$(echo "$payload" | jq -r '.tool_input.skill // empty' 2>/dev/null || true)"
+  [[ -z "$skill" ]] && quiet_exit
+  classify_skill "$skill" || quiet_exit
+
+  args="$(echo "$payload" | jq -r '.tool_input.args // ""' 2>/dev/null || true)"
+  run_label_flow "$skill" "$args" PreToolUse
+}
+
+# ---------------------------------------------------------------------
+# UserPromptSubmit
+# ---------------------------------------------------------------------
+
+# Maps a slash-command name to the skill it invokes, printing the skill
+# name. Returns 1 when the command is not one we label.
+#
+# This map exists because PreToolUse cannot see a typed slash command. It
+# fires on the Skill TOOL, and typing /foo calls no tool, so without this
+# the run finishes unlabeled. Worse for quality-gates and
+# verify-acceptance, whose command files tell the reader to open SKILL.md
+# directly rather than invoke the skill by name, making the documented
+# path the unlabeled one.
+#
+# Keep this keyed on COMMAND names, the opposite of classify_skill. Where
+# the two differ, only the mapping below is correct.
+skill_for_command() {
+  case "$1" in
+    # /build is the documented entry point (commands/build.md invokes the
+    # skill); the bare skill name also resolves, since no command shadows it.
+    build|tadw:build|\
+    feature-development|tadw:feature-development) echo "tadw:feature-development" ;;
+    simplify|tadw:code-simplify)              echo "tadw:code-simplify" ;;
+    code-review|code-review:code-review)      echo "code-review:code-review" ;;
+    fresh-eyes-cr|tadw:fresh-eyes-cr)         echo "tadw:review-fresh-eyes" ;;
+    qa|gstack:qa)                             echo "gstack:qa" ;;
+    quality-gates|tadw:quality-gates)         echo "tadw:quality-gates" ;;
+    verify-acceptance|tadw:verify-acceptance) echo "tadw:verify-acceptance" ;;
+    *) return 1 ;;
+  esac
+  return 0
+}
+
+handle_prompt() {
+  local payload="$1" prompt command skill args
+
+  prompt="$(echo "$payload" | jq -r '.prompt // empty' 2>/dev/null || true)"
+  [[ -z "$prompt" ]] && quiet_exit
+
+  # Only a prompt that STARTS with the command counts. A prompt merely
+  # mentioning /qa is talking about it, not running it.
+  [[ "$prompt" =~ ^[[:space:]]*/([A-Za-z0-9_:-]+)[[:space:]]*(.*)$ ]] || quiet_exit
+  command="${BASH_REMATCH[1]}"
+  args="${BASH_REMATCH[2]}"
+
+  skill="$(skill_for_command "$command")" || quiet_exit
+  classify_skill "$skill" || quiet_exit
+
+  run_label_flow "$skill" "$args" UserPromptSubmit
 }
 
 # ---------------------------------------------------------------------
@@ -269,6 +341,51 @@ newest_qa_report_after() {
   [[ -n "$newest" ]] && echo "$newest"
 }
 
+# /quality-gates writes one JSON verdict per clone or worktree at
+# <git-dir>/quality-gates-report.json. Resolved with --git-dir, never the
+# common dir, so a worktree reads its own verdict and not a sibling's.
+newest_quality_gates_report_after() {
+  local marker="$1" report
+  report="$(git rev-parse --path-format=absolute --git-dir 2>/dev/null)/quality-gates-report.json"
+  [[ -f "$report" && "$report" -nt "$marker" ]] && echo "$report"
+}
+
+# Fails closed: only a verbatim PASS earns the label. FAIL, INCOMPLETE,
+# NO GATES RAN, and a file with no readable verdict all leave it off.
+quality_gates_report_passes() {
+  local report="$1" verdict
+  verdict="$(jq -r '.verdict // empty' "$report" 2>/dev/null)"
+  if [[ -z "$verdict" ]]; then
+    log "could not read a verdict from $report; not labeling"
+    return 1
+  fi
+  if [[ "$verdict" != "PASS" ]]; then
+    log "quality-gates verdict $verdict; not labeling"
+    return 1
+  fi
+  log "quality-gates verdict PASS via $report"
+  return 0
+}
+
+# The marker's third line names the skill, and the skill decides which
+# artifact to read. Anything unrecognized falls back to the /qa reader,
+# which is what every marker meant before the line was used.
+report_after() {
+  local marker="$1" skill="$2"
+  case "$skill" in
+    quality-gates|tadw:quality-gates) newest_quality_gates_report_after "$marker" ;;
+    *) newest_qa_report_after "$marker" ;;
+  esac
+}
+
+report_passes() {
+  local report="$1" skill="$2"
+  case "$skill" in
+    quality-gates|tadw:quality-gates) quality_gates_report_passes "$report" ;;
+    *) qa_report_passes "$report" ;;
+  esac
+}
+
 # Fails closed: an unparseable report never earns the label.
 qa_report_passes() {
   local report="$1" crit high deferred
@@ -295,16 +412,14 @@ handle_stop() {
   init_repo
   [[ -d "$MARKER_DIR" ]] || quiet_exit
 
-  local marker basename_marker marker_label created bead_id report now
+  local marker basename_marker marker_label created bead_id skill report now
   now="$(date +%s)"
   for marker in "$MARKER_DIR"/*; do
     [[ -e "$marker" ]] || continue
 
-    # Read the label back from the filename, which gate mode writes as
-    # "${label}__${id}". Hardcoding "qa-d" here was correct only because gate
-    # mode is the sole marker writer and qa-d its only label. It would relabel a
-    # second gate-mode entry as qa-d in silence, and the filename already
-    # carries the answer.
+    # The label comes from the filename, not a constant. Hardcoding qa-d here
+    # would silently mislabel any second gate-mode entry as qa-d, and the
+    # filename already carries the answer.
     basename_marker="$(basename "$marker")"
     marker_label="${basename_marker%%__*}"
     if [[ -z "$marker_label" || "$marker_label" == "$basename_marker" ]]; then
@@ -324,10 +439,11 @@ handle_stop() {
     fi
 
     # Only a report written after the marker can describe this run.
-    report="$(newest_qa_report_after "$marker")"
+    skill="$(sed -n '3p' "$marker" 2>/dev/null)"
+    report="$(report_after "$marker" "$skill")"
     [[ -z "$report" ]] && continue   # run still in progress
 
-    if qa_report_passes "$report"; then
+    if report_passes "$report" "$skill"; then
       add_label "$bead_id" "$marker_label"
     fi
     rm -f "$marker"
@@ -340,9 +456,10 @@ payload="$(cat)"
 event="$(echo "$payload" | jq -r '.hook_event_name // empty' 2>/dev/null || true)"
 
 case "$event" in
-  PreToolUse) handle_pre "$payload" ;;
-  Stop)       handle_stop ;;
-  *)          quiet_exit ;;
+  PreToolUse)       handle_pre "$payload" ;;
+  UserPromptSubmit) handle_prompt "$payload" ;;
+  Stop)             handle_stop ;;
+  *)                quiet_exit ;;
 esac
 
 exit 0

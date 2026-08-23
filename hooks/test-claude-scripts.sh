@@ -573,6 +573,84 @@ if case_start "label/stop: a marker past its TTL is abandoned"; then
   [[ ! -e "$M/qa-d__tadw-alpha-one" ]] && ok "removed the marker" || nope "removed the marker"
 fi
 
+# /quality-gates writes <git-dir>/quality-gates-report.json with its verdict.
+write_qg_report() {  # write_qg_report <repo> <verdict>
+  jq -n --arg v "$2" '{version:1, verdict:$v, gates:[]}' > "$1/.git/quality-gates-report.json"
+}
+
+qg_marker() {  # qg_marker <repo> <bead> [created-epoch]
+  local M; M="$(marker_dir "$1")"; mkdir -p "$M"
+  printf '%s\n%s\ntadw:quality-gates\n' "${3:-$(date +%s)}" "$2" > "$M/qa-d__$2"
+}
+
+if case_start "label/pre: quality-gates drops a gate marker and injects nothing"; then
+  # tadw-ci8. The skill writes a machine-readable verdict, so the label waits
+  # for Stop to read it rather than for Claude to remember an instruction.
+  R="$(new_repo q1 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:quality-gates' 'tadw-alpha-one')"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label up front"
+  [[ ! -s "$R/.hookout" ]] && ok "injected nothing" || nope "injected nothing" "$(cat "$R/.hookout")"
+  M="$(marker_dir "$R")"
+  [[ -f "$M/qa-d__tadw-alpha-one" ]] && ok "dropped the marker" || nope "dropped the marker"
+  assert_match_str "$(sed -n 3p "$M/qa-d__tadw-alpha-one" 2>/dev/null)" "^tadw:quality-gates$" "the marker names the skill"
+fi
+
+if case_start "label/stop: a PASS quality-gates report newer than the marker labels qa-d"; then
+  R="$(new_repo q2 with-origin)"
+  qg_marker "$R" tadw-alpha-one
+  sleep 1; write_qg_report "$R" PASS
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label qa-d" "labeled it qa-d"
+  assert_match "$R/.hookerr" "verdict PASS" "said why"
+  [[ ! -e "$(marker_dir "$R")/qa-d__tadw-alpha-one" ]] && ok "cleared the marker" || nope "cleared the marker"
+fi
+
+if case_start "label/stop: any quality-gates verdict but PASS earns no label"; then
+  for v in FAIL INCOMPLETE "NO GATES RAN"; do
+    R="$(new_repo "q3-${v// /-}" with-origin)"
+    qg_marker "$R" tadw-alpha-one
+    sleep 1; write_qg_report "$R" "$v"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+    run_hook "$LABEL" "$R" "$(payload Stop '')"
+    assert_no_match "$R/.bdcalls" "--add-label" "no label on $v"
+    [[ ! -e "$(marker_dir "$R")/qa-d__tadw-alpha-one" ]] && ok "cleared the marker on $v" || nope "cleared the marker on $v"
+  done
+fi
+
+if case_start "label/stop: a quality-gates report older than the marker means the run is still going"; then
+  R="$(new_repo q4 with-origin)"
+  write_qg_report "$R" PASS
+  sleep 1; qg_marker "$R" tadw-alpha-one
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "no label from a stale report"
+  [[ -e "$(marker_dir "$R")/qa-d__tadw-alpha-one" ]] && ok "kept the marker" || nope "kept the marker"
+fi
+
+if case_start "label/stop: a quality-gates marker ignores a passing /qa report"; then
+  # The marker's skill picks the reader. A browser QA report written by a
+  # concurrent /qa run says nothing about the gates.
+  R="$(new_repo q5 with-origin)"
+  qg_marker "$R" tadw-alpha-one
+  sleep 1; write_report "$R" 0 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "no label from the wrong artifact"
+  [[ -e "$(marker_dir "$R")/qa-d__tadw-alpha-one" ]] && ok "kept the marker" || nope "kept the marker"
+fi
+
+if case_start "label/stop: a /qa marker still reads the .gstack report"; then
+  R="$(new_repo q6 with-origin)"
+  M="$(marker_dir "$R")"; mkdir -p "$M"
+  printf '%s\ntadw-alpha-one\ngstack:qa\n' "$(date +%s)" > "$M/qa-d__tadw-alpha-one"
+  sleep 1; write_report "$R" 0 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label qa-d" "labeled it qa-d"
+fi
+
 if case_start "label/pre: apply mode labels the bead immediately"; then
   R="$(new_repo b4 with-origin)"
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
@@ -580,6 +658,28 @@ if case_start "label/pre: apply mode labels the bead immediately"; then
   assert_match "$R/.bdcalls" "--add-label reviewed" "labeled it reviewed"
   assert_match "$R/.bdcalls" "^export -o" "refreshed the export"
   assert_no_match "$R/.gitlog" "^commit" "committed nothing"
+fi
+
+if case_start "label/pre: feature-development defers implemented to the run's end"; then
+  # "implemented" is an outcome. A /build run that stops at Ground must not
+  # carry it, so the hook injects the instruction and applies nothing itself.
+  R="$(new_repo b4i with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:feature-development' 'tadw-alpha-one')"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label up front"
+  jq -e . "$R/.hookout" >/dev/null 2>&1 && ok "the JSON parses" || nope "the JSON parses"
+  assert_match "$R/.hookout" "bd update tadw-alpha-one --add-label implemented" "named the command"
+  assert_match "$R/.hookout" "Feature complete" "gated on the run's own report"
+  assert_match "$R/.hookerr" "deferred implemented" "said so"
+fi
+
+if case_start "label/prompt: a typed /tadw:build resolves to feature-development"; then
+  R="$(new_repo b4p with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(jq -n '{hook_event_name:"UserPromptSubmit", prompt:"/tadw:build tadw-alpha-one"}')"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label up front"
+  assert_match "$R/.hookout" "bd update tadw-alpha-one --add-label implemented" "named the command"
+  assert_match "$R/.hookout" '"hookEventName": *"UserPromptSubmit"' "labeled its output with the right event"
 fi
 
 if case_start "label/pre: an already-labeled bead is left alone"; then
