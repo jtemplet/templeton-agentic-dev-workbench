@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -37,6 +38,33 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CASES_DIR = Path(__file__).resolve().parent / "cases"
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+
+# Variables that send `claude -p` somewhere other than the account this harness
+# means to measure. Stripped from every child environment, never warned about: the
+# failure they cause is total, and a warning inside a twelve-call run scrolls past
+# before anyone reads it.
+#
+# Named one by one rather than matched on an `ANTHROPIC_` prefix. The prefix would
+# also drop settings that are none of this harness's business, and a list can say
+# why each entry earns its place:
+#
+#   ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN
+#       Take precedence over the stored claude.ai login. Every case then fails at
+#       `invocation` with a connectors warning that reads like a style failure.
+#       Measured 2026-08-22: 12 of 12 runs, reported as 0/6 in both arms.
+#   CLAUDE_CODE_USE_BEDROCK, AWS_BEARER_TOKEN_BEDROCK
+#       Route the call to a different account entirely. This one does not fail
+#       loudly, which makes it worse: the run completes and measures elsewhere.
+#   ANTHROPIC_MODEL
+#       Can answer with a model other than the one `--model` names, and the run
+#       header reports the flag. A measurement whose model is uncertain is not one.
+REDIRECTING_VARS = (
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "AWS_BEARER_TOKEN_BEDROCK",
+    "CLAUDE_CODE_USE_BEDROCK",
+    "ANTHROPIC_MODEL",
+)
 
 # The two halves of a fixture directory. Only `base` is required.
 BASE_DIR = "base"
@@ -193,12 +221,25 @@ def case_cwd(case: dict, keep: bool) -> Iterator[Path]:
             shutil.rmtree(workdir, ignore_errors=True)
 
 
+def child_env() -> dict[str, str]:
+    """This process's environment, minus everything in REDIRECTING_VARS.
+
+    Everything else is passed through. The child is a real `claude` invocation and
+    needs PATH, HOME, and the rest of the shell it was launched from.
+    """
+    return {name: value for name, value in os.environ.items() if name not in REDIRECTING_VARS}
+
+
 def ask(prompt: str, model: str, with_plugin: bool, timeout: int, cwd: Path) -> str:
     """One model call. Returns the answer text, or raises on failure.
 
     `--plugin-dir` stays REPO_ROOT even when `cwd` is a fixture: the plugin under
     test is always this working tree, and only the repository the model looks at
     changes.
+
+    The environment is built rather than inherited, so the account under
+    measurement is the one the caller is logged into and not whichever one their
+    shell was last switched to. REDIRECTING_VARS says what that removes and why.
     """
     command = ["claude", "-p", prompt, "--model", model]
     if with_plugin:
@@ -209,6 +250,7 @@ def ask(prompt: str, model: str, with_plugin: bool, timeout: int, cwd: Path) -> 
         text=True,
         timeout=timeout,
         cwd=str(cwd),
+        env=child_env(),
     )
     if completed.returncode != 0:
         raise RuntimeError(f"claude exited {completed.returncode}: {completed.stderr[:400]}")

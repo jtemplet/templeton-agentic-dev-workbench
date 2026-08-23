@@ -67,9 +67,12 @@ That is the one legitimate reason to move a bar: the measurement showed the bar 
 wrong place. Loosening a grader because a rule is inconvenient is still how a suite stops
 measuring anything.
 
-**Running it:** `claude -p` exits 1 when `ANTHROPIC_API_KEY` is set, and every case then fails
-at `invocation` with a connectors warning that reads like a style failure. Run
-`env -u ANTHROPIC_API_KEY python3 evals/run.py` until `run.py` strips that variable itself.
+**Which account answers.** `run.py` builds the environment for each `claude -p` call instead of
+inheriting yours, and drops the five variables in `REDIRECTING_VARS` on the way. So the suite
+measures the account you are logged into, whatever your shell was last switched to. A set
+`ANTHROPIC_API_KEY` used to fail all twelve calls at `invocation` with a connectors warning that
+read like a style regression; Bedrock routing was worse, because it completed and measured
+somewhere else without saying so.
 
 A deterministic grader is free, instant, and never flaky. Reach for a model judge only for
 a rule you genuinely cannot express as a pattern, such as "is the tone right". None of the

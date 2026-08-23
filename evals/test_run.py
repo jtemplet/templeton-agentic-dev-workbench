@@ -399,6 +399,133 @@ def case_header_counts_single_arm_and_fixture_cases() -> None:
     )
 
 
+print("\n  [the account under measurement is the caller\'s, not the shell\'s]")
+
+
+def spawned_env(exported: dict) -> dict:
+    """The environment a real `ask()` hands to `claude`, with `exported` set first.
+
+    A stub `claude` on PATH prints its own environment, so this drives the real
+    spawn rather than reading REDIRECTING_VARS back. A change to `ask()` that
+    dropped `env=` would pass any assertion made against the constant, and every
+    run would silently measure whichever account the shell was switched to.
+    """
+    stub_dir = Path(tempfile.mkdtemp(prefix="tadw-test-env-"))
+    workspaces.append(stub_dir)
+    stub = stub_dir / "claude"
+    stub.write_text("#!/bin/sh\nenv\n", encoding="utf-8")
+    stub.chmod(0o755)
+
+    original = {name: os.environ.get(name) for name in exported}
+    original_path = os.environ["PATH"]
+    os.environ["PATH"] = f"{stub_dir}{os.pathsep}{original_path}"
+    os.environ.update(exported)
+    try:
+        output = harness.ask(
+            "x", model="fake", with_plugin=False, timeout=30, cwd=harness.REPO_ROOT
+        )
+    finally:
+        os.environ["PATH"] = original_path
+        for name, value in original.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+    seen = {}
+    for line in output.splitlines():
+        name, _, value = line.partition("=")
+        if _:
+            seen[name] = value
+    return seen
+
+
+def case_an_api_key_never_reaches_the_model_call() -> None:
+    """Criterion 1. The variable that made every case fail at invocation.
+
+    A set ANTHROPIC_API_KEY takes precedence over the stored claude.ai login, and
+    `claude -p` then exits 1 with a connectors warning. Measured 2026-08-22 before
+    this was fixed: 12 of 12 runs died there, reported as 0/6 in both arms, which
+    reads like a total style regression.
+    """
+    seen = spawned_env({"ANTHROPIC_API_KEY": "sk-ant-not-a-real-key"})
+    assert "ANTHROPIC_API_KEY" not in seen, "the key must not reach the model call"
+
+
+def case_bedrock_routing_never_reaches_the_model_call() -> None:
+    """Criterion 2, and the quieter half of the rule.
+
+    Bedrock routing does not fail the run. It completes and measures a different
+    account, so nothing in the output says the number is about somewhere else.
+    """
+    seen = spawned_env(
+        {"CLAUDE_CODE_USE_BEDROCK": "1", "AWS_BEARER_TOKEN_BEDROCK": "not-a-real-token"}
+    )
+    assert "CLAUDE_CODE_USE_BEDROCK" not in seen, "Bedrock routing must not reach the call"
+    assert "AWS_BEARER_TOKEN_BEDROCK" not in seen, "nor its token"
+
+
+def case_a_model_override_never_reaches_the_model_call() -> None:
+    """The run header reports what `--model` names, so nothing else may decide it."""
+    seen = spawned_env({"ANTHROPIC_MODEL": "some-other-model"})
+    assert "ANTHROPIC_MODEL" not in seen, (
+        "an env model override would answer as a model the header does not name"
+    )
+
+
+def case_the_rest_of_the_environment_is_passed_through() -> None:
+    """Criterion 3. Stripping five names, not building an environment from scratch.
+
+    The child is a real `claude` invocation: without PATH it cannot find its own
+    dependencies, and without HOME it cannot read the login this harness exists to
+    measure. An empty env passes all three cases above and runs nothing.
+    """
+    seen = spawned_env({"ANTHROPIC_API_KEY": "sk-ant-not-a-real-key"})
+    assert seen.get("PATH"), f"PATH must survive: {sorted(seen)[:12]}"
+    for name in ("HOME", "USER"):
+        if name in os.environ:
+            assert name in seen, f"{name} must survive"
+
+
+def case_every_redirecting_var_is_covered_by_a_case() -> None:
+    """The list and the cases move together, or a sixth entry ships untested."""
+    tested = {
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+        "AWS_BEARER_TOKEN_BEDROCK",
+        "CLAUDE_CODE_USE_BEDROCK",
+        "ANTHROPIC_MODEL",
+    }
+    declared = set(harness.REDIRECTING_VARS)
+    assert declared == tested, (
+        f"REDIRECTING_VARS and the cases above disagree.\n"
+        f"         stripped but untested: {sorted(declared - tested)}\n"
+        f"         tested but not stripped: {sorted(tested - declared)}"
+    )
+
+
+def case_readme_states_the_behavior_not_a_workaround() -> None:
+    """Criterion 5. The README told readers to strip the variable by hand."""
+    text = README.read_text(encoding="utf-8")
+    assert "env -u ANTHROPIC_API_KEY" not in text, (
+        "the harness strips it now, so the manual workaround must not still be prescribed"
+    )
+    assert "ANTHROPIC_API_KEY" in text, (
+        "the behavior is still worth stating; a reader with a key set should know it is ignored"
+    )
+
+
+for name, fn in [
+    ("an API key never reaches the model call [criterion 1]", case_an_api_key_never_reaches_the_model_call),
+    ("Bedrock routing never reaches the model call [criterion 2]", case_bedrock_routing_never_reaches_the_model_call),
+    ("an env model override never reaches the model call", case_a_model_override_never_reaches_the_model_call),
+    ("the rest of the environment is passed through [criterion 3]", case_the_rest_of_the_environment_is_passed_through),
+    ("every stripped variable has a case [criterion 4]", case_every_redirecting_var_is_covered_by_a_case),
+    ("README states the behavior, not the workaround [criterion 5]", case_readme_states_the_behavior_not_a_workaround),
+]:
+    check(name, fn)
+
+
 print("\n  [the CLI, through its real entry point]")
 
 
