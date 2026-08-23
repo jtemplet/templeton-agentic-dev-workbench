@@ -526,6 +526,107 @@ for name, fn in [
     check(name, fn)
 
 
+print("\n  [decision-matrix-trigger grades the rule, not the markup]")
+
+# The real answer captured through --json on 2026-08-23, trimmed to the shape the
+# grader sees. It leads with the recommendation in plain prose, which is exactly
+# what the previous pattern failed.
+LEADS_IN_PLAIN_PROSE = """Add a nullable column.
+
+| Option | Work to build | Cost to undo |
+|---|---|---|
+| Nullable column | About an hour | Drop the column |
+| Side table | About a day | Drop the table |
+"""
+
+# The same content, arranged the way the rule forbids: the reader has to reach the
+# bottom to learn what to do.
+BUILDS_TO_ITS_CONCLUSION = """| Option | Work to build | Cost to undo |
+|---|---|---|
+| Nullable column | About an hour | Drop the column |
+| Side table | About a day | Drop the table |
+
+Given all of that, add a nullable column.
+"""
+
+PREAMBLE_FIRST = """Great question, and the answer depends on a few things.
+
+| Option | Work to build |
+|---|---|
+| Nullable column | About an hour |
+
+Add a nullable column.
+"""
+
+# Still correct, and it must stay correct: bold and headings were never wrong, they
+# were only never the rule. A fix that swapped one proxy for another would fail here.
+LEADS_IN_BOLD = "**Add the nullable column to `users`.**\n\n| A | B |\n|---|---|\n| 1 | 2 |\n"
+LEADS_IN_A_HEADING = "## Add a nullable column\n\n| A | B |\n|---|---|\n| 1 | 2 |\n"
+
+
+def decision_matrix_checks() -> dict:
+    path = EVALS / "cases" / "decision-matrix-trigger" / "case.json"
+    return json.loads(path.read_text(encoding="utf-8"))["checks"]
+
+
+def graded(answer: str) -> bool:
+    """True when every check the case declares passes for this answer."""
+    return all(result.passed for result in harness.grade(answer, decision_matrix_checks()))
+
+
+def case_the_real_captured_answer_passes() -> None:
+    """Criterion 1, and the whole reason this case was red for eighteen days.
+
+    The bar was in the wrong place, which is the one legitimate reason to move
+    one. `Add a nullable column.` leads with the recommendation and carries no
+    markup, and the old pattern read that as building toward a conclusion.
+    """
+    assert graded(LEADS_IN_PLAIN_PROSE), "a plain-prose lead follows the rule and must pass"
+
+
+def case_an_answer_that_builds_to_its_conclusion_fails() -> None:
+    """Criterion 2. The half that proves the bar still exists.
+
+    Same words, same table, recommendation at the bottom. A grader that passed
+    this would be measuring nothing, and a pattern loose enough to accept it is
+    how a suite quietly stops testing.
+    """
+    assert not graded(BUILDS_TO_ITS_CONCLUSION), "a conclusion at the bottom must still fail"
+
+
+def case_a_preamble_before_the_answer_fails() -> None:
+    """Criterion 3. Leading with warmth is still not leading with the answer."""
+    assert not graded(PREAMBLE_FIRST), "an opening that names no option must still fail"
+
+
+def case_bold_and_heading_leads_still_pass() -> None:
+    """The shapes the old pattern accepted stay accepted.
+
+    The fix widens what counts as leading; it does not move to a third proxy.
+    """
+    assert graded(LEADS_IN_BOLD), "a bold lead must still pass"
+    assert graded(LEADS_IN_A_HEADING), "a heading lead must still pass"
+
+
+def case_the_case_is_no_longer_marked_known_failing() -> None:
+    """Criterion 4. A stale `known_failing` teaches the next reader to skip the red."""
+    path = EVALS / "cases" / "decision-matrix-trigger" / "case.json"
+    case = json.loads(path.read_text(encoding="utf-8"))
+    assert "known_failing" not in case, (
+        "the case passes now, so the marker must go, or it excuses the next real failure"
+    )
+
+
+for name, fn in [
+    ("the real captured answer passes [criterion 1]", case_the_real_captured_answer_passes),
+    ("an answer that builds to its conclusion fails [criterion 2]", case_an_answer_that_builds_to_its_conclusion_fails),
+    ("a preamble before the answer fails [criterion 3]", case_a_preamble_before_the_answer_fails),
+    ("bold and heading leads still pass", case_bold_and_heading_leads_still_pass),
+    ("the case is no longer marked known_failing [criterion 4]", case_the_case_is_no_longer_marked_known_failing),
+]:
+    check(name, fn)
+
+
 print("\n  [the CLI, through its real entry point]")
 
 
