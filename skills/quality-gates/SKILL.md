@@ -199,9 +199,109 @@ Run them in order and keep going after a failure; a FAIL in gate 1 does not excu
 
 Capture, for every gate: the exact command, the exit code, and the counts. You need all three for the report.
 
+#### Who Runs Each Gate
+
+This step has two shapes, and the gates are identical in both. Only who runs a row changes.
+
+**One session runs all of it.** Read the gates below in order and run them. That is the standalone
+shape, and it is the one `skills/verify-acceptance/SKILL.md` uses when it reads this file and runs
+a subset of these gates with no agent involved. That skill decides which subset, and this one does
+not restate the number.
+
+**Or `tadw:quality-gates-orchestrator` partitions it across three lanes.** The orchestrator runs
+Steps 1 through 3 once, dispatches `backend-unit`, `frontend`, and `integration` concurrently, keeps
+the remaining rows itself, and aggregates every returned row into the one report Step 6 specifies.
+Each lane reads this file for the technique, so a gate is defined once here rather than restated
+per lane.
+
+**The partition is by row, not by gate.** Gate 1 splits per test suite and Gate 2 splits per
+surface, so naming one owner per gate would leave rows unowned, and an unowned row is one that
+silently never appears. Every row the report can contain has an owner here.
+
+| Row | Owner | Present when |
+|---|---|---|
+| Gate 1, one row per suite | `frontend` when Step 3 routed `browser-ui` and the suite is that surface's, else `backend-unit` | Step 1 discovered the suite |
+| Gate 2 for `cli`, `library`, `prompt-assets`, `infra`, `unknown` | `backend-unit` | Step 3 routed one of those surfaces |
+| Gate 2 for `http-api`, both the unit level and the end-to-end level | `integration` | Step 3 routed `http-api` |
+| Gate 2 as SKIP, carrying the router's reason | Orchestrator | Every surface Step 3 routed was `docs`, so nothing changed behavior |
+| Gate 2 as HANDOFF, in place of a graded row | Orchestrator | Every surface Step 3 routed was a handoff |
+| Gate 8, the live API probe | `integration` | Step 3 routed a surface to `curl` |
+| `Handoff: browser-ui`, naming `/qa` | `frontend` | Step 3 routed `browser-ui` |
+| `Handoff: mobile-ui`, naming `/ios-qa` | Orchestrator | Step 3 routed `mobile-ui` |
+| Gates 3, 4, 5, 6, and 7 | Orchestrator | Always |
+| **Project checks** | Orchestrator | Step 1 discovered a command that maps to no gate |
+| Any surface `route_qa.py` defines that no row above names | Orchestrator | Always, until a lane claims it |
+
+**That last row is what keeps the table open.** The rule the enumeration follows is that a row
+belongs to the lane whose surface or suite produced it, and every row no single lane can produce
+belongs to the orchestrator. A surface added to `route_qa.py` later matches no row above, and
+without the residual it would have no owner at all, which is the row that silently never appears.
+
+When nothing routed to `curl`, Gate 8 is SKIP in its own wording, and the orchestrator emits it.
+
+Gates 3 through 7 stay with the orchestrator because each is a single scripted command, and
+dispatching a subagent to run one `python3` call costs more than it saves. Gate 5 is here for that
+reason and no other: it is one `check_doc_paths.py` invocation that forbids prose judgment, so a
+documentation lane would run one script and nothing else.
+
+**A lane that was not dispatched still produces its rows.** The orchestrator emits them as SKIP
+carrying the router's reason. A row that vanishes reads as a gate that passed.
+
+**A lane that fails to return is BLOCKED, not PASS.** Treating a missing return as an absent
+finding reports a clean sweep from a lane that never ran, which is the silent degradation the
+six-status model exists to prevent.
+
+**Hold every lane's result before aggregating.** Issue every dispatch the table calls for in one
+message, so the lanes overlap, then wait for all of them. Dispatch is asynchronous by default. A caller that ends
+its turn before the lanes return loses every row they produced and errors on nothing, so the failure
+reads as a short report rather than as a bug. `tadw:quality-gates-orchestrator` owns the mechanism
+that enforces this; naming a harness parameter here would date this file to one harness release.
+
+**A lane never renders the report and never decides the verdict.** It returns its rows, each row's
+`detail` string, its failing command's real output, its Step 5 attribution, and any evidence table
+its gate requires. That list is the whole contract; Step 6 assumes no other field.
+
+#### What Every Lane Is Given, and What It Must Not Re-derive
+
+The orchestrator resolves these once and passes them in. A lane that re-derives any of them
+produces an answer about a different scope than the report claims.
+
+| Input | Resolved by |
+|---|---|
+| The base SHA | Step 2's `changed_set.py`, run exactly once |
+| The changed path list | The same run |
+| The discovered gate set | Step 1 |
+| The numbered case list | Enumerated once over the whole changed set, per Gate 2 step B, before any case is graded |
+
+Two runs of `changed_set.py` against a moving working tree can disagree, and Gate 7 shows what that
+costs. A lane that re-discovers the gate set may pick a different source and run a command the
+project replaced. Three lanes numbering cases independently produce three unrelated lists, and a
+case nobody listed cannot be graded, which is what Gate 2 step B's numbering exists to prevent.
+
+#### Reducing Two Change Coverage Rows
+
+Only Gate 2 can produce two rows: `backend-unit` grades five surfaces and `integration` grades
+`http-api`, so a file that classifies into one of each is graded twice. Every other gate has a
+single owner and never reduces. Merge the two rows field by field, not on the status alone:
+
+- **Status** takes the worse, ordered BLOCKED, FAIL, HANDOFF, WARN, PASS, SKIP, worst to best.
+- **Counts** cover every numbered case, both lanes' together, not the survivor's alone.
+- **Every evidence table** is spliced into the gate's report section in case-number order, whichever
+  status survived. Dropping the losing lane's table silently ungrades the cases it covered, which is
+  what the single numbered case list exists to prevent.
+- **Raw output and attribution** come from both rows, not from the survivor alone.
+
+**A `Handoff: <surface>` row never merges with anything.** Folding a handoff surface and a graded
+surface into one status drops one of two different next moves, so each stays its own row and
+Verdict Rule 2 still sees it.
+
 #### Gate 1: Tests
 
 Run the selected tests from Step 2. Record passed, failed, skipped, and errored counts, and name the selection.
+
+**Every discovered suite gets its own row.** The report requires the exact command and real counts
+in each row, so merging two suites into one discards a command and a count. One suite means one row.
+Which lane owns which suite is in Step 4's ownership table.
 
 An exit code of 127, a missing runner, or a collection error is BLOCKED, not FAIL. Zero tests collected in a project that has a test directory is BLOCKED too, because the runner found nothing to check.
 
@@ -222,7 +322,9 @@ and what "end to end" means depends on which:
 | **infra** | The tool's own `validate` or `plan`, which Step 1 discovered |
 | **unknown** | Say the surface has no row, and grade the unit level you can see |
 
-A change can touch two surfaces. Grade each, and take the worst result.
+A change can touch two surfaces. Grade each, and take the worst result. When two lanes each return
+a row for this gate, they reduce per field, under "Reducing Two Change Coverage Rows" above. One row
+survives, and every case table both lanes produced is carried into it.
 
 The prompt-assets row is here because the table did not have it on first use, and this repository is one. A surface with no row does not mean the gate does not apply. It means the row is missing, so say so and grade what you can.
 
@@ -250,6 +352,10 @@ and merging them loses one of them:
 
 So a REST diff with a passing probe and no committed request-level test is still a Gate 2 finding.
 Cite the probe as evidence that the endpoint works, and say the regression test is missing.
+
+**Whoever grades one must hold the other**, which is why the `integration` lane owns both. Split
+across contexts that cannot see each other, the citation either duplicates the probe or loses the
+distinction this table draws. Losing it is how a green probe comes to read as an end-to-end test.
 
 **D. Check the span, not just the presence.** A case has a span: the distinct classes of input, state, and outcome it can take. One test proves one point in that span. Ask which classes exist, then which are hit:
 
@@ -279,7 +385,7 @@ When you are unsure whether a class is worth a test, ask what a real failure the
 | **PASS** | Every case has a unit test, every touched surface has an end-to-end test, and every span class you identified is covered |
 | **WARN** | Every case is tested, but a span class is not, and a failure there would be cheap to notice and to recover from |
 | **FAIL** | Any case has no test at all, any touched CLI command or HTTP route has no end-to-end test, or an uncovered span class would fail expensively: lost data, wrong money, a security hole, or silent corruption |
-| **HANDOFF** | Step 3 routed *every* surface to `handoff`, so nothing is left here to grade. When only some did, grade the rest and let each handoff surface carry its own row |
+| **HANDOFF** | Step 3 routed *every* surface to `handoff`, so nothing is left here to grade. The orchestrator emits this row, since no single lane sees the union of surfaces. When only some surfaces routed to a handoff, grade the rest and let each handoff surface carry its own row, defined below |
 | **SKIP** | Step 3 routed every surface to `none`: documentation, comments, or formatting only |
 
 Report the cases as a table: number, case, unit test, end-to-end test, span covered. An empty cell is the finding.
@@ -349,6 +455,10 @@ python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_hygiene.py" --
 ```
 
 `$BASE` is the SHA Step 2's script printed. The script counts the `TODO`, `FIXME`, `HACK`, and `XXX` markers the diff adds, and reports each with its `file:line`.
+
+**Under a fan-out, re-deriving that SHA here costs more than the hand-rolling Step 2 forbids.** Two
+resolutions against a moving working tree can disagree. The report's **Scope** line would then name
+one base while this gate counted markers against another, and the report would still read clean.
 
 | Exit | Status |
 |---|---|
@@ -465,17 +575,48 @@ a runnable command per probe with credentials redacted, so copy that rather than
 A passing probe is evidence about this build, not a test. Gate 2's table above says why, and a REST
 change with a green probe and no committed request-level test is still a Gate 2 finding.
 
+#### Handoff Rows
+
+Step 3 routes `browser-ui` to `/qa` and `mobile-ui` to `/ios-qa`. Each routed handoff surface gets
+its own row here, named `Handoff: <surface>`, carrying the owning tool and a **null command**,
+because no command was run. One HANDOFF row drives the whole run to INCOMPLETE by Verdict Rule 2.
+
+| Row | Owner | What the lane does instead |
+|---|---|---|
+| `Handoff: browser-ui` | `frontend` lane | It runs the frontend test suite for Gate 1 and emits this row. It never attempts to settle browser UI itself |
+| `Handoff: mobile-ui` | Orchestrator | No lane here runs iOS checks |
+
+Why the row never merges and never becomes a SKIP is in Step 3, under "Each `handoff` surface gets
+its own row in the gate table".
+
+#### Project Checks
+
+Step 1 maps every discovered command onto the gate it serves. A command that fits no gate still
+runs, under a single **Project checks** row carrying its exact command and its real counts. The
+orchestrator owns it. Omit the row only when Step 1 discovered no such command.
+
 ### Step 5: Attribute Every Failure
 
 For each FAIL, say whether it looks new. A failing test in a file the diff does not touch, exercising code the diff does not touch, is probably pre-existing, and the report should say so as evidence rather than as a verdict.
 
 Write the evidence: "3 failures, all in `tests/legacy/`, which this diff does not touch." Do not write "pre-existing" alone.
 
+**The lane that produced a failure writes its attribution**, because attribution needs the failing
+command's real output and only that lane holds it. The orchestrator renders the sentence beside the
+failure; it never re-derives the evidence.
+
 Establish this by reading, never by rewriting the working tree. Do not stash, check out the base, or reset to get a baseline. If the caller needs certainty, say that re-running on the base commit would settle it.
 
 ### Step 6: Report
 
 Produce two things: the markdown report below, and a JSON artifact carrying the same result so a tool can act on the verdict the prose states.
+
+**The orchestrator renders all of it.** A lane returns only what Step 4's contract lists. It never
+renders a section, never writes the artifact, and never decides the verdict.
+
+Aggregation is mechanical. Concatenate the rows in report order. Reduce two Change coverage rows
+under Step 4's per-field rule. Leave every handoff row standing alone. Apply the Verdict Rules to
+the union.
 
 **Write the JSON first, then emit the report.** The report's **Artifact** line records what that write did, including a refusal, so emitting the report first would mean predicting it.
 
@@ -689,6 +830,8 @@ The order is load-bearing. An all-BLOCKED run is a FAIL by rule 1 and never reac
 - Name the probed host in the report, and mark it when it is not this machine
 - Stop any server you started, and say in the report whether you started it or found it running
 - Write the JSON artifact after the markdown report, with the verdict verbatim and one entry per table row
+- Give every report row an owner from Step 4's table, including the residual row, so no row can go unclaimed
+- When lanes ran: emit an undispatched lane's rows as SKIP with the router's reason, and record a lane that did not return as BLOCKED
 
 **Never:**
 
@@ -709,6 +852,8 @@ The order is load-bearing. An all-BLOCKED run is a FAIL by rule 1 and never reac
 - Downgrade BLOCKED or HANDOFF to SKIP, or let an all-SKIP run report PASS
 - Pass a browser UI change silently; hand it to `/qa` on its own row
 - Fold a handoff surface and a graded surface into one status
+- Let a lane render a report section, write the artifact, or decide the verdict
+- Re-derive the base SHA, the changed set, the gate set, or the numbered case list once the orchestrator has resolved it
 - Run a language default beside a project command that serves the same gate
 - Stash, reset, or check out another commit to establish a baseline
 - Claim doc prose is stale without a missing path to point at
@@ -720,6 +865,9 @@ Before reporting completion, verify:
 - [ ] The gate source, the scope, and the routed QA method all appear in the report
 - [ ] The report says whether the full suite ran
 - [ ] Every gate has a row, including the ones that did not run
+- [ ] Every row traces to one owner in Step 4's table
+- [ ] Exactly one Change coverage row survives, and its counts and its case table cover every numbered case
+- [ ] If lanes ran, every one of them returned, and its rows are in the report
 - [ ] Every non-SKIP row carries its exact command and a real count
 - [ ] Every routed surface is accounted for: probed, graded, or on its own HANDOFF row
 - [ ] Every case the change introduces appears in the coverage table
