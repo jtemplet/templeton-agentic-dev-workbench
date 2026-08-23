@@ -1,3 +1,10 @@
+.outrigger/lock.d/
+.outrigger/pick.lock/
+.outrigger/stop
+.outrigger/*.log
+.outrigger/logs/
+.outrigger/worktrees/
+
 # Local settings (user-specific)
 .claude/settings.local.json
 
