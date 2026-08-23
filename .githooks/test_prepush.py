@@ -50,6 +50,34 @@ RULE-TO-TEST MAPPING. A rule with no test here is a rule nothing holds.
     also deletes a ref
   POSIX sh, executable                          case_hook_is_executable_posix_sh
 
+STAGE 2, the recorded quality-gates verdict (M4). Same fixture, same real
+`git push --dry-run`, with a report planted in the fixture's own git directory.
+
+  Bead criterion                                  Pinned by
+  ------------------------------------------------------------------------------
+  1. A FAIL verdict refuses the push, naming    case_fail_verdict_refuses_the_push
+     the verdict, the head, and the timestamp
+  2. No report means one warning and a push     case_no_report_warns_once_and_allows
+  3. A verdict recorded for a commit that is    case_verdict_off_the_pushed_line_warns
+     not being pushed warns and allows          case_verdict_for_an_unknown_head_warns
+  4. A current PASS verdict is silent           case_current_pass_verdict_is_silent
+
+  Design rule (docs/plans/quality-gates-hardening.md M4)
+  ------------------------------------------------------------------------------
+  Current means an ancestor of the pushed       case_ancestor_verdict_is_current
+    commit, not the tip of it
+  Every ref in the push is considered, not      case_a_verdict_current_for_one_pushed_ref_is_not_stale
+    only the first
+  Both stages report, each under its own        case_both_stages_report_separately
+    message, from one push
+  TADW_PREPUSH=off covers stage 2 too           case_off_switch_allows_a_failed_verdict
+  An unreadable report is not a FAIL            case_unparseable_report_warns_and_allows
+  The verdict is matched case-insensitively,    case_a_lowercase_verdict_still_blocks
+    because getting it wrong fails open
+  The verdict is read from the git directory    case_verdict_is_read_from_the_git_dir
+    the command resolves, not a literal .git/
+  A deletion is gated by neither stage          case_delete_only_push_ignores_a_fail_verdict
+
 Criterion 5 has a second reading this suite cannot cover: that
 `.github/workflows/lint.yml` is byte-identical to its state before this
 milestone. That is a property of the change rather than of the hook, so it is
@@ -63,6 +91,7 @@ from __future__ import annotations
 
 import atexit
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -143,6 +172,10 @@ BAD_MARKDOWN = "#  Badly   formatted   heading\n\n\n*   an   item\n"
 # one. Nothing runs a test suite but the hook.
 BREAKABLE_CHECK = "skills/quality-gates/scripts/test_check_doc_paths.py"
 FAILING_BODY = "raise SystemExit(1)\n"
+
+# The timestamp every planted verdict carries. A fixed value, because the FAIL
+# message has to name it and a generated one could not be asserted against.
+RECORDED_AT = "2026-08-11T04:12:07Z"
 
 GIT = shutil.which("git") or "git"
 
@@ -272,6 +305,42 @@ def build(*, stub_slow: bool = True, extra_branch: str | None = None) -> Fixture
     fixture.write("PENDING.txt", "a commit for the case to push\n")
     fixture.commit_all("pending work")
     return fixture
+
+
+def git_dir(root: Path) -> Path:
+    """The git directory the hook itself resolves, for a checkout or a worktree.
+
+    `--absolute-git-dir` rather than `--git-dir`, because the hook resolves its
+    path with the working directory git gives it and a case resolves the same
+    path from wherever the suite happens to be running.
+    """
+    return Path(git(root, "rev-parse", "--absolute-git-dir").stdout.strip())
+
+
+def head_of(root: Path) -> str:
+    return git(root, "rev-parse", "HEAD").stdout.strip()
+
+
+def record_verdict(root: Path, verdict: str, *, head: str | None = None) -> Path:
+    """Plant a quality-gates report where the skill writes one, with the fields it writes.
+
+    Written by hand rather than by running the gates: the hook's contract is the
+    file, and a case that ran /quality-gates would test the skill instead and
+    could not produce a FAIL on demand.
+    """
+    report = git_dir(root) / "quality-gates-report.json"
+    report.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "head": head_of(root) if head is None else head,
+                "timestamp": RECORDED_AT,
+                "verdict": verdict,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return report
 
 
 # Everything the hook reaches for: the checkers themselves, plus the four
@@ -481,14 +550,25 @@ def case_missing_rumdl_warns_and_allows() -> None:
 
 
 def case_missing_python3_warns_once() -> None:
-    """python3 carries most of the checks, and one warning about it is the useful number."""
+    """python3 carries most of the checks, and one warning about it is the useful number.
+
+    Scoped to the skipped-tool line rather than to every warning, because stage 2
+    reads the recorded verdict in python3 as well and reports its own loss on the
+    same push. That second line is the point of
+    case_unparseable_report_warns_and_allows, and folding the two counts together
+    here would make either one drift silently.
+    """
     fixture = build()
     result = fixture.push(env={"PATH": stub_path_without("python3")})
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a missing python3 must still allow the push: {output}"
-    warning = [line for line in output.splitlines() if "WARNING" in line]
+    warning = [line for line in output.splitlines() if "were skipped" in line]
     assert len(warning) == 1, f"exactly one warning line, not one per check: {warning}"
     assert warning[0].count("python3") == 1, f"python3 named once: {warning[0]!r}"
+    assert "could not be read" in output, (
+        f"and stage 2 must say what the absence cost it, rather than reading as a clean "
+        f"verdict: {output}"
+    )
 
 
 def case_no_check_ran_is_not_a_pass() -> None:
@@ -575,10 +655,16 @@ def case_hook_leaves_the_tree_alone() -> None:
 
 
 def case_clean_push_is_quiet() -> None:
-    """A passing run is one summary line, not ten. Noise trains people to ignore it."""
+    """A passing run is one summary line, not ten. Noise trains people to ignore it.
+
+    The whole hook, both stages, and one line out of it. The verdict is recorded
+    as a current PASS so stage 2 has nothing to add, which is the state a session
+    that followed "Landing the Plane" actually pushes in.
+    """
     fixture = build()
     fixture.write("docs/NOTE.md", "# A note\n\nAdded so the push has a commit to carry.\n")
     fixture.commit_all("add a note")
+    record_verdict(fixture.work, "PASS")
     result = fixture.push()
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a clean tree must push: {output}"
@@ -643,6 +729,291 @@ for name, fn in [
     ("the hook modifies nothing, including the CI workflow [criterion 5]", case_hook_leaves_the_tree_alone),
     ("a push from a linked worktree spares the main repository", case_push_from_a_linked_worktree_spares_the_main_repository),
     ("a clean push prints one summary line", case_clean_push_is_quiet),
+]:
+    check(name, fn)
+
+
+print("\n  [stage 2: the verdict /quality-gates recorded]")
+
+
+def case_fail_verdict_refuses_the_push() -> None:
+    """Criterion 1. A recorded FAIL blocks, and the message names all three facts.
+
+    The tree is clean, so the refusal can only have come from stage 2. Both exits
+    are asserted too: a gate whose way out a reader has to guess gets bypassed
+    with --no-verify instead, which skips stage 1 along with it.
+    """
+    fixture = build()
+    recorded = head_of(fixture.work)
+    record_verdict(fixture.work, "FAIL")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f"a recorded FAIL must refuse the push: {output}"
+    assert "verdict is FAIL" in output, f"it must name the verdict: {output}"
+    assert recorded in output, f"and the head it was recorded for: {output}"
+    assert RECORDED_AT in output, f"and when it was recorded: {output}"
+    assert "/quality-gates" in output, f"and how to record a fresh one: {output}"
+    assert "TADW_PREPUSH=off" in output, f"and the documented escape: {output}"
+
+
+def case_no_report_warns_once_and_allows() -> None:
+    """Criterion 2. Absence is not evidence of a problem.
+
+    Blocking here would refuse every documentation push from a fresh clone and
+    teach people to turn the hook off, which costs stage 1 as well.
+    """
+    fixture = build()
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"no recorded verdict must still allow the push: {output}"
+    lines = [line for line in output.splitlines() if "quality-gates verdict" in line]
+    assert len(lines) == 1, f"exactly one line about the missing verdict: {lines}"
+    assert "WARNING" in lines[0], f"absence is a warning, not silence: {lines[0]!r}"
+    # The wording, not merely the presence of a line. "No verdict recorded" and
+    # "the verdict could not be read" send the author to different fixes: one
+    # forgot to run the gates, the other has a broken artifact writer. Matching
+    # only on "quality-gates verdict" would accept either message here.
+    assert "no quality-gates verdict recorded" in lines[0], (
+        f"absence must read as absence, not as a broken report: {lines[0]!r}"
+    )
+    assert "/quality-gates" in lines[0], f"and it names how to record one: {lines[0]!r}"
+
+
+def case_verdict_off_the_pushed_line_warns() -> None:
+    """Criterion 3. A verdict about a commit you are not pushing describes another tree.
+
+    The recorded head is a real commit here, on a branch nobody is pushing, so
+    the case pins the ancestry question rather than an unknown-object failure.
+    """
+    fixture = build()
+    git(fixture.work, "checkout", "-q", "-b", "sidetrack", "HEAD~1")
+    fixture.write("SIDETRACK.txt", "a commit on a branch nobody is pushing\n")
+    fixture.commit_all("sidetrack")
+    sidetrack = head_of(fixture.work)
+    git(fixture.work, "checkout", "-q", "main")
+    record_verdict(fixture.work, "PASS", head=sidetrack)
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a stale verdict warns rather than blocks: {output}"
+    assert "stale" in output, f"and it says which way it is wrong: {output}"
+    assert sidetrack in output, f"naming the head it describes: {output}"
+
+
+def case_verdict_for_an_unknown_head_warns() -> None:
+    """The same rule for a commit this clone has never seen.
+
+    `merge-base --is-ancestor` fails on an unknown object, which is the answer
+    this wants: a verdict about a commit that is not here describes another tree
+    too. Pinned separately because it reaches the failure by a different route,
+    and a hook that treated an erroring merge-base as "current" would pass the
+    case above and silently trust this one.
+    """
+    fixture = build()
+    record_verdict(fixture.work, "PASS", head="deadbeef" * 5)
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"an unknown head warns rather than blocks: {output}"
+    assert "stale" in output, f"and it is reported as stale: {output}"
+
+
+def case_current_pass_verdict_is_silent() -> None:
+    """Criterion 4. A passing verdict about what you are pushing has nothing to say."""
+    fixture = build()
+    record_verdict(fixture.work, "PASS")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a current PASS must push: {output}"
+    noise = [line for line in output.splitlines() if "verdict" in line or "stale" in line]
+    assert not noise, f"stage 2 must add no line when the verdict is a current PASS: {noise}"
+
+
+def case_ancestor_verdict_is_current() -> None:
+    """Current means an ancestor of what is pushed, not the tip of it.
+
+    A verdict recorded before one more commit still describes a commit inside the
+    push, so it is not stale. The design chose ancestry over equality on purpose,
+    and without this case the rule would read either way.
+    """
+    fixture = build()
+    record_verdict(fixture.work, "PASS")
+    fixture.write("LATER.txt", "one more commit after the verdict was recorded\n")
+    fixture.commit_all("later work")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"an ancestor verdict must push: {output}"
+    assert "stale" not in output, f"an ancestor of the pushed commit is not stale: {output}"
+
+
+def case_a_verdict_current_for_one_pushed_ref_is_not_stale() -> None:
+    """Stage 2 considers every ref in the push, not only the first line of stdin.
+
+    The hook is run directly with a crafted stdin rather than through
+    `fixture.push`, and that is the whole point of the case. Git decides the
+    order it feeds those lines in, and it is not the order of the refspecs: a
+    probe with a hook that echoed its stdin delivered `main` first for
+    `git push origin aside main` even though `aside` sorts first. A case built on
+    `fixture.push` therefore cannot put the non-matching ref first, and one that
+    appeared to would be pinning a git version rather than this hook.
+
+    Fed by hand, the order is ours: the first line is a ref the verdict does not
+    describe, the second is one it does. A reader that stopped at the first line
+    would warn here.
+    """
+    fixture = build()
+    current = head_of(fixture.work)
+    git(fixture.work, "checkout", "-q", "-b", "aside", "HEAD~1")
+    fixture.write("ASIDE.txt", "a ref whose line the verdict does not describe\n")
+    fixture.commit_all("aside")
+    aside = head_of(fixture.work)
+    git(fixture.work, "checkout", "-q", "main")
+    record_verdict(fixture.work, "PASS", head=current)
+
+    zeros = "0" * 40
+    stdin = (
+        f"refs/heads/aside {aside} refs/heads/aside {zeros}\n"
+        f"refs/heads/main {current} refs/heads/main {zeros}\n"
+    )
+    result = subprocess.run(
+        ["sh", str(fixture.work / ".githooks" / "pre-push"), "origin", "/dev/null"],
+        cwd=fixture.work,
+        input=stdin,
+        capture_output=True,
+        text=True,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a current verdict must allow the push: {output}"
+    assert "stale" not in output, (
+        f"the verdict is current for the second ref on stdin, so it is not stale: {output}"
+    )
+
+
+def case_a_lowercase_verdict_still_blocks() -> None:
+    """The verdict is matched case-insensitively, and the wrong answer here is an allow.
+
+    The skill writes `FAIL` verbatim, so the reader's `.upper()` is a normalizer
+    rather than a documented input. It is pinned anyway because dropping it fails
+    open: a report saying `fail` would sail through as though it said nothing.
+    """
+    fixture = build()
+    record_verdict(fixture.work, "fail")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f"a lowercase fail must still refuse the push: {output}"
+    assert "verdict is FAIL" in output, f"and be reported in one form: {output}"
+
+
+def case_both_stages_report_separately() -> None:
+    """One push, two questions, two answers.
+
+    Stage 1 recording its failure rather than exiting on it is what makes this
+    possible. A reader who fixes only the half they were shown pushes again and
+    hits the other one, which is the same trap stage 1 avoids internally by
+    running every check.
+    """
+    fixture = build()
+    fixture.write(BREAKABLE_CHECK, FAILING_BODY)
+    fixture.commit_all("break one check")
+    record_verdict(fixture.work, "FAIL")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f"either stage alone must refuse the push: {output}"
+    assert "checks failed" in output, f"stage 1 must report its own failure: {output}"
+    assert "verdict is FAIL" in output, f"and stage 2 must report its own: {output}"
+
+
+def case_off_switch_allows_a_failed_verdict() -> None:
+    """The escape covers the whole hook, or it is not the documented escape."""
+    fixture = build()
+    record_verdict(fixture.work, "FAIL")
+    refused = fixture.push()
+    assert refused.returncode != 0, "the control: this push must fail without the off-switch"
+    allowed = fixture.push(env={"TADW_PREPUSH": "off"})
+    output = allowed.stdout + allowed.stderr
+    assert allowed.returncode == 0, f"the off-switch must allow the push: {output}"
+    assert "tadw:" not in output, f"off means silent, not merely permissive: {output!r}"
+
+
+def case_unparseable_report_warns_and_allows() -> None:
+    """An unreadable report is not a FAIL, and the reader is not a grep for one.
+
+    The planted body is truncated JSON that still contains the word FAIL, so a
+    hook that matched text rather than parsing would block here. It must warn
+    that it could not read the file, which is a different fix from a forgotten
+    run, and allow the push.
+    """
+    fixture = build()
+    report = git_dir(fixture.work) / "quality-gates-report.json"
+    report.write_text('{"verdict": "FAIL", "head": "', encoding="utf-8")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"an unreadable report must allow the push: {output}"
+    assert "could not be read" in output, f"and say what it could not do: {output}"
+    assert "verdict is FAIL" not in output, f"text inside the file is not a verdict: {output}"
+
+
+def case_verdict_is_read_from_the_git_dir() -> None:
+    """The path is the one `git rev-parse --git-dir` resolves, never a literal `.git/`.
+
+    Both halves are needed. A worktree's own verdict must gate its own push, and
+    the main checkout's verdict must not: two worktrees on two branches produce
+    two verdicts about two trees, and `--git-common-dir` would let whichever ran
+    the gates last decide every push.
+    """
+    fixture = build()
+    linked = fixture.work.parent / "linked"
+    git(fixture.work, "worktree", "add", "-q", str(linked), "-b", "linked-work")
+
+    def push_from_linked() -> str:
+        result = subprocess.run(
+            [GIT, "-c", "user.email=t@t", "-c", "user.name=t", "-C", str(linked),
+             "push", "--dry-run", "origin", "linked-work"],
+            capture_output=True,
+            text=True,
+        )
+        return f"{result.returncode}\n{result.stdout}{result.stderr}"
+
+    record_verdict(linked, "FAIL")
+    own = push_from_linked()
+    assert not own.startswith("0\n"), f"a worktree's own FAIL must refuse its push: {own}"
+    assert "verdict is FAIL" in own, f"and be the verdict it reports: {own}"
+
+    (git_dir(linked) / "quality-gates-report.json").unlink()
+    record_verdict(fixture.work, "FAIL")
+    other = push_from_linked()
+    assert other.startswith("0\n"), f"the main checkout's FAIL must not gate a worktree: {other}"
+    assert "verdict is FAIL" not in other, f"nor be reported there: {other}"
+    assert "worktrees" in other, f"the path it read must be the worktree's own: {other}"
+
+
+def case_delete_only_push_ignores_a_fail_verdict() -> None:
+    """Neither stage gates a deletion, because a deletion pushes no code.
+
+    The complement of case_delete_only_push_runs_nothing, which proves the same
+    rule for stage 1. Stage 2 needs its own: it reads a file rather than the
+    tree, so a guard that skipped stage 1 could still let stage 2 block.
+    """
+    fixture = build(extra_branch="doomed")
+    record_verdict(fixture.work, "FAIL")
+    result = fixture.push("--delete", "doomed")
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a delete-only push must be allowed: {output}"
+    assert "tadw:" not in output, f"neither stage may speak for a deletion: {output!r}"
+
+
+for name, fn in [
+    ("a recorded FAIL refuses the push, naming verdict, head and time [criterion 1]", case_fail_verdict_refuses_the_push),
+    ("no recorded verdict is one warning and a push [criterion 2]", case_no_report_warns_once_and_allows),
+    ("a verdict for a commit off the pushed line warns as stale [criterion 3]", case_verdict_off_the_pushed_line_warns),
+    ("a verdict for a head this clone has never seen warns as stale", case_verdict_for_an_unknown_head_warns),
+    ("a current PASS verdict says nothing [criterion 4]", case_current_pass_verdict_is_silent),
+    ("a verdict recorded for an ancestor of the push is current", case_ancestor_verdict_is_current),
+    ("a verdict current for one of several pushed refs is not stale", case_a_verdict_current_for_one_pushed_ref_is_not_stale),
+    ("both stages report their own failure from one push", case_both_stages_report_separately),
+    ("TADW_PREPUSH=off allows a recorded FAIL through", case_off_switch_allows_a_failed_verdict),
+    ("an unreadable report warns and allows, and is not read as a FAIL", case_unparseable_report_warns_and_allows),
+    ("a lowercase verdict still blocks", case_a_lowercase_verdict_still_blocks),
+    ("the verdict is read from the resolved git directory", case_verdict_is_read_from_the_git_dir),
+    ("a delete-only push ignores a recorded FAIL", case_delete_only_push_ignores_a_fail_verdict),
 ]:
     check(name, fn)
 

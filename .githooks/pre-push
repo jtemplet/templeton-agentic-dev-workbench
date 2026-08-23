@@ -42,6 +42,12 @@
 # This checks the WORKING TREE, not the commits being pushed. That matches how the
 # AGENTS.md block is meant to be run by hand, and it is the state the author can
 # actually fix right now.
+#
+# TWO STAGES, ONE FILE. Git calls exactly one pre-push hook, so the two things that
+# must happen on this event share this file. Stage 1 runs the checks above. Stage 2
+# reads the verdict /quality-gates recorded, and is documented at its own banner
+# below. Both stages always run, and each reports under its own message, for the
+# same reason stage 1 does not stop at its first failure.
 
 [ "$TADW_PREPUSH" = "off" ] && exit 0
 
@@ -49,10 +55,14 @@
 # Consume it whether or not we act on it, so git never writes into a closed pipe.
 # An all-zero local sha is a deletion, and deleting a remote ref pushes no code to
 # check, so a delete-only push has nothing to gate.
+#
+# The commits themselves are kept, rather than only the fact that there are some:
+# stage 2 asks whether the recorded verdict describes what is being pushed, and
+# that question needs the shas.
 pushing=''
 while read -r local_ref local_sha remote_ref remote_sha; do
   case "$local_sha" in
-    *[!0]*) pushing='yes' ;;
+    *[!0]*) pushing="$pushing$local_sha " ;;
   esac
 done
 [ -n "$pushing" ] || exit 0
@@ -142,22 +152,139 @@ if [ -n "$skipped" ]; then
   echo "tadw: WARNING - not on PATH, so its checks were skipped: $skipped" >&2
 fi
 
-# Allowed, because every tool being absent is still a missing tool, and the rule
-# above is deliberate. Never reported as a pass, though: nothing was verified, and
-# "checks passed" is the one sentence a reader must not see here. This is the
-# all-skipped-run-reports-PASS shape the quality-gates skill refuses by name.
+# Recorded rather than exited on, because stage 2 has its own question to answer
+# and a reader deserves both answers from one push. Read at the very bottom.
+suite_failed=0
+
 if [ "$ran" -eq 0 ]; then
+  # Allowed, because every tool being absent is still a missing tool, and the rule
+  # above is deliberate. Never reported as a pass, though: nothing was verified,
+  # and "checks passed" is the one sentence a reader must not see here. This is
+  # the all-skipped-run-reports-PASS shape the quality-gates skill refuses by name.
   echo "tadw: WARNING - 0 of $total checks ran, so nothing was verified" >&2
-  exit 0
-fi
-
-if [ "$failed" -eq 0 ]; then
+elif [ "$failed" -eq 0 ]; then
   echo "tadw: pre-push checks passed ($ran of $total, ${elapsed}s)" >&2
-  exit 0
+else
+  cat "$work/report" >&2
+  echo "" >&2
+  echo "tadw: refusing to push, $failed of $ran checks failed (${elapsed}s)" >&2
+  echo "tadw: fix the failures above, or set TADW_PREPUSH=off to skip this hook" >&2
+  suite_failed=1
 fi
 
-cat "$work/report" >&2
-echo "" >&2
-echo "tadw: refusing to push, $failed of $ran checks failed (${elapsed}s)" >&2
-echo "tadw: fix the failures above, or set TADW_PREPUSH=off to skip this hook" >&2
-exit 1
+# ---------------------------------------------------------------------------
+# STAGE 2: the verdict /quality-gates recorded
+# ---------------------------------------------------------------------------
+#
+# The gates produce a markdown report and, since the artifact bead, a JSON copy of
+# their verdict. Nothing read it. "Landing the Plane" in AGENTS.md tells a session
+# to run the gates before pushing, and a session that ran them, got a FAIL, and
+# pushed anyway hit no barrier and left no trace.
+#
+# THE PATH IS RESOLVED, NEVER HARDCODED. `git rev-parse --git-dir` returns a
+# distinct path per linked worktree, so each worktree's hook reads that worktree's
+# own verdict about that worktree's own branch. A literal `.git/` is a file rather
+# than a directory inside a worktree, and `--git-common-dir` would let whichever
+# worktree ran the gates last decide every worktree's push. The skill resolves the
+# write the same way and for the same reason.
+#
+# FORGIVENESS IS THE DESIGN, NOT AN OVERSIGHT.
+#
+#   No report, or one that cannot be read, warns and allows. Absence is not
+#   evidence of a problem, and blocking there would refuse every documentation
+#   push from a fresh clone and teach people to turn the hook off.
+#
+#   Only a recorded verdict of FAIL blocks, and the message carries the verdict,
+#   the head it was recorded for, and when. Both exits are named in it, because a
+#   gate whose way out you have to guess gets bypassed with --no-verify instead.
+#
+#   A verdict recorded for a commit that is not in what you are pushing warns as
+#   stale and allows. It describes some other tree, so it is evidence about
+#   nothing here, and a FAIL still blocks in that state on purpose: refreshing it
+#   is one command, and a stale FAIL is exactly when you want to be asked.
+
+report=$(git rev-parse --git-dir)/quality-gates-report.json
+
+# In python3 because sh cannot parse JSON, and hand-rolled matching would read a
+# verdict out of a string that merely contains one. Four lines out: a status, then
+# the three facts the FAIL message has to name. Each field is one whole line, so a
+# value carrying a space cannot shift the field after it.
+python3 - "$report" >"$work/verdict" 2>/dev/null <<'PY'
+import json
+import sys
+
+
+def one_line(value):
+    text = "" if value is None else str(value).strip()
+    return text.splitlines()[0] if text else "-"
+
+
+def emit(status, verdict=None, head=None, timestamp=None):
+    print(status)
+    print(one_line(verdict).upper())
+    print(one_line(head))
+    print(one_line(timestamp))
+    raise SystemExit(0)
+
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        recorded = json.load(handle)
+except FileNotFoundError:
+    emit("missing")
+except (OSError, ValueError):
+    emit("unreadable")
+
+if not isinstance(recorded, dict):
+    emit("unreadable")
+emit("ok", recorded.get("verdict"), recorded.get("head"), recorded.get("timestamp"))
+PY
+
+status=''
+verdict=''
+head=''
+stamp=''
+{ read -r status; read -r verdict; read -r head; read -r stamp; } <"$work/verdict"
+# Empty means the reader never ran, which is python3 missing from PATH. Stage 1
+# already named it as a skipped tool; this says what its absence cost here.
+[ -n "$status" ] || status='unreadable'
+
+verdict_failed=0
+
+case $status in
+  ok) ;;
+  missing)
+    echo "tadw: WARNING - no quality-gates verdict recorded at $report; run /quality-gates to record one" >&2
+    ;;
+  *)
+    echo "tadw: WARNING - the quality-gates verdict at $report could not be read, so this push is not gated on it" >&2
+    ;;
+esac
+
+if [ "$status" = 'ok' ] && [ "$verdict" = 'FAIL' ]; then
+  echo "tadw: the recorded quality-gates verdict is FAIL" >&2
+  echo "tadw:   recorded head: $head" >&2
+  echo "tadw:   recorded at:   $stamp" >&2
+  echo "tadw: refusing to push on that verdict. Re-run /quality-gates to record a" >&2
+  echo "tadw: fresh one, or set TADW_PREPUSH=off to skip this hook" >&2
+  verdict_failed=1
+elif [ "$status" = 'ok' ]; then
+  # Stale unless the recorded head is an ancestor of something being pushed. An
+  # unknown object fails --is-ancestor, which is the right answer: a verdict about
+  # a commit this clone has never seen describes some other tree too.
+  stale='yes'
+  for sha in $pushing; do
+    if git merge-base --is-ancestor "$head" "$sha" 2>/dev/null; then
+      stale=''
+      break
+    fi
+  done
+  if [ -n "$stale" ]; then
+    echo "tadw: WARNING - the recorded quality-gates verdict ($verdict, $stamp) is stale: it was recorded for $head, which is not in what you are pushing" >&2
+  fi
+fi
+
+if [ "$suite_failed" -eq 1 ] || [ "$verdict_failed" -eq 1 ]; then
+  exit 1
+fi
+exit 0

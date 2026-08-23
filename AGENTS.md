@@ -77,9 +77,24 @@ addresses and that it leaks no process. Three behaviors are deliberate:
   under deadline. It is exact: any other value, including empty, leaves the hook on.
 
 A push that only deletes a remote ref pushes no code, so it runs nothing. A push that deletes one
-ref and updates another does carry code, so it is checked. On success the hook prints one line,
-carrying how many checks ran and how long they took. `.githooks/test_prepush.py` pins all of this
-against real `git push --dry-run` runs in a throwaway fixture.
+ref and updates another does carry code, so it is checked. When the checks pass this stage prints
+one line, carrying how many ran and how long they took. `.githooks/test_prepush.py` pins all of
+this against real `git push --dry-run` runs in a throwaway fixture.
+
+**`pre-push` has a second stage: the verdict `/quality-gates` recorded.** Git calls exactly one
+pre-push hook, so both stages share the file. Each reports under its own message, so one push
+answers both questions. The stage reads `quality-gates-report.json` from the directory
+`git rev-parse --git-dir` resolves. That is per worktree, so a linked worktree reads its own
+verdict rather than the main checkout's. Forgiveness is the design here, not an oversight:
+
+- **Only a recorded verdict of `FAIL` refuses the push.** The message names the verdict, the head
+  it was recorded for, and when. It names both exits too: re-run `/quality-gates`, or set
+  `TADW_PREPUSH=off`.
+- **No report, or one that cannot be parsed, warns and allows.** Absence is not evidence of a
+  problem. Blocking there would refuse every documentation push from a fresh clone, and teach
+  people to turn the hook off.
+- **A verdict recorded off the line you are pushing warns as stale, and allows.** It describes
+  some other tree. A `FAIL` still refuses in that state, because refreshing it is one command.
 
 **`reference-transaction` refuses to create a `v*` tag** when `claude plugin validate` fails. Git
 has no pre-tag hook, so this is the only one that sees a tag being created and can still stop it.
@@ -341,6 +356,9 @@ recipes, the issue-management command set, and the git policy, lives in
 
    Tracker state rides along without being mentioned. See "The author never handles tracker
    plumbing" above.
+
+   **The pre-push hook refuses this push when the verdict recorded in step 2 is FAIL.** Fix the
+   gate rather than pushing past it. `TADW_PREPUSH=off` is the documented way out.
 6. **Clean up** - Clear stashes, prune remote branches
 7. **Verify** - All changes committed AND pushed
 8. **Hand off** - Provide context for next session
