@@ -16,6 +16,10 @@ Everything in the plugin is namespaced under `tadw:`, so a skill or agent is add
 `tadw:fresh-eyes-cr`, `tadw:code-reviewer`, and so on. The namespace comes from the `name` field in
 `.claude-plugin/plugin.json`.
 
+The marketplace pins this plugin at `"version": "latest"` against its git URL, so an install follows
+the default branch rather than a tag. The `vX.Y.Z` tags and the manifest version tell you which
+published state you have; `/publish-plugin` is what creates them.
+
 > **Upgrading from 1.x?** The namespace was `templeton-agentic-dev-workbench:` before 2.0.0.
 > Uninstall the old plugin and install this one under its new name; see the 2.0.0 entry in
 > [CHANGELOG.md](CHANGELOG.md).
@@ -39,7 +43,7 @@ the agent had to invent.
 
 ### Pipeline B: Code Quality
 
-`/fresh-eyes-cr` → `/quality-gates` → `/verify-acceptance` → `/tadw:ship`
+`/fresh-eyes-cr` → `/quality-gates` → `/verify-acceptance` → `/tadw:ship` → `/publish-plugin`
 
 | Command | What it does |
 |---|---|
@@ -47,6 +51,7 @@ the agent had to invent.
 | `/quality-gates` | QA the change, not the repository: runs the project's own checks, reads the diff to pick the QA method it earns (real curl requests against a local server for REST, a handoff to `/qa` for browser UI, a coverage review for the rest), and proves every case is exercised at the unit and end-to-end level across its input/state/outcome classes |
 | `/verify-acceptance` | Grade the work against its bead's acceptance criteria and the QA gates; report-only verdict |
 | `/tadw:ship` | Land the accepted branch on main locally: rebase, run the repo's own checks as the gate, squash-merge, close the bead, push, delete the branch; ends with `SHIP_DONE`/`SHIP_BLOCKED` |
+| `/publish-plugin` | Turn what landed into a release: derive the semver bump from the diff, write the changelog section, bump the manifest, commit `chore(release): X.Y.Z`, tag `vX.Y.Z`, push main and the tag; ends with `PUBLISH_DONE`/`PUBLISH_BLOCKED` |
 
 ### Debugging
 
@@ -183,6 +188,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `quality-gates` | QA the change rather than the repository: scoped to the diff by default, takes the gate list from `AGENTS.md`/CI/a task runner before guessing, and **routes the change to the QA method it earns** by classifying the changed files, so a REST surface gets real curl requests through a running server, browser UI gets a HANDOFF row naming `/qa`, and a CLI or library gets a coverage review; the change-coverage gate enumerates the cases the diff introduces, requires a unit test for each plus an end-to-end test through the real entry point, and grades the span (input, boundary, state, outcome classes) while refusing cross-products and defensive code; the live probe defaults to `http://127.0.0.1:3000` and never infers a host from the repository, uses a URL the caller supplies (marking a non-loopback host in its summary so a remote probe cannot go unmentioned), starts a server only when the project declares one and always stops it, and treats a refused connection as BLOCKED rather than a failing endpoint; needs no bead or acceptance criteria; report-only | Ending a session, before a PR, or before closing the work |
 | `feature-development` | Implement a bead's spec in 5 phases (ground, orient, implement, simplify, lint): reads the spec from `bd` instead of re-interviewing, reads the repo's conventions before writing, one test per acceptance criterion; leaves the bead open | Building a bead that is ready to implement |
 | `ship` | Land an accepted bead's feature branch on main locally, with no PR and no GitHub CI: rebases onto the base, resolves a `.beads/issues.jsonl` conflict by re-exporting from the database with `bd export` and no other conflict at all, runs the repository's own check suite on the rebased tip as the only gate, squash-merges as `<type>: <title> (<bead-id>)`, closes the bead and folds the export into the landing commit, pushes main without ever forcing, and deletes the branch after proving the content landed; unattended (it reports instead of asking) and ends with one `SHIP_DONE <hash>` / `SHIP_BLOCKED <slug>` line | Landing a bead that passed `/quality-gates` and `/verify-acceptance` |
+| `publish-plugin` | Cut and publish a release: derives the semver bump from the diff since the last tag against a stated rubric (a renamed or removed component is MAJOR, a new component or a newly-failable check is MINOR, a fix or doc edit is PATCH), writes the Keep a Changelog section and its compare link from the log rather than trusting `Unreleased`, bumps `.claude-plugin/plugin.json` through a JSON round-trip and proves the diff is one line, delegates any branch land to `ship`, runs the repo's own gate on the tree about to be tagged, commits `chore(release): X.Y.Z` touching exactly two files, then tags and pushes main before the tag; treats the `reference-transaction` validation refusal as a stop and ends with one `PUBLISH_DONE` / `PUBLISH_BLOCKED` line | Turning what landed on main into a numbered, tagged release |
 | `plan-to-beads` | Decompose a feature plan into `bd` issues; each bead audited for Why (L1), How (L2), and Done when (acceptance) | A reviewed plan needs breaking into trackable issues |
 | `bead-create` | Author one bead and file it: interviews only for what cannot be inferred, searches for a duplicate first, grounds every current-state claim against `origin/main` with a sha, picks the type, drafts against the canonical structure, estimates the size band and splits or refuses, then self-audits with the `bead-audit` rubric until it passes; waits for confirmation, creates it in one `bd create` call with `--design`, `--notes`, and `--acceptance` populated, labels it, and reads it back to prove the native fields landed | Filing a single bead, bug, or follow-up with no plan behind it |
 | `bead-audit` | Audit existing bead bodies against the Marr, size, and type-specific section standards, and ground their claims in the code on `main`; separates content from structure (format-only issues are auto-fixable) and both from grounding (a bead whose code moved is `drifted`, not under-specified); honors native tracker fields, optional 0-100 scorecard banded Poor→Excellent and capped by verdict and by grounding, JSON output for backlog grooming | Before claiming a bead, or grooming a backlog at scale |

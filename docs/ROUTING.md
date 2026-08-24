@@ -274,6 +274,33 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
   main; the slug is one of five categories (`gate`, `conflict`, `tracker`, `git-state`, `internal`)
   and the prose beside it carries the exact condition
 
+**Publish a release:** Use `/publish-plugin` (the `publish-plugin` skill directly; there is no
+command file)
+
+- The step after `ship`. The marketplace pins this plugin at `"version": "latest"` against the
+  repository URL, so a push to main is already published; the tag and the manifest version are how a
+  human tells which published state they are running
+- Derives the bump from `git log` and `git diff` since the last tag, and names the rule that decided
+  it: a renamed or removed component, a changed `name` field, or a broken machine-readable contract
+  is MAJOR; a new component, flag, environment variable, or newly-failable check is MINOR; a fix,
+  doc, or test-only change is PATCH
+- Reads the last tag with `--sort=-v:refname`, because lexical order puts `v2.10.1` above `v2.5.2`
+  and a released tag then reads as missing
+- Writes the `Unreleased` section into a dated version section, adds any entry the log holds and the
+  section missed, and appends the compare link with the owner and repository read from `origin`
+- Bumps `.claude-plugin/plugin.json` through a JSON round-trip and proves the diff is one line
+- Delegates a branch land to the `ship` skill and passes its `SHIP_BLOCKED` reason through unchanged,
+  rather than carrying a second copy of the rebase, gate, and worktree rules
+- Runs the repository's declared gate on the tree that will be tagged, after the bump, and stops
+  before the commit on any non-zero exit
+- Commits `chore(release): X.Y.Z` touching exactly `CHANGELOG.md` and `.claude-plugin/plugin.json`,
+  never folding the bump into a feature squash, since releases here batch several landings
+- Pushes main before the tag, so the remote never holds a tag naming a commit it does not have, and
+  pushes any older tag that was created locally and never left the machine
+- Treats the `reference-transaction` hook's `claude plugin validate` refusal as a stop, and never
+  moves or deletes a tag that exists on the remote
+- Ends with exactly one `PUBLISH_DONE <version> <hash>` or `PUBLISH_BLOCKED <reason>` line
+
 ### Bead Authoring
 
 **Decompose a plan into beads:** Use `/plan-to-beads` or the `project-manager` agent + `plan-to-beads` skill

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`publish-plugin`, a skill that cuts and publishes a release.** Publishing was manual and it
+  drifted twice: `.claude-plugin/plugin.json` sat at 2.10.1 while main ran 13 commits past its
+  release commit, and `v2.10.0` and `v2.10.1` were created locally and never pushed. Neither failure
+  announced itself. The skill derives the semver bump from the diff since the last tag against a
+  stated rubric, writes the changelog section from the log rather than trusting `Unreleased`, bumps
+  the manifest, commits `chore(release): X.Y.Z` touching exactly two files, then tags and pushes main
+  before the tag. It delegates a branch land to `ship` rather than carrying a second copy of the
+  rebase, gate, and worktree rules. Reading the last tag with `--sort=-v:refname` is deliberate:
+  lexical order puts `v2.10.1` above `v2.5.2`, which is how a released tag gets reported as missing.
+
 ### Changed
 
 - **`AGENTS.md` is rewritten in Simplified Technical English.** It went from 4,367 words to
@@ -74,6 +86,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that a dated incident paid for stays: the pre-rebase already-landed check and the worktree removal
   with its three guards (2.10.1), `bd dolt push` and the linked-worktree database check
   (`58d4906`), the `--git-path` existence test, and the gate that fails closed.
+- **The pre-push hook no longer runs anything under `evals/`.** `python3 evals/test_run.py` was its
+  fourteenth check, so the hook's documented exclusion list goes from three to four and the stage
+  runs 13 checks. Cost is not the argument: that suite calls no model and takes about 2 seconds
+  against 68 for the whole stage. The evals are a measurement you run deliberately. Both eval
+  commands stay in the `AGENTS.md` list, so the ship gate still runs the harness suite.
+
 - **`/build` now labels its bead `implemented` when the run completes.** The bead-labeling hook
   (both `scripts/label_bead_on_skill_invocation.sh`, which ships to other repositories, and the
   `.claude/scripts/` copy wired here) maps `feature-development` to `implemented` in inject mode,
@@ -1721,7 +1739,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.1...HEAD
+[2.10.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.0...v2.10.1
 [2.10.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.1...v2.10.0
 [2.9.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.0...v2.9.1
 [2.9.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.8.0...v2.9.0

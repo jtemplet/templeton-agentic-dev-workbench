@@ -128,6 +128,9 @@ it. It gates tags alone, and leaves commits, branches, and non-`v` tags untouche
 `claude` on PATH warns and allows, because an untaggable repository is worse than an unchecked
 tag.
 
+`/publish-plugin` is what creates those tags, so that skill treats this refusal as a stop rather
+than something to route around. See "Releasing" below.
+
 ## Architecture
 
 Three component directories, auto-discovered by Claude Code from their file layout:
@@ -162,6 +165,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Run the QA gates | `/quality-gates` | `quality-gates` |
 | Grade work against its bead | `/verify-acceptance` | `verify-acceptance` |
 | Land a finished bead's branch on main | `/tadw:ship` (the skill itself) | `ship` |
+| Cut and publish a plugin release | `/publish-plugin` (the skill itself) | `publish-plugin` |
 | Align before planning or building | `/grill-me` | `grilling` |
 | Sharpen the project's vocabulary | - | `domain-modeling` |
 | Plan a feature | `/plan-feature`, `/plan-review` | `feature-planner` agent, `plan-review` |
@@ -191,7 +195,7 @@ closing that.
 
 ```text
 A  Business Planning:  /business-ideas → /plan-feature → /plan-review → /plan-to-beads
-B  Code Quality:       /fresh-eyes-cr → /quality-gates → /verify-acceptance → /tadw:ship
+B  Code Quality:       /fresh-eyes-cr → /quality-gates → /verify-acceptance → /tadw:ship → /publish-plugin
 C  Product Strategy:   /competitive-analysis → /product-research → /product-roadmap → /product-brief → /ab-test-design
 ```
 
@@ -215,9 +219,25 @@ as a breaking change. It was `templeton-agentic-dev-workbench` before 2.0.0.
 Two things share those letters and mean something else: the `TADW_STYLE_CORE` off-switch, and the
 `tadw-*` beads issue prefix.
 
-shared letters: the `TADW_STYLE_CORE` off-switch and the `tadw-*` beads issue prefix.
+### Releasing
 
-**Registered Skills** (42). One-line descriptions live in the `README.md` skills
+**A push to `main` is already published.** The marketplace entry for this plugin lives in the
+separate `jtemplet/templeton-agentic-marketplace` repository, and it pins `tadw` at
+`"version": "latest"` against this repository's git URL, so every consumer follows the default
+branch. There is no publish workflow and no upload step. The `version` field and the `vX.Y.Z` tag do
+not gate distribution; they are how a person tells which published state they are running.
+
+**Use `/publish-plugin`.** It derives the semver bump from the diff since the last tag, writes the
+`CHANGELOG.md` section, bumps the manifest, commits `chore(release): X.Y.Z` touching exactly those
+two files, then tags and pushes main before the tag. Its bump rubric and stop conditions are in
+`skills/publish-plugin/SKILL.md`, and `docs/ROUTING.md` summarizes them.
+
+Doing it by hand is how the state drifted twice, and neither failure announced itself: `plugin.json`
+sat at 2.10.1 while main ran 13 commits past its release commit, and `v2.10.0` and `v2.10.1` were
+created locally and never pushed. Read the last tag with `git tag --list 'v*' --sort=-v:refname`,
+because lexical order puts `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
+
+**Registered Skills** (43). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
@@ -226,6 +246,7 @@ reads when deciding what to invoke.
 `feature-development` `grilling` `house-response-style` `idea-wizard` `plan-review`
 `plan-to-beads` `pr-maintenance`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
+`publish-plugin`
 `quality-gates` `research-ingest` `review-fresh-eyes` `review-python` `review-rails`
 `roadmap-dashboard` `ship` `style-fizzy` `style-frontend` `style-go` `style-python` `style-rails`
 `style-rspec` `style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-audit`
@@ -343,12 +364,13 @@ command wins. So a command body that says "Use the `<name>` skill" resolves back
 fixes: rename the command, delete it so the skill takes the slash name, or have it **Read**
 `${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md`.
 
-**Six skills are accepted orphans.** `/validate-plugin` reports `bead-create`, `business-ideas`,
-`domain-modeling`, `idea-wizard`, `ship`, and `triage-beads` as orphans, because no agent and no
-command references them. You invoke all six directly as `/<name>`, so a referrer would add
-nothing. The `grilling` skill also reaches `domain-modeling`, which the orphan check cannot see,
-because it follows agent and command references alone. Read the orphan rule as a prompt to check
-that a skill is still reachable.
+**Seven skills are accepted orphans.** `/validate-plugin` reports `bead-create`,
+`business-ideas`, `domain-modeling`, `idea-wizard`, `publish-plugin`, `ship`, and `triage-beads` as
+orphans, because no agent and no command references them. You invoke all seven directly as
+`/<name>`, so a referrer would add nothing. The `grilling` skill also reaches `domain-modeling`,
+and `publish-plugin` invokes `ship` to land a branch. The orphan check sees neither, because it
+follows agent and command references alone. Read the orphan rule as a prompt to check that a skill
+is still reachable.
 
 ## Issue Tracking (bd + bv)
 
@@ -412,6 +434,11 @@ Complete every step below before you end a work session. The work is not complet
 6. **Clean up.** Clear the stashes, and prune the remote branches.
 7. **Verify.** Every change is committed and pushed.
 8. **Hand off.** Give the next session its context.
+
+**Publishing is a separate decision, not step 9.** The push in step 5 already put the change in
+front of every consumer, because the marketplace follows this repository's default branch.
+Numbering and tagging that state is `/publish-plugin`. Several landings usually batch into one
+release. See "Releasing" above.
 
 **Rules:**
 
