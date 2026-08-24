@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-08-24
+
 ### Added
 
 - **`publish-plugin`, a skill that cuts and publishes a release.** Publishing was manual and it
@@ -86,6 +88,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that a dated incident paid for stays: the pre-rebase already-landed check and the worktree removal
   with its three guards (2.10.1), `bd dolt push` and the linked-worktree database check
   (`58d4906`), the `--git-path` existence test, and the gate that fails closed.
+- **`pre-push` gained a second stage that refuses a push on a recorded `FAIL` verdict.** A session
+  could run `/quality-gates`, read a FAIL, and push anyway, because nothing read the verdict the
+  gates recorded. Stage 2 reads `quality-gates-report.json` from the directory
+  `git rev-parse --git-dir` resolves, so each worktree reads its own verdict about its own branch.
+  Forgiveness is the design: a missing or unparseable report warns and allows, and a verdict
+  recorded off the line being pushed warns as stale. Only a recorded FAIL refuses. Both stages
+  report separately from one push, and twelve cases in `.githooks/test_prepush.py` pin it against
+  real `git push --dry-run` runs.
+- **The response-style evals left the ship gate.** The `AGENTS.md` command block *is* the ship gate,
+  and it ended with `python3 evals/run.py`, so a non-deterministic paid suite gated every merge.
+  Sentence lengths observed across runs were 40, 38, 37, 34, 26, and 22 words against a 35-word
+  ceiling. The command stays in the block and the exclusion is stated in prose beside it, the way
+  the `pre-push` exclusions are.
+- **`/quality-gates` Step 4 is partitioned into lanes with row-level ownership.** It was one
+  sequential block of eight gates, so an orchestrator had no statement of who runs what, and three
+  cross-gate couplings survived by convention. The table now covers every row the report can
+  contain, names the inputs the orchestrator resolves once and no lane may re-derive, and gives the
+  per-field rule for reducing two change-coverage rows. The partition is by row rather than by gate,
+  because gate 1 splits per suite and gate 2 splits per surface. A residual row keeps the table
+  open, so a surface added to `route_qa.py` later cannot end up unowned.
 - **The pre-push hook no longer runs anything under `evals/`.** `python3 evals/test_run.py` was its
   fourteenth check, so the hook's documented exclusion list goes from three to four and the stage
   runs 13 checks. Cost is not the argument: that suite calls no model and takes about 2 seconds
@@ -131,9 +153,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`AGENTS.md` ended with an unterminated `<!-- BEGIN BEADS CODEX SETUP -->` marker.** It had no
   closing marker and no block behind it; `bd setup codex` wrote its configuration to `.codex/`
   instead. Removed, so a managed-block rewrite cannot treat the file's tail as its own.
-
-### Fixed
-
+- **`/tadw:ship`'s already-landed check could have destroyed work.** Step 2 built a pathspec by
+  expanding a shell variable holding a newline-separated file list. Where `IFS` excludes newline
+  that becomes one pathspec with embedded newlines, it matches no file, and `git diff` prints
+  nothing and exits 0. Step 2 reads "prints nothing" as "already landed", so the run would skip the
+  gate, skip the merge, and delete a branch it never merged. Measured on 2026-08-24: `set -- $FILES`
+  reported one argument for a four-file branch, and the documented diff printed 0 lines where
+  listing the four paths printed 918. The step now lists the paths, and says why.
+- **The wired hook commands failed on every turn when the project directory was gone.** A session
+  whose worktree is removed under it keeps running, and `CLAUDE_PROJECT_DIR` then names a directory
+  that no longer exists. Every wired command failed before reaching the script: `/bin/sh` reported
+  "No such file or directory" and exited 127, and Claude Code showed "Stop hook error",
+  "UserPromptSubmit hook error", and "PostToolUse:Bash hook error" on nearly every turn. The hook's
+  own failure paths all exit 0 so a session continues, so the wiring was producing exactly the
+  failure the script takes care to avoid.
+- **`evals/run.py` measured whichever account the shell was last switched to.** It spawned
+  `claude -p` with the parent environment inherited whole. A set `ANTHROPIC_API_KEY` failed all 12
+  calls at `invocation`, and Bedrock routing was quieter and worse: it completed against another
+  account without saying so. `ask()` now builds the child environment from `REDIRECTING_VARS`, five
+  names listed one by one with a reason each, and passes everything else through.
+- **`decision-matrix-trigger` is graded on its rule, not on markup.** The case had been red in both
+  arms since 2026-08-05, and because `python3 evals/run.py` sat in the `AGENTS.md` check list it was
+  the ship gate for every branch. Captured through `--json`, the graded string begins "Add a
+  nullable column.", so the response led with the recommendation above the table and the rule was
+  satisfied; the grader demanded markdown bold or a heading. That was the second formatting proxy to
+  fail this case on correct responses. The pattern now requires the first line to name the
+  recommended option before any table pipe, which is the order the rule is about.
 - **A branch named `<bead-id>-<slug>` now labels its bead.** The bead-labeling hook's candidate
   pattern takes a maximal hyphenated run, so `tadw-b14-hook-resolution-and-clean-tree` arrived as a
   single token, the `tadw-b14` inside it was never offered to the tracker, and the branch resolved
@@ -1755,7 +1800,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.0...HEAD
+[2.11.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.1...v2.11.0
 [2.10.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.0...v2.10.1
 [2.10.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.1...v2.10.0
 [2.9.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.0...v2.9.1
