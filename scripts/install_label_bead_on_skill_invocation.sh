@@ -188,7 +188,9 @@ fi
 #
 # The script lands before the wiring, and the order matters. Stopping here
 # leaves a file nothing calls, which is inert. The reverse order would leave
-# wiring pointing at a script that is not there, which fails on every event.
+# wiring pointing at a script that is not there, which labels nothing. The
+# guard in Step 2 keeps that state quiet rather than noisy, and quiet is not
+# the same as working, so the order still stands.
 
 if [[ -f "$DEST" ]] && cmp -s "$SOURCE" "$DEST"; then
   script_result="already current"
@@ -216,7 +218,17 @@ chmod +x "$DEST"
 # The literal command string the hook entry carries. $CLAUDE_PROJECT_DIR stays
 # unexpanded, and the inner quotes are part of the value, so the command still
 # works if a path component ever contains a space.
-HOOK_COMMAND="\"\$CLAUDE_PROJECT_DIR/$DEST_DIR/$HOOK_SCRIPT\""
+#
+# The `test -x` guard is what keeps a vanished project directory quiet. A session
+# whose worktree is removed under it keeps running, and $CLAUDE_PROJECT_DIR then
+# names a directory that is gone: /bin/sh cannot find the script, exits 127, and
+# Claude Code reports a hook error on nearly every turn. The script's own failure
+# paths all exit 0 so a session continues, and without this guard the wiring
+# produced exactly the failure the script takes such care to avoid.
+#
+# The path is written twice rather than held in a shell variable. A hook command
+# string is not the place to assume Claude Code leaves $-expansion alone.
+HOOK_COMMAND="test -x \"\$CLAUDE_PROJECT_DIR/$DEST_DIR/$HOOK_SCRIPT\" && exec \"\$CLAUDE_PROJECT_DIR/$DEST_DIR/$HOOK_SCRIPT\" || exit 0"
 
 # Read the current settings into a variable rather than patching the file in
 # place, and create nothing yet. A repository that had no settings.json must

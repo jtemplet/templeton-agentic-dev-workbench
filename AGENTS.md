@@ -284,6 +284,20 @@ unnoticed: stderr was the only record, and nothing surfaces it. Two things now a
   writes nothing at all: no label, no export, no marker, no log line. Run it from a terminal when a
   label you expected did not appear.
 
+**A session can outlive the directory it was started in.** Landing a bead removes its worktree, and a
+session still open in that worktree keeps running with `$CLAUDE_PROJECT_DIR` naming a directory that
+is gone. Every wired command then failed before reaching the script: `/bin/sh` reported
+`No such file or directory`, exited 127, and Claude Code showed `Stop hook error`,
+`UserPromptSubmit hook error`, and `PostToolUse:Bash hook error` on nearly every turn. So each wired
+command now reads `test -x <path> && exec <path> || exit 0`, and a missing script is a silent no-op.
+
+Two things follow, and the second is the one to act on. The hook's own failure paths all exit 0 so a
+session continues, and the wiring was producing exactly the failure the script takes such care to
+avoid. And the guard only stops the noise: a session whose project directory is gone labels nothing,
+because the script that writes the log is the missing thing. **End that session and start a new one
+in a directory that exists.** `hooks/test-claude-scripts.sh` pins both halves, the silent miss and
+the run that still reaches the script.
+
 ## Key Design Principles
 
 ### Verification-First Approach

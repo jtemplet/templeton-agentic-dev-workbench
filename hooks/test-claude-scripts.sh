@@ -1091,6 +1091,85 @@ if case_start "install/check: an uninstalled repository reports that, rather tha
 fi
 
 # ---------------------------------------------------------------------------
+# The wired command string itself
+#
+# Every case above runs the hook script directly, so none of them exercises the
+# shell line settings.json actually carries. That line is where tadw-1rf lived:
+# a session outlived the worktree it was started in, $CLAUDE_PROJECT_DIR then
+# named a directory that was gone, /bin/sh exited 127 before reaching the
+# script, and Claude Code reported a hook error on nearly every turn. The script
+# exits 0 on every failure path it can see; this is the failure it cannot see.
+# ---------------------------------------------------------------------------
+
+HOOK_SCRIPT_NAME="label_bead_on_skill_invocation.sh"
+
+# The command as installed, read back out of settings.json rather than rebuilt
+# here. A test that rebuilds the string proves the test right, not the wiring.
+wired_command() {  # wired_command <repo> <event>
+  jq -r --arg e "$2" --arg name "$HOOK_SCRIPT_NAME" '
+    .hooks[$e][] | (.hooks // [])[] | select((.command? // "") | contains($name)) | .command
+  ' "$1/.claude/settings.json" | head -1
+}
+
+# run_wired <repo> <project-dir> <payload>; sets WIRED_CODE, writes .wiredout/.wirederr
+run_wired() {
+  local repo="$1" project_dir="$2" body="$3" cmd
+  sandbox_path "$repo"
+  cmd="$(wired_command "$repo" Stop)"
+  : > "$repo/.bdlog"; : > "$repo/.bdcalls"
+
+  # An empty command would be `sh -c ""`, which exits 0 and prints nothing, so
+  # every assertion in these cases would pass against wiring that is not there.
+  # That is the hole the footer of this file warns about, one layer down.
+  if [[ -z "$cmd" ]]; then
+    WIRED_CODE=125
+    printf 'NOT WIRED: no Stop command in settings.json names %s\n' "$HOOK_SCRIPT_NAME" \
+      > "$repo/.wiredout"
+    cp "$repo/.wiredout" "$repo/.wirederr"
+    return
+  fi
+
+  # The payload arrives on stdin from a FILE, not a pipe. The guard exits without
+  # reading it, and `pipefail` is on for this suite, so a payload bigger than the
+  # pipe buffer would kill printf with SIGPIPE and hand back 141 as the hook's
+  # exit status. Measured: 200KB gives 141, the payloads here give 0. A file
+  # keeps WIRED_CODE the hook's own status at any payload size.
+  printf '%s' "$body" > "$repo/.wiredin"
+  ( cd "$repo" \
+    && PATH="$BINDIR:$PATH" \
+       CLAUDE_PROJECT_DIR="$project_dir" \
+       BD_REPO="$repo" BD_LOG="$repo/.bdlog" BD_CALLS="$repo/.bdcalls" \
+       BD_SHOW_COUNT_FILE="$repo/.bdshows" \
+       sh -c "$cmd" < "$repo/.wiredin" > "$repo/.wiredout" 2> "$repo/.wirederr" )
+  WIRED_CODE=$?
+}
+
+if case_start "install/wiring: a project directory that is gone is silent, not an error"; then
+  # No tracker state and no origin: the point of the case is that the script
+  # never runs, so anything it would have read is setup that proves nothing.
+  R="$(new_repo w1)"
+  run_installer "$R"
+  run_wired "$R" "$SANDBOX/w1-removed-under-the-session" "$(payload Stop '')"
+  assert_eq "$WIRED_CODE" 0 "exits 0, so Claude Code reports no hook error"
+  # Both streams, because Claude Code surfaces either one as the hook's output.
+  assert_eq "$(cat "$R/.wiredout")" "" "wrote nothing to stdout"
+  assert_eq "$(cat "$R/.wirederr")" "" "wrote nothing to stderr"
+fi
+
+if case_start "install/wiring: the guard still runs the script when it is there"; then
+  # The other half of the guard. A wiring that is quiet in both states labels
+  # nothing and reports nothing, which is worse than the error it replaced.
+  R="$(new_repo w2)"
+  run_installer "$R"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  qg_marker "$R" tadw-alpha-one
+  sleep 1; write_qg_report "$R" PASS
+  run_wired "$R" "$R" "$(payload Stop '')"
+  assert_eq "$WIRED_CODE" 0 "exits 0"
+  assert_match "$R/.bdcalls" "--add-label qa-d" "reached the script, which labeled the bead"
+fi
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 
