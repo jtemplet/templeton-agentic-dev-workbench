@@ -55,6 +55,10 @@
 //      name. The two share one `tadw:` namespace and the command wins, so such
 //      a command resolves back to itself. Eighteen shipped that way, hiding
 //      271,067 bytes of skill content behind their own summaries.
+//  15. The payload sizes docs/HOOKS.md cites are the real ones. That document
+//      argues the three-entry split from character counts, and nothing
+//      measured them, so its table claimed 4,499 for a core that had grown to
+//      4,780. Numbers that carry an argument have to be checked like one.
 //
 // Finally, the check count documented in docs/HOOKS.md is asserted against the
 // real total. That number drifted three times while this suite was being written.
@@ -224,6 +228,55 @@ check('the manifest wires one SessionStart entry per payload', () => {
     assert.ok(
       new RegExp(`session-start\\.js"\\s+${i}\\s`).test(entry.commandWindows),
       `Windows SessionStart entry ${i} must pass payload index ${i}`
+    );
+  });
+});
+
+// --- 1d. The documented payload sizes match the real ones ------------------
+// docs/HOOKS.md argues the three-entry split from concrete character counts:
+// a prose total with its two halves, and a per-entry table. Nothing measured
+// them, so editing either document left the argument citing sizes that no
+// longer existed. The table said 4,499 for a core that had grown to 4,780.
+// The numbers are the evidence for the design, so they are asserted, not
+// remembered.
+check('docs/HOOKS.md payload sizes match the real payloads', () => {
+  const doc = fs.readFileSync(path.join(HOOKS_DIR, '..', 'docs', 'HOOKS.md'), 'utf8');
+  const payloads = getSessionStartPayloads();
+  const num = (s) => Number(s.replace(/,/g, ''));
+
+  const prose = doc.match(
+    /combined payload is ([\d,]+) characters \(style core ([\d,]+), response style ([\d,]+)\)/
+  );
+  assert.ok(prose, 'docs/HOOKS.md must state the combined payload size and its two halves');
+
+  const core = payloads[0].length;
+  const responseStyle = payloads.slice(1).reduce((sum, p) => sum + p.length, 0);
+  assert.strictEqual(num(prose[2]), core, `docs/HOOKS.md says the style core is ${prose[2]}, but it is ${core}`);
+  assert.strictEqual(
+    num(prose[3]),
+    responseStyle,
+    `docs/HOOKS.md says the response style is ${prose[3]}, but it is ${responseStyle}`
+  );
+  assert.strictEqual(
+    num(prose[1]),
+    core + responseStyle,
+    `docs/HOOKS.md says the combined payload is ${prose[1]}, but it is ${core + responseStyle}`
+  );
+
+  // One table row per payload, each carrying that payload's own length. A row
+  // per entry is what makes the "wire one entry per index" argument readable.
+  const rows = [...doc.matchAll(/^\| (\d+) \| [^|]+ \| ([\d,]+) \|$/gm)];
+  assert.strictEqual(
+    rows.length,
+    payloads.length,
+    `docs/HOOKS.md tabulates ${rows.length} payloads but the splitter produces ${payloads.length}`
+  );
+  rows.forEach((row, i) => {
+    assert.strictEqual(Number(row[1]), i, `docs/HOOKS.md payload table must list entry ${i} in order`);
+    assert.strictEqual(
+      num(row[2]),
+      payloads[i].length,
+      `docs/HOOKS.md says payload ${i} is ${row[2]} chars, but it is ${payloads[i].length}`
     );
   });
 });

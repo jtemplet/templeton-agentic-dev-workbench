@@ -42,16 +42,16 @@ hook output string at **10,000 characters**. The cap applies to plain stdout and
 `hookSpecificOutput.additionalContext` alike, so no output format avoids it. Anything longer
 is written to a file and replaced with a short preview plus that path.
 
-The combined payload is 20,275 characters (style core 4,780, response style 15,495), just
+The combined payload is 20,411 characters (style core 4,780, response style 15,631), just
 over twice the cap. Under a single entry the session received the first ~2,000 characters
 and a file path. The coding core arrived truncated after principle 4, and **the response style
 never arrived at all**.
 
 That failure was invisible from inside a session, and this is the part worth remembering. The
-style core's marker sits at byte 5, inside the surviving preview, so a session looked correctly
-loaded. The response style's marker sits at byte 4,507, inside the discarded remainder. The one
-signal designed to prove the injection worked was the one signal the truncation could not
-reach.
+style core's marker is the payload's first line, inside the surviving preview, so a session
+looked correctly loaded. The response style's marker sits at byte 4,780, past the preview cut
+and inside the discarded remainder. The one signal designed to prove the injection worked was
+the one signal the truncation could not reach.
 
 The fix is to split, not to shrink. Because the cap is per output and Claude receives the
 `additionalContext` of every hook that matched the event, the payload ships from several
@@ -59,7 +59,7 @@ manifest entries that differ only in a payload index:
 
 | Entry | Payload | Characters |
 |---|---|---|
-| 0 | Coding-style core | 4,499 |
+| 0 | Coding-style core | 4,780 |
 | 1 | Response style, part 1 | 9,854 |
 | 2 | Response style, part 2 | 5,777 |
 
@@ -105,11 +105,12 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 18 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 19 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
-frontmatter stripped), the two that hold the split shut (every payload inside the
-10,000-character cap, and one manifest entry per payload with its own index), the
+frontmatter stripped), the three that hold the split shut (every payload inside the
+10,000-character cap, one manifest entry per payload with its own index, and the character
+counts above measured against the real payloads rather than remembered), the
 SubagentStart JSON wrapping (response style absent), both off-switch paths, the **manifest**
 (the matcher covers all five SessionStart sources, every referenced script exists, every
 command routes through the wrapper with a fallback marker, and the Windows command honors both

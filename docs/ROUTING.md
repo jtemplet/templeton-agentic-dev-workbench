@@ -3,6 +3,9 @@
 The long form of the routing table in `AGENTS.md`: which command, skill, or agent to
 reach for per task, and what each one does. The workflow pipelines live in `README.md`.
 
+This covers 18 of the 30 commands. The twelve without a section here are named in the
+`AGENTS.md` pointer, and each has a one-line description in `README.md`.
+
 ## Language-Specific Workflows
 
 ### Python Development

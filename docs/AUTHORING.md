@@ -93,7 +93,7 @@ Agents should be placed in `agents/` and follow this structure:
 name: agent-name
 description: When to use this agent
 model: inherit
-tools: [list of allowed tools]
+tools: ["Read", "Bash", "Grep", "Glob", "Skill"]
 ---
 
 # Role: [Agent Role]

@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`AGENTS.md` is rewritten in Simplified Technical English.** It went from 4,367 words to
+  3,613, and from 22 sentences over the ASD-STE100 25-word limit to none. The longest sentence
+  was 48 words. Every section now states one fact per sentence and uses the active voice. This
+  file is injected into every session in this repository, so its length is a running context
+  cost rather than a one-time read.
+- **The bead-label hook's rationale moved to `docs/PORTABLE-HOOKS.md`.** It was 78 lines of
+  `AGENTS.md`, the longest section in the file, and most of it was incident history rather than
+  operating instructions: the `atlas` copy-of-record correction, the 0.53-second `bd show`
+  measurement behind the narrowing filters, the two unnoticed outages, and the exit-127 worktree
+  failure. `AGENTS.md` keeps what an agent must act on and links to the rest, which is the split
+  it already uses for `docs/HOOKS.md`, `docs/ROUTING.md`, and `docs/beads-workflow.md`. No fact
+  was dropped: every identifier in the old section still resolves in one of the two files. The
+  two documents together are longer than the one they replace, because short sentences take more
+  lines. Only the always-loaded half got shorter, which is the half that costs context.
+
+- **`CLAUDE.md` is now a symlink to `AGENTS.md`.** It previously held `@AGENTS.md` plus its own
+  copy of the `bd`-managed Beads block, which `AGENTS.md` also carried. The two copies had already
+  parted: `AGENTS.md` listed `bd dolt push` in the team-maintainer step and `CLAUDE.md` did not.
+  Nothing was lost in the merge, since every other line of `CLAUDE.md` appeared in `AGENTS.md`
+  verbatim. One file now means the two names cannot disagree again.
+- **`docs/HOOKS.md` payload sizes are asserted rather than remembered.** That document argues the
+  three-entry `SessionStart` split from character counts, and nothing measured them, so its table
+  said the coding core was 4,499 characters when it had grown to 4,780 and its prose put the
+  combined payload at 20,275 when it was 20,411. `node hooks/test-hooks.js` gained a check that
+  reads both the prose total and the per-entry table and compares them to the real payloads, so
+  editing either injected document now fails the suite instead of silently dating the argument.
+  The suite runs 19 checks, up from 18.
+
 - **`/build` now labels its bead `implemented` when the run completes.** The bead-labeling hook
   (both `scripts/label_bead_on_skill_invocation.sh`, which ships to other repositories, and the
   `.claude/scripts/` copy wired here) maps `feature-development` to `implemented` in inject mode,
@@ -36,6 +64,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   into `.claude/settings.json`. The wired copy's extra `reviewed` entries (`style-frontend`,
   `style-swift`, `style-go`, `terraform-iac-expert`, `agentic-clean-code`) moved into the
   distributed copy first, so nothing it labeled is lost.
+
+### Fixed
+
+- **`AGENTS.md` said CI runs the first four checks in its list; it runs a different four.**
+  `.github/workflows/lint.yml` runs `rumdl fmt --check .`, `node hooks/test-hooks.js`, and both
+  framework-leak checks, skipping `bash hooks/test-claude-scripts.sh`, which sits third in the
+  list. That suite is enforced only by `.githooks/pre-push`, and `AGENTS.md` now says so.
+- **`AGENTS.md` claimed `docs/ROUTING.md` covers every row of the routing table.** It covers 18 of
+  the 30 commands. Both documents now name the gap, and `tadw-routing-gaps-9wq` covers closing it.
+- **`AGENTS.md` ended with an unterminated `<!-- BEGIN BEADS CODEX SETUP -->` marker.** It had no
+  closing marker and no block behind it; `bd setup codex` wrote its configuration to `.codex/`
+  instead. Removed, so a managed-block rewrite cannot treat the file's tail as its own.
 
 ## [2.10.1] - 2026-08-21
 
