@@ -7,6 +7,10 @@
 .beads/issues.jsonl merge=union
 .beads/interactions.jsonl merge=union
 
+# The changelog is append-only too: every branch adds to [Unreleased], so a
+# conflict there is structural and both entries are correct
+CHANGELOG.md merge=union
+
 # ============================================================================
 # Line Ending Normalization (cross-platform consistency)
 # ============================================================================

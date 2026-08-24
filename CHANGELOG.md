@@ -37,6 +37,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   editing either injected document now fails the suite instead of silently dating the argument.
   The suite runs 19 checks, up from 18.
 
+- **`/tadw:ship` resolves a `CHANGELOG.md` conflict by keeping both entries.** Step 2 aborted on any
+  conflict outside `.beads/issues.jsonl`, on the reasoning that resolving one means judging code. A
+  changelog is not code: every branch appends to the same `[Unreleased]` section, so a conflict there
+  is structural rather than a disagreement, and both entries are correct. The rule was written by
+  exclusion, which is how the changelog got swept in with the source files. Two paths now resolve
+  mechanically, in whatever combination the conflicted set holds, and any third path still aborts.
+  `.gitattributes` also marks `CHANGELOG.md merge=union` so git keeps both sides here without raising
+  the conflict at all. Step 4 gained the third worktree state that this repository is actually in: no
+  worktree holding the default branch, and a main checkout parked on an unrelated branch with
+  uncommitted files, where the run lands in a temporary worktree instead of moving either one.
+- **`/tadw:ship` now ships work that has no bead.** A branch whose name yields no bead id used to
+  stop the run, on the reasoning that landing work you cannot name defeats the build loop. That
+  reasoning covers a bead that went missing, and not the ordinary case: a unit of work nobody filed a
+  bead for, sitting on a reviewed commit. Such a run is now **bead-free**, the path the skill already
+  had for a repository with no tracker at all. It skips four things (`bd close`, `bd dolt push`, the
+  bead id in the commit subject, and the `Closes` line) and nothing else: every gate, guard, and
+  cleanup step still runs, and the report says "bead-free" twice, with the cause. Three tracker stops
+  remain, because each one means something is wrong rather than absent: two beads resolving from one
+  branch, a bead id passed as an argument that the tracker does not hold, and a bead already closed.
+- **`/tadw:ship` is 309 lines shorter, and four of its branches are gone.** The skill was 656 lines
+  for a six-command happy path, so most of it was failure handling. Two thirds of the cut is wording:
+  the rationale essays behind each rule became one clause each, and the `Critical Rules` "Always"
+  list and the 13-item `Quality Checklist` went, because every entry restated a step. The rest is
+  behavior, and each removal was checked rather than assumed. **The 19 block-reason slugs are now
+  five categories** (`gate`, `conflict`, `tracker`, `git-state`, `internal`), because nothing reads
+  them: `SHIP_BLOCKED` appears in this repository only in prose, and `outrigger` never mentions
+  `SHIP_DONE`, `SHIP_BLOCKED`, or `tadw:ship` anywhere. Its `closeout_verify=merged` arm checks the
+  landing commit is an ancestor of main and the bead reads `closed`, so `SHIP_DONE <hash>` is the
+  part of the contract that carries weight, and it is unchanged. The prose beside a stop now carries
+  the exact condition, which is what a human reads either way. **The tracker-conflict path no longer
+  probes for `outrigger merge-tracker`**, which no installed version ships: `outrigger` answers
+  `Unknown command: merge-tracker`. Re-exporting from the database is the whole resolution. **A moved
+  base or a rejected push now retries once instead of three times**, dropping the attempt counter
+  shared across Steps 4 and 5. **Step 3's six-row runner table became one sentence.** Every guard
+  that a dated incident paid for stays: the pre-rebase already-landed check and the worktree removal
+  with its three guards (2.10.1), `bd dolt push` and the linked-worktree database check
+  (`58d4906`), the `--git-path` existence test, and the gate that fails closed.
 - **`/build` now labels its bead `implemented` when the run completes.** The bead-labeling hook
   (both `scripts/label_bead_on_skill_invocation.sh`, which ships to other repositories, and the
   `.claude/scripts/` copy wired here) maps `feature-development` to `implemented` in inject mode,
