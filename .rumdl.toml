@@ -32,6 +32,13 @@ exclude = [
     "dist",
     "build",
 
+    # outrigger's per-repo state. MEMORY.md documents its own format as
+    # "each `- ` bullet is one entry", and MD038 wants to strip that trailing
+    # space out of the inline code, which would make the file contradict the
+    # format it is describing. The directory is tracked; it is only the linter
+    # that has to stay out of it.
+    ".outrigger",
+
     # Specific files or patterns
     "CHANGELOG.md",
     "LICENSE.md",

@@ -25,16 +25,21 @@
 #   3. TADW_PREPUSH=off is a documented escape, the way TADW_STYLE_CORE=off is.
 #      An undocumented workaround is one people invent under deadline anyway.
 #
-# TWO CHECKS FROM THE AGENTS.md BLOCK ARE DELIBERATELY ABSENT.
+# FOUR CHECKS FROM THE AGENTS.md BLOCK ARE DELIBERATELY ABSENT.
 #
-#   `python3 evals/run.py` is every case a real model call: far too slow and too
-#   expensive to sit on a push.
+#   NOTHING UNDER evals/ IS TIED TO A GIT HOOK. Author direction, 2026-08-23, and
+#   it covers both eval commands. `python3 evals/run.py` is every case a real model
+#   call: far too slow and too expensive to sit on a push. `python3
+#   evals/test_run.py` calls no model and costs about 2 seconds, so cost is not why
+#   it went: the evals are a measurement you run deliberately, and the hook is not
+#   where they belong. They stay in the AGENTS.md list, so the ship gate still runs
+#   the harness suite.
 #
 #   `python3 .githooks/test_prepush.py` is this hook's own suite, and it pushes
 #   inside a throwaway fixture whose core.hooksPath points back here. Running it
 #   from here would recurse until something gave out.
 #
-# `claude plugin validate .` is absent for a third reason: reference-transaction
+# `claude plugin validate .` is absent for a reason of its own: reference-transaction
 # already gates it at the tag, which is the boundary where a broken manifest stops
 # being a local mistake, and spawning the claude CLI is the slowest check of the
 # set.
@@ -144,7 +149,6 @@ check python3 skills/quality-gates/scripts/check_secrets.py
 check python3 skills/quality-gates/scripts/test_check_hygiene.py
 check python3 skills/quality-gates/scripts/test_route_qa.py
 check python3 skills/quality-gates/scripts/test_probe_api.py
-check python3 evals/test_run.py
 
 elapsed=$(( $(date +%s) - started ))
 

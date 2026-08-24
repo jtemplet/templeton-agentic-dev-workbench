@@ -1,0 +1,85 @@
+# Billing mode: subscription (default) or api. In subscription mode outrigger
+# scrubs ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN from the environment so the
+# claude CLI uses your Max subscription OAuth instead of silently billing the
+# API account. Set to api to bill an API key (e.g. a work repo on a company
+# key). Override per-run with --billing or the OUTRIGGER_BILLING env var.
+# billing = subscription
+
+# Outrigger phase-tool invocations.
+# Each value is the full invocation phrase used in rendered prompts (so the
+# prompt text reads naturally regardless of whether the tool is an agent,
+# a skill, or a slash command). Single-quote values; backticks are literal.
+
+implement_tool='the `tadw:software-engineer` agent'
+simplify_tool='the `/simplify` skill'
+
+# Code review: the wrapper measures the diff size at render time and picks
+# the tool deterministically (the agent does not evaluate the threshold).
+# Small = files <= max_files AND total lines changed <= max_lines.
+review_tool_small='the `tadw:review-fresh-eyes` skill'
+review_tool_large='the `tadw:code-reviewer` agent'
+review_small_max_files=5
+review_small_max_lines=250
+
+qa_tool='the `/qa` skill'
+
+# reconcile_tool is optional. Many review tools auto-fix and never reach
+# reconcile; in that case this key is unused. When reconcile does run with
+# nothing set, the prompt reads "via direct edits" and the agent applies
+# fixes itself. Set this only if you have a dedicated fix-applicator tool.
+# reconcile_tool='the `your-fixer-agent` agent'
+
+# closeout_tool is optional, and unset means "use outrigger's shipped landing
+# procedure" (prompts/closeout_default.md: publish the bead's hand-off, push
+# the feature branch, open a GitHub PR). Set it when this project lands work
+# some other way: a local squash-merge, a forge that is not GitHub, a merge
+# queue, a release step before a branch is publishable.
+# closeout_tool='the `/your-ship` skill'
+
+# What a closeout claim must prove. The wrapper never takes OUTRIGGER_PR_OPEN
+# at face value; this key chooses which reality it checks against.
+#   pr     (default) a GitHub PR is open, the remote feature branch exists, and
+#          the bead is in_progress carrying needs-human.
+#   merged the landed commit is an ancestor of the main branch and the bead is
+#          closed. For projects that land locally with no PR.
+#   none   trust the emitted token. Logged loudly at run start and at the
+#          terminal, because it turns closeout into an unverified claim.
+# Set this to match closeout_tool: a tool that merges locally fails `pr`.
+# closeout_verify = pr
+
+# Dev-task phase pipeline: the ordered forward phases every bead runs through.
+# Unset = development,review,qa,acceptance,closeout (simplify is opt-in). A
+# custom value must be an ordered subset of
+# development,simplify,review,qa,acceptance,closeout, always including
+# development, review, and closeout; reconcile is structural (the loop-back
+# for a blocked review / failed qa) and is never listed. The failure edges are
+# automatic; you are only ordering the happy path.
+#
+# acceptance is in the default but is NOT a mandatory anchor: a pipeline that
+# omits it stays valid and simply never runs the gate. If you pin an explicit
+# value below, list acceptance or you opt out of it silently.
+#
+# Uncomment to run the simplify phase (quality cleanup) before code review:
+# dev_pipeline = development,simplify,review,qa,acceptance,closeout
+
+# Triage age escalation. A bead's effective priority improves by one tier for
+# every full aging period it has waited, floored at P1 so waiting can never
+# manufacture a P0. Computed at rank time from the filed priority and
+# created_at; the tracker is never rewritten. Both `outrigger run`'s picker and
+# `outrigger inbox` use it, and the inbox marks an escalated row with `*`.
+# Set to 0 to disable escalation and rank by the filed priority alone. Raise it
+# to slow a backlog's convergence on P1; once a backlog has converged, filing
+# P0 is the only way to jump the queue.
+# triage_age_escalate_days = 14
+
+# Rate-limit pause-and-resume. When the API reports rate_limit_error the run
+# pauses and retries the SAME phase rather than ending (a Max subscription's
+# 5-hour window resets while the loop waits). The pause is interruptible via
+# .outrigger/stop and its seconds are excluded from --max-wall-seconds.
+# rate_limit_max_retries = 5
+# rate_limit_wait_max_seconds = 3600
+
+# Webhook URL for terminal notifications (needs-human, PR opened, run end).
+# POSTs a Slack-compatible {"text":"..."} JSON payload via curl (best-effort).
+# The URL is a secret; payloads carry bead titles and reasons unsanitized.
+# notify_webhook_url='https://hooks.slack.com/services/T.../B.../...'

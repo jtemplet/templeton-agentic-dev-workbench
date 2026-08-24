@@ -21,7 +21,8 @@
       ".rumdl_cache": true,
       ".ruff_cache": true,
       ".session-handoff.md": true,
-      ".in_use": true
+      ".in_use": true,
+      "*.codex": true,
     },
 
     "search.exclude": {

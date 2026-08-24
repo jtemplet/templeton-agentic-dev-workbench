@@ -795,6 +795,103 @@ if case_start "label/worktree: a label from a worktree reaches the tracker unpin
 fi
 
 # ---------------------------------------------------------------------------
+# Narrowing the candidate list before paying for it
+#
+# Every surviving candidate costs one `bd show` subprocess, and this hook
+# BLOCKS UserPromptSubmit. Measured against fathom's tracker on 2026-08-23, one
+# bd show takes 0.53s, so twelve of them is six seconds of a person waiting to
+# type. Widening the pattern to see hyphen-free ids made this worse, not
+# better: it now matches every lowercase word in a prompt.
+#
+# Both filters only narrow. bd still decides, and every case below asserts
+# against the recorded argv of bd, which is what the hook TRIED.
+# ---------------------------------------------------------------------------
+
+seed_export() {  # seed_export <repo> <id>...: the ids the prefix filter learns from
+  local dir="$1"; shift
+  : > "$dir/.beads/issues.jsonl"
+  local id
+  for id in "$@"; do printf '{"id":"%s"}\n' "$id" >> "$dir/.beads/issues.jsonl"; done
+  sgit "$dir" add -A && sgit "$dir" commit --quiet -m "seed export"
+}
+
+if case_start "label/narrow: hyphenated words that carry no known prefix never reach bd"; then
+  # The noise is LONGER than the real id, so longest-first probes it first.
+  # Counting probes is the assertion that matters: "did it label the bead" is
+  # true either way, and says nothing about what the person waited for.
+  R="$(new_repo n1 with-origin)"
+  seed_export "$R" "tadw-alpha-one"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(jq -n '{hook_event_name:"UserPromptSubmit",
+    prompt:"/simplify tadw-alpha-one needs-human-review-immediately pre-commit-hook-configuration"}')"
+  assert_match "$R/.bdcalls" "--add-label simplified" "still labeled the bead"
+  assert_eq "$(grep -c '^show ' "$R/.bdcalls")" "1" "reached the id on the first probe"
+  assert_no_match "$R/.bdcalls" "^show needs-human" "never probed needs-human"
+  assert_no_match "$R/.bdcalls" "^show pre-commit" "never probed pre-commit"
+fi
+
+if case_start "label/narrow: a historical prefix in the export still resolves"; then
+  # fathom's case: issues from before its cutover carry life-os- and new ones
+  # carry fathom-, and only the newer prefix is in config.yaml. A filter built
+  # from the config alone would drop every older bead.
+  R="$(new_repo n2 with-origin)"
+  seed_export "$R" "fathom-new-one" "life-os-old-one"
+  printf 'issue-prefix: fathom\n' > "$R/.beads/config.yaml"
+  on_branch "$R" "feature/life-os-old-one"
+  export BD_KNOWN="life-os-old-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_match "$R/.bdcalls" "--add-label reviewed" "resolved the historical prefix"
+fi
+
+if case_start "label/narrow: the positional segment is exempt from the prefix filter"; then
+  # Segment two is not a guess about shape, so a shape filter must not overrule
+  # it. Here it is hyphenated and carries a prefix this repository has never
+  # seen, which is exactly what the filter is built to reject.
+  R="$(new_repo n3 with-origin)"
+  seed_export "$R" "tadw-alpha-one"
+  on_branch "$R" "outrigger/other-team-bead/rank-beads-and-reminders"
+  export BD_KNOWN="other-team-bead" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_match "$R/.bdcalls" "^show other-team-bead" "probed it anyway"
+  assert_match "$R/.bdcalls" "--add-label reviewed" "and labeled the bead"
+fi
+
+if case_start "label/narrow: ordinary words in a prompt cost no tracker call at all"; then
+  # The widened pattern matches every lowercase word, so this is the case that
+  # would otherwise be six seconds of blocked input for no bead.
+  R="$(new_repo n4 with-origin)"
+  seed_export "$R" "tadw-alpha-one"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(jq -n '{hook_event_name:"UserPromptSubmit",
+    prompt:"/simplify run the pre-commit and code-review checks before you push"}')"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  assert_eq "$(grep -c '^show ' "$R/.bdcalls")" "0" "probed nothing"
+  assert_match "$R/.hookerr" "no candidate resolved to a bead" "and said so"
+fi
+
+if case_start "label/narrow: a bare id keeps its digit-and-length exemption"; then
+  R="$(new_repo n5 with-origin)"
+  seed_export "$R" "fathom-alpha-one"
+  export BD_KNOWN="e12" BD_LABELS_JSON="" BD_ID_PREFIX="fathom-"
+  run_hook "$LABEL" "$R" "$(jq -n '{hook_event_name:"UserPromptSubmit", prompt:"/simplify e12"}')"
+  assert_match "$R/.bdcalls" "^show e12" "probed the bare short id"
+  assert_match "$R/.bdcalls" "^update fathom-e12 --add-label simplified" "and labeled it"
+  unset BD_ID_PREFIX
+fi
+
+if case_start "label/narrow: a repository with no prefixes to learn keeps the old behavior"; then
+  # Echoing no prefixes DISABLES the hyphen filter rather than rejecting
+  # everything, so a fresh clone with no export behaves as it did before.
+  R="$(new_repo n6 with-origin)"
+  : > "$R/.beads/issues.jsonl"
+  sgit "$R" add -A && sgit "$R" commit --quiet -m "empty export"
+  on_branch "$R" "feature/tadw-alpha-one"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_match "$R/.bdcalls" "--add-label reviewed" "resolved with the filter disabled"
+fi
+
+# ---------------------------------------------------------------------------
 # The durable log, and --doctor
 #
 # The hook exits 0 on every failure path, so a skill runs whether or not its
@@ -1235,7 +1332,10 @@ if case_start "label/export: an already-modified export is refreshed without the
   # Refreshing a file that is already dirty dirties nothing further, so the
   # reason for skipping does not apply and freshness wins.
   R="$(new_repo d2c with-origin)"
-  echo '{"id":"edited-by-hand"}' >> "$R/.beads/issues.jsonl"
+  # An id carrying this repository's own prefix. A made-up one would teach
+  # known_id_prefixes a prefix this repository does not use, and the candidate
+  # filter would then correctly drop the very bead the case is about.
+  echo '{"id":"tadw-alpha-one","note":"edited by hand"}' >> "$R/.beads/issues.jsonl"
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
   assert_match "$R/.bdcalls" "export -o" "refreshed the already-dirty export"

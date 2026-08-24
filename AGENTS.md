@@ -10,7 +10,7 @@ This is a personal Claude Code plugin repository - an agentic development workbe
 
 These are the checks that run against this repository itself. CI
 (`.github/workflows/lint.yml`) runs the first four on every push and pull request.
-`.githooks/pre-push` runs all of them except the last three, so most of this list is enforced
+`.githooks/pre-push` runs all of them except the last four, so most of this list is enforced
 locally rather than remembered (see "Git hooks" below).
 
 ```bash
@@ -27,9 +27,9 @@ python3 skills/quality-gates/scripts/check_secrets.py                # assert no
 python3 skills/quality-gates/scripts/test_check_hygiene.py          # regression suite for the hygiene counter
 python3 skills/quality-gates/scripts/test_route_qa.py                # regression suite for the QA-method router
 python3 skills/quality-gates/scripts/test_probe_api.py               # regression suite for the live API probe
-python3 evals/test_run.py                                     # regression suite for the eval harness; calls no model
 python3 .githooks/test_prepush.py                             # regression suite for the pre-push hook
 claude plugin validate .                                      # parses every SKILL.md frontmatter
+python3 evals/test_run.py                                     # regression suite for the eval harness; calls no model
 python3 evals/run.py                                          # response-style evals
 ```
 
@@ -56,16 +56,22 @@ git config core.hooksPath .githooks
 
 One command serves both hooks, which is most of the argument for running it on a fresh clone.
 
-**`pre-push` runs the check list above**, minus the last three: `claude plugin validate .`
+**`pre-push` runs the check list above**, minus the last four: `claude plugin validate .`
 (`reference-transaction` already gates it at the tag, and spawning the CLI is the slowest check),
-`python3 evals/run.py` (every case is a real model call, too slow and too costly for a push), and
 `python3 .githooks/test_prepush.py` (it pushes inside a fixture wired to this hook, so running it
-here would recurse).
+here would recurse), and both eval commands.
 
-It takes about 46 seconds on a warm machine, nearly all of it in the six heaviest suites.
-`test_probe_api.py` accounts for roughly 11 of those seconds and cannot be made much faster: it
-starts real servers and waits on real sockets, which is the only way to check which host it
-addresses and that it leaks no process. Three behaviors are deliberate:
+**Nothing under `evals/` is tied to a git hook.** `python3 evals/run.py` is every case a real
+model call, too slow and too costly for a push. `python3 evals/test_run.py` calls no model and
+costs about 2 seconds, so cost is not why it left the hook: the evals are a measurement you run
+deliberately. Both stay in the list above, so the ship gate still runs the harness suite.
+
+That leaves 13 checks. They take tens of seconds, and the figure moves with the machine: 46
+seconds when it was first measured warm, and 68 seconds for a dry-run push on 2026-08-23. Nearly
+all of it sits in the six heaviest suites. `test_probe_api.py` accounts for roughly 11 of those
+seconds and cannot be made much faster: it starts real servers and waits on real sockets, which is
+the only way to check which host it addresses and that it leaks no process. Three behaviors are
+deliberate:
 
 - **Every check runs even after one fails**, and all failures report together. Stopping at the
   first makes you push, fail, fix, push, and fail again on the next one.
@@ -239,8 +245,11 @@ because a `SessionStart` hook cannot see the task type.
 each. They are not wired here, and `plugin.json` does not reference them.
 
 - `scripts/label_bead_on_skill_invocation.sh` labels the bead a skill invocation acts on, wired to
-  `PreToolUse` (matcher `Skill`), `UserPromptSubmit`, and `Stop`. The copy of record lives in the
-  `atlas` repository; this one is a copy for distribution.
+  `PreToolUse` (matcher `Skill`), `UserPromptSubmit`, and `Stop`. **This is the copy of record.**
+  It used to say the copy of record lived in `atlas`, and `--check` disproved that on 2026-08-23:
+  atlas was the oldest of the three copies, still carrying the `br` backend detection this hook
+  dropped at the `bd` cutover. Deployed copies are downstream of this file, and drift back into it
+  only through a deliberate port.
 - `scripts/install_label_bead_on_skill_invocation.sh` installs it into whatever repository you run
   it from: it copies the hook to `.claude/scripts/`, backs up `.claude/settings.json`, and wires
   the three events. Safe to re-run, and it repairs wiring that names an older path rather than
@@ -265,6 +274,15 @@ refresh is now conditional, and it runs in two cases:
 - The export is **already** modified, where refreshing it dirties nothing further.
 - `TADW_BEAD_LABEL_EXPORT=1` is set, which restores the old unconditional behavior.
 
+**Narrowing before probing.** Each candidate bead id costs one `bd show`, measured at 0.53s against
+fathom's tracker, inside a hook that blocks `UserPromptSubmit`. Two local filters cut that list
+without a tracker call: a hyphenated candidate must carry a prefix the repository actually uses
+(taken from `.beads/config.yaml` and from the ids already in the export, so historical prefixes
+still resolve), and a bare candidate must be short and carry a digit. The branch's positional
+segment is exempt from both, because outrigger put the id there on purpose rather than it happening
+to look like one. A repository that can determine no prefixes disables the first filter rather than
+rejecting everything.
+
 `bv` reads the `bd` database directly, so it loses nothing either way. `tadw-94u` covers confirming
 which of the two Manifest reads; the environment variable exists to cover it until that is settled.
 
@@ -277,7 +295,8 @@ unnoticed: stderr was the only record, and nothing surfaces it. Two things now a
   `unresolved`, and the action. A run of `unresolved` lines is an outage. The file lives in the git
   directory, so it is never tracked and never dirties the tree, and it is truncated to its last
   1000 lines. An unmapped skill writes nothing, since a hook correctly declining to label `/adr` is
-  not an outcome. A label that `/build` or `/verify-acceptance` was asked to apply and never did
+  not an outcome. Each line ends with the hash of the copy that wrote it, so a stale copy is
+  tellable from a broken one. A label that `/build` or `/verify-acceptance` was asked to apply and never did
   appears there as `OWED <label>`, which is the one failure that used to leave no trace anywhere.
 - **Before the fact.** `.claude/scripts/label_bead_on_skill_invocation.sh --doctor` resolves against
   the current branch and prints the bead, its labels, and what each labeled command would do. It

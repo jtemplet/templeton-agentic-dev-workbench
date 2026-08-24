@@ -114,38 +114,59 @@ FIXTURE_ROOT = "/tmp" if os.access("/tmp", os.W_OK) else None
 # a stale exclusion cannot sit here unnoticed.
 NOT_IN_HOOK = {
     "python3 evals/run.py": "every case is a real model call, too slow and too costly for a push",
+    "python3 evals/test_run.py": "author direction: nothing under evals/ is tied to a git hook",
     "python3 .githooks/test_prepush.py": "this suite pushes into a fixture wired to the hook, so it would recurse",
     "claude plugin validate .": "reference-transaction already gates this at the tag, and it is the slowest check",
 }
 
-# Stubbed in the fixture, not in the repository. Keys are paths, values are a
-# body that exits 0 in that file's language.
-SLOW_CHECKS = {
-    "hooks/test-hooks.js": "process.exit(0)\n",
-    "skills/quality-gates/scripts/test_check_secrets.py": "raise SystemExit(0)\n",
-    "skills/quality-gates/scripts/test_check_hygiene.py": "raise SystemExit(0)\n",
-    "skills/quality-gates/scripts/test_changed_set.py": "raise SystemExit(0)\n",
-    "skills/quality-gates/scripts/test_route_qa.py": "raise SystemExit(0)\n",
-    # About 11 seconds on its own: it starts real HTTP servers and waits on real
-    # sockets, which is the only way to pin which host it addresses and that it
-    # leaks no process. Every push case here would pay for that again.
-    "skills/quality-gates/scripts/test_probe_api.py": "raise SystemExit(0)\n",
-    # Builds git repositories in temp directories, the same shape as
-    # test_changed_set.py above, and every push case here would pay for it again.
-    "evals/test_run.py": "raise SystemExit(0)\n",
-    # The heaviest of the lot at about 14 seconds: it builds a repository, and
-    # often a merge or a worktree, for each of its cases. Same reason as the two
-    # above. `git archive` restores its executable bit and write_text keeps it,
-    # so the stub stays runnable as ./hooks/test-claude-scripts.sh.
-    "hooks/test-claude-scripts.sh": "#!/usr/bin/env bash\nexit 0\n",
+# Every check the hook runs is stubbed in the fixture, not in the repository.
+#
+# THE SUBJECT HERE IS THE HOOK'S CONTROL FLOW: which failures refuse a push,
+# which missing tools warn, what a deletion skips, which verdict file it reads.
+# Not whether the linters work. Each of those has its own suite, and the same
+# gate runs all of them beside this one, so running them again inside 31 fixture
+# pushes buys nothing and costs most of this suite's runtime.
+#
+# Measured 2026-08-23, before this stubbed everything: one push cost 2.41s with
+# the hook and 0.03s with TADW_PREPUSH=off, while building the fixture cost
+# 0.28s of git work. Six real checks inside every push were roughly 71 of the
+# suite's 79.5 seconds.
+#
+# DERIVED FROM THE HOOK, NEVER LISTED. The map used to be written out by hand,
+# which meant a check added to the hook kept running for real here until someone
+# noticed. Reading the hook's own list makes that automatic, and it cannot drift.
+STUB_BY_INTERPRETER = {
+    "python3": "raise SystemExit(0)\n",
+    "node": "process.exit(0)\n",
+    # `git archive` restores the executable bit and write_text keeps it, so the
+    # stub stays runnable as ./hooks/test-claude-scripts.sh.
+    "bash": "#!/usr/bin/env bash\nexit 0\n",
 }
+
+
+def hook_check_stubs() -> dict[str, str]:
+    """A body that exits 0 for every hook command naming a file in this tree.
+
+    A command with no path is a binary the fixture cannot replace: `rumdl` is the
+    only one, it costs 0.1s, and three cases need it real to fail on broken
+    markdown. So it stays real, and that is why this returns a subset rather than
+    covering the whole list.
+    """
+    stubs = {}
+    for command in commands_in_hook():
+        parts = command.split()
+        script = next((part for part in parts[1:] if "/" in part), None)
+        if script and parts[0] in STUB_BY_INTERPRETER:
+            stubs[script] = STUB_BY_INTERPRETER[parts[0]]
+    return stubs
+
 
 # One of the stubbed suites, restored to the only behavior that matters for the
 # leaked-GIT_DIR case: build a git repository in a temp directory, with the same
 # `-c` settings test_changed_set.py inits with. That is the whole mechanism, and
 # it runs in milliseconds instead of the twenty seconds the real suites cost.
 #
-# Written as its own check rather than by passing stub_slow=False, so the case
+# Written as its own check rather than by passing stub_checks=False, so the case
 # pins the HOOK's contract (no leaked GIT_DIR reaches a check) rather than the
 # suites' own defense against the same leak. Both layers exist; this tests one.
 GIT_FIXTURE_CANARY = """\
@@ -253,7 +274,7 @@ class Fixture:
         return digest.hexdigest()
 
 
-def build(*, stub_slow: bool = True, extra_branch: str | None = None) -> Fixture:
+def build(*, stub_checks: bool = True, extra_branch: str | None = None) -> Fixture:
     """A fixture repository plus a bare remote, with the working-tree hook in place.
 
     The tree comes from `git archive HEAD`, so it is the tracked tree and nothing
@@ -283,8 +304,8 @@ def build(*, stub_slow: bool = True, extra_branch: str | None = None) -> Fixture
     hook.chmod(0o755)
 
     fixture = Fixture(work)
-    if stub_slow:
-        for relative, body in SLOW_CHECKS.items():
+    if stub_checks:
+        for relative, body in hook_check_stubs().items():
             fixture.write(relative, body)
 
     fixture.commit_all("base")
@@ -1056,7 +1077,7 @@ def case_every_hook_command_exists() -> None:
 
 
 for name, fn in [
-    ("the hook's list is the AGENTS.md block minus three exclusions", case_command_list_matches_agents_md),
+    ("the hook's list is the AGENTS.md block minus the documented exclusions", case_command_list_matches_agents_md),
     ("every command the hook runs names a real path", case_every_hook_command_exists),
 ]:
     check(name, fn)

@@ -70,6 +70,12 @@ MARKER_TTL_SECONDS=21600  # 6 hours
 # the cost of a prose-heavy PR body.
 MAX_BEAD_PROBES=12
 
+# A bare candidate (no hyphen, no dot) longer than this is not a bead id. Every
+# bare id in this ecosystem is of the `e12` / `9ma` / `yx5` shape, and the
+# length bound plus a required digit is what stops the widened pattern from
+# offering every lowercase word in a prompt.
+MAX_BARE_ID_LENGTH=6
+
 # The durable log is truncated to its last this-many lines. The hook fires on
 # every /simplify and /code-review in a long-lived checkout, so the file has to
 # be bounded; a rotation scheme is more machinery than reading back the last
@@ -225,6 +231,30 @@ refresh_export() {
 # Bead resolution
 # ---------------------------------------------------------------------
 
+# Echo the id prefixes this repository uses, as a regex alternation, or nothing
+# when they cannot be determined.
+#
+# Two sources, both local files, because the whole point is to decide without a
+# tracker call: the configured `issue-prefix` in .beads/config.yaml, and the
+# leading token of every id already in the tracked export. The export supplies
+# the HISTORICAL prefixes the config no longer names, which fathom needs: issues
+# created before its 2026-08-12 cutover carry `life-os-` and new ones carry
+# `fathom-`.
+#
+# Echoing nothing DISABLES the filter rather than rejecting everything, so a
+# repository with no export and no configured prefix behaves exactly as it did
+# before this existed.
+#
+# Read from MAIN_ROOT, not the working directory: a worktree checks out tracked
+# files only, so its own .beads/ carries neither file.
+known_id_prefixes() {
+  {
+    sed -n 's/^issue-prefix:[[:space:]]*//p' "$MAIN_ROOT/.beads/config.yaml" 2>/dev/null
+    [[ -f "$MAIN_ROOT/$BEADS_FILE" ]] &&
+      sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([a-z][a-z0-9]*\)-.*/\1/p' "$MAIN_ROOT/$BEADS_FILE" 2>/dev/null
+  } | tr -d '"' | grep -E '^[a-z][a-z0-9]*$' | sort -u | paste -sd'|' -
+}
+
 # Bead ids here range from a bare three-character suffix to a full slug,
 # so shape alone cannot tell an id from an ordinary word. Every candidate
 # is verified against the tracker; the sources below only narrow the
@@ -252,7 +282,7 @@ refresh_export() {
 # of prose would otherwise spend the whole probe budget on words longer
 # than the id it is looking for.
 resolve_bead() {
-  local args="$1" branch="$2" sources pr_id pr_json positional matched candidates candidate found id
+  local args="$1" branch="$2" sources pr_id pr_json positional matched prefixes candidates candidate found id
   sources="$args"$'\n'"${branch//\// }"
 
   pr_id="$(echo "$args" | tr ' ' '\n' | awk '
@@ -281,6 +311,32 @@ resolve_bead() {
     | sort -k1,1n -k2,2nr \
     | cut -d' ' -f3-)"
 
+  # Two filters, both local and both cheap, because every candidate that
+  # survives costs a bd show subprocess and this hook BLOCKS UserPromptSubmit.
+  # Measured against fathom's tracker on 2026-08-23, one bd show takes 0.53s,
+  # so a prompt naming no bead would otherwise pay MAX_BEAD_PROBES x 0.53s
+  # before answering "no bead". Neither filter is an authority: each only
+  # narrows the search, and bd still decides.
+  #
+  # A HYPHENATED candidate must carry a prefix this repository actually uses.
+  # That is what removes `pre-commit`, `code-review` and `needs-human`. It is
+  # applied to hyphenated candidates only, because a bare short id carries no
+  # prefix at all and filtering those out would undo the outrigger fix above.
+  #
+  # A BARE candidate must be short and carry a digit, which every real one is
+  # and no English word is.
+  prefixes="$(known_id_prefixes)"
+  matched="$(echo "$matched" | awk \
+    -v pattern="^(${prefixes})-" \
+    -v have_prefixes="${prefixes:+1}" \
+    -v maxbare="$MAX_BARE_ID_LENGTH" '
+    $0 !~ /-/        { if (length($0) <= maxbare && $0 ~ /[0-9]/) print; next }
+    have_prefixes    { if ($0 ~ pattern) print; next }
+                     { print }
+  ')"
+
+  # The positional segment is added AFTER the filters and is exempt from both.
+  # It is not a guess about shape: outrigger put the id in that position.
   candidates="$(printf '%s\n%s\n' "$positional" "$matched" \
     | awk 'NF && !seen[$0]++' \
     | head -n "$MAX_BEAD_PROBES")"

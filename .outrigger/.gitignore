@@ -1,0 +1,5 @@
+lock.d/
+stop
+*.log
+logs/
+LESSONS*
