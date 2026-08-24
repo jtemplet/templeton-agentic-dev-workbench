@@ -244,12 +244,45 @@ each. They are not wired here, and `plugin.json` does not reference them.
 - `scripts/install_label_bead_on_skill_invocation.sh` installs it into whatever repository you run
   it from: it copies the hook to `.claude/scripts/`, backs up `.claude/settings.json`, and wires
   the three events. Safe to re-run, and it repairs wiring that names an older path rather than
-  duplicating it. `--dest-dir` moves the destination.
+  duplicating it. `--dest-dir` moves the destination. A run that overwrites an existing copy first
+  says how the two differ, in line counts and hashes, because after the copy that evidence is gone.
+- `... --check` answers the same questions and changes nothing: it reports whether the installed
+  copy matches the source and whether all three events reference it, then exits 1 if either is out
+  of step. Two kinds of drift fail independently, and the second is the one that is easy to miss:
+  a current script reached by only two events labels nothing on the third. `tadw-j80` covers wiring
+  this into `.githooks/pre-push`, and `tadw-4fn` covers sweeping the other repositories with it.
 
-Note what this gives the target repository: labeling a bead refreshes `.beads/issues.jsonl` with
-`bd export`, so the export stays current for `bv` and dashboards. It commits nothing and pushes
-nothing. The hook used to commit and push that file, which is what `tadw-0j8` was filed against;
-the commit path went away with the `bd` cutover, and that bead is closed.
+Note what this gives the target repository: labeling a bead writes the label to the `bd` database
+and **leaves the working tree exactly as clean as it found it**. It commits nothing and pushes
+nothing. The hook used to commit and push `.beads/issues.jsonl`, which is what `tadw-0j8` was filed
+against; the commit path went away with the `bd` cutover, and that bead is closed.
+
+Refreshing that export used to happen after every label, and the tree was then modified after every
+`/simplify`, `/code-review`, and `/tadw:fresh-eyes-cr`. Two tools refuse to run on a dirty tree:
+outrigger aborts its pre-flight, and `/tadw:ship` Step 4 aborts before its squash-merge. So the
+refresh is now conditional, and it runs in two cases:
+
+- The export is **already** modified, where refreshing it dirties nothing further.
+- `TADW_BEAD_LABEL_EXPORT=1` is set, which restores the old unconditional behavior.
+
+`bv` reads the `bd` database directly, so it loses nothing either way. `tadw-94u` covers confirming
+which of the two Manifest reads; the environment variable exists to cover it until that is settled.
+
+**Finding out whether it works.** Every failure path in the hook exits 0, so a skill runs whether
+or not its bead could be labeled. That is deliberate, and it is also why two total outages went
+unnoticed: stderr was the only record, and nothing surfaces it. Two things now answer the question.
+
+- **After the fact.** Every invocation that had a job to do appends one tab-separated line to
+  `<git-common-dir>/bead-label.log`: timestamp, event, skill, branch, the resolved bead id or
+  `unresolved`, and the action. A run of `unresolved` lines is an outage. The file lives in the git
+  directory, so it is never tracked and never dirties the tree, and it is truncated to its last
+  1000 lines. An unmapped skill writes nothing, since a hook correctly declining to label `/adr` is
+  not an outcome. A label that `/build` or `/verify-acceptance` was asked to apply and never did
+  appears there as `OWED <label>`, which is the one failure that used to leave no trace anywhere.
+- **Before the fact.** `.claude/scripts/label_bead_on_skill_invocation.sh --doctor` resolves against
+  the current branch and prints the bead, its labels, and what each labeled command would do. It
+  writes nothing at all: no label, no export, no marker, no log line. Run it from a terminal when a
+  label you expected did not appear.
 
 ## Key Design Principles
 

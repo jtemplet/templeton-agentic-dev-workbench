@@ -41,6 +41,11 @@
 # Every failure path logs to stderr and exits 0, so a skill runs whether
 # or not the bead could be labeled. Only inject mode writes to stdout,
 # and only well-formed hook JSON.
+#
+# Because exiting 0 hides an outage, every invocation with a job to do
+# also appends its outcome to <git-common-dir>/bead-label.log, and
+# `--doctor` answers the same question ahead of time for the current
+# branch, writing nothing.
 
 set -uo pipefail
 
@@ -58,8 +63,91 @@ QA_MAX_DEFERRED=0
 # a run that never finished cannot label a later unrelated turn.
 MARKER_TTL_SECONDS=21600  # 6 hours
 
+# How many candidates resolve_bead will verify. Each one is a bd show
+# subprocess on the critical path of every skill start, and the widened
+# pattern below offers far more tokens than any branch really carries.
+# Twelve sits well above the real branches measured here and still bounds
+# the cost of a prose-heavy PR body.
+MAX_BEAD_PROBES=12
+
+# The durable log is truncated to its last this-many lines. The hook fires on
+# every /simplify and /code-review in a long-lived checkout, so the file has to
+# be bounded; a rotation scheme is more machinery than reading back the last
+# few hundred outcomes ever needs.
+LOG_MAX_LINES=1000
+
+# Deployed copies of this script drift from the source in scripts/, and a log
+# line that does not say WHICH copy wrote it cannot tell a stale copy from a
+# broken one.
+#
+# The hash is read from the file at run time rather than stamped in at install
+# time. Stamping would make every installed copy differ from its source by
+# exactly the line asserting they are the same, which is the drift this exists
+# to detect. Reading it costs one subprocess, and only on an invocation that
+# already had a job to do.
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+SCRIPT_HASH=""
+
 log() { echo "[bead-label] $*" >&2; }
 quiet_exit() { exit 0; }
+
+# Twelve hex characters of the script's own sha256. Cached, since handle_stop
+# can log several outcomes in one run. shasum is the macOS spelling and
+# sha256sum the GNU one; if neither is there the log says "unknown" rather than
+# losing the line.
+script_hash() {
+  if [[ -z "$SCRIPT_HASH" ]]; then
+    SCRIPT_HASH="$( { shasum -a 256 "$SCRIPT_PATH" 2>/dev/null || sha256sum "$SCRIPT_PATH" 2>/dev/null; } | cut -c1-12)"
+    [[ -n "$SCRIPT_HASH" ]] || SCRIPT_HASH="unknown"
+  fi
+  echo "$SCRIPT_HASH"
+}
+
+# ---------------------------------------------------------------------
+# The durable log
+# ---------------------------------------------------------------------
+#
+# Every failure path here exits 0 by design, so a skill runs whether or not its
+# bead could be labeled. That is right, and it is also why a total outage is
+# invisible: the only record was stderr, which nothing surfaces in normal use.
+# It has now hidden one twice. Between the 2026-08-12 tracker cutover and the
+# fix for it, every label attempt logged a failure nobody read and no bead was
+# labeled. Then a full build-and-ship session on 2026-08-22 ran three labeled
+# skills against an unresolvable branch and shipped the bead unlabeled, found
+# afterwards by inspection rather than by anything in the session.
+#
+# So the outcome also goes somewhere a person can read later. Exiting 0 is
+# unchanged; this adds visibility, not a failure mode. One tab-separated line
+# per invocation that got as far as HAVING a job to do: timestamp, event,
+# skill, branch, resolved id or "unresolved", action, and the hash of the copy
+# of this script that wrote it. An unmapped skill writes nothing, since a hook
+# correctly declining to label /adr is not an outcome and logging it would bury
+# the ones that are.
+#
+# log_outcome <event> <skill> <branch> <id-or-empty> <action>
+log_outcome() {
+  [[ -n "${GIT_COMMON:-}" ]] || return 0
+  local file="$GIT_COMMON/bead-label.log"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\tscript=%s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "${2:--}" "${3:--}" "${4:-unresolved}" "$5" \
+    "$(script_hash)" \
+    >> "$file" 2>/dev/null || return 0
+  trim_log "$file"
+}
+
+trim_log() {
+  local file="$1" lines trimmed
+  lines="$(wc -l < "$file" 2>/dev/null || echo 0)"
+  (( lines > LOG_MAX_LINES )) || return 0
+  trimmed="$file.trimming"
+  # Written whole and then moved, so a run interrupted mid-trim leaves the log
+  # intact rather than half a file.
+  if tail -n "$LOG_MAX_LINES" "$file" > "$trimmed" 2>/dev/null; then
+    mv "$trimmed" "$file" 2>/dev/null || rm -f "$trimmed" 2>/dev/null
+  else
+    rm -f "$trimmed" 2>/dev/null
+  fi
+}
 
 # ---------------------------------------------------------------------
 # Shared setup
@@ -105,11 +193,30 @@ add_label() {
   refresh_export
 }
 
-# Refresh the export rather than commit it. The label lives in a gitignored bd
-# database, and .beads/issues.jsonl is a passive export bd never refreshes on
-# its own: committing it would carry a stale file into the diff, while leaving
-# it alone would make the label invisible to bv and Manifest.
+# Leave the working tree exactly as clean as it was found.
+#
+# .beads/issues.jsonl is a passive export bd never refreshes on its own, and
+# committing it would carry a stale file into the diff. So this used to refresh
+# it after every label. That cost landed on two other tools, both of which
+# refuse to run on a dirty tree: outrigger aborts its pre-flight with "tracked
+# files are modified (uncommitted changes)", and /tadw:ship Step 4 found the
+# file already modified before its squash-merge and had to back it up and
+# discard it. Both fired in the 2026-08-22 fathom session while this hook was
+# labeling nothing at all; apply mode runs on every /simplify, /code-review and
+# /tadw:fresh-eyes-cr, so a working hook would have collided on every review
+# pass.
+#
+# The default flipped rather than the feature going away. Refreshing an export
+# that is ALREADY modified dirties nothing further, so that case still runs.
+# bv reads the bd database directly and loses nothing either way. Manifest's
+# reader is unconfirmed, and TADW_BEAD_LABEL_EXPORT=1 restores the old behavior
+# for it, or for anyone who genuinely needs the file fresh mid-session.
 refresh_export() {
+  if [[ "${TADW_BEAD_LABEL_EXPORT:-}" != "1" ]] \
+    && [[ -z "$(git status --porcelain -- "$BEADS_FILE" 2>/dev/null)" ]]; then
+    log "left $BEADS_FILE alone to keep the tree clean (TADW_BEAD_LABEL_EXPORT=1 to refresh it)"
+    return 0
+  fi
   bd export -o "$BEADS_FILE" >/dev/null 2>&1 \
     || log "export refresh failed; bv and Manifest will lag"
 }
@@ -118,12 +225,34 @@ refresh_export() {
 # Bead resolution
 # ---------------------------------------------------------------------
 
-# Bead ids here range from a four-character suffix to a full slug, so
-# shape alone cannot tell an id from an ordinary hyphenated word. Every
-# candidate is verified against the tracker; the pattern only narrows
-# the search. Longest first, so a slug id beats its own prefix.
+# Bead ids here range from a bare three-character suffix to a full slug,
+# so shape alone cannot tell an id from an ordinary word. Every candidate
+# is verified against the tracker; the sources below only narrow the
+# search, and bd decides.
+#
+# Three ordered sources, because the pattern alone was blind to the
+# branches this ecosystem actually produces. The pattern used to require
+# a hyphen, and outrigger writes outrigger/<short-id>/<slug> where every
+# short id in fathom is hyphen-free (zkc.5, e12, 9ma). So the only
+# candidate it ever offered from such a branch was the slug, which
+# resolves to nothing. Every outrigger branch in that repository went
+# unlabeled.
+#
+#   1. Positional. Segment two of a branch with three or more segments
+#      is outrigger's short id verbatim, so it goes first.
+#   2. Pattern, widened to make the hyphen optional and admit a leading
+#      digit, so zkc.5, e12 and 9ma become candidates at all.
+#   3. Cap. At most MAX_BEAD_PROBES candidates, since each one is a
+#      bd show subprocess.
+#
+# Within the pattern's output, id-shaped tokens (carrying a hyphen or a
+# dot) rank above bare words, and each group is longest first so a slug
+# id beats its own prefix. The two tiers are what keeps the widened
+# pattern affordable: it now matches every lowercase word, and a PR body
+# of prose would otherwise spend the whole probe budget on words longer
+# than the id it is looking for.
 resolve_bead() {
-  local args="$1" branch="$2" sources pr_id pr_json candidates candidate found id
+  local args="$1" branch="$2" sources pr_id pr_json positional matched candidates candidate found id
   sources="$args"$'\n'"${branch//\// }"
 
   pr_id="$(echo "$args" | tr ' ' '\n' | awk '
@@ -139,12 +268,22 @@ resolve_bead() {
     fi
   fi
 
-  candidates="$(echo "$sources" \
-    | grep -oE '[a-z][a-z0-9]*(-[a-z0-9]+)+(\.[0-9]+)*' \
-    | awk '{ print length, $0 }' \
-    | sort -rn -k1,1 \
-    | cut -d' ' -f2- \
-    | awk '!seen[$0]++')"
+  positional=""
+  if [[ "$(awk -F/ '{ print NF }' <<< "$branch")" -ge 3 ]]; then
+    positional="$(cut -d/ -f2 <<< "$branch")"
+  fi
+
+  # Sorted on two keys: tier first (1 for id-shaped, 2 for a bare word),
+  # then length descending within the tier.
+  matched="$(echo "$sources" \
+    | grep -oE '[a-z0-9][a-z0-9]*(-[a-z0-9]+)*(\.[0-9]+)*' \
+    | awk '{ print ($0 ~ /[-.]/ ? 1 : 2), length, $0 }' \
+    | sort -k1,1n -k2,2nr \
+    | cut -d' ' -f3-)"
+
+  candidates="$(printf '%s\n%s\n' "$positional" "$matched" \
+    | awk 'NF && !seen[$0]++' \
+    | head -n "$MAX_BEAD_PROBES")"
   [[ -z "$candidates" ]] && return 1
 
   while IFS= read -r candidate; do
@@ -224,30 +363,53 @@ run_label_flow() {
 
   resolve_bead "$args" "$branch" || {
     log "no candidate resolved to a bead (branch '$branch')"
+    log_outcome "$event" "$skill" "$branch" "" "wanted $LABEL, no candidate resolved to a bead"
     quiet_exit
   }
 
   if has_label "$RESOLVED_JSON" "$LABEL"; then
     log "$RESOLVED_ID already labeled $LABEL"
+    log_outcome "$event" "$skill" "$branch" "$RESOLVED_ID" "already labeled $LABEL"
     quiet_exit
   fi
 
   case "$MODE" in
     apply)
-      add_label "$RESOLVED_ID" "$LABEL"
+      if add_label "$RESOLVED_ID" "$LABEL"; then
+        log_outcome "$event" "$skill" "$branch" "$RESOLVED_ID" "applied $LABEL"
+      else
+        log_outcome "$event" "$skill" "$branch" "$RESOLVED_ID" "FAILED to apply $LABEL"
+      fi
       ;;
     gate)
-      mkdir -p "$MARKER_DIR" 2>/dev/null || quiet_exit
-      printf '%s\n%s\n%s\n' "$(date +%s)" "$RESOLVED_ID" "$skill" \
+      mkdir -p "$MARKER_DIR" 2>/dev/null || {
+        log_outcome "$event" "$skill" "$branch" "$RESOLVED_ID" "FAILED to write a $LABEL marker"
+        quiet_exit
+      }
+      printf '%s\n%s\n%s\ngate\n' "$(date +%s)" "$RESOLVED_ID" "$skill" \
         > "$MARKER_DIR/${LABEL}__${RESOLVED_ID}"
       log "pending $LABEL for $RESOLVED_ID; Stop will check the run's report"
+      log_outcome "$event" "$skill" "$branch" "$RESOLVED_ID" "pending $LABEL, Stop reads the report"
       ;;
     inject)
+      # A marker beside gate's, and its fourth line is what tells them apart.
+      # Stop cannot DECIDE an inject label, because inject mode exists exactly
+      # where there is no artifact to read. What it can do is say afterwards
+      # whether the label the run was asked for ever appeared. Without this a
+      # dropped inject label leaves no trace at all: the instruction went to
+      # Claude, Claude did not act on it, and nothing recorded a debt.
+      if mkdir -p "$MARKER_DIR" 2>/dev/null; then
+        printf '%s\n%s\n%s\ninject\n' "$(date +%s)" "$RESOLVED_ID" "$skill" \
+          > "$MARKER_DIR/${LABEL}__${RESOLVED_ID}"
+      else
+        log "could not record that $LABEL was asked for; Stop will not miss it"
+      fi
       # The command in this string is for someone to run later. bd resolves its
       # own workspace, so it is one bare word with no path to quote.
       jq -n --arg event "$event" --arg ctx "When this /${skill} run is complete, add the \`${LABEL}\` label to bead ${RESOLVED_ID}, but ONLY if ${GATE}. If it does not clear that gate, add no label and say so. The command is: bd update ${RESOLVED_ID} --add-label ${LABEL}" \
         '{hookSpecificOutput:{hookEventName:$event,additionalContext:$ctx}}'
       log "deferred $LABEL for $RESOLVED_ID to the run's verdict"
+      log_outcome "$event" "$skill" "$branch" "$RESOLVED_ID" "deferred $LABEL to the run's verdict"
       ;;
   esac
 }
@@ -279,6 +441,12 @@ handle_pre() {
 #
 # Keep this keyed on COMMAND names, the opposite of classify_skill. Where
 # the two differ, only the mapping below is correct.
+#
+# `ship` and `tadw:ship` are deliberately absent, and this is the record of
+# that decision rather than an oversight. /tadw:ship CLOSES the bead, so a
+# label applied at the same moment carries no information the closed state does
+# not already carry. Adding an entry here would buy a label nobody reads and a
+# marker Stop then has to resolve.
 skill_for_command() {
   case "$1" in
     # /build is the documented entry point (commands/build.md invokes the
@@ -408,12 +576,38 @@ qa_report_passes() {
   return 0
 }
 
+# Says whether an inject label ever landed. It applies nothing: the run was
+# asked to, and either did or did not. Reading the bead is the only way to know,
+# since inject mode has no artifact by definition.
+resolve_inject_marker() {
+  local bead_id="$1" label="$2" skill="$3" branch="$4" found
+  found="$(bd show "$bead_id" --json 2>/dev/null || true)"
+
+  # An empty read is not the same as a missing label. bd writes its errors to
+  # stderr and leaves stdout empty, so calling that "owed" would report a debt
+  # that may not exist.
+  if [[ -z "$found" ]]; then
+    log "could not read $bead_id to confirm $label"
+    log_outcome Stop "$skill" "$branch" "$bead_id" "could not confirm $label, $bead_id would not read"
+    return 0
+  fi
+
+  if has_label "$found" "$label"; then
+    log "$bead_id carries $label; the run applied it"
+    log_outcome Stop "$skill" "$branch" "$bead_id" "confirmed $label, the run applied it"
+  else
+    log "$bead_id was owed $label and does not carry it"
+    log_outcome Stop "$skill" "$branch" "$bead_id" "OWED $label, the run never applied it"
+  fi
+}
+
 handle_stop() {
   init_repo
   [[ -d "$MARKER_DIR" ]] || quiet_exit
 
-  local marker basename_marker marker_label created bead_id skill report now
+  local marker basename_marker marker_label created bead_id skill mode report now branch
   now="$(date +%s)"
+  branch="$(git branch --show-current 2>/dev/null || true)"
   for marker in "$MARKER_DIR"/*; do
     [[ -e "$marker" ]] || continue
 
@@ -434,23 +628,110 @@ handle_stop() {
 
     if (( now - created > MARKER_TTL_SECONDS )); then
       log "abandoning stale marker $(basename "$marker")"
+      log_outcome Stop "$(sed -n '3p' "$marker" 2>/dev/null)" "$branch" "$bead_id" \
+        "abandoned $marker_label, the marker outlived its TTL"
+      rm -f "$marker"
+      continue
+    fi
+
+    skill="$(sed -n '3p' "$marker" 2>/dev/null)"
+
+    # A marker written before the mode line existed is a gate marker, which is
+    # what every marker meant then.
+    mode="$(sed -n '4p' "$marker" 2>/dev/null)"
+    [[ -n "$mode" ]] || mode="gate"
+    if [[ "$mode" == "inject" ]]; then
+      resolve_inject_marker "$bead_id" "$marker_label" "$skill" "$branch"
       rm -f "$marker"
       continue
     fi
 
     # Only a report written after the marker can describe this run.
-    skill="$(sed -n '3p' "$marker" 2>/dev/null)"
     report="$(report_after "$marker" "$skill")"
     [[ -z "$report" ]] && continue   # run still in progress
 
     if report_passes "$report" "$skill"; then
-      add_label "$bead_id" "$marker_label"
+      if add_label "$bead_id" "$marker_label"; then
+        log_outcome Stop "$skill" "$branch" "$bead_id" "applied $marker_label, the report passed"
+      else
+        log_outcome Stop "$skill" "$branch" "$bead_id" "FAILED to apply $marker_label"
+      fi
+    else
+      log_outcome Stop "$skill" "$branch" "$bead_id" "withheld $marker_label, the report did not pass"
     fi
     rm -f "$marker"
   done
 }
 
 # ---------------------------------------------------------------------
+# --doctor
+# ---------------------------------------------------------------------
+
+# Answers the question the log answers after the fact, before the fact: on this
+# branch, right now, would a labeled skill find its bead? It resolves and
+# prints, and writes nothing at all: no label, no export, no marker, no log
+# line. bd show is the only tracker call it makes, and that is read-only.
+#
+# The commands below are the ones a person types. Each is put through the same
+# skill_for_command and classify_skill the hook uses, so a command that has
+# stopped mapping reports "not labeled" here rather than quietly diverging from
+# a second list kept in step by hand.
+DOCTOR_COMMANDS="build simplify code-review fresh-eyes-cr qa quality-gates verify-acceptance"
+
+run_doctor() {
+  local branch command skill
+
+  init_repo
+  branch="$(git branch --show-current 2>/dev/null || true)"
+
+  echo "repository: $REPO_ROOT"
+  echo "script:     $SCRIPT_PATH ($(script_hash))"
+  echo "branch:     ${branch:-<none, detached HEAD>}"
+
+  if ! resolve_bead "" "$branch"; then
+    echo "bead:       none. No candidate from this branch resolved to a bead,"
+    echo "            so every labeled skill run here would label nothing."
+    return 0
+  fi
+
+  echo "bead:       $RESOLVED_ID"
+  echo "labels:     $(echo "$RESOLVED_JSON" | jq -r '(((.[0].labels // .labels) // []) | join(", ")) | if . == "" then "<none>" else . end' 2>/dev/null || echo "<unreadable>")"
+  echo
+  echo "What each labeled command would do here:"
+  for command in $DOCTOR_COMMANDS; do
+    if ! skill="$(skill_for_command "$command")"; then
+      printf '  /%-18s not labeled\n' "$command"
+      continue
+    fi
+    if ! classify_skill "$skill"; then
+      printf '  /%-18s not labeled (%s is unmapped)\n' "$command" "$skill"
+      continue
+    fi
+    if has_label "$RESOLVED_JSON" "$LABEL"; then
+      printf '  /%-18s nothing; %s already carries "%s"\n' "$command" "$RESOLVED_ID" "$LABEL"
+    else
+      printf '  /%-18s %s "%s"\n' "$command" "$(doctor_verb "$MODE")" "$LABEL"
+    fi
+  done
+}
+
+# What a mode does, in the words a person would use for it.
+doctor_verb() {
+  case "$1" in
+    apply) echo "add" ;;
+    gate)  echo "wait for its report, then add" ;;
+    *)     echo "ask the run to add" ;;
+  esac
+}
+
+# ---------------------------------------------------------------------
+
+# Guarded ahead of the payload read on purpose. Everything below blocks on
+# stdin, and --doctor is run from a terminal where no hook payload is coming.
+if [[ "${1:-}" == "--doctor" ]]; then
+  run_doctor
+  exit 0
+fi
 
 payload="$(cat)"
 event="$(echo "$payload" | jq -r '.hook_event_name // empty' 2>/dev/null || true)"

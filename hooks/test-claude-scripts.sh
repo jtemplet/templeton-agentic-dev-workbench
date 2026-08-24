@@ -169,8 +169,18 @@ sgit() {
 #
 # bd models just enough tracker to drive the hooks: it knows the ids in
 # BD_KNOWN, records every invocation, and appends to the beads file on a
-# successful close or label so the hooks' "is the beads file dirty" check has
+# successful CLOSE so the close hook's "is the beads file dirty" check has
 # something real to see.
+#
+# A label deliberately writes nothing there. Real `bd update --add-label`
+# writes the Dolt database, and .beads/issues.jsonl only changes when
+# `bd export` rewrites it. A stub that dirtied the file on every label would
+# make the label hook's own "is the export already modified" test always true,
+# which is the exact condition refresh_export now turns on.
+#
+# BD_ID_PREFIX models bd resolving a short id to a full one: `bd show zkc.5`
+# answers with id fathom-zkc.5. The hook must then label the RESOLVED id, not
+# the candidate string it guessed.
 #
 # bd takes no --db: it resolves one workspace per repository through the git
 # common dir. That is what the hooks' worktree handling turns on, so a stub that
@@ -206,7 +216,7 @@ case "$sub" in
         exit 0
       fi
     fi
-    printf '[{"id":"%s","status":"open","labels":[%s]}]\n' "$id" "${BD_LABELS_JSON:-}"
+    printf '[{"id":"%s","status":"open","labels":[%s]}]\n' "${BD_ID_PREFIX:-}$id" "${BD_LABELS_JSON:-}"
     ;;
   close)
     case "${BD_CLOSE_MODE:-ok}" in
@@ -215,15 +225,21 @@ case "$sub" in
     esac
     echo "closed $id" >> "$BD_REPO/.beads/issues.jsonl"
     ;;
-  export)  : ;;                       # refreshing the export writes nothing here
+  export)
+    # Real `bd export -o <file>` REWRITES that file, which is the whole reason
+    # a refresh dirties the tree. A stub that wrote nothing made every
+    # "left the tree clean" assertion pass whether or not the hook exported.
+    out=""; prev=""
+    for a in "$@"; do [[ "$prev" == "-o" ]] && out="$a"; prev="$a"; done
+    [[ -n "$out" ]] && printf '{"id":"exported-at-%s"}\n' "$(date +%s)" > "$out"
+    ;;
   comments) : ;;
   update)
     case "$*" in
       *--status=closed*)
         [[ "${BD_CLOSE_MODE:-ok}" == "refuse-both" ]] && exit 1
         echo "closed $id" >> "$BD_REPO/.beads/issues.jsonl" ;;
-      *--add-label*)
-        echo "labeled $id" >> "$BD_REPO/.beads/issues.jsonl" ;;
+      *--add-label*) : ;;   # the label lands in the database, never in the export
     esac
     ;;
 esac
@@ -297,6 +313,16 @@ add_branch() {
   sgit "$dir" add -A
   sgit "$dir" commit --quiet -m "$subject"
   sgit "$dir" checkout --quiet main
+}
+
+# on_branch <repo> <branch>: create it and STAY there, unlike add_branch which
+# returns to main. Branch-derived resolution can only be tested from the branch.
+on_branch() {
+  local dir="$1" branch="$2"
+  sgit "$dir" checkout --quiet -b "$branch"
+  echo "work" >> "$dir/file.txt"
+  sgit "$dir" add -A
+  sgit "$dir" commit --quiet -m "work on $branch"
 }
 
 payload() {  # payload <event> <command> [stderr] [skill] [args]
@@ -656,7 +682,6 @@ if case_start "label/pre: apply mode labels the bead immediately"; then
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
   assert_match "$R/.bdcalls" "--add-label reviewed" "labeled it reviewed"
-  assert_match "$R/.bdcalls" "^export -o" "refreshed the export"
   assert_no_match "$R/.gitlog" "^commit" "committed nothing"
 fi
 
@@ -690,6 +715,75 @@ if case_start "label/pre: an already-labeled bead is left alone"; then
   assert_match "$R/.hookerr" "already labeled" "said so"
 fi
 
+# ---------------------------------------------------------------------------
+# Bead resolution from the branch
+#
+# The class of defect these pin cost a whole build-and-ship session on
+# 2026-08-22: three skills ran in ~/Dev/fathom on an outrigger branch and the
+# bead shipped carrying none of their labels. Nothing in the session said so.
+# The candidate pattern required at least one hyphen and rejected a leading
+# digit, and every short bead id in that repository is hyphen-free, so the only
+# candidate an outrigger branch ever offered was its slug.
+# ---------------------------------------------------------------------------
+
+if case_start "label/resolve: an outrigger branch resolves its hyphen-free short id"; then
+  # THE regression case for that outage. zkc.5 carries no hyphen and ends in a
+  # digit, so the old pattern never offered it at all.
+  R="$(new_repo r1 with-origin)"
+  on_branch "$R" "outrigger/zkc.5/rank-beads-and-reminders-deterministical"
+  # bd answers a short id with the full one, and the hook must label what bd
+  # returned rather than the string it guessed.
+  export BD_KNOWN="zkc.5" BD_LABELS_JSON="" BD_ID_PREFIX="fathom-"
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  assert_match "$R/.bdcalls" "^show zkc\.5" "probed the short id"
+  assert_match "$R/.bdcalls" "^update fathom-zkc\.5 --add-label reviewed" "labeled the id bd resolved to"
+  unset BD_ID_PREFIX
+fi
+
+if case_start "label/resolve: an ordinary hyphenated id still resolves, with and without a third segment"; then
+  # The widened pattern must break nothing the existing branch cases cover.
+  for b in "feature/tadw-alpha-one/x" "feature/tadw-alpha-one"; do
+    R="$(new_repo "r2-${b//\//-}" with-origin)"
+    on_branch "$R" "$b"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+    run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+    assert_match "$R/.bdcalls" "^update tadw-alpha-one --add-label reviewed" "resolved from $b"
+  done
+fi
+
+if case_start "label/resolve: a branch naming no bead resolves nothing and says so"; then
+  R="$(new_repo r3 with-origin)"   # stays on main
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_eq "$HOOK_CODE" 0 "exits 0 anyway, so the skill still runs"
+  assert_no_match "$R/.bdcalls" "--add-label" "labeled nothing"
+  assert_match "$R/.hookerr" "no candidate resolved to a bead" "said so"
+fi
+
+if case_start "label/resolve: the positional segment beats a longer slug that also resolves"; then
+  # Both resolve, and the slug is the LONGER token, so longest-first alone would
+  # pick it. Segment two is the id outrigger put there on purpose.
+  R="$(new_repo r4 with-origin)"
+  on_branch "$R" "outrigger/tadw-alpha-one/tadw-beta-two-and-then-some"
+  export BD_KNOWN="tadw-alpha-one tadw-beta-two-and-then-some" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_match "$R/.bdcalls" "^update tadw-alpha-one --add-label reviewed" "labeled the positional id"
+  assert_no_match "$R/.bdcalls" "^update tadw-beta-two-and-then-some" "left the slug alone"
+fi
+
+if case_start "label/resolve: the probe count is capped, whatever the branch offers"; then
+  # Each candidate is a bd show subprocess on the critical path of every skill
+  # start. The widened pattern matches every lowercase word, so without a cap a
+  # long branch or a prose-heavy PR body would pay for all of them.
+  R="$(new_repo r5 with-origin)"
+  on_branch "$R" "x/aa-01/bb-02/cc-03/dd-04/ee-05/ff-06/gg-07/hh-08/ii-09/jj-10/kk-11/ll-12/mm-13/nn-14/oo-15/pp-16"
+  export BD_KNOWN="" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_eq "$(grep -c '^show ' "$R/.bdcalls")" "12" "probed twelve candidates and stopped"
+  assert_no_match "$R/.bdcalls" "--add-label" "labeled nothing"
+fi
+
 if case_start "label/worktree: a label from a worktree reaches the tracker unpinned"; then
   MAIN="$(new_repo b7 with-origin)"
   WT="$SANDBOX/b7-wt"
@@ -698,6 +792,302 @@ if case_start "label/worktree: a label from a worktree reaches the tracker unpin
   run_hook "$LABEL" "$WT" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
   assert_match "$WT/.bdcalls" "--add-label reviewed" "labeled the bead from the worktree"
   assert_no_match "$WT/.bdlog" "[-][-]db" "sent no --db"
+fi
+
+# ---------------------------------------------------------------------------
+# The durable log, and --doctor
+#
+# The hook exits 0 on every failure path, so a skill runs whether or not its
+# bead could be labeled. That contract is deliberate and unchanged. It is also
+# why two total outages went unnoticed: stderr was the only record, and nothing
+# surfaces it. These cases pin the record that is readable afterwards, and the
+# command that answers the same question beforehand.
+# ---------------------------------------------------------------------------
+
+label_log() { echo "$1/.git/bead-label.log"; }
+
+if case_start "label/log: a successful label writes one line naming branch, bead and action"; then
+  R="$(new_repo g1 with-origin)"
+  on_branch "$R" "outrigger/tadw-alpha-one/some-slug"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  L="$(label_log "$R")"
+  assert_eq "$(wc -l < "$L" | tr -d ' ')" "1" "wrote exactly one line"
+  assert_match "$L" "PreToolUse" "named the event"
+  assert_match "$L" "outrigger/tadw-alpha-one/some-slug" "named the branch"
+  assert_match "$L" "tadw-alpha-one" "named the bead"
+  assert_match "$L" "applied reviewed" "named the action"
+fi
+
+if case_start "label/log: an unresolved run still exits 0 and still says so in the log"; then
+  # The outage signature. Without this line the only trace is stderr, which is
+  # exactly how two of these went unnoticed.
+  R="$(new_repo g2 with-origin)"
+  export BD_KNOWN="" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_eq "$HOOK_CODE" 0 "exits 0, so the skill still runs"
+  L="$(label_log "$R")"
+  assert_eq "$(wc -l < "$L" | tr -d ' ')" "1" "wrote exactly one line"
+  assert_match "$L" "unresolved" "recorded that nothing resolved"
+  assert_match "$L" "wanted reviewed" "named the label it could not apply"
+fi
+
+if case_start "label/log: a gate withheld at Stop is recorded, not just dropped"; then
+  R="$(new_repo g3 with-origin)"
+  qg_marker "$R" tadw-alpha-one
+  sleep 1; write_qg_report "$R" FAIL
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label"
+  assert_match "$(label_log "$R")" "withheld qa-d" "recorded the withholding"
+fi
+
+if case_start "label/log: an unmapped skill writes nothing at all"; then
+  # A hook correctly declining to label /adr is not an outcome. Logging it
+  # would bury the lines that are.
+  R="$(new_repo g4 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:adr' 'tadw-alpha-one')"
+  [[ ! -e "$(label_log "$R")" ]] && ok "wrote no log file" || nope "wrote no log file" "$(cat "$(label_log "$R")")"
+fi
+
+if case_start "label/log: the log is capped, so a long-lived checkout cannot grow it forever"; then
+  R="$(new_repo g5 with-origin)"
+  L="$(label_log "$R")"
+  # 1500 lines of history, which is what months of /simplify and /code-review
+  # look like in a checkout nobody cleans up.
+  awk 'BEGIN { for (i = 1; i <= 1500; i++) print "old-line-" i }' > "$L"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
+  assert_eq "$(wc -l < "$L" | tr -d ' ')" "1000" "trimmed to the last 1000 lines"
+  assert_match "$L" "applied reviewed" "kept the newest line"
+  assert_no_match "$L" "old-line-1\$" "dropped the oldest"
+  [[ ! -e "$L.trimming" ]] && ok "left no partial file behind" || nope "left no partial file behind"
+fi
+
+if case_start "label/doctor: names the bead and the labels, and writes nothing"; then
+  R="$(new_repo g6 with-origin)"
+  on_branch "$R" "outrigger/tadw-alpha-one/some-slug"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  : > "$R/.bdcalls"
+  ( cd "$R" && PATH="$BINDIR:$PATH" BD_REPO="$R" BD_LOG="$R/.bdlog" BD_CALLS="$R/.bdcalls" \
+      bash "$LABEL" --doctor > "$R/.docout" 2> "$R/.docerr" )
+  assert_eq "$?" 0 "exits 0"
+  assert_match "$R/.docout" "outrigger/tadw-alpha-one/some-slug" "named the branch"
+  assert_match "$R/.docout" "bead: *tadw-alpha-one" "named the bead"
+  assert_match "$R/.docout" "/fresh-eyes-cr .*reviewed" "named a label it would apply"
+  assert_match "$R/.docout" "/quality-gates .*qa-d" "named the gated label too"
+  # Writing nothing is the whole contract: no label, no export, no log line.
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label"
+  assert_no_match "$R/.bdcalls" "export -o" "refreshed no export"
+  [[ ! -e "$(label_log "$R")" ]] && ok "wrote no log line" || nope "wrote no log line"
+fi
+
+if case_start "label/doctor: returns without waiting on stdin"; then
+  # The event path blocks on `cat`. --doctor is run from a terminal where no
+  # hook payload is ever coming, so it must be handled before that read.
+  R="$(new_repo g7 with-origin)"
+  on_branch "$R" "outrigger/tadw-alpha-one/some-slug"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  # An stdin that stays OPEN and produces nothing. A `cat` here would hang.
+  ( cd "$R" && PATH="$BINDIR:$PATH" BD_REPO="$R" BD_CALLS="$R/.bdcalls" \
+      bash "$LABEL" --doctor > "$R/.docout" 2>&1 < <(sleep 20) ) &
+  doctor_pid=$!
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    kill -0 "$doctor_pid" 2>/dev/null || break
+    sleep 0.5
+  done
+  if kill -0 "$doctor_pid" 2>/dev/null; then
+    kill "$doctor_pid" 2>/dev/null
+    nope "finished without reading stdin"
+  else
+    ok "finished without reading stdin"
+  fi
+  wait "$doctor_pid" 2>/dev/null
+  assert_match "$R/.docout" "tadw-alpha-one" "and still resolved the bead"
+fi
+
+# ---------------------------------------------------------------------------
+# inject-mode accounting
+#
+# gate mode leaves a marker Stop resolves against an artifact. inject mode had
+# no state at all, so a dropped label left no trace: in the 2026-08-22 session
+# /tadw:verify-acceptance reached ACCEPTED, which clears its gate, and no
+# "accepted" label was applied. Nothing recorded that one had been owed.
+#
+# Stop still applies no inject label. It only says whether the run did.
+# ---------------------------------------------------------------------------
+
+if case_start "label/inject: PreToolUse leaves a marker a gate marker can be told from"; then
+  R="$(new_repo j1 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:verify-acceptance' 'tadw-alpha-one')"
+  M="$(marker_dir "$R")/accepted__tadw-alpha-one"
+  [[ -f "$M" ]] && ok "wrote a marker" || nope "wrote a marker"
+  assert_match_str "$(sed -n 4p "$M" 2>/dev/null)" "^inject\$" "its fourth line says inject"
+  assert_no_match "$R/.bdcalls" "--add-label" "and still applied no label itself"
+fi
+
+if case_start "label/inject: Stop records a label the run was owed and never applied"; then
+  R="$(new_repo j2 with-origin)"
+  M="$(marker_dir "$R")"; mkdir -p "$M"
+  printf '%s\ntadw-alpha-one\ntadw:verify-acceptance\ninject\n' "$(date +%s)" > "$M/accepted__tadw-alpha-one"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""   # the bead does NOT carry it
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label, which is not Stop's call to make"
+  assert_match "$(label_log "$R")" "OWED accepted" "recorded the debt"
+  [[ ! -e "$M/accepted__tadw-alpha-one" ]] && ok "cleared the marker" || nope "cleared the marker"
+fi
+
+if case_start "label/inject: Stop confirms a label the run did apply"; then
+  R="$(new_repo j3 with-origin)"
+  M="$(marker_dir "$R")"; mkdir -p "$M"
+  printf '%s\ntadw-alpha-one\ntadw:verify-acceptance\ninject\n' "$(date +%s)" > "$M/accepted__tadw-alpha-one"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON='"accepted"'
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$(label_log "$R")" "confirmed accepted" "recorded that the run applied it"
+  assert_no_match "$R/.bdcalls" "--add-label" "did not apply it a second time"
+fi
+
+if case_start "label/inject: an unreadable bead is reported as unconfirmed, not as owed"; then
+  # bd writes its errors to stderr and leaves stdout empty. Calling that "owed"
+  # would report a debt that may not exist; this is the same empty-read trap
+  # that hid a broken guard in the close hook for months.
+  R="$(new_repo j4 with-origin)"
+  M="$(marker_dir "$R")"; mkdir -p "$M"
+  printf '%s\ntadw-alpha-one\ntadw:verify-acceptance\ninject\n' "$(date +%s)" > "$M/accepted__tadw-alpha-one"
+  export BD_KNOWN="" BD_LABELS_JSON=""    # bd show finds nothing
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$(label_log "$R")" "could not confirm accepted" "said it could not tell"
+  assert_no_match "$(label_log "$R")" "OWED" "did not claim a debt it cannot see"
+fi
+
+if case_start "label/inject: a marker past its TTL is abandoned, not resolved"; then
+  R="$(new_repo j5 with-origin)"
+  M="$(marker_dir "$R")"; mkdir -p "$M"
+  printf '%s\ntadw-alpha-one\ntadw:verify-acceptance\ninject\n' "$(( $(date +%s) - 99999 ))" > "$M/accepted__tadw-alpha-one"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.hookerr" "abandoning stale marker" "abandoned it"
+  assert_no_match "$(label_log "$R")" "OWED" "claimed no debt from a run that never finished"
+  [[ ! -e "$M/accepted__tadw-alpha-one" ]] && ok "removed the marker" || nope "removed the marker"
+fi
+
+if case_start "label/inject: a marker with no mode line is still treated as a gate marker"; then
+  # Markers written before the mode line existed are on disk in real clones.
+  R="$(new_repo j6 with-origin)"
+  M="$(marker_dir "$R")"; mkdir -p "$M"
+  printf '%s\ntadw-alpha-one\ntadw:quality-gates\n' "$(date +%s)" > "$M/qa-d__tadw-alpha-one"
+  sleep 1; write_qg_report "$R" PASS
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label qa-d" "read its report and labeled it"
+fi
+
+if case_start "label/ship: /tadw:ship maps to nothing, on purpose"; then
+  # /tadw:ship closes the bead, so a label applied at the same moment says
+  # nothing the closed state does not. The script carries a comment recording
+  # that; this asserts the behavior the comment describes.
+  R="$(new_repo j7 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(jq -n '{hook_event_name:"UserPromptSubmit", prompt:"/tadw:ship tadw-alpha-one"}')"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  assert_no_match "$R/.bdcalls" "--add-label" "labeled nothing"
+  [[ ! -d "$(marker_dir "$R")" ]] && ok "left no marker for Stop to resolve" || nope "left no marker for Stop to resolve"
+  assert_match_str "$(grep -c 'deliberately absent' "$LABEL")" "^1\$" "and the script records why"
+fi
+
+# ---------------------------------------------------------------------------
+# install_label_bead_on_skill_invocation.sh
+#
+# Deployed copies of the hook drift from the source, and nothing used to say
+# how. Two kinds of drift, and each fails on its own: a stale script, and a
+# script that is current but reached by fewer than three events. The second is
+# how a typed slash command went unlabeled while the file itself was fine.
+# ---------------------------------------------------------------------------
+
+INSTALLER_SRC="$SANDBOX/installer-src"
+mkdir -p "$INSTALLER_SRC"
+cp "$REPO_ROOT/scripts/install_label_bead_on_skill_invocation.sh" \
+   "$REPO_ROOT/scripts/label_bead_on_skill_invocation.sh" "$INSTALLER_SRC/"
+INSTALLER="$INSTALLER_SRC/install_label_bead_on_skill_invocation.sh"
+
+run_installer() {  # run_installer <repo> [args...]; sets INSTALL_CODE, writes .instout
+  local repo="$1"; shift
+  sandbox_path "$repo"
+  ( cd "$repo" && PATH="$BINDIR:$PATH" bash "$INSTALLER" "$@" ) > "$repo/.instout" 2>&1
+  INSTALL_CODE=$?
+}
+
+installed_hook() { echo "$1/.claude/scripts/label_bead_on_skill_invocation.sh"; }
+
+if case_start "install: a second run reports already current and rewrites no settings"; then
+  R="$(new_repo i1)"
+  run_installer "$R"
+  assert_eq "$INSTALL_CODE" 0 "the first run succeeds"
+  assert_match "$R/.instout" "hook script: installed" "reported the install"
+  [[ -x "$(installed_hook "$R")" ]] && ok "left it executable" || nope "left it executable"
+
+  run_installer "$R"
+  assert_eq "$INSTALL_CODE" 0 "the second run succeeds"
+  assert_match "$R/.instout" "hook script: already current" "reported already current"
+  assert_match "$R/.instout" "settings:    already wired" "left the wiring alone"
+  assert_match "$R/.instout" "backup:      none" "wrote no backup for a no-op run"
+fi
+
+if case_start "install: a locally modified copy is described before it is overwritten"; then
+  # The report has to come BEFORE the copy, because afterwards the evidence it
+  # describes no longer exists.
+  R="$(new_repo i2)"
+  run_installer "$R"
+  echo '# somebody patched this by hand' >> "$(installed_hook "$R")"
+  run_installer "$R"
+  assert_match "$R/.instout" "carries 1 line\(s\) the source does not" "counted what it overwrote"
+  assert_match "$R/.instout" "hashes:  source [0-9a-f]{12}, installed [0-9a-f]{12}" "named both hashes"
+  assert_match "$R/.instout" "hook script: updated" "and then updated it"
+fi
+
+if case_start "install/check: a current install passes and changes nothing"; then
+  R="$(new_repo i3)"
+  run_installer "$R"
+  before="$(cat "$R/.claude/settings.json")"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 0 "exits 0"
+  assert_match "$R/.instout" "script:   current" "called the script current"
+  assert_match "$R/.instout" "wiring:   all three events" "called the wiring complete"
+  assert_eq "$(cat "$R/.claude/settings.json")" "$before" "left settings.json byte-identical"
+fi
+
+if case_start "install/check: a drifted copy fails and is left exactly as it was"; then
+  R="$(new_repo i4)"
+  run_installer "$R"
+  echo '# local patch' >> "$(installed_hook "$R")"
+  before="$(cat "$(installed_hook "$R")")"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 1 "exits non-zero, so a pre-push hook can use it"
+  assert_match "$R/.instout" "script:   DRIFTED" "said the script drifted"
+  assert_match "$R/.instout" "carries 1 line" "said how"
+  assert_eq "$(cat "$(installed_hook "$R")")" "$before" "copied nothing over it"
+fi
+
+if case_start "install/check: wiring that is missing an event fails even with a current script"; then
+  # tadw-ci8's failure mode exactly: the file was fine and UserPromptSubmit was
+  # not wired, so every typed slash command went unlabeled.
+  R="$(new_repo i5)"
+  run_installer "$R"
+  jq 'del(.hooks.UserPromptSubmit)' "$R/.claude/settings.json" > "$R/.s" && mv "$R/.s" "$R/.claude/settings.json"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 1 "exits non-zero"
+  assert_match "$R/.instout" "script:   current" "still calls the script current"
+  assert_match "$R/.instout" "NOT WIRED for UserPromptSubmit" "names the event that is missing"
+fi
+
+if case_start "install/check: an uninstalled repository reports that, rather than a diff"; then
+  R="$(new_repo i6)"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 1 "exits non-zero"
+  assert_match "$R/.instout" "script:   NOT INSTALLED" "said it is not installed"
+  [[ ! -e "$(installed_hook "$R")" ]] && ok "installed nothing" || nope "installed nothing"
 fi
 
 # ---------------------------------------------------------------------------
@@ -731,15 +1121,59 @@ if case_start "label/bd: labels through bd, with no --db pin"; then
   assert_no_match "$R/.bdlog" "[-][-]db" "sent no --db"
 fi
 
-if case_start "label/bd: refreshes the export instead of committing it"; then
+# ---------------------------------------------------------------------------
+# The export, and the clean tree
+#
+# These four replace one earlier case that asserted the opposite: that a label
+# ALWAYS refreshed .beads/issues.jsonl. It did, and that is what left the tree
+# modified after every /simplify, /code-review and /tadw:fresh-eyes-cr. Two
+# tools then refuse to run: outrigger's pre-flight and /tadw:ship Step 4.
+# ---------------------------------------------------------------------------
+
+if case_start "label/export: a clean tree is left clean, and uncommitted"; then
   R="$(new_repo d2 with-origin)"
   before="$(head_sha "$R")"
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
-  # The export is what bv and Manifest read, so it must be refreshed...
-  assert_match "$R/.bdcalls" "export -o" "refreshed the export"
-  # ...and NOT committed: bd never writes it, so the committed copy is stale.
+  assert_match "$R/.bdcalls" "--add-label reviewed" "labeled the bead"
+  assert_no_match "$R/.bdcalls" "export -o" "refreshed no export"
+  assert_match "$R/.hookerr" "to keep the tree clean" "said why"
+  # The whole point. Anything left here is what the next tool aborts on.
+  assert_eq "$(sgit "$R" status --porcelain | grep -v '^?? \.' || true)" "" "left no tracked file modified"
+  # And still no commit: bd never writes the export, so a committed copy is stale.
   assert_match_str "$(head_sha "$R")" "^$before\$" "created no commit"
+fi
+
+if case_start "label/export: TADW_BEAD_LABEL_EXPORT=1 refreshes it anyway"; then
+  R="$(new_repo d2b with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" TADW_BEAD_LABEL_EXPORT=1
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
+  assert_match "$R/.bdcalls" "export -o" "refreshed the export on request"
+  unset TADW_BEAD_LABEL_EXPORT
+fi
+
+if case_start "label/export: an already-modified export is refreshed without the flag"; then
+  # Refreshing a file that is already dirty dirties nothing further, so the
+  # reason for skipping does not apply and freshness wins.
+  R="$(new_repo d2c with-origin)"
+  echo '{"id":"edited-by-hand"}' >> "$R/.beads/issues.jsonl"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
+  assert_match "$R/.bdcalls" "export -o" "refreshed the already-dirty export"
+fi
+
+if case_start "label/export: a Stop-resolved gate label also leaves the tree clean"; then
+  # add_label is the shared path, so gate mode inherits the same rule. Asserted
+  # rather than assumed: Stop is the arm that runs unattended at the end of a
+  # session, which is exactly when a dirtied tree is hardest to notice.
+  R="$(new_repo d2d with-origin)"
+  qg_marker "$R" tadw-alpha-one
+  sleep 1; write_qg_report "$R" PASS
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label qa-d" "labeled it qa-d"
+  assert_no_match "$R/.bdcalls" "export -o" "refreshed no export"
+  assert_eq "$(sgit "$R" status --porcelain | grep -v '^?? \.' || true)" "" "left no tracked file modified"
 fi
 
 if case_start "label/bd: inject mode names bd and carries no database path"; then

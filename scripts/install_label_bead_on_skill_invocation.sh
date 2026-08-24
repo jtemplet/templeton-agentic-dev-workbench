@@ -13,6 +13,12 @@
 #      the hook dispatches on: PreToolUse (matcher Skill), UserPromptSubmit,
 #      and Stop. Everything else in settings.json is left byte-identical.
 #
+# --check answers the same two questions and changes nothing: it reports how
+# the installed copy differs from the source and which of the three events are
+# wired, then exits non-zero if either is out of step. That is the form a
+# pre-push hook can use, and it is also the honest way to look at a repository
+# whose copy somebody may have edited on purpose.
+#
 # Two properties worth relying on:
 #
 #   IT IS SAFE TO RE-RUN. A second run overwrites the installed script, points
@@ -32,6 +38,7 @@ set -euo pipefail
 
 HOOK_SCRIPT="label_bead_on_skill_invocation.sh"
 DEST_DIR=".claude/scripts"
+CHECK_ONLY=false
 
 # Verbatim from the reference wiring in ~/Dev/atlas/.claude/settings.json, so a
 # repo installed by this script shows the same progress lines as that one.
@@ -43,12 +50,15 @@ die() { echo "error: $*" >&2; exit 1; }
 
 usage() {
   cat <<'USAGE'
-Usage: install_label_bead_on_skill_invocation.sh [--dest-dir DIR]
+Usage: install_label_bead_on_skill_invocation.sh [--check] [--dest-dir DIR]
 
 Installs the bead-labeling hook into the git repository containing the current
 directory, and wires it into that repository's .claude/settings.json.
 
 Options:
+  --check          Report how the installed copy and its wiring differ from the
+                   source, then exit: 0 when both are current, 1 otherwise.
+                   Copies nothing and touches settings.json not at all.
   --dest-dir DIR   Where to put the hook script, relative to the repository
                    root. Default: .claude/scripts
   -h, --help       Print this and exit.
@@ -64,6 +74,7 @@ USAGE
 while (($#)); do
   case "$1" in
     -h|--help) usage; exit 0 ;;
+    --check) CHECK_ONLY=true; shift ;;
     --dest-dir)
       [[ $# -ge 2 ]] || die "--dest-dir needs a directory"
       DEST_DIR="${2%/}"
@@ -95,6 +106,82 @@ DEST="$REPO_ROOT/$DEST_DIR/$HOOK_SCRIPT"
 [[ "$SOURCE" != "$DEST" ]] ||
   die "source and destination are the same file; run this from the target repository, not from its own source repository"
 
+SETTINGS="$REPO_ROOT/.claude/settings.json"
+
+# ---------------------------------------------------------------------
+# Drift
+# ---------------------------------------------------------------------
+
+# Twelve hex characters, matching what the hook itself logs on every run, so a
+# log line found in some other repository can be matched against a source here.
+hash_of() {
+  { shasum -a 256 "$1" 2>/dev/null || sha256sum "$1" 2>/dev/null; } | cut -c1-12
+}
+
+# One line saying HOW the installed copy differs, because "updated" alone tells
+# you a copy changed and nothing about whether that was safe. Line counts, not
+# a diff: the useful distinction is "one generation behind the source" from
+# "somebody edited this in place", and `diff` itself is right there for the
+# rest.
+describe_drift() {
+  local missing extra
+  missing="$(diff "$SOURCE" "$DEST" | grep -c '^<' || true)"
+  extra="$(diff "$SOURCE" "$DEST" | grep -c '^>' || true)"
+  echo "  differs: the installed copy is missing $missing line(s) the source has,"
+  echo "           and carries $extra line(s) the source does not"
+  echo "  hashes:  source $(hash_of "$SOURCE"), installed $(hash_of "$DEST")"
+}
+
+# Which of the three events name this hook. Wiring drift is its own failure:
+# a current script reached by two events labels nothing on the third, which is
+# exactly how a typed slash command went unlabeled while the file was fine.
+wired_events() {
+  [[ -f "$SETTINGS" ]] || return 0
+  jq -r --arg name "$HOOK_SCRIPT" '
+    (.hooks // {})
+    | to_entries[]
+    | .key as $event
+    | (.value | if type == "array" then .[] else empty end)
+    | (.hooks // [])[]
+    | select((.command? // "") | contains($name))
+    | $event
+  ' "$SETTINGS" 2>/dev/null | sort -u
+}
+
+if [[ "$CHECK_ONLY" == true ]]; then
+  check_failed=false
+
+  if [[ ! -f "$DEST" ]]; then
+    echo "script:   NOT INSTALLED at $DEST_DIR/$HOOK_SCRIPT"
+    check_failed=true
+  elif cmp -s "$SOURCE" "$DEST"; then
+    echo "script:   current at $DEST_DIR/$HOOK_SCRIPT ($(hash_of "$SOURCE"))"
+  else
+    echo "script:   DRIFTED at $DEST_DIR/$HOOK_SCRIPT"
+    describe_drift
+    check_failed=true
+  fi
+
+  found="$(wired_events | tr '\n' ' ')"
+  missing_events=""
+  for e in PreToolUse UserPromptSubmit Stop; do
+    case " $found " in *" $e "*) ;; *) missing_events="$missing_events $e" ;; esac
+  done
+  if [[ -z "$missing_events" ]]; then
+    echo "wiring:   all three events reference the hook"
+  else
+    echo "wiring:   NOT WIRED for$missing_events in .claude/settings.json"
+    check_failed=true
+  fi
+
+  if [[ "$check_failed" == true ]]; then
+    echo
+    echo "Run this installer without --check to bring both into step."
+    exit 1
+  fi
+  exit 0
+fi
+
 # ---------------------------------------------------------------------
 # Step 1: the hook script
 # ---------------------------------------------------------------------
@@ -111,6 +198,13 @@ else
   script_result="installed"
 fi
 
+# Said BEFORE the copy, because afterwards the evidence is gone. A locally
+# patched copy is the case this exists for: the run still overwrites, and now
+# the report says what it overwrote.
+if [[ "$script_result" == "updated" ]]; then
+  describe_drift
+fi
+
 mkdir -p "$REPO_ROOT/$DEST_DIR"
 cp "$SOURCE" "$DEST"
 chmod +x "$DEST"
@@ -118,8 +212,6 @@ chmod +x "$DEST"
 # ---------------------------------------------------------------------
 # Step 2: the wiring
 # ---------------------------------------------------------------------
-
-SETTINGS="$REPO_ROOT/.claude/settings.json"
 
 # The literal command string the hook entry carries. $CLAUDE_PROJECT_DIR stays
 # unexpanded, and the inner quotes are part of the value, so the command still
@@ -223,7 +315,7 @@ fi
 # ---------------------------------------------------------------------
 
 echo "repository:  $REPO_ROOT"
-echo "hook script: $script_result at $DEST_DIR/$HOOK_SCRIPT"
+echo "hook script: $script_result at $DEST_DIR/$HOOK_SCRIPT ($(hash_of "$DEST"))"
 echo "settings:    $settings_result in .claude/settings.json"
 echo "backup:      $backup_result"
 
