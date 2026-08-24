@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-08-24
+
+### Added
+
+- **`/bead-refine`, a review of the backlog by product value.** It answers one question about each
+  bead: does it deserve to exist. Nothing answered that before. The `bead-audit` skill asks whether a
+  bead can be built without mistakes, and `triage-beads` asks which of the worthwhile ones comes
+  first, so both assume every bead should be built. This is a command with no skill, because nothing
+  should invoke it contextually. Two modes: with no argument it clusters every non-closed bead into 4
+  to 8 themes and refines the one you pick, and with a topic phrase it gathers the beads matching
+  that phrase plus one dependency hop. Seven verdicts each map to one `bd` command: Keep, Shrink,
+  Merge, Defer, Kill, Done, and Promote. It computes no score, because `triage-beads` owns the
+  value-over-effort arithmetic and a second number would contradict it. It files no new bead either:
+  a command that both prunes and plants will plant more than it prunes.
+- **Every sentence `/bead-refine` writes follows Simplified Technical English.** The reader is the
+  product owner, not an engineer reading a rubric, and a verdict they cannot understand is a verdict
+  they cannot give. The rule that earns its place is defining a term in the same sentence or not
+  using it. Copying jargon out of a skill's own text is the failure it prevents: `bead-audit` says
+  "band" and "ceiling", which mean nothing to the person deciding. The `Why` column of the round
+  table is capped at one plain sentence of fifteen words, with its evidence in a list below the
+  table, so the table stays readable without the verdict becoming a feeling.
+
+### Changed
+
+- **The `auto-ok` label is gone, and nothing in this repository acts on it.** It marked a bead an
+  agent could take without asking a person. The label carried no reason, so a reader could not tell
+  which of three cases applied: a judgment call, a product or design decision, or a destructive
+  action. `bead-create` now states that need in the bead body, where the reason is read. Removed from
+  five places in `skills/bead-create/SKILL.md`, from the not-ready example in
+  `skills/triage-beads/SKILL.md`, from `docs/ROUTING.md`, and from the label cleanup in
+  `.claude/scripts/close_bead_on_pr_merge.sh`. The label was also stripped from all 44 beads that
+  carried it.
+- **`docs/plans/feature-plan-bead-refine.md` records that it no longer owns the `/bead-refine`
+  name.** That plan, from 2026-07-20, reserved the name for a scored quality loop whose milestone 1
+  shipped and whose milestones 2 to 4 are blocked. The two are different questions and do not merge,
+  so the plan now says a resumed driver needs a new command name.
+
 ## [2.11.1] - 2026-08-24
 
 ### Fixed
@@ -1828,7 +1865,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.0...HEAD
+[2.12.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.1...v2.12.0
 [2.11.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.0...v2.11.1
 [2.11.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.1...v2.11.0
 [2.10.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.0...v2.10.1
