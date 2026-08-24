@@ -132,6 +132,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   closing marker and no block behind it; `bd setup codex` wrote its configuration to `.codex/`
   instead. Removed, so a managed-block rewrite cannot treat the file's tail as its own.
 
+### Fixed
+
+- **A branch named `<bead-id>-<slug>` now labels its bead.** The bead-labeling hook's candidate
+  pattern takes a maximal hyphenated run, so `tadw-b14-hook-resolution-and-clean-tree` arrived as a
+  single token, the `tadw-b14` inside it was never offered to the tracker, and the branch resolved
+  to no bead: every labeled skill run on it labeled nothing, with no warning beyond a log line.
+  Each token now also offers its own hyphen-separated prefixes, longest first, so an id that is
+  itself a slug (`tadw-qg-prepush-verdict-gate-tug`) still matches whole before any prefix of it is
+  tried, and the branch's positional segment still outranks every prefix. A dotted epic-child
+  suffix is never split off, because `hdw-3fe4.3` and `hdw-3fe4` are different beads. The existing
+  probe cap bounds the added cost, and it falls on the shortest candidates, so a branch of more
+  than twelve hyphen segments resolves nothing rather than probing past the budget. Closes
+  `tadw-51e`. This was pre-existing rather than a regression, and it is the same defect
+  `close_bead_on_pr_merge.sh` was fixed for from the other direction: its regex was widened so a
+  slug id matched whole, and neither hook decomposed a token until now.
+
 ## [2.10.1] - 2026-08-21
 
 ### Fixed

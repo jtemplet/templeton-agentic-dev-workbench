@@ -325,6 +325,21 @@ on_branch() {
   sgit "$dir" commit --quiet -m "work on $branch"
 }
 
+# seed_export <repo> <id>...: the ids the prefix filter learns from. Call it
+# before on_branch, since it commits.
+#
+# Up here rather than beside the narrowing cases because the resolution cases
+# need it too: a repository whose export teaches no prefix DISABLES that filter,
+# so a case that seeds nothing cannot tell a candidate the filter accepted from
+# one it never judged.
+seed_export() {
+  local dir="$1"; shift
+  : > "$dir/.beads/issues.jsonl"
+  local id
+  for id in "$@"; do printf '{"id":"%s"}\n' "$id" >> "$dir/.beads/issues.jsonl"; done
+  sgit "$dir" add -A && sgit "$dir" commit --quiet -m "seed export"
+}
+
 payload() {  # payload <event> <command> [stderr] [skill] [args]
   jq -n --arg e "${1:-}" --arg c "${2:-}" --arg err "${3:-}" \
         --arg s "${4:-}" --arg a "${5:-}" \
@@ -772,6 +787,51 @@ if case_start "label/resolve: the positional segment beats a longer slug that al
   assert_no_match "$R/.bdcalls" "^update tadw-beta-two-and-then-some" "left the slug alone"
 fi
 
+if case_start "label/resolve: a bead-id-slug branch resolves the id inside it"; then
+  # tadw-51e, found while dogfooding on this exact branch name. The candidate
+  # pattern takes a MAXIMAL hyphenated run, so the whole branch arrived as one
+  # token, the tadw-b14 inside it was never offered, and the branch resolved to no
+  # bead at all. Naming a branch <bead-id>-<slug> is a common convention, and the
+  # only workaround was renaming it to outrigger's shape.
+  R="$(new_repo r6 with-origin)"
+  # Seeded so the prefix filter is ACTIVE. With no prefixes to learn it is
+  # disabled, and the case would pass without proving the prefix survives it.
+  seed_export "$R" "tadw-alpha-one"
+  on_branch "$R" "tadw-b14-hook-resolution-and-clean-tree"
+  export BD_KNOWN="tadw-b14" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_match "$R/.bdcalls" "^show tadw-b14 " "probed the id inside the branch name"
+  assert_match "$R/.bdcalls" "^update tadw-b14 --add-label reviewed" "labeled it"
+fi
+
+if case_start "label/resolve: the positional segment beats a prefix that also resolves"; then
+  # Segment three now offers tadw-beta-two as a prefix of itself, and it is a real
+  # bead. Segment two is the id outrigger put there on purpose, so offering
+  # prefixes must not cost it its place at the front of the list.
+  R="$(new_repo r7 with-origin)"
+  seed_export "$R" "tadw-alpha-one"
+  on_branch "$R" "outrigger/tadw-alpha-one/tadw-beta-two-and-then-some"
+  export BD_KNOWN="tadw-alpha-one tadw-beta-two" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_match "$R/.bdcalls" "^update tadw-alpha-one --add-label reviewed" "labeled the positional id"
+  assert_no_match "$R/.bdcalls" "^show tadw-beta-two " "never probed the prefix"
+fi
+
+if case_start "label/resolve: prefixes cannot push the probe count past the cap"; then
+  # Decomposing one token into its prefixes offers up to one candidate per hyphen
+  # segment, so the cap is what keeps it affordable. This branch is a single token
+  # of sixteen segments: fifteen candidates carry a prefix the filter accepts, and
+  # twelve is the whole budget. Counting probes is the assertion, since "labeled
+  # nothing" is true of a run that made fifty calls too.
+  R="$(new_repo r8 with-origin)"
+  seed_export "$R" "tadw-alpha-one"
+  on_branch "$R" "tadw-b14-a1-b2-c3-d4-e5-f6-g7-h8-i9-j1-k2-l3-m4-n5"
+  export BD_KNOWN="" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_eq "$(grep -c '^show ' "$R/.bdcalls")" "12" "probed twelve candidates and stopped"
+  assert_no_match "$R/.bdcalls" "--add-label" "labeled nothing"
+fi
+
 if case_start "label/resolve: the probe count is capped, whatever the branch offers"; then
   # Each candidate is a bd show subprocess on the critical path of every skill
   # start. The widened pattern matches every lowercase word, so without a cap a
@@ -806,14 +866,6 @@ fi
 # Both filters only narrow. bd still decides, and every case below asserts
 # against the recorded argv of bd, which is what the hook TRIED.
 # ---------------------------------------------------------------------------
-
-seed_export() {  # seed_export <repo> <id>...: the ids the prefix filter learns from
-  local dir="$1"; shift
-  : > "$dir/.beads/issues.jsonl"
-  local id
-  for id in "$@"; do printf '{"id":"%s"}\n' "$id" >> "$dir/.beads/issues.jsonl"; done
-  sgit "$dir" add -A && sgit "$dir" commit --quiet -m "seed export"
-}
 
 if case_start "label/narrow: hyphenated words that carry no known prefix never reach bd"; then
   # The noise is LONGER than the real id, so longest-first probes it first.

@@ -56,6 +56,26 @@ So the refresh is now conditional. It runs in two cases:
 confirming which of the two Manifest reads. The environment variable exists to cover that
 question until it is settled.
 
+## Widening before narrowing
+
+The candidate pattern takes a maximal hyphenated run. So a branch named `<bead-id>-<slug>` used to
+arrive as one token, and it resolved to nothing: the whole of
+`tadw-b14-hook-resolution-and-clean-tree` was offered, and the `tadw-b14` inside it never was.
+
+Each token now also offers its own hyphen prefixes, longest first. The full token therefore still
+wins where the id is itself a slug, such as `tadw-qg-prepush-verdict-gate-tug`.
+
+A dotted epic-child suffix is never split off. `hdw-3fe4.3` and `hdw-3fe4` are different beads.
+
+The probe cap bounds the added cost, and it falls on the shortest candidates. A branch of more than
+twelve hyphen segments still resolves nothing.
+
+`close_bead_on_pr_merge.sh` has no such decomposition. Its `BEAD_ID_RE` takes the same maximal run,
+so it is blind to this branch shape too. That is deliberate rather than pending: it reads four
+sources in order, so a branch name that resolves nothing falls through to the PR body and the
+commits. Offering prefixes there would create new ways to trip its ambiguity refusal, which would
+turn a working close into a refusal.
+
 ## Narrowing before probing
 
 Each candidate bead id costs one `bd show`. That was measured at 0.53 seconds against fathom's

@@ -68,6 +68,11 @@ MARKER_TTL_SECONDS=21600  # 6 hours
 # pattern below offers far more tokens than any branch really carries.
 # Twelve sits well above the real branches measured here and still bounds
 # the cost of a prose-heavy PR body.
+#
+# The cap falls on the SHORTEST candidates, since the list is longest-first.
+# A branch of more than twelve hyphen segments therefore spends the budget on
+# prefixes longer than the id and resolves nothing, which is the same answer it
+# gave before prefixes were offered at all.
 MAX_BEAD_PROBES=12
 
 # A bare candidate (no hyphen, no dot) longer than this is not a bead id. Every
@@ -255,6 +260,32 @@ known_id_prefixes() {
   } | tr -d '"' | grep -E '^[a-z][a-z0-9]*$' | sort -u | paste -sd'|' -
 }
 
+# Echo each hyphenated token from stdin, followed by its own hyphen-separated
+# prefixes, shortest last.
+#
+# The pattern below matches a MAXIMAL hyphenated run, so a branch named
+# <bead-id>-<slug> arrived as a single token: tadw-b14-hook-resolution-and-clean-tree
+# offered only itself, the tadw-b14 inside it was never probed, and the branch
+# resolved to no bead at all. That naming is a common convention, and renaming the
+# branch to outrigger's shape was the only workaround.
+#
+# The full token is emitted first and stays the longest, so the sort below still
+# tries a whole slug id (tadw-qg-prepush-verdict-gate-tug) before any prefix of
+# it. That ordering is the whole reason this is safe: the close hook's regex was
+# widened to match such ids whole precisely because tadw-qg resolves to nothing.
+#
+# The single-segment prefix is emitted too, and the bare-id filter below decides
+# whether it is plausible, which is what keeps `tadw` and `needs` out. A dotted
+# epic-child suffix is never split off: hdw-3fe4.3 must not offer hdw-3fe4, which
+# is a different bead.
+with_hyphen_prefixes() {
+  awk -F- '{
+    print
+    prefix = $1
+    for (i = 2; i <= NF; i++) { print prefix; prefix = prefix "-" $i }
+  }'
+}
+
 # Bead ids here range from a bare three-character suffix to a full slug,
 # so shape alone cannot tell an id from an ordinary word. Every candidate
 # is verified against the tracker; the sources below only narrow the
@@ -271,7 +302,9 @@ known_id_prefixes() {
 #   1. Positional. Segment two of a branch with three or more segments
 #      is outrigger's short id verbatim, so it goes first.
 #   2. Pattern, widened to make the hyphen optional and admit a leading
-#      digit, so zkc.5, e12 and 9ma become candidates at all.
+#      digit, so zkc.5, e12 and 9ma become candidates at all, then
+#      decomposed into hyphen prefixes so a <bead-id>-<slug> token
+#      offers the id inside it.
 #   3. Cap. At most MAX_BEAD_PROBES candidates, since each one is a
 #      bd show subprocess.
 #
@@ -307,6 +340,7 @@ resolve_bead() {
   # then length descending within the tier.
   matched="$(echo "$sources" \
     | grep -oE '[a-z0-9][a-z0-9]*(-[a-z0-9]+)*(\.[0-9]+)*' \
+    | with_hyphen_prefixes \
     | awk '{ print ($0 ~ /[-.]/ ? 1 : 2), length, $0 }' \
     | sort -k1,1n -k2,2nr \
     | cut -d' ' -f3-)"
