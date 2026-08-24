@@ -350,7 +350,6 @@ else
 fi
 
 bd update "$bead_id" --remove-label in-review   >/dev/null 2>&1 || true
-bd update "$bead_id" --remove-label auto-ok     >/dev/null 2>&1 || true
 bd update "$bead_id" --remove-label in-progress >/dev/null 2>&1 || true
 
 # ---- Refresh the export ----

@@ -346,7 +346,7 @@ command file)
   the bead and waits for confirmation; a draft still carrying an `[AUTHOR TO COMPLETE]` placeholder is
   never filed
 - Creates it in one `bd create` call with `--design`, `--notes`, and `--acceptance` populated, labels it
-  with a category plus `auto-ok`, wires parent and dependency edges, reads it back with `bd show` to
+  with a category, wires parent and dependency edges, reads it back with `bd show` to
   prove the native fields landed, and exports the tracker silently
 
 **Grade and repair beads that already exist:** Use `/bead-audit` (the `bead-audit` skill directly; there is no command file), or `/bead-audit-all` to sweep the whole backlog

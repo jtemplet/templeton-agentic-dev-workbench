@@ -133,6 +133,7 @@ Pair with `/loop` to run on a schedule:
 
 | Command | Description |
 |---|---|
+| `/bead-refine [topic]` | Review the backlog by product value: cluster it into themes, pick one, then keep, shrink, merge, defer, kill, or promote each bead. Answers "does this bead deserve to exist?", not "can it be built?" |
 | `/bead-audit-all [open\|all]` | Single-pass, report-only audit of the whole backlog: score and ground every bead once, ranked health table (worst first) |
 | `/product-surface-docs [dir]` | Build/refresh a MECE/Pyramid product doc tree by surface under docs/products/; surfaces bugs/gaps/debt into a findings ledger |
 | `/pr-maintain` | Keep the current branch's PR rebased on its parent and passing CI; safe to pair with `/loop` |

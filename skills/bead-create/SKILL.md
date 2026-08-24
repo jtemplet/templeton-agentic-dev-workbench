@@ -146,7 +146,7 @@ Show the complete bead and stop:
 ```markdown
 ## Proposed bead: <Title>
 
-**Type:** <type>  **Priority:** P<n> (<one-line reasoning>)  **Labels:** <category>,<auto-ok?>
+**Type:** <type>  **Priority:** P<n> (<one-line reasoning>)  **Labels:** <category>
 **Parent:** <epic id, or none>  **Depends on:** <ids, or none>
 **Grounded against:** origin/main @ <sha>
 
@@ -178,7 +178,7 @@ unknown flag). Setting them at creation keeps the bead from ever existing in a h
 **task or feature:**
 
 ```bash
-id=$(bd create "<Title>" -p <priority> -t <task|feature> -l "<category>,auto-ok" --silent \
+id=$(bd create "<Title>" -p <priority> -t <task|feature> -l "<category>" --silent \
   -d "$(cat <<'EOF'
 ## Why (Computational)
 <L1 content, with the evidence and the grounding sha>
@@ -209,7 +209,9 @@ window between the two calls as the hazard Step 8b describes.
 
 Use the quoted `cat <<'EOF'` heredoc, never `printf`. Acceptance criteria routinely contain a literal `%` ("95% of requests return 200"), and `printf` reads it as a format directive and corrupts the text silently.
 
-**Labels are not optional.** Pass a category label naming what the work touches, plus `auto-ok` by default. Run `bd label list-all` first and reuse an existing category rather than inventing a synonym; a tracker carrying both `evals` and `evaluation` is what label drift looks like. Omit `auto-ok` only when the bead needs a person: a judgment call, a product or design decision, or a destructive or outward-facing action.
+**A category label is not optional.** Pass one naming what the work touches. Run `bd label list-all` first and reuse an existing category rather than inventing a synonym; a tracker carrying both `evals` and `evaluation` is what label drift looks like.
+
+When a bead needs a person rather than an agent, say so in the body, where it is read. A judgment call, a product or design decision, and a destructive or outward-facing action all belong there. Do not encode that in a label: a label carries no reason, and the next reader cannot tell which of the three applies.
 
 **Wire the relationships** the author confirmed:
 
@@ -263,7 +265,7 @@ Claim it with: bd update <id> --claim
 - Self-audit the draft and rewrite until it passes, before showing it to anyone
 - Present the complete bead and wait for confirmation before writing to the tracker
 - Write each section to its canonical destination in the `bd create` call itself: `--design`, `--notes`, and `--acceptance` for the sections with native fields, `-d` only for the sections without one
-- Pass a category label and `auto-ok`, reusing an existing category from `bd label list-all`
+- Pass a category label, reusing an existing category from `bd label list-all`
 - Read the bead back after creating it and confirm the native fields are populated
 - Run `bd export` yourself, and mention it only on failure
 
@@ -295,6 +297,6 @@ Before reporting completion, verify:
 - [ ] No `[AUTHOR TO COMPLETE]` placeholder reached the tracker
 - [ ] The author confirmed before anything was written, or had already authorized it and the report says so
 - [ ] `design`, `notes`, and `acceptance_criteria` were verified populated with `bd show`
-- [ ] A category label and (unless the bead needs a human) `auto-ok` are set, both reused from the existing label set
+- [ ] A category label is set, reused from the existing label set, and any need for a person is stated in the body
 - [ ] Parent and dependency edges the author confirmed are wired
 - [ ] `bd export` ran, and was reported only if it failed

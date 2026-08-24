@@ -314,7 +314,7 @@ judgment.
 | Draft | `status` is `draft` | One count line |
 | Epic | `issue_type` is `epic` | Its children are scored instead; childless, flag for `plan-to-beads` |
 | Claimed by someone else | `assignee` set and not you | Omit, unless `--all` |
-| Marked not-ready by label | `BV_ROBOT_NOT_READY_LABELS`, or a repo convention such as a bead lacking `auto-ok` | Name it once, with the label |
+| Marked not-ready by label | `BV_ROBOT_NOT_READY_LABELS`, or whatever label the repository uses to mark work not ready | Name it once, with the label |
 
 ## Step 4: Render
 

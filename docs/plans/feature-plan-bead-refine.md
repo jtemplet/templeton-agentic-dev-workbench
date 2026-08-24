@@ -3,6 +3,16 @@
 **Date:** 2026-07-20
 **Status:** Milestone 1 shipped (scorecard in bead-audit, commit 94b9e22). Milestones 2-4 (the driver) blocked on a state-machine respecification of "Loop state and termination" per two Major Rework reviews; see Open Questions.
 
+**The `/bead-refine` name is taken, and this plan no longer owns it.** On 2026-08-24 that name
+went to a different feature: `commands/bead-refine.md`, a product-value review of the backlog
+that asks whether each bead deserves to exist (bead `tadw-3do`). It is a command with no skill,
+and it computes no score by design, because `triage-beads` owns the value-over-effort arithmetic.
+
+This plan's driver is a *quality* loop, which is a separate question: can a bead be built without
+mistakes. So the two do not merge. If milestones 2-4 are ever resumed, they need a new command
+name and a new entry-point path. Everything below still describes the quality loop, and the two
+references to `commands/bead-refine.md` in Scope and Milestone 3 are stale.
+
 ## Summary
 
 Add a scored refinement loop that brings every open bead in a repo up to a target quality band. This splits into two pieces: a **scorecard rubric** added to the existing `bead-audit` skill (which today emits only a 3-state verdict), and a new **`bead-refinement` driver** skill plus **`/bead-refine`** command that enumerates open beads, calls the audit, applies the safe fixes, and reports progress. The driver is idempotent so it can run under `/loop` until the backlog converges.
