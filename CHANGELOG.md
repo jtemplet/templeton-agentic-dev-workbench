@@ -179,6 +179,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   satisfied; the grader demanded markdown bold or a heading. That was the second formatting proxy to
   fail this case on correct responses. The pattern now requires the first line to name the
   recommended option before any table pipe, which is the order the rule is about.
+- **The bead-label hook no longer dirties the tree on every label.** `refresh_export` ran
+  `bd export` after every label, leaving the tracked tree modified. Outrigger's pre-flight and
+  `/tadw:ship` both refuse a dirty tree, and both hit it in the same session that lost three skills'
+  labels. The export now runs in two cases only: the file is already modified, where refreshing it
+  dirties nothing further, or `TADW_BEAD_LABEL_EXPORT=1` is set. `bv` reads the `bd` database
+  directly, so it loses nothing either way. This had to land with the resolution fix rather than
+  after it, because fixing resolution alone would have turned an intermittent collision into one
+  firing on every pass.
+- **Short and digit-leading bead ids resolve again.** `resolve_bead`'s candidate pattern required at
+  least one hyphen and rejected a leading digit, so every short id in a sibling repository was
+  invisible to it, and a full build-and-ship session on 2026-08-22 labeled nothing across three
+  skills. Candidates now come from three ordered sources: the positional segment of an outrigger
+  branch, then the widened pattern, then a cap of twelve unique candidates longest-first. The
+  regression case is the real branch that failed.
 - **A branch named `<bead-id>-<slug>` now labels its bead.** The bead-labeling hook's candidate
   pattern takes a maximal hyphenated run, so `tadw-b14-hook-resolution-and-clean-tree` arrived as a
   single token, the `tadw-b14` inside it was never offered to the tracker, and the branch resolved
