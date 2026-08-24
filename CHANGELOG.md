@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.1] - 2026-08-24
+
+### Fixed
+
+- **`publish-plugin` now forbids amending a pushed release commit, and says what to do instead.**
+  Cutting 2.11.0 pushed main at `cc9647e`, then found `b331dac`'s conditional-export change recorded
+  nowhere, then amended the pushed commit. An amended commit replaces the one the remote holds, so
+  main could then advance only by a force-push, which the skill forbids. Recovery was a
+  `git reset --soft` back to the pushed commit and a follow-up commit, so that release is two commits
+  and its tag names the second rather than the `chore(release)` one. Step 4 now states that the
+  completeness pass finishes before Step 6 opens, Step 6 carries the reset-and-retag recovery for
+  when it did not, and both the Never list and the Quality Checklist name the rule. A tag that
+  already reached the remote is called out as unrecoverable this way: cut the next patch instead.
+
 ## [2.11.0] - 2026-08-24
 
 ### Added
@@ -1814,7 +1828,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.1...HEAD
+[2.11.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.0...v2.11.1
 [2.11.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.1...v2.11.0
 [2.10.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.0...v2.10.1
 [2.10.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.9.1...v2.10.0

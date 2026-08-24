@@ -255,6 +255,16 @@ passing it by name does not override that: `rumdl fmt --check CHANGELOG.md` prin
 `--no-config` does reach the file, and then exits 1 on 901 issues under rules this repository
 disables on purpose. The three greps above are the check.
 
+**Finish rule 1 before Step 6 opens.** Walk every commit in the range against the section and settle
+each one, either as an entry or as a change that needs none, before anything is pushed. An entry
+found after the push cannot be folded into the release commit, because Step 6 has already published
+it and main is never force-pushed.
+
+That is not a theoretical ordering point. Cutting 2.11.0 on 2026-08-24 pushed main at `cc9647e`,
+then found `b331dac`'s conditional-export change recorded nowhere. The recovery cost a second commit
+and moved the tag off the `chore(release)` commit. Nine of that release's 25 entries came from the
+log rather than from `Unreleased`, so a range this size should be expected to need them.
+
 ### Step 5: Bump the Manifest and Gate
 
 **Get onto the default branch first, and find out who holds it.** Everything from here writes to
@@ -370,6 +380,27 @@ reversible for anyone who has already fetched it. Step 1 listed the missing tags
 carries a commit this run did not create. Delete the local tag, rebase the release commit onto the
 new `origin/main`, and re-run Steps 5 and 6 so the gate grades what will actually be tagged. Bound
 the whole cycle at 3 attempts, then stop with `push-rejected`.
+
+**Never amend the release commit once it is pushed.** An amended commit replaces the one the remote
+holds, so main can then advance only by a force-push, and that is forbidden here. The temptation
+arrives in one specific shape: the push succeeds, and then you notice an entry the changelog owed.
+Rule 1 of Step 4 exists to catch that earlier, and this is what to do when it did not.
+
+Put the addition on top instead, and move the tag to it:
+
+```bash
+git tag -d "v$NEW_VERSION"                 # local only, and only if it was never pushed
+git reset --soft <pushed-release-commit>   # keeps the new edit staged, discards the amend
+git commit -m "docs(changelog): record what <version> missed"
+git tag -a "v$NEW_VERSION" -m "$NEW_VERSION"
+```
+
+The tag then names the follow-up commit rather than the `chore(release)` commit, because the tag must
+point at the tree whose changelog is complete. Say both facts in the report: the release is two
+commits, and the tag is on the second.
+
+**A tag that already reached the remote is different, and it is not recoverable this way.** Never
+delete or re-point it. Cut the next patch version and say what the previous tag is missing.
 
 **Verify the published state before reporting success:**
 
@@ -489,6 +520,8 @@ can fetch has not been released.
 **Never:**
 
 - Fold the version bump into a feature branch's squash commit
+- Push before the changelog completeness pass has settled every commit in the range
+- Amend the release commit after it is pushed; put the addition on top and move the tag to it
 - Move, delete, or re-point a tag that exists on the remote
 - Force-push main, or push past a `reference-transaction` refusal
 - Run `git push origin --tags`, which publishes every local tag
@@ -506,6 +539,7 @@ Before emitting the report, verify:
 - [ ] The bump tier, the rule behind it, and the deciding change all appear
 - [ ] The commit range is named, with its commit and file counts
 - [ ] Every changelog entry maps to something in the range, and nothing in the range is unrecorded
+- [ ] That pass finished before the push, and no pushed commit was amended
 - [ ] `## [Unreleased]` is still present and empty, above the new section
 - [ ] The footer holds exactly one compare link for the new version
 - [ ] The `[Unreleased]` footer link now compares from the new tag
