@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-08-26
+
+### Added
+
+- **Gate 2 of `/quality-gates` now requires cited evidence for every test it counts.** The gate told
+  the model to read each test and left nothing behind proving it did, so a coverage table built by
+  reading and one built by guessing from test names looked identical to whoever acted on the PASS.
+  Each counted unit test now cites the `file:line` of its key assertion, meaning the line that checks
+  the case rather than the line the test is declared on. Each end-to-end claim quotes the single line
+  that drives the real entry point: the `subprocess.run`, the HTTP client call, the CLI runner
+  invocation. The quote is the load-bearing half, because the gate already forbade counting an
+  in-process call of a handler and nothing made that rule checkable. `subprocess.run([...])` and
+  `handler(request)` do not read alike, but a cell holding only a test name hides which one it is. A
+  cell that cannot be cited is graded as no test, which is the stricter reading and the one that
+  cannot mislead. The rule is mirrored in Gate 2 step C, the Critical Rules Always list, and the
+  Quality Checklist, so it survives a partial read, and the Output Format worked example now shows
+  the shape rather than only describing it.
+- **`house-response-style` bans every word that could name more than one thing.** The rule existed
+  and did not bind, because it was spread across five places and the strongest copy cancelled itself:
+  it read "keep terminology consistent where ambiguity would cost the reader", which hands the
+  judgment to the writer, and the writer always thinks the word is clear. There is now one section,
+  "Say exactly what you mean", promoted into the list that outranks everything else. Its table names
+  the words that prompted this: "row", "entry", "item", "wire", "hook up", "surface", "handle", and
+  "leverage". Saying "row" is out because a table row, a database record, a spreadsheet line, and a
+  line of a report are four different things, and the rule is to say which. A reading-level test
+  comes with it: write so a ten-year-old could follow the sentence. That governs words and sentence
+  shapes only, never how much is said or how deep the answer goes, and every technical name still
+  stays verbatim because the reader has to type or search for it.
+
+### Changed
+
+- **`house-response-style` is half its former size, and `SessionStart` ships two hook entries instead
+  of three.** The skill is injected into every session, so its length is a cost paid on every turn,
+  and it had reached 18,886 characters. It is now 9,713. What went was rationale rather than rules: a
+  section arguing for four reader facts, notes about the document's own revision history, four table
+  lines teaching the one lesson that a metaphor becomes a mechanism, a three-option worked table
+  illustrating a format its own prose describes, and a pre-send checklist that re-explained the rules
+  above it. Every operative rule survives, verified by diffing the bolded rule lead-ins of both
+  versions; that check found the metaphor rule had decayed to being implied by a table alone, so it is
+  stated again in one line. The result fits one hook output, which removed the third manifest entry.
+  That entry had become absurd on its own terms: the split was 4,780 / 9,847 / 181, a whole extra hook
+  invocation for 181 characters. `docs/HOOKS.md` and `AGENTS.md` carry the new figures and now say to
+  read the entry count from the manifest rather than from memory, since both previously stated "three"
+  as though it were fixed.
+- **Every rule in `house-response-style` has exactly one home.** Word choice lives in "Say exactly
+  what you mean", sentence mechanics in the ASD-STE100 list, self-reporting in "Report your own work",
+  and length and shape in "Be concise". Three contradictions were resolved along the way. "Match the
+  reader" said an expert "does not need those explained", which read as permission to use loose words
+  with a knowledgeable reader; expertise now buys a shorter explanation, never a looser word. One rule
+  called `idempotent` and `bootstrap` fine unexplained while another used `idempotent` as its example
+  of a term needing a definition, so the define-it rule now covers the fluent words too. The scope
+  note dropped "the word-level rules" for creative or personal work, which would have dropped this
+  ban; four rules now never drop, because a story may pick any word for effect but a sentence
+  describing what was done to the user's repository may not.
+- **`/tadw:code-review` earns the `reviewed` label through its command name rather than through
+  whichever skill it happened to load.** It dispatches through the `code-reviewer` agent to a
+  per-language review skill, so there is no single skill name to match on. The entry moved to
+  `skill_for_command`, which is the map that takes command names.
+
+### Fixed
+
+- **Both hooks under `.claude/scripts` resolve from the main checkout, so a linked worktree no longer
+  runs a stale copy or none at all.** They read `$CLAUDE_PROJECT_DIR/.claude` directly, which fails
+  two ways. Every worktree checks out its own copy of a tracked file, so a session in one ran whatever
+  that branch happened to hold rather than the installed version. And `/tadw:ship` deletes the
+  worktree it runs in, after which `$CLAUDE_PROJECT_DIR` names a directory that is gone: measured on
+  2026-08-26, a `Stop` hook reported "No such file or directory" for a worktree removed minutes
+  earlier. Both now resolve through `git rev-parse --git-common-dir`, which answers with the main
+  checkout's git directory from inside any worktree, so the hook works rather than merely going quiet.
+  `close_bead_on_pr_merge.sh` got the same treatment; it is the hook most likely to be running when a
+  worktree disappears, since closing a bead on merge is the end of that branch's life.
+- **An unset `CLAUDE_PROJECT_DIR` no longer labels a bead in whatever repository the hook happened to
+  be standing in.** `git -C ""` is not an error: it silently stays in the current directory. So
+  handing an empty value straight to `git` resolved some other repository and wrote to its tracker.
+  The guard now refuses an empty value before `git` sees it. This repository had already paid for that
+  hazard once, which the comment above `sgit` in `hooks/test-claude-scripts.sh` records: it wrote four
+  branches, a commit, and two worktrees into a real checkout.
+- **A plain `/build` no longer labels its own unreviewed code `reviewed`.** The language style skills
+  and the per-language review skills were listed as entry points earning that label, to catch
+  `/tadw:code-review` dispatching indirectly. That over-matched, and the failure ran the wrong way:
+  `/build` Phase 2 loads the same style skill as the guide it writes by. A label nobody earned is
+  worse than a label a command forgot to apply, because the first is a false claim and the second is a
+  gap you can see.
+- **One malformed marker file no longer strands every other pending label in the directory.** The
+  `Stop` handler required a marker's creation stamp to be non-empty and then fed it to `(( ))`, where
+  bash reads a non-numeric value as a variable name and `set -u` makes that fatal. The stamp must now
+  match digits. Five new cases in `hooks/test-claude-scripts.sh` cover the worktree resolution, an
+  empty project directory labeling nothing, and an assertion over every wired hook, so the next one
+  added on the older form fails in the suite instead of in a live session.
+
 ## [2.12.1] - 2026-08-25
 
 ### Added
@@ -1911,7 +2001,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.13.0...HEAD
+[2.13.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.1...v2.13.0
 [2.12.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.0...v2.12.1
 [2.12.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.1...v2.12.0
 [2.11.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.0...v2.11.1
