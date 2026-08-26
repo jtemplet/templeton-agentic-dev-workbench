@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.12.1] - 2026-08-25
+
+### Added
+
+- **`/build` now moves its bead to `in_progress`, and it is the only command that moves a status.**
+  The label hook already recorded what a run did; it recorded nothing about what was happening. A
+  label and a status answer different questions, and the difference decides when each is written. A
+  label records what a run DID, so `/build`'s `implemented` still waits for the run's own Feature
+  complete report and its gate. A status records what is HAPPENING, and that is known the moment the
+  skill is invoked. Deferring it left the bead reading `open` for the whole run, so `bd ready` went on
+  offering work already underway. The claim rides a new `CLAIM` flag on the
+  `feature-development` entry in `classify_skill`, so no other labeled command touches status.
+- **Only an `open` bead is claimed, and the two guards fail for opposite reasons.** An `in_progress`
+  bead is left alone rather than stamped over somebody else's claim. A closed bead is never reopened,
+  which would otherwise happen whenever a person ran `/build` to reread a finished bead's spec. Both
+  would be silent, because the hook exits 0 either way. The status comes from the JSON `resolve_bead`
+  already fetched, so neither guard costs an extra `bd show`. The claim also runs ahead of the
+  already-labeled short-circuit: a reopened bead still carries its old label, and a re-run has to
+  move it back to `in_progress` rather than return early over the top of it.
+- **`--doctor` reports the bead's status beside its labels, and says which commands claim.** The
+  readout previously described the labels a command would apply and nothing about status, so the
+  new behavior would have been invisible to the one command written to explain what the hook does.
+
+### Fixed
+
+- **One malformed marker file no longer strands every other pending label in the directory.** The
+  `Stop` handler read a marker's creation stamp and required it to be non-empty, then fed it to
+  `(( ))`. Bash reads a non-numeric value there as a variable name, and `set -u` makes that a fatal
+  unbound-variable error, which killed the whole handler on the first bad file. Every later marker in
+  the directory then went unprocessed, silently, in a script whose entire contract is to fail open.
+  The stamp must now match digits.
+- **The `jq` reads of a bead's labels, id, and status normalize the array-or-object shape once.**
+  They relied on `//` to swallow a type error, so `.labels` applied to an array produced a fallback
+  rather than a read. The shape is now settled by an explicit `if type == "array"` before any field
+  is named.
+- **`check_doc_paths.py` now resolves a documentation link the way a renderer resolves it.** Every
+  target was tried against the repository root alone, so a markdown link written relative to the
+  document carrying it read as broken. One run against a nested docs tree called 65 live links
+  misses, and a checker that cries wolf 65 times is a checker people switch off. A new `reachable()`
+  tries the document's own directory first, then the root, because this tree uses both conventions
+  and neither is wrong: a markdown link is relative to its document, and a backticked path is
+  written from the root the way a reader would type it. The counterweight is the case that keeps it
+  honest: a target resolving NEITHER way is still a miss and still exits 1, so two resolutions do
+  not quietly make everything pass. Five new cases cover a sibling link, a link through `..`, an
+  anchor on a relative link, a root-relative backticked path, and the dead link.
+
 ## [2.12.0] - 2026-08-24
 
 ### Added
@@ -1865,7 +1911,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.1...HEAD
+[2.12.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.0...v2.12.1
 [2.12.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.1...v2.12.0
 [2.11.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.0...v2.11.1
 [2.11.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.10.1...v2.11.0

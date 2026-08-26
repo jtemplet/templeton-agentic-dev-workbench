@@ -224,6 +224,86 @@ for name, fn in [
 print("\n  [shipped artifact]")
 
 
+def build_nested(doc_rel: str, doc_body: str, tree: tuple[str, ...] = ()) -> Path:
+    """A repository whose document sits in a subdirectory, so a relative link
+    from it resolves somewhere the repository root does not."""
+    root = Path(tempfile.mkdtemp())
+    for entry in tree:
+        target = root / entry
+        if entry.endswith("/"):
+            target.mkdir(parents=True, exist_ok=True)
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("x", encoding="utf-8")
+    doc = root / doc_rel
+    doc.parent.mkdir(parents=True, exist_ok=True)
+    doc.write_text(doc_body, encoding="utf-8")
+    return root
+
+
+print("\n  [a link resolves the way a renderer resolves it]")
+
+
+def case_sibling_link() -> None:
+    root = build_nested(
+        "docs/concepts/verification.md",
+        "See [the contract](protocol_contract.md).",
+        ("docs/concepts/protocol_contract.md",),
+    )
+    r = run(root, "docs/concepts/verification.md")
+    assert not misses(r), f"a sibling link is not a miss: {r.stdout}"
+
+
+def case_parent_link() -> None:
+    root = build_nested(
+        "docs/concepts/verification.md",
+        "See [the run](../cli/run.md).",
+        ("docs/cli/run.md",),
+    )
+    r = run(root, "docs/concepts/verification.md")
+    assert not misses(r), f"a parent-relative link is not a miss: {r.stdout}"
+
+
+def case_anchored_relative_link() -> None:
+    root = build_nested(
+        "docs/concepts/tools.md",
+        "See [adapting QA](../cli/qa.md#adapting-qa).",
+        ("docs/cli/qa.md",),
+    )
+    r = run(root, "docs/concepts/tools.md")
+    assert not misses(r), f"an anchor on a relative link is not a miss: {r.stdout}"
+
+
+def case_root_relative_still_works() -> None:
+    root = build_nested(
+        "docs/concepts/verification.md",
+        "See `lib/verify.sh` for the rule.",
+        ("lib/verify.sh",),
+    )
+    r = run(root, "docs/concepts/verification.md")
+    assert not misses(r), f"a root-relative backtick path still resolves: {r.stdout}"
+
+
+def case_dead_link_still_reported() -> None:
+    # The counterweight. Trying two resolutions must not make everything pass:
+    # a target that resolves NEITHER way is still a finding.
+    root = build_nested(
+        "docs/concepts/verification.md",
+        "See [nothing](nowhere.md).",
+        ("docs/concepts/",),
+    )
+    r = run(root, "docs/concepts/verification.md")
+    assert len(misses(r)) == 1, f"a dead link must still be reported: {r.stdout}"
+    assert r.returncode == 1, f"and must still exit 1: {r.returncode}"
+
+
+check("a link to a sibling document resolves", case_sibling_link)
+check("a link through .. resolves", case_parent_link)
+check("an anchor on a relative link resolves", case_anchored_relative_link)
+check("a root-relative backticked path still resolves", case_root_relative_still_works)
+check("a link that resolves neither way is still a miss", case_dead_link_still_reported)
+
+
 def case_real_repo() -> None:
     repo = Path(__file__).resolve().parents[3]
     r = run(repo)

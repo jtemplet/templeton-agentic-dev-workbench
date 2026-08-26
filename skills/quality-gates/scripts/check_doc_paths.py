@@ -140,6 +140,24 @@ def targets_in(text: str, anchors: frozenset[str]) -> list[tuple[int, str, str]]
     return found
 
 
+def reachable(root: Path, doc: Path, resolved: str) -> bool:
+    """Whether a normalized target names something that exists.
+
+    Two ways, because this tree uses both and neither is wrong. A markdown link
+    is relative to the document that carries it, which is what a renderer
+    follows: `verification.md` beside `protocol_contract.md`, or
+    `../cli/run/run.md` from a sibling directory. A backticked path is written
+    from the repository root, the way a reader would type it into an editor.
+
+    Trying only the root form reported 65 live links as broken in one run, every
+    one of which a renderer resolves. Trying both reports a miss only when the
+    target resolves NEITHER way, so a genuinely dead link is still a finding.
+    """
+    if (doc.parent / resolved).exists():
+        return True
+    return (root / resolved).exists()
+
+
 def check(
     root: Path, docs: list[Path], patterns: list[str], skip_docs: list[str]
 ) -> list[Miss]:
@@ -152,7 +170,7 @@ def check(
         text = doc.read_text(encoding="utf-8")
         for lineno, target, kind in targets_in(text, anchors):
             resolved = normalize(target)
-            if ignored(resolved, patterns) or (root / resolved).exists():
+            if ignored(resolved, patterns) or reachable(root, doc, resolved):
                 continue
             misses.append(Miss(label, lineno, target, kind))
     return misses

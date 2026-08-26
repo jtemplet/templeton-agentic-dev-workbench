@@ -38,6 +38,12 @@
 #           and Claude applies the label at the end. Weaker than gate,
 #           and honest about being weaker.
 #
+# Status is separate from labels, and only /build sets it. A label
+# records what a run DID and can need the run's verdict first; a status
+# records what is HAPPENING and is known at invocation. So /build moves
+# an open bead to in_progress immediately, and still defers
+# "implemented" to its own Feature complete report.
+#
 # Every failure path logs to stderr and exits 0, so a skill runs whether
 # or not the bead could be labeled. Only inject mode writes to stdout,
 # and only well-formed hook JSON.
@@ -191,7 +197,7 @@ init_repo() {
 has_label() {
   local json="$1" label="$2"
   echo "$json" | jq -e --arg l "$label" \
-    '((.[0].labels // .labels) // []) | index($l)' >/dev/null 2>&1
+    'if type == "array" then .[0] else . end | (.labels // []) | index($l)' >/dev/null 2>&1
 }
 
 add_label() {
@@ -202,6 +208,46 @@ add_label() {
   }
   log "labeled $bead_id $label"
   refresh_export
+}
+
+# Move the bead to in_progress as the work starts, and echo what happened.
+#
+# Deliberately not a label, and deliberately not deferred. A label records what
+# a run DID, so /build's "implemented" has to wait for the run's own verdict.
+# A status records what is HAPPENING, and that is known at invocation. Deferring
+# it would leave the bead reading `open` for the whole run, so `bd ready` would
+# go on offering work already underway.
+#
+# Only an `open` bead is claimed. in_progress is already the target, and a
+# closed bead must not silently reopen because someone ran /build to re-read a
+# spec. Status comes from RESOLVED_JSON, which resolve_bead already fetched, so
+# this costs no extra `bd show`.
+#
+# The outcome goes to stdout for the caller to log. It must be captured: inject
+# mode writes hook JSON to the same stream, and a stray line there is malformed
+# output rather than a message.
+claim_bead() {
+  local bead_id="$1" status
+  status="$(echo "$RESOLVED_JSON" | jq -r 'if type == "array" then .[0] else . end | .status // ""' 2>/dev/null || true)"
+
+  if [[ "$status" != "open" ]]; then
+    log "$bead_id is ${status:-of no readable status}, not open; leaving its status alone"
+    echo "left status ${status:-unreadable} alone"
+    return 0
+  fi
+
+  # --claim is atomic and idempotent when the claim is already yours, so two
+  # events firing for one /build (UserPromptSubmit, then PreToolUse) is safe.
+  if bd update "$bead_id" --claim >/dev/null 2>&1; then
+    log "claimed $bead_id, now in_progress"
+    refresh_export
+    echo "claimed in_progress"
+    return 0
+  fi
+
+  log "bd update $bead_id --claim failed"
+  echo "FAILED to claim in_progress"
+  return 1
 }
 
 # Leave the working tree exactly as clean as it was found.
@@ -380,7 +426,7 @@ resolve_bead() {
     [[ -z "$candidate" ]] && continue
     found="$(bd show "$candidate" --json 2>/dev/null || true)"
     [[ -z "$found" ]] && continue
-    id="$(echo "$found" | jq -r '((.[0].id // .id) // empty)' 2>/dev/null || true)"
+    id="$(echo "$found" | jq -r 'if type == "array" then .[0] else . end | .id // empty' 2>/dev/null || true)"
     if [[ -n "$id" ]]; then
       RESOLVED_ID="$id"
       RESOLVED_JSON="$found"
@@ -410,6 +456,7 @@ resolve_bead() {
 classify_skill() {
   local skill="$1"
   GATE=""
+  CLAIM=""
   case "$skill" in
     # Ordered the way the work moves: implemented, simplified, reviewed, qa-d, accepted.
     #
@@ -417,7 +464,7 @@ classify_skill() {
     # when the spec is too thin, and a label applied up front would call that
     # run implemented. So it waits for the run's own "Feature complete" report.
     feature-development|tadw:feature-development)
-      LABEL="implemented"; MODE="inject"
+      LABEL="implemented"; MODE="inject"; CLAIM=1
       GATE="the run reached its Feature complete report with every acceptance criterion met and its tests passing (a run that stopped at Ground, reported a criterion not met, or ended with a failing test does not clear this gate)" ;;
     simplify|tadw:code-simplify)
       LABEL="simplified"; MODE="apply" ;;
@@ -446,7 +493,7 @@ classify_skill() {
 # The shared flow, once a skill name is known. $3 names the hook event so
 # inject mode can label its own output correctly.
 run_label_flow() {
-  local skill="$1" args="$2" event="$3" branch
+  local skill="$1" args="$2" event="$3" branch claim_outcome
 
   init_repo
   branch="$(git branch --show-current 2>/dev/null || true)"
@@ -456,6 +503,14 @@ run_label_flow() {
     log_outcome "$event" "$skill" "$branch" "" "wanted $LABEL, no candidate resolved to a bead"
     quiet_exit
   }
+
+  # Ahead of the label short-circuit below on purpose. A bead that already
+  # carries the label can still have been reopened, and a re-run must move it
+  # back to in_progress rather than return early over the top of it.
+  if [[ -n "${CLAIM:-}" ]]; then
+    claim_outcome="$(claim_bead "$RESOLVED_ID" || true)"
+    log_outcome "$event" "$skill" "$branch" "$RESOLVED_ID" "${claim_outcome:-claim produced no outcome}"
+  fi
 
   if has_label "$RESOLVED_JSON" "$LABEL"; then
     log "$RESOLVED_ID already labeled $LABEL"
@@ -714,7 +769,12 @@ handle_stop() {
 
     created="$(sed -n '1p' "$marker" 2>/dev/null)"
     bead_id="$(sed -n '2p' "$marker" 2>/dev/null)"
-    [[ -z "$created" || -z "$bead_id" ]] && { rm -f "$marker"; continue; }
+    # created must be DIGITS, not merely non-empty. It is fed to (( )) below,
+    # where bash reads a non-numeric value as a variable NAME and `set -u` makes
+    # that a fatal unbound-variable error. That kills the whole Stop handler, so
+    # one unreadable marker would strand every other pending label in the
+    # directory, silently, in a script whose contract is to fail open.
+    [[ "$created" =~ ^[0-9]+$ && -n "$bead_id" ]] || { rm -f "$marker"; continue; }
 
     if (( now - created > MARKER_TTL_SECONDS )); then
       log "abandoning stale marker $(basename "$marker")"
@@ -769,7 +829,7 @@ handle_stop() {
 DOCTOR_COMMANDS="build simplify code-review fresh-eyes-cr qa quality-gates verify-acceptance"
 
 run_doctor() {
-  local branch command skill
+  local branch command skill claim_note
 
   init_repo
   branch="$(git branch --show-current 2>/dev/null || true)"
@@ -785,7 +845,8 @@ run_doctor() {
   fi
 
   echo "bead:       $RESOLVED_ID"
-  echo "labels:     $(echo "$RESOLVED_JSON" | jq -r '(((.[0].labels // .labels) // []) | join(", ")) | if . == "" then "<none>" else . end' 2>/dev/null || echo "<unreadable>")"
+  echo "labels:     $(echo "$RESOLVED_JSON" | jq -r 'if type == "array" then .[0] else . end | ((.labels // []) | join(", ")) | if . == "" then "<none>" else . end' 2>/dev/null || echo "<unreadable>")"
+  echo "status:     $(echo "$RESOLVED_JSON" | jq -r 'if type == "array" then .[0] else . end | .status // "<unreadable>"' 2>/dev/null || echo "<unreadable>")"
   echo
   echo "What each labeled command would do here:"
   for command in $DOCTOR_COMMANDS; do
@@ -797,10 +858,16 @@ run_doctor() {
       printf '  /%-18s not labeled (%s is unmapped)\n' "$command" "$skill"
       continue
     fi
+    claim_note=""
+    [[ -n "${CLAIM:-}" ]] && claim_note="claim it if open, then "
     if has_label "$RESOLVED_JSON" "$LABEL"; then
-      printf '  /%-18s nothing; %s already carries "%s"\n' "$command" "$RESOLVED_ID" "$LABEL"
+      if [[ -n "$claim_note" ]]; then
+        printf '  /%-18s claim it if open; %s already carries "%s"\n' "$command" "$RESOLVED_ID" "$LABEL"
+      else
+        printf '  /%-18s nothing; %s already carries "%s"\n' "$command" "$RESOLVED_ID" "$LABEL"
+      fi
     else
-      printf '  /%-18s %s "%s"\n' "$command" "$(doctor_verb "$MODE")" "$LABEL"
+      printf '  /%-18s %s%s "%s"\n' "$command" "$claim_note" "$(doctor_verb "$MODE")" "$LABEL"
     fi
   done
 }

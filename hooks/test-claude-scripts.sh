@@ -216,7 +216,7 @@ case "$sub" in
         exit 0
       fi
     fi
-    printf '[{"id":"%s","status":"open","labels":[%s]}]\n' "${BD_ID_PREFIX:-}$id" "${BD_LABELS_JSON:-}"
+    printf '[{"id":"%s","status":"%s","labels":[%s]}]\n' "${BD_ID_PREFIX:-}$id" "${BD_STATUS:-open}" "${BD_LABELS_JSON:-}"
     ;;
   close)
     case "${BD_CLOSE_MODE:-ok}" in
@@ -602,6 +602,25 @@ if case_start "label/stop: a failing report earns no label"; then
   assert_match "$R/.hookerr" "QA gate not met" "said why"
 fi
 
+if case_start "label/stop: an unreadable marker is discarded and the rest still resolve"; then
+  # The blast radius is the assertion, not the discard. `created` is fed to
+  # (( )), where bash reads a non-numeric value as a variable NAME and `set -u`
+  # makes that fatal, so the handler EXITED partway through the marker loop and
+  # every later marker in the directory went unresolved. Two markers, and the
+  # good one is checked after the bad one.
+  R="$(new_repo b3x with-origin)"
+  M="$(marker_dir "$R")"; mkdir -p "$M"
+  printf 'not-a-timestamp\ntadw-alpha-one\nqa\ngate\n' > "$M/qa-d__aaa-corrupt"
+  printf '%s\ntadw-alpha-one\nqa\ngate\n' "$(date +%s)" > "$M/qa-d__tadw-alpha-one"
+  sleep 1; write_report "$R" 0 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  [[ ! -e "$M/qa-d__aaa-corrupt" ]] && ok "discarded the unreadable marker" || nope "discarded the unreadable marker"
+  assert_match "$R/.bdcalls" "^update tadw-alpha-one --add-label qa-d$" "still resolved the marker behind it"
+  assert_no_match "$R/.hookerr" "unbound variable" "did not die in arithmetic"
+fi
+
 if case_start "label/stop: a marker past its TTL is abandoned"; then
   R="$(new_repo b3 with-origin)"
   M="$(marker_dir "$R")"; mkdir -p "$M"
@@ -728,6 +747,55 @@ if case_start "label/pre: an already-labeled bead is left alone"; then
   run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
   assert_no_match "$R/.bdcalls" "--add-label" "no second label"
   assert_match "$R/.hookerr" "already labeled" "said so"
+fi
+
+# ---------------------------------------------------------------------------
+# The status claim
+#
+# /build is the only command that moves a bead's status, and it moves it only
+# from `open`. The two guards matter for opposite reasons: claiming an
+# in_progress bead would stamp over somebody else's claim, and claiming a closed
+# one would REOPEN finished work because a person ran /build to reread a spec.
+# Both are silent when they go wrong, since the hook exits 0 either way.
+# ---------------------------------------------------------------------------
+
+if case_start "label/claim: /build claims an open bead"; then
+  R="$(new_repo c1 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open"
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:feature-development' 'tadw-alpha-one')"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  assert_match "$R/.bdcalls" "^update tadw-alpha-one --claim$" "claimed it"
+  assert_match "$R/.hookerr" "claimed tadw-alpha-one, now in_progress" "said so"
+  unset BD_STATUS
+fi
+
+if case_start "label/claim: an in_progress bead is left alone"; then
+  R="$(new_repo c2 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="in_progress"
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:feature-development' 'tadw-alpha-one')"
+  assert_no_match "$R/.bdcalls" "[-][-]claim" "did not re-claim"
+  assert_match "$R/.hookerr" "not open; leaving its status alone" "said why"
+  unset BD_STATUS
+fi
+
+if case_start "label/claim: a closed bead is never reopened"; then
+  R="$(new_repo c3 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="closed"
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:feature-development' 'tadw-alpha-one')"
+  assert_no_match "$R/.bdcalls" "[-][-]claim" "did not reopen it"
+  assert_match "$R/.hookerr" "is closed, not open" "named the status it found"
+  unset BD_STATUS
+fi
+
+if case_start "label/claim: only /build claims; a review pass does not"; then
+  # The claim rides classify_skill's CLAIM flag, so an entry added without it
+  # must not start moving status as a side effect of being labeled.
+  R="$(new_repo c4 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open"
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
+  assert_no_match "$R/.bdcalls" "[-][-]claim" "claimed nothing"
+  assert_match "$R/.bdcalls" "--add-label reviewed" "still labeled it"
+  unset BD_STATUS
 fi
 
 # ---------------------------------------------------------------------------
