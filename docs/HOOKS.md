@@ -37,15 +37,14 @@ skills; only the small universal core is always on.
 (`<!-- house-style-core: loaded -->`, `<!-- house-response-style: loaded -->`) so its
 presence is visible in any session, not only in a one-time test.
 
-**Output size, and why `SessionStart` is wired as three entries.** Claude Code caps every
+**Output size, and why `SessionStart` is wired as two entries.** Claude Code caps every
 hook output string at **10,000 characters**. The cap applies to plain stdout and to
 `hookSpecificOutput.additionalContext` alike, so no output format avoids it. Anything longer
 is written to a file and replaced with a short preview plus that path.
 
-The combined payload is 20,411 characters (style core 4,780, response style 15,631), just
-over twice the cap. Under a single entry the session received the first ~2,000 characters
-and a file path. The coding core arrived truncated after principle 4, and **the response style
-never arrived at all**.
+The combined payload is 14,493 characters (style core 4,780, response style 9,713), over the
+cap. Under a single entry the session received the first ~2,000 characters and a file path. The
+coding core arrived truncated after principle 4, and **the response style never arrived at all**.
 
 That failure was invisible from inside a session, and this is the part worth remembering. The
 style core's marker is the payload's first line, inside the surviving preview, so a session
@@ -60,8 +59,7 @@ manifest entries that differ only in a payload index:
 | Entry | Payload | Characters |
 |---|---|---|
 | 0 | Coding-style core | 4,780 |
-| 1 | Response style, part 1 | 9,854 |
-| 2 | Response style, part 2 | 5,777 |
+| 1 | Response style | 9,713 |
 
 `getSessionStartPayloads()` in `hooks/preamble.js` decides the split at run time, cutting on
 line boundaries and naming the resumed section in each continuation marker. Nothing is
@@ -69,6 +67,12 @@ hand-maintained, so editing the skill re-splits it automatically. Two checks hol
 shut: every payload must fit the cap, and the manifest must wire exactly one entry per
 payload. Grow the documents by one part without adding an entry and the suite fails rather
 than dropping the tail in silence.
+
+**The entry count is not a constant to rely on.** It was three until the response style was cut
+from 18,886 characters to 9,713 on 2026-08-26, which brought that document back inside one
+payload. The response style now runs 287 characters short of the cap, so the next
+substantial addition to it splits again and needs a third entry back. The suite says so when it
+happens.
 
 **Off-switch.** Disable both surfaces with either:
 

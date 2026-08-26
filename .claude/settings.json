@@ -14,7 +14,7 @@
       {
         "hooks": [
           {
-            "command": "test -x \"$CLAUDE_PROJECT_DIR/.claude/scripts/close_bead_on_pr_merge.sh\" && exec \"$CLAUDE_PROJECT_DIR/.claude/scripts/close_bead_on_pr_merge.sh\" || exit 0",
+            "command": "d=\"${CLAUDE_PROJECT_DIR:-}\"; test -n \"$d\" || exit 0; s=\"$(git -C \"$d\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)\"; test -n \"$s\" || exit 0; s=\"${s%/.git}/.claude/scripts/close_bead_on_pr_merge.sh\"; test -x \"$s\" && exec \"$s\" || exit 0",
             "statusMessage": "Checking for bead to close...",
             "type": "command"
           }
@@ -26,7 +26,7 @@
       {
         "hooks": [
           {
-            "command": "test -x \"$CLAUDE_PROJECT_DIR/.claude/scripts/label_bead_on_skill_invocation.sh\" && exec \"$CLAUDE_PROJECT_DIR/.claude/scripts/label_bead_on_skill_invocation.sh\" || exit 0",
+            "command": "d=\"${CLAUDE_PROJECT_DIR:-}\"; test -n \"$d\" || exit 0; s=\"$(git -C \"$d\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)\"; test -n \"$s\" || exit 0; s=\"${s%/.git}/.claude/scripts/label_bead_on_skill_invocation.sh\"; test -x \"$s\" && exec \"$s\" || exit 0",
             "statusMessage": "simplify / code-review / fresh-eyes-cr / quality-gates / verify-acceptance: labeling bead...",
             "type": "command"
           }
@@ -49,7 +49,7 @@
       {
         "hooks": [
           {
-            "command": "test -x \"$CLAUDE_PROJECT_DIR/.claude/scripts/label_bead_on_skill_invocation.sh\" && exec \"$CLAUDE_PROJECT_DIR/.claude/scripts/label_bead_on_skill_invocation.sh\" || exit 0",
+            "command": "d=\"${CLAUDE_PROJECT_DIR:-}\"; test -n \"$d\" || exit 0; s=\"$(git -C \"$d\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)\"; test -n \"$s\" || exit 0; s=\"${s%/.git}/.claude/scripts/label_bead_on_skill_invocation.sh\"; test -x \"$s\" && exec \"$s\" || exit 0",
             "statusMessage": "Resolving pending bead labels...",
             "type": "command"
           }
@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -x \"$CLAUDE_PROJECT_DIR/.claude/scripts/label_bead_on_skill_invocation.sh\" && exec \"$CLAUDE_PROJECT_DIR/.claude/scripts/label_bead_on_skill_invocation.sh\" || exit 0",
+            "command": "d=\"${CLAUDE_PROJECT_DIR:-}\"; test -n \"$d\" || exit 0; s=\"$(git -C \"$d\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)\"; test -n \"$s\" || exit 0; s=\"${s%/.git}/.claude/scripts/label_bead_on_skill_invocation.sh\"; test -x \"$s\" && exec \"$s\" || exit 0",
             "statusMessage": "slash command: labeling bead..."
           }
         ]

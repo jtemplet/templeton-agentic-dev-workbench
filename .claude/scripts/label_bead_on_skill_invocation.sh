@@ -468,15 +468,20 @@ classify_skill() {
       GATE="the run reached its Feature complete report with every acceptance criterion met and its tests passing (a run that stopped at Ground, reported a criterion not met, or ended with a failing test does not clear this gate)" ;;
     simplify|tadw:code-simplify)
       LABEL="simplified"; MODE="apply" ;;
+    # Two entry points earn "reviewed", and only these two: /code-review and
+    # /tadw:fresh-eyes-cr. Both are review passes over finished code.
+    #
+    # The language style skills (style-swift, style-frontend, style-go,
+    # terraform-iac-expert, agentic-clean-code) and the per-language review
+    # skills were listed here once, to catch /tadw:code-review dispatching
+    # through the code-reviewer agent. That over-matched: /build Phase 2 loads
+    # the same style skill as the guide to WRITE by, so a plain build labeled
+    # its own unreviewed code "reviewed". A label nobody earned is worse than
+    # a label a command forgot to apply, so the indirect path is gone. If
+    # /tadw:code-review should label again, map it in skill_for_command below,
+    # where a command name belongs.
     code-review|code-review:code-review|\
-    review-fresh-eyes|tadw:review-fresh-eyes|\
-    review-python|tadw:review-python|\
-    review-rails|tadw:review-rails|\
-    style-frontend|tadw:style-frontend|\
-    style-swift|tadw:style-swift|\
-    style-go|tadw:style-go|\
-    terraform-iac-expert|tadw:terraform-iac-expert|\
-    agentic-clean-code|tadw:agentic-clean-code)
+    review-fresh-eyes|tadw:review-fresh-eyes)
       LABEL="reviewed";   MODE="apply" ;;
     # Both leave an artifact Stop can read, one each; the marker records
     # which skill ran, and Stop picks the reader from that.
@@ -599,7 +604,13 @@ skill_for_command() {
     build|tadw:build|\
     feature-development|tadw:feature-development) echo "tadw:feature-development" ;;
     simplify|tadw:code-simplify)              echo "tadw:code-simplify" ;;
-    code-review|code-review:code-review)      echo "code-review:code-review" ;;
+    # /tadw:code-review belongs here rather than in classify_skill, because it is
+    # a command name and that map takes skill names only. It dispatches through
+    # the code-reviewer agent to a per-language review skill, so there is no one
+    # skill to name; every path it takes is a review pass, so it resolves to the
+    # same skill the other code-review spellings do and earns the same label.
+    code-review|code-review:code-review|\
+    tadw:code-review)                         echo "code-review:code-review" ;;
     fresh-eyes-cr|tadw:fresh-eyes-cr)         echo "tadw:review-fresh-eyes" ;;
     qa|gstack:qa)                             echo "gstack:qa" ;;
     quality-gates|tadw:quality-gates)         echo "tadw:quality-gates" ;;

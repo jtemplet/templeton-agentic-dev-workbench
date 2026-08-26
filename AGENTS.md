@@ -281,12 +281,18 @@ and takes a single manifest path. Design notes, rationale, and the test strategy
 opens with a marker line, so you can see in any session whether it loaded. Off-switch:
 `TADW_STYLE_CORE=off`, or a flag file at `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`.
 
-The payload runs to roughly twice the 10,000-character cap Claude Code puts on each hook output.
-So `SessionStart` ships as three manifest entries that differ only in a payload index.
-`docs/HOOKS.md` tabulates the exact sizes, and `node hooks/test-hooks.js` asserts them.
+The payload exceeds the 10,000-character cap Claude Code puts on each hook output. So
+`SessionStart` ships as several manifest entries that differ only in a payload index, two of
+them today. `docs/HOOKS.md` tabulates the exact sizes, and `node hooks/test-hooks.js` asserts
+them.
 
-Do not collapse the three entries back into one. The tail is then discarded in silence, and the
-marker that says the core loaded survives inside the surviving preview.
+Do not collapse those entries into one. The tail is then discarded in silence, and the marker
+that says the core loaded survives inside the surviving preview.
+
+**Read the count from the manifest, never from memory.** It was three until the response style
+was cut to 9,713 characters on 2026-08-26, which brought that document back inside one payload.
+`getSessionStartPayloads()` decides the split at run time, and the suite fails when the manifest
+disagrees with it.
 
 Both style hooks run through `hooks/run-hook.sh`, which needs `node` on the non-interactive
 shell's PATH. Without `node`, the wrapper emits

@@ -219,16 +219,42 @@ chmod +x "$DEST"
 # unexpanded, and the inner quotes are part of the value, so the command still
 # works if a path component ever contains a space.
 #
-# The `test -x` guard is what keeps a vanished project directory quiet. A session
-# whose worktree is removed under it keeps running, and $CLAUDE_PROJECT_DIR then
-# names a directory that is gone: /bin/sh cannot find the script, exits 127, and
-# Claude Code reports a hook error on nearly every turn. The script's own failure
-# paths all exit 0 so a session continues, and without this guard the wiring
-# produced exactly the failure the script takes such care to avoid.
+# It resolves the script through the GIT COMMON DIR rather than reading
+# $CLAUDE_PROJECT_DIR/.claude directly, so a session running in a linked worktree
+# runs the MAIN checkout's copy. Two reasons, and the second is why the earlier
+# `test -x` guard was not enough on its own:
 #
-# The path is written twice rather than held in a shell variable. A hook command
-# string is not the place to assume Claude Code leaves $-expansion alone.
-HOOK_COMMAND="test -x \"\$CLAUDE_PROJECT_DIR/$DEST_DIR/$HOOK_SCRIPT\" && exec \"\$CLAUDE_PROJECT_DIR/$DEST_DIR/$HOOK_SCRIPT\" || exit 0"
+#   A worktree's copy can be stale. Every worktree checks out its own copy of a
+#   tracked file, so a session in one runs whatever that branch happened to have,
+#   which is not necessarily the installed version.
+#
+#   A worktree gets REMOVED under a live session. /tadw:ship deletes the worktree
+#   it ran in, the session keeps going, and $CLAUDE_PROJECT_DIR then names a
+#   directory that is gone. The guard below made that quiet, by exiting 0 and
+#   labeling nothing; resolving through the common dir makes it WORK, because the
+#   main checkout is still there. Measured on 2026-08-26: a Stop hook reported
+#   "No such file or directory" for a worktree removed minutes earlier.
+#
+# Three guards, in the order the values become known.
+#
+# The FIRST guard refuses an empty $CLAUDE_PROJECT_DIR before git sees it, and it
+# is not defensive padding. `git -C ""` is not an error: it silently stays in the
+# current directory. Without this line an unset project directory resolves
+# whatever repository the hook process happens to be standing in, and labels a
+# bead there. That is the same hazard the sandbox guard in
+# hooks/test-claude-scripts.sh exists for, and that file records it writing four
+# branches and two worktrees into a real checkout once already.
+#
+# The `test -n "$s"` guard covers a project directory that is not a repository at
+# all, where git answers nothing and `${s%/.git}` would otherwise reach for
+# /.claude/... at the filesystem root. `test -x` then covers a repository that
+# never installed the hook.
+#
+# Shell variables are used here where the path used to be written twice. The
+# doubled form cannot express this: the resolution is a command substitution, and
+# running it twice would fork git twice on every hook. $-expansion is safe to
+# rely on, since $CLAUDE_PROJECT_DIR in this same string already depends on it.
+HOOK_COMMAND='d="${CLAUDE_PROJECT_DIR:-}"; test -n "$d" || exit 0; s="$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"; test -n "$s" || exit 0; s="${s%/.git}/'"$DEST_DIR/$HOOK_SCRIPT"'"; test -x "$s" && exec "$s" || exit 0'
 
 # Read the current settings into a variable rather than patching the file in
 # place, and create nothing yet. A repository that had no settings.json must

@@ -1386,6 +1386,83 @@ if case_start "install/wiring: the guard still runs the script when it is there"
   assert_match "$R/.bdcalls" "--add-label qa-d" "reached the script, which labeled the bead"
 fi
 
+if case_start "install/wiring: a linked worktree runs the MAIN checkout's copy"; then
+  # The wiring resolves through the git common dir, which answers with the main
+  # checkout's .git from inside any linked worktree. A fresh worktree carries no
+  # copy of the script at all, because run_installer writes it untracked and an
+  # untracked file does not travel to a worktree. So this case fails outright on
+  # wiring that reads $CLAUDE_PROJECT_DIR/.claude directly.
+  R="$(new_repo w3)"
+  run_installer "$R"
+  WT="$SANDBOX/w3-worktree"
+  sgit "$R" worktree add --quiet --detach "$WT" HEAD
+  [[ ! -e "$WT/.claude/scripts/$HOOK_SCRIPT_NAME" ]] \
+    && ok "the worktree carries no copy of the script" \
+    || nope "the worktree carries no copy of the script"
+
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  qg_marker "$R" tadw-alpha-one
+  sleep 1; write_qg_report "$R" PASS
+  run_wired "$R" "$WT" "$(payload Stop '')"
+  assert_eq "$WIRED_CODE" 0 "exits 0"
+  assert_match "$R/.bdcalls" "--add-label qa-d" "reached the main checkout's script anyway"
+  sgit "$R" worktree remove --force "$WT"
+fi
+
+if case_start "install/wiring: a stale copy in the worktree is not the one that runs"; then
+  # The second thing the common dir buys. A worktree checks out its own copy of
+  # a tracked file, so a session in one could otherwise run whatever version that
+  # branch happened to hold. The decoy here would be obvious in the log if it ran.
+  R="$(new_repo w4)"
+  run_installer "$R"
+  WT="$SANDBOX/w4-worktree"
+  sgit "$R" worktree add --quiet --detach "$WT" HEAD
+  mkdir -p "$WT/.claude/scripts"
+  printf '#!/usr/bin/env bash\necho STALE-WORKTREE-COPY-RAN >&2\nexit 0\n' \
+    > "$WT/.claude/scripts/$HOOK_SCRIPT_NAME"
+  chmod +x "$WT/.claude/scripts/$HOOK_SCRIPT_NAME"
+
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  qg_marker "$R" tadw-alpha-one
+  sleep 1; write_qg_report "$R" PASS
+  run_wired "$R" "$WT" "$(payload Stop '')"
+  assert_no_match "$R/.wirederr" "STALE-WORKTREE-COPY-RAN" "the worktree's copy did not run"
+  assert_match "$R/.bdcalls" "--add-label qa-d" "the main checkout's copy did"
+  sgit "$R" worktree remove --force "$WT"
+fi
+
+if case_start "install/wiring: a project directory outside any repository is silent"; then
+  # The test -n guard. Without it an empty git answer resolves to /.claude/...
+  # at the filesystem root, which is a path this wiring must never reach for.
+  R="$(new_repo w5)"
+  run_installer "$R"
+  NOREPO="$SANDBOX/w5-not-a-repo"; mkdir -p "$NOREPO"
+  run_wired "$R" "$NOREPO" "$(payload Stop '')"
+  assert_eq "$WIRED_CODE" 0 "exits 0"
+  assert_eq "$(cat "$R/.wiredout")" "" "wrote nothing to stdout"
+  assert_eq "$(cat "$R/.wirederr")" "" "wrote nothing to stderr"
+fi
+
+if case_start "install/wiring: an empty project dir resolves nothing, not the cwd"; then
+  # `git -C ""` is NOT an error: it silently stays in the current directory. That
+  # is the hazard the sandbox guard at the top of this file exists for, and the
+  # wiring hands $CLAUDE_PROJECT_DIR straight to `git -C`. So an empty value must
+  # be refused BEFORE git sees it, or the hook resolves whatever repository the
+  # process happens to be standing in and labels a bead there.
+  #
+  # This case's cwd is the repository under test, so a fallback to the cwd looks
+  # like success. That is what makes it the right shape for the test: the label
+  # appearing is the bug, not the assertion being wrong.
+  R="$(new_repo w6)"
+  run_installer "$R"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  qg_marker "$R" tadw-alpha-one
+  sleep 1; write_qg_report "$R" PASS
+  run_wired "$R" "" "$(payload Stop '')"
+  assert_eq "$WIRED_CODE" 0 "exits 0"
+  assert_no_match "$R/.bdcalls" "add-label" "labeled nothing from an unnamed project"
+fi
+
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
@@ -1397,6 +1474,54 @@ if case_start "registration: AGENTS.md names this suite and the path resolves"; 
   [[ -f "$REPO_ROOT/${named#./}" ]] \
     && ok "the path it names exists on disk" \
     || nope "the path it names exists on disk" "$named"
+fi
+
+if case_start "registration: every .claude/scripts hook resolves through the git common dir"; then
+  # Asserted over ALL of them rather than by name, so the next hook someone adds
+  # with the older $CLAUDE_PROJECT_DIR/.claude form fails here instead of failing
+  # in a live session. Two hooks live in that directory today, and only one of
+  # them got the common-dir treatment when it was first written.
+  #
+  # What the form buys: a session inside a linked worktree runs the main
+  # checkout's copy, and a session whose worktree was deleted under it still
+  # finds a copy to run. Reading $CLAUDE_PROJECT_DIR/.claude directly gets a stale
+  # copy in the first case and nothing at all in the second.
+  settings="$REPO_ROOT/.claude/settings.json"
+  scripted="$(jq -r '
+    (.hooks // {}) | to_entries[] | .value
+    | (if type == "array" then .[] else empty end)
+    | (.hooks // [])[] | (.command? // "")
+    | select(contains(".claude/scripts/"))
+  ' "$settings")"
+
+  [[ -n "$scripted" ]] \
+    && ok "settings.json wires at least one .claude/scripts hook" \
+    || nope "settings.json wires at least one .claude/scripts hook"
+
+  offenders=""
+  while IFS= read -r cmd; do
+    [[ -z "$cmd" ]] && continue
+    case "$cmd" in
+      *'--git-common-dir'*) ;;
+      *) offenders="$offenders$(printf '\n  %s' "${cmd:0:90}")" ;;
+    esac
+  done <<< "$scripted"
+
+  assert_eq "$offenders" "" "every wired hook resolves through the git common dir"
+
+  # The empty-value guard has to come BEFORE git, because `git -C ""` silently
+  # stays in the current directory rather than failing. See the sandbox guard at
+  # the top of this file for what that cost once already.
+  unguarded=""
+  while IFS= read -r cmd; do
+    [[ -z "$cmd" ]] && continue
+    case "$cmd" in
+      *'test -n "$d" || exit 0; s="$(git'*) ;;
+      *) unguarded="$unguarded$(printf '\n  %s' "${cmd:0:90}")" ;;
+    esac
+  done <<< "$scripted"
+
+  assert_eq "$unguarded" "" "each one refuses an empty project dir before calling git"
 fi
 
 # ---------------------------------------------------------------------------

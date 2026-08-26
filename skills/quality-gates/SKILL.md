@@ -342,6 +342,22 @@ The prompt-assets row is here because the table did not have it on first use, an
 
 Read each test you count. A test that runs the case without asserting anything about it does not cover it.
 
+**Cite what you read, at both levels.** Reading a test leaves no trace. So a table built by reading
+and a table built by guessing from test names look identical to whoever acts on it. The citation is
+the trace:
+
+- **A unit cell carries the `file:line` of the test's key assertion.** That is the line checking the
+  case, not the line the test is declared on. A test name alone proves only that a symbol matched.
+- **An end-to-end cell quotes the single line that drives the real entry point**: the
+  `subprocess.run`, the HTTP client call, the CLI runner invocation. Quote it verbatim.
+
+The quoted line is the load-bearing half. This gate's Never list forbids counting an in-process call
+of a handler, and the quote is what makes that rule checkable: `subprocess.run([...])` and
+`handler(request)` do not read alike. A cell naming a test alone hides which one it holds.
+
+**A cell you cannot cite is an empty cell.** Grade it as no test, rather than as a test whose
+evidence is missing. Those two look the same to the reader, and the stricter reading cannot mislead.
+
 **A green Gate 8 does not satisfy the end-to-end rule here.** The two answer different questions,
 and merging them loses one of them:
 
@@ -707,7 +723,7 @@ Five rules the consumer depends on:
 | Gate | Status | Command | Result |
 |---|---|---|---|
 | Tests | PASS | `pytest tests/test_exports.py -q` | 14 passed, 0 failed (selected, not the full suite) |
-| Change coverage | FAIL | case review over 6 cases | 5 of 6 have unit tests, 0 request-level, span 7 of 11 |
+| Change coverage | FAIL | case review over 6 cases | 5 of 6 have unit tests, 1 request-level, span 7 of 11 |
 | Live API probe | FAIL | `python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/probe_api.py" --spec .git/quality-gates-probe.json --repo-root .` | 5 probes: 4 passed, 1 failed, 0 blocked |
 | Handoff: browser-ui | HANDOFF | - | 1 component changed; `/qa` owns it |
 | Lint | FAIL | `ruff check src/api/exports.py` | 2 errors, 11 warnings |
@@ -750,14 +766,17 @@ find.
 
 | # | Case | Unit test | Request level | Span covered |
 |---|---|---|---|---|
-| 1 | `POST /api/v1/exports` creates an export | `test_create_export` | - | 2 of 3: one row and many rows. Nothing covers an empty result set |
-| 2 | The route rejects an unknown format | `test_bad_format` | - | 1 of 1 at the unit level, and the probe above shows it fails through the real stack |
+| 1 | `POST /api/v1/exports` creates an export | `test_create_export`, asserts at `tests/test_exports.py:41` | `test_create_export_over_http`, drives it with `resp = client.post("/api/v1/exports", json={"format": "csv"})` | 2 of 3: one row and many rows. Nothing covers an empty result set |
+| 2 | The route rejects an unknown format | `test_bad_format`, asserts at `tests/test_exports.py:58` | - | 1 of 1 at the unit level, and the probe above shows it fails through the real stack |
 | 3 | 404 on a missing export id | - | - | 0 of 2 |
 
-No committed test drives these routes through the HTTP stack, so status codes and
-error bodies are unexercised by anything that will run again. The probe above
-measured them once, on this build; it leaves no test behind. Case 3 has no test at
-either level.
+Only the create path is driven through the HTTP stack. Nothing that will run again
+exercises the two error paths, so their status codes and error bodies rest on the
+probe above. That probe measured them once, on this build, and leaves no test
+behind. Case 3 has no test at either level.
+
+Case 1's quoted `client.post` is what separates its end-to-end test from a second
+unit test. An in-process `create_export(payload)` would read differently there.
 
 Case 1's empty result set is the span gap worth closing: an export that writes a
 header and no rows is the shape a caller is most likely to mishandle. I did not
@@ -780,7 +799,7 @@ not a skip. Install it or remove the configuration.
 ### Action Items
 
 1. Fix the 500 on an unknown format; the route must answer 422 (probe 2)
-2. Add a request-level test per route, so probe 2's bug cannot return unnoticed
+2. Add a request-level test for each error path, so probe 2's bug cannot return unnoticed
 3. Add a test for the missing-export 404 (case 3)
 4. Fix the two ruff errors in `src/api/exports.py`
 5. Install mypy, then re-run the type gate
@@ -819,6 +838,7 @@ The order is load-bearing. An all-BLOCKED run is a FAIL by rule 1 and never reac
 - Put the exact command in the table, so a reader can re-run it
 - Report real counts in every non-SKIP row
 - Enumerate the change's cases before grading coverage, and show the table
+- Cite the evidence in every coverage cell: a `file:line` for a unit test's key assertion, and the quoted driving line for an end-to-end test
 - Name each case's span classes, and which of them nothing covers
 - Weigh an uncovered span class by what a failure there would cost
 - Analyze types over the whole project, even when reporting only the changed files
@@ -873,6 +893,7 @@ Before reporting completion, verify:
 - [ ] Every case the change introduces appears in the coverage table
 - [ ] Every case names its span classes, and the uncovered ones are called out
 - [ ] Every test counted as coverage was read, not just found by name
+- [ ] Cite each counted test in its cell: a unit `file:line`, and an end-to-end quoted driving line. An uncitable cell is graded empty
 - [ ] Nothing asked for is a cross-product, an unreachable branch, or a defensive check
 - [ ] No configured gate is recorded as SKIP
 - [ ] A browser or mobile UI change is HANDOFF, never PASS

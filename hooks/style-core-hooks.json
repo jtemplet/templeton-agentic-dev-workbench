@@ -13,14 +13,8 @@
           },
           {
             "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js\" \"<!-- house-response-style: FAILED to load part 1 (node missing or script error) -->\" 1; exit 0",
-            "commandWindows": "$cfg = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }; $off = (@('off','0','false') -contains \"$env:TADW_STYLE_CORE\".Trim().ToLower()) -or (Test-Path (Join-Path $cfg '.tadw-style-core-off')); if (-not $off) { if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\session-start.js\" 1 } else { Write-Output '<!-- house-response-style: FAILED to load part 1 (node missing or script error) -->' } }",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js\" \"<!-- house-response-style: FAILED to load part 2 (node missing or script error) -->\" 2; exit 0",
-            "commandWindows": "$cfg = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }; $off = (@('off','0','false') -contains \"$env:TADW_STYLE_CORE\".Trim().ToLower()) -or (Test-Path (Join-Path $cfg '.tadw-style-core-off')); if (-not $off) { if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\session-start.js\" 2 } else { Write-Output '<!-- house-response-style: FAILED to load part 2 (node missing or script error) -->' } }",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js\" \"<!-- house-response-style: FAILED to load (node missing or script error) -->\" 1; exit 0",
+            "commandWindows": "$cfg = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }; $off = (@('off','0','false') -contains \"$env:TADW_STYLE_CORE\".Trim().ToLower()) -or (Test-Path (Join-Path $cfg '.tadw-style-core-off')); if (-not $off) { if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\session-start.js\" 1 } else { Write-Output '<!-- house-response-style: FAILED to load (node missing or script error) -->' } }",
             "timeout": 5
           }
         ]
