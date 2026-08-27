@@ -74,8 +74,37 @@ Language is not the same as convention. Two Python repositories with the same st
 **Read, in this order:**
 
 1. **`AGENTS.md` or `CLAUDE.md` at the repo root.** Project instructions outrank every style skill; the injected core says so. Note anything that constrains the change: forbidden dependencies, privacy or tenancy invariants, required commands.
-2. **The dependency manifest**, for the framework and the test runner, not just the language: `pyproject.toml`, `Gemfile`, `package.json`, `Package.swift`, `go.mod`, `*.csproj`.
-3. **The two or three existing files nearest the change.** Find them with Grep or Glob on the closest existing behavior. These tell you the real conventions: module layout, error handling, logging, naming, how tests are structured.
+2. **The repository's development workflow document, when it has one.** It is normally named `development_workflow.md`, and its directory differs per repository: `docs`, `.agent_docs`, and `agent_docs` are all in use. List those directories rather than guessing one path. The document states the branch and worktree convention, the route from branch to `main`, and which gate runs at which step. Read it here, before the first edit, because its first step is usually about where the code is supposed to be written.
+3. **The dependency manifest**, for the framework and the test runner, not just the language: `pyproject.toml`, `Gemfile`, `package.json`, `Package.swift`, `go.mod`, `*.csproj`.
+4. **The two or three existing files nearest the change.** Find them with Grep or Glob on the closest existing behavior. These tell you the real conventions: module layout, error handling, logging, naming, how tests are structured.
+
+**Then set up the branch, before you edit anything.** Reading the document does not satisfy it, and this phase is where the commands run. Phase 3 writes files, and code written on the wrong branch costs a rebase or a cherry-pick to move.
+
+Two cases, and only the second one runs a command:
+
+| Where you are | What to do |
+|---|---|
+| Already on the branch or worktree for this work | Nothing. Check with `git rev-parse --abbrev-ref HEAD` and `git worktree list` before you create a second one. |
+| Anywhere else | Create the worktree or branch, named as below, and work from there. This covers the default branch and any unrelated branch you happen to be standing on. |
+
+Branch in both cases. A repository with no workflow document has not said "work on `main`"; it has said nothing, and the fallback below covers it.
+
+**Where the name comes from, in this order:**
+
+1. **The workflow document's own pattern, whenever it spells one.** It is a project instruction, and step 1 above already ranks those over this skill. Follow its branch shape and its worktree directory, and name it in the phase output.
+2. **Otherwise `<type>/<bead-id>/<slug>`,** with the worktree directory named after the branch. `<type>` is one of `chore`, `feature`, or `bugfix`, picked from what the bead is rather than from how large it is. `<bead-id>` is the full id, so the branch and the tracker read against each other. `<slug>` is two to four lower-case words joined by hyphens, naming the work and not the file it touches.
+
+```bash
+git worktree add .worktrees/<type>/<bead-id>/<slug> -b <type>/<bead-id>/<slug>
+cd .worktrees/<type>/<bead-id>/<slug>
+```
+
+Two adjustments to the fallback shape:
+
+- **No bead id, because the build came from a free-text description?** Drop that segment and use `<type>/<slug>`. Do not invent an id.
+- **The worktree directory is not ignored?** Create a plain branch of the same name instead, with `git switch -c`, and say so. Do not commit a worktree into the tree.
+
+**Branching is all you take from a workflow document.** Such a document usually runs on to code review, QA, merging into `main`, and pushing. This skill stops at implemented, so those later steps stay with `/quality-gates`, `/verify-acceptance`, and `/tadw:ship`. Reading them here does not make them yours to run.
 
 **Then load the style skills.** Match on the extensions you will write:
 
@@ -93,7 +122,7 @@ Add these on top, when they apply:
 - **`style-rspec`** on top of `style-testing` when the suite is RSpec.
 - **A project-local style skill, when one exists and covers what you are about to write.** This is the difference between correct-for-the-language and correct-for-this-repo. Check the available skill list for one naming this project or this surface, and load it. `style-fizzy` for the Fizzy codebase and `jbuilder-style` for Loan Labs factory API views are examples of the kind. When one exists and contradicts the general language skill, the local skill wins.
 
-For an unlisted language, say so, name what you will follow instead (the injected core plus the conventions you read in step 3), and continue.
+For an unlisted language, say so, name what you will follow instead (the injected core plus the conventions you read in step 4), and continue.
 
 **Output of this phase:**
 
@@ -102,6 +131,8 @@ For an unlisted language, say so, name what you will follow instead (the injecte
 
 **Stack:** [language, framework, test runner, from the manifest]
 **Project instructions:** [what AGENTS.md/CLAUDE.md constrains here, or "none found"]
+**Workflow document:** [path read, and the branch rule it states, or "none found"]
+**Building in:** [branch and directory, and which pattern named it: the workflow document's, the `<type>/<bead-id>/<slug>` fallback, or already on it]
 **Patterns to match:** [file:line for each of the 2-3 files read, one clause each on what it establishes]
 **Style skills loaded:** [names]
 **Files to touch:** [paths, with new vs modified]
@@ -142,6 +173,8 @@ Run the tests again afterward. A simplification that breaks a test is not a simp
 
 ## Phase 5: Lint
 
+**The linter must exit clean, with zero violations.** Auto-fixing starts this phase; it does not end it. Run the linter again after the fixes and read its output. A run that still reports a violation means the phase is unfinished.
+
 | Language | Linter | Command |
 |---|---|---|
 | Python | ruff | `ruff check <file> --fix` then `ruff format <file>` |
@@ -150,9 +183,16 @@ Run the tests again afterward. A simplification that breaks a test is not a simp
 | Swift | swift-format | `swift-format --in-place <file>` |
 | Go | gofmt, go vet, staticcheck | `gofmt -l -w .`, then `go vet ./...`, then `staticcheck ./...` |
 
-Prefer the command the project itself declares (a `lint.sh`, a task runner target, or the command named in `AGENTS.md`) over the generic one above. If the linter is not installed, say so, offer to install it, and note that manual review replaced it rather than reporting a pass.
+Prefer the command the project itself declares (a `lint.sh`, a task runner target, or the command named in `AGENTS.md`) over the generic one above.
 
-Report what was auto-fixed and what was not. Unfixable violations go to the user with an explanation, never silently.
+**Fix by hand whatever the auto-fixer leaves behind.** Correct those violations in the code, one at a time, until a fresh run reports none. Re-run the tests after each correction, because a lint fix can change behavior.
+
+Two states end this phase without a clean run. Both are stops, and neither is a pass:
+
+- **A violation you cannot fix without contradicting the bead or the conventions from Phase 2.** Name the rule, give the `file:line`, say why the fix conflicts, and ask. Do not reach for an inline disable to drive the count to zero. Use one only where the repository already suppresses that same rule the same way, and write the reason in the comment beside it.
+- **The linter is not installed.** Say so, offer to install it, and report the phase as not run. Manual reading is not a substitute, and a phase that never ran has not passed.
+
+Report what the auto-fixer changed, what you fixed by hand, and the count from the final run. Never report a violation as fixed when it was suppressed.
 
 **Output of this phase:**
 
@@ -162,7 +202,7 @@ Report what was auto-fixed and what was not. Unfixable violations go to the user
 **Bead:** <id> (still open, and still yours to close)
 **Files delivered:** [paths]
 **Tests:** [command, and the real count: "14 passed, 0 failed"]
-**Linter:** [command, and what it changed]
+**Linter:** [command, what it auto-fixed, what you fixed by hand, and the final count: "0 violations"]
 **Criteria met:** N of M [name any not met]
 
 **Next:** /quality-gates for the full sweep, then /verify-acceptance to grade this against the bead.
@@ -174,10 +214,10 @@ Track the five phases with TodoWrite, marking each `in_progress` on entry and `c
 
 ```text
 1. Ground: read the bead, confirm it is buildable
-2. Orient: read the repo, load the style skills
+2. Orient: read the repo and its workflow document, set up the branch, load the style skills
 3. Implement: code + a test per criterion
 4. Simplify: apply code-simplify, re-run tests
-5. Lint: run the project's linter
+5. Lint: run the project's linter, fix every violation, re-run it clean
 ```
 
 ## Edge Cases
@@ -198,8 +238,10 @@ Track the five phases with TodoWrite, marking each `in_progress` on entry and `c
 
 - Read the bead before asking the user anything it already answers.
 - Read `AGENTS.md`/`CLAUDE.md` and the nearest existing files before writing.
+- Read the repository's development workflow document, and set up the branch or worktree it names, before the first edit.
 - Load the language style skill, plus `style-testing` for tests and any project-local style skill.
 - Write to files, and give real test counts, never "tests pass".
+- End Phase 5 on a clean linter run, proven by re-running it: zero violations, or a named stop.
 - Leave tracker state alone: no claim, no status change, no close.
 
 **Never:**
@@ -209,4 +251,5 @@ Track the five phases with TodoWrite, marking each `in_progress` on entry and `c
 - Restate language style rules here; they live in the style skills.
 - Build a bead its own notes call too big, or one whose criteria you had to invent.
 - Report a criterion as met without a named test, a command's output, or a `file:line`.
+- Report the feature complete while the linter still reports a violation, or count a suppressed violation as a fixed one.
 - Close the bead or declare the work accepted. That is `/verify-acceptance`, and it is a separate judgment for a reason.
