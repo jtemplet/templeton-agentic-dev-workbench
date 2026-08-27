@@ -373,13 +373,19 @@ command wins. So a command body that says "Use the `<name>` skill" resolves back
 fixes: rename the command, delete it so the skill takes the slash name, or have it **Read**
 `${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md`.
 
-**Seven skills are accepted orphans.** `/validate-plugin` reports `bead-create`,
-`business-ideas`, `domain-modeling`, `idea-wizard`, `publish-plugin`, `ship`, and `triage-beads` as
-orphans, because no agent and no command references them. You invoke all seven directly as
-`/<name>`, so a referrer would add nothing. The `grilling` skill also reaches `domain-modeling`,
-and `publish-plugin` invokes `ship` to land a branch. The orphan check sees neither, because it
-follows agent and command references alone. Read the orphan rule as a prompt to check that a skill
-is still reachable.
+**Five skills are accepted orphans.** `/validate-plugin` reports `business-ideas`,
+`domain-modeling`, `idea-wizard`, `publish-plugin`, and `ship` as orphans, because no agent and no
+command references them. You invoke all five directly as `/<name>`, so a referrer would add
+nothing.
+
+Two of the seven listed before are no longer orphans. `commands/bead-refine.md` now names
+`bead-create` and `triage-beads`, so the check finds them.
+
+The check follows agent and command references alone, so it misses two live paths: the `grilling`
+skill reaches `domain-modeling`, and `publish-plugin` invokes `ship` to land a branch. It also
+matches on the skill's name, so `commands/adr.md` counts as a referrer of
+`architecture-decision-record` even though it writes the name without backticks. Read the orphan
+rule as a prompt to check that a skill is still reachable, not as a defect list.
 
 ## Issue Tracking (bd + bv)
 
