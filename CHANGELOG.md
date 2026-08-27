@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-08-27
+
+### Removed
+
+- **The secrets gate is removed from `quality-gates`, at the repository owner's request.**
+  `skills/quality-gates/scripts/check_secrets.py` and its regression suite,
+  `test_check_secrets.py`, are deleted, and every reference to them is unwired: both
+  `pre-push` hooks (`.githooks/pre-push` and `.beads/hooks/pre-push`), the `AGENTS.md` check
+  list (16 commands now, was 18), Gate 6 of the `quality-gates` skill, the `quality-gates`
+  command description, `docs/ROUTING.md`, and `verify-acceptance`, which now runs three named
+  gates instead of four and drops the "Secrets" row from its report table. Removing Gate 6 left
+  a hole in the gate numbering, so Hygiene moves from Gate 7 to Gate 6 and the Live API Probe
+  moves from Gate 8 to Gate 7, including in six script docstrings. This changes the
+  `quality-gates` JSON artifact's gate list, a machine-readable contract, so it is a MAJOR
+  bump: an integration that reads a "Secrets" entry from that artifact, or invokes
+  `check_secrets.py` by its documented path, stops resolving.
+
+### Changed
+
+- **`skills/product-surface-docs/SKILL.md`, `agents/product-cartographer.md`, and
+  `commands/product-surface-docs.md` are rewritten to the house Markdown style
+  (`style-markdown`).** Simplified Technical English throughout: shorter sentences, the
+  mechanism named instead of a metaphor, and the numbered step list expanded from seven items
+  to nine for the same behavior. No flag, default, or output changed; `argument-hint` and the
+  `docs/products/` default target are unchanged.
+
 ## [2.16.0] - 2026-08-27
 
 ### Added
@@ -2120,7 +2146,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.16.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.16.0...v3.0.0
 [2.16.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.15.0...v2.16.0
 [2.15.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.14.0...v2.15.0
 [2.14.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.13.0...v2.14.0
