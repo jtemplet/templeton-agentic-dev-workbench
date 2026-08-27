@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-08-27
+
+### Added
+
+- **`style-markdown`, the house style for Markdown.** `/build` mapped file extensions to style
+  skills, and the table covered programming languages only, so a bead whose deliverable was a
+  `SKILL.md` or a `docs/` page fell through to the "unlisted language" branch and was written with
+  no house style. The skill leads with the sentences it produces, because most Markdown here is an
+  instruction an agent executes, and an agent that meets an unclear sentence picks a reading rather
+  than asking. Simplified Technical English, specified in ASD-STE100: one word for one thing, 30
+  words per sentence and 20 for an instruction, name the mechanism instead of a metaphor, no
+  jargon, and a ten-year-old reading level with every technical name kept exact. Document-level
+  rules follow: state the rule before the reason, name the case you exclude, derive every number,
+  mark a machine-read region with paired HTML comments rather than a heading, and wrap prose at 100
+  columns without reflowing a file you only came to patch.
+- **The skill says to load `/response-style` when authoring Markdown inside a subagent.** This is
+  not a restatement of `house-response-style`. That document governs replies to the user, and
+  `hooks/preamble.js` injects it into parent sessions only, so a subagent writing a file never
+  receives it. `/build` writes documents inside subagents.
+- **`docs/plans/feature-plan-style-markdown.md`** records the design, the rejected alternatives,
+  and the measurements behind them, including that rumdl's MD013 has no working autofix.
+
+### Changed
+
+- **`/build` and `/simplify` route Markdown to `style-markdown`.** Both extension tables gain an
+  `.md` row. `feature-development` carries the qualifier "when the document is the deliverable",
+  with a paragraph defining both sides, so the row does not fire on a changelog line beside a code
+  change. `code-simplify` gains a caution the other style skills do not need: its contract is
+  preserving exact functionality and it verifies by running tests, but a document has no tests, so
+  the check is a reading.
+- **`docs/ROUTING.md` gains a "Markdown and Documentation" section**, in the same shape as the Go
+  section.
+
+### Fixed
+
+- **`commands/build.md` names `style-go` again.** Its Phase 2 list had omitted the skill since
+  `style-go` shipped, so `/build` never named it when orienting on a Go change.
+- **The accepted-orphan list in `AGENTS.md` said seven skills; five is right.**
+  `commands/bead-refine.md` now names `bead-create` and `triage-beads`, so the orphan check finds
+  both. The entry also records two things the check cannot see, so the next reader does not chase
+  them: it matches on a skill's name, so `commands/adr.md` counts as a referrer of
+  `architecture-decision-record` even without backticks, and it follows agent and command
+  references alone, so it misses `grilling` reaching `domain-modeling` and `publish-plugin`
+  invoking `ship`.
+
 ## [2.15.0] - 2026-08-27
 
 ### Added
@@ -2075,7 +2120,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.15.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.16.0...HEAD
+[2.16.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.15.0...v2.16.0
 [2.15.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.14.0...v2.15.0
 [2.14.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.1...v2.13.0
