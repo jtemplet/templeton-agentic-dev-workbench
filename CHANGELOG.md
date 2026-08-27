@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-08-26
+
+### Added
+
+- **`/tadw:ship` now says who is still standing in a worktree before it removes one.** Step 5 removes
+  the worktree holding the branch it just landed, and that skill says outright it often runs inside
+  the worktree it deletes. The directory goes; the session does not. That session then runs against a
+  path that no longer exists and goes quiet rather than failing: it labels no bead and writes no line
+  to `bead-label.log`, because the hook script it calls is one of the files just removed. Nobody is
+  told. `skills/ship/scripts/check_worktree_occupants.py` lists every live process whose working
+  directory sits in the worktree, by pid and command. It kills nothing, removes nothing, and never
+  refuses, so an unattended ship still completes; a live pid is a warning, and the Never list now
+  forbids both killing an occupant and refusing a removal over one. Exit 0 is nobody there, exit 1
+  lists the occupants, and exit 2 means it could not measure, which is a different answer from
+  nobody and is reported as such. It reads every visible process's working directory in one `lsof`
+  call rather than pre-filtering on a Claude-specific flag, because any shell, editor, or test runner
+  left in the directory is stranded the same way. Paths are compared by component after both sides
+  resolve, so a worktree reached through a symlink still matches and a sibling sharing a string
+  prefix does not. Its 14-check suite joins the pre-push hook and the declared check list, which take
+  13 checks to 14.
+
+### Fixed
+
+- **The bead-label hook records the two marker discards it used to drop in silence.** `handle_stop`
+  removed a malformed marker and wrote nothing durable. The path for a filename carrying no label
+  prefix logged to stderr only, and the path for an unreadable header wrote nothing at all, not even
+  to stderr. `bead-label.log` exists precisely because a hook's stderr goes unread, so both paths left
+  a label that never landed with no trace anyone would find. Each now calls `log_outcome` and names
+  the field that failed. Two regression cases pin them, both observed to fail against the previous
+  script.
+- **`bd export` is spelled with `-o .beads/issues.jsonl` everywhere an agent might run it.** A bare
+  `bd export` writes the whole export to stdout, updates no file, and exits 0, so it looks like it
+  worked while `.beads/issues.jsonl` goes stale and `bv` keeps reading the old file. Three sites in
+  the `bead-create` skill carried the bare form, including its closing checklist, which is written to
+  be jumped to. `docs/beads-workflow.md` now states what the bare form does.
+
 ## [2.13.0] - 2026-08-26
 
 ### Added
@@ -2001,7 +2037,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.13.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.14.0...HEAD
+[2.14.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.1...v2.13.0
 [2.12.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.0...v2.12.1
 [2.12.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.11.1...v2.12.0
