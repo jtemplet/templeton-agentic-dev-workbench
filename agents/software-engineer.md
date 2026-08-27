@@ -37,6 +37,7 @@ Whichever skill you load, the actual style decisions (what idiomatic Python look
 - `style-swift` for Swift (`.swift`)
 - `style-rails` for Ruby on Rails (`.rb`, `.erb`, `.rake`)
 - `style-go` for Go (`.go`)
+- `style-markdown` for Markdown deliverables (`.md`, `.markdown`): a skill, agent, command, doc, ADR, or plan
 - `style-fizzy` if working specifically in the Fizzy codebase
 
 **Test files load `style-testing` in addition to the language style skill.** It is

@@ -172,6 +172,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `style-swift` | Swift style (Sandi Metz, protocol-oriented design) | Writing or reviewing Swift and SwiftUI |
 | `style-frontend` | Frontend style (JS/TS/React/Vue, Sandi Metz principles) | Writing React or Vue, or splitting logic out of a component |
 | `style-go` | Go style: accept interfaces and return structs, wrapped errors over sentinels, useful zero values, goroutines with a defined exit, table-driven tests | Writing or reviewing Go, or deciding whether an interface earns its place |
+| `style-markdown` | Markdown style for documents an agent reads and executes: link out instead of inlining, numbers derived not remembered, HTML comment sentinels for machine-read regions, a 100-column wrap | Writing or reviewing a skill, agent, command, doc, ADR, or plan |
 | `terraform-iac-expert` | Terraform/IaC expertise across AWS, Azure, GCP | Writing Terraform, or debugging state and deployments |
 | `style-fizzy` | Vanilla Rails conventions for the Fizzy codebase | Working anywhere in the Fizzy codebase |
 | `idea-wizard` | Structured ideation: generate, evaluate, distill | Reviewing a codebase for improvements, or stuck and needing options |

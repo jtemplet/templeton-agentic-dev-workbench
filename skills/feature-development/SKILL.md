@@ -115,6 +115,9 @@ Two adjustments to the fallback shape:
 | `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `style-frontend` |
 | `.swift` | `style-swift` |
 | `.go` | `style-go` |
+| `.md`, `.markdown` | `style-markdown`, when the document is the deliverable |
+
+A Markdown file is the deliverable when the bead's acceptance criteria are satisfied by what the document says: a skill, an agent, a command, a `docs/` page, an ADR, or a plan. It is not the deliverable when you are adding a line to a changelog or a release note beside a code change. In a repository whose product is documentation, this row fires on most beads, and that is the intent.
 
 Add these on top, when they apply:
 

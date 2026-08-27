@@ -45,8 +45,11 @@ Detect by file extension and load the matching style skill via the Skill tool:
 | `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `style-frontend` |
 | `.swift` | `style-swift` |
 | `.go` | `style-go` |
+| `.md`, `.markdown` | `style-markdown` |
 
 The style skill owns the language-specific rules. This skill owns the simplification *process*. Do not restate language rules here.
+
+For a Markdown deliverable, behavior preservation means the document still gives the same instruction. There is no test to run, so the check is a reading: every rule, path, command, and number that survived the edit must still be true, and nothing the document told the reader to do may have quietly changed.
 
 ### Step 3: Analyze for Opportunities
 

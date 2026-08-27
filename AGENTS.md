@@ -156,6 +156,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Review Swift/iOS | `/swift-code-review` | `style-swift` |
 | Review JS/TS/React/Vue | `/frontend-code-review` | `style-frontend` |
 | Write or review Go | - | `style-go` |
+| Write or review Markdown | - | `style-markdown` |
 | Review Terraform | `/terraform-review` | `terraform-iac-expert` |
 | Review agents, tools, prompts | `/agentic-clean-code` | `agentic-clean-code` |
 | Build a feature from a bead | `/build <bead-id>` | `feature-development` + a `style-*` skill |
@@ -239,7 +240,7 @@ sat at 2.10.1 while main ran 13 commits past its release commit, and `v2.10.0` a
 created locally and never pushed. Read the last tag with `git tag --list 'v*' --sort=-v:refname`,
 because lexical order puts `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
-**Registered Skills** (43). One-line descriptions live in the `README.md` skills
+**Registered Skills** (44). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
@@ -250,7 +251,7 @@ reads when deciding what to invoke.
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `publish-plugin`
 `quality-gates` `research-ingest` `review-fresh-eyes` `review-python` `review-rails`
-`roadmap-dashboard` `ship` `style-fizzy` `style-frontend` `style-go` `style-python` `style-rails`
+`roadmap-dashboard` `ship` `style-fizzy` `style-frontend` `style-go` `style-markdown` `style-python` `style-rails`
 `style-rspec` `style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-audit`
 `ux-audit-ios` `verify-acceptance`
 

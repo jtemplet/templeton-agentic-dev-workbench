@@ -89,6 +89,20 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 - Table-driven tests on the standard library alone, comparing errors with `errors.Is`; load `style-testing` alongside
 - Tooling in order: `gofmt -l -w .`, `go vet ./...`, `staticcheck ./...`, then `go test -race ./...`
 
+### Markdown and Documentation
+
+**Style Guide:** Use the `style-markdown` skill
+
+- Write every sentence so a ten-year-old can follow it, and keep technical names exact
+- Simplified Technical English: one word for one thing, 30 words per sentence, 20 for an instruction
+- Name the mechanism, never a metaphor: write "add the hook to `settings.json`", not "wire it up"
+- No jargon, no `i.e.`, no `e.g.`, no em-dash and no en-dash
+- State the rule before the reason, and name the case you are excluding
+- A number is a claim: write the command that derives it, or leave it out
+- Mark a machine-read region with paired HTML comments, never with a heading
+- Wrap prose at 100 columns, and never reflow a file you only came to patch
+- Load `/response-style` when authoring Markdown inside a subagent, which never receives it
+
 ### Infrastructure as Code
 
 **Terraform Review:** Use `/terraform-review` or the `terraform-iac-expert` skill
