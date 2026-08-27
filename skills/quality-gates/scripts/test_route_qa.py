@@ -257,7 +257,7 @@ for name, fn in [
 print("\n  [endpoint extractors: one case per framework]")
 
 # Every extractor gets a case here, because both ways one can break are silent.
-# An extractor that finds nothing empties the probe spec, so Gate 8 checks nothing
+# An extractor that finds nothing empties the probe spec, so Gate 7 checks nothing
 # and says so in a voice that sounds fine. An extractor that invents a path sends a
 # probe at a URL that does not exist, which reads as a broken API. Six of these
 # nine shipped with no case at all until the change-coverage gate said so.

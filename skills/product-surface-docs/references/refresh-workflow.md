@@ -1,30 +1,52 @@
 # Refresh Workflow (the common case)
 
-Standing up a tree happens once; refreshing it happens every release. This is the worked refresh track. It assumes a tree already exists (possibly authored before this skill, possibly without frontmatter) and brings it back to current, re-hunts the changed code, and reconciles findings without creating duplicates.
+This page gives the eight steps that bring an existing product document tree back to current.
+You create a tree once. You refresh it every release, so this is the path most runs take.
 
-Read alongside `frontmatter-schema.md` (the schemas) and `SKILL.md` (the principles, templates, two-tier findings, and reconciliation outcomes).
+The steps assume a tree already exists. It may predate this skill, and it may carry no
+frontmatter. They bring it back to current, search the changed code again, and reconcile the
+findings without creating duplicates.
 
-## Step R0: Adopt the tree (one-time, if it predates the spec)
+Read this page alongside `frontmatter-schema.md`, which holds the schemas, and `SKILL.md`, which
+holds the principles, the document templates, the two-tier findings model, and the four
+reconciliation outcomes.
 
-A tree authored before this skill has no frontmatter, so the deterministic staleness story cannot fire. Adopt it first:
+## Step R0: Add frontmatter to a tree that predates this skill
 
-1. For every doc, derive `source_refs` by reading what the doc actually documents (the files/endpoints/screens it describes), set `last_reviewed` to the doc's last git-commit date (`git log -1 --format=%cd --date=short -- <doc>`), set `altitude`/`surface`/`parent`, and `status: current`.
-2. For surfaces whose code lives in another repo, use the external `source_refs` mapping form with a `pin` set to that repo's current HEAD (see `frontmatter-schema.md`).
-3. **This is additive, not an overwrite.** Adding frontmatter and correcting stale facts does not violate "never overwrite a human-authored tree"; that rule protects human prose and nuance, not the absence of metadata. Preserve the prose; add the metadata.
+A tree written before this skill has no frontmatter, so the staleness check cannot run. Add the
+frontmatter first. Do this once.
 
-Adoption is also where the **finding-identity migration** happens (Step R1).
+1. For every document, work out `source_refs` by reading what the document actually describes:
+   the files, endpoints, and screens it covers. Set `last_reviewed` to the document's last
+   git-commit date, which `git log -1 --format=%cd --date=short -- <doc>` prints. Set `altitude`,
+   `surface`, and `parent`. Set `status: current`.
+2. For a surface whose code lives in another repository, use the external `source_refs` mapping
+   form. Set `pin` to that repository's current `HEAD`. The form is in `frontmatter-schema.md`.
+3. **This adds to the document. It does not overwrite it.** Adding frontmatter and correcting a
+   stale fact does not break the rule against overwriting a tree a person wrote. That rule
+   protects the prose and the detail a person added, not the absence of metadata. Keep the prose,
+   and add the metadata.
 
-## Step R1: Migrate prose-only findings to F-IDs (one-time)
+Step R1 belongs to the same one-time pass.
 
-Prior findings may exist only as prose inside docs (Open Questions, gap lists) with no IDs, and possibly as already-filed beads with no ledger link. Bind them:
+## Step R1: Give an identifier to every finding that exists only as prose
 
-1. Create `docs/products/_findings.md` if absent (schema in `frontmatter-schema.md`).
-2. Walk every doc's in-situ findings. For each, mint an `F-ID`, add a ledger row, and back-annotate the prose with the `F-ID` (`**Bug (F-012):** ...`).
-3. Bind to existing beads: search the tracker by evidence/keyword; when a finding matches an existing bead, record that bead's ID in the row's Bead column and set status accordingly. This is the one-time reconciliation that the keyword-search-and-hope step was doing by hand; after it, the ledger is the durable join.
+Earlier findings may exist only as prose inside documents, in Open Questions lists and gap lists,
+with no identifier. Some may already have a bead that nothing links to. Link them:
 
-After R0+R1, every subsequent refresh is deterministic.
+1. Create `docs/products/_findings.md` if it is missing. Its schema is in
+   `frontmatter-schema.md`.
+2. Read every finding written into a document's prose. For each one, assign an `F-NNN`
+   identifier, add a ledger row, and write the identifier back into the prose, as
+   `**Bug (F-012):** ...`.
+3. Link each finding to any bead that already exists. Search the tracker by evidence and by
+   keyword. When a finding matches an existing bead, write that bead's identifier into the row's
+   Bead column and set the row's status to match. This replaces the hand search that used to
+   happen on every run. After it, the ledger is the durable link.
 
-## Step R2: Detect staleness
+Once R0 and R1 are done, every later refresh reaches the same answer from the same tree.
+
+## Step R2: Find the out-of-date documents
 
 Run the checker:
 
@@ -32,49 +54,70 @@ Run the checker:
 python3 <skill>/scripts/check_staleness.py docs/products
 ```
 
-It reports each doc as stale / unverifiable / stub / current, using `last_reviewed` (or the doc's commit date as the bootstrap baseline) and diffing `source_refs`. **Unverifiable** means an external surface whose probe repo was not reachable; check that repo by hand and bump its `pin`. Concentrate the rest of the refresh on the stale and unverifiable docs.
+It reports each document as stale, unverifiable, `stub`, or current. It measures from
+`last_reviewed`, or from the document's own commit date when that field is absent, and it diffs
+every path in `source_refs`. **Unverifiable** means an external surface whose `probe` repository
+was not reachable. Check that repository by hand and update its `pin`. Concentrate the rest of
+the refresh on the stale and unverifiable documents.
 
-## Step R3: Reconcile each stale doc
+## Step R3: Reconcile each out-of-date document
 
-For each stale doc, in pyramid order:
+Work through the out-of-date documents from the top of the tree down. For each one:
 
-1. Read the changed `source_refs` (the script lists exactly which paths moved).
-2. Reconcile the prose against the new reality. Correct stale framing explicitly (say what changed); preserve human nuance.
-3. Bump `last_reviewed` to today and, for external refs, update `pin` to the external repo's current HEAD.
+1. Read the `source_refs` paths that changed. The script names exactly which paths moved.
+2. Correct the prose against the new reality. Say what changed rather than deleting the old
+   framing in silence. Keep the detail a person added.
+3. Set `last_reviewed` to today. For an external ref, set `pin` to the external repository's
+   current `HEAD`.
 
-## Step R4: Concentrated re-hunt
+## Step R4: Search the changed code again
 
-Re-run the Active Hunt techniques (SKILL.md), but focus on code changed since each doc's prior `last_reviewed`, the highest-yield place for new bugs/gaps/debt. New code is where invariants get violated and migrations get left half-done. Log new findings to the ledger with fresh F-IDs and in-situ back-references.
+Run the search techniques from `SKILL.md` again. Concentrate on code that changed since each
+document's previous `last_reviewed` date. That is where new bugs, gaps, and debt are most likely,
+because new code is where a guarantee gets broken and where a migration gets left unfinished.
+Write every new finding to the ledger with a fresh identifier, and repeat that identifier in the
+document's prose.
 
-## Step R5: Reconcile findings (four outcomes)
+## Step R5: Reconcile the findings (four outcomes)
 
-For every finding (carried-over and new), choose exactly one outcome. This replaces the old binary create/skip:
+Give every finding exactly one outcome. This covers the findings carried over and the new ones.
+It replaces the older choice between create and skip.
 
 | Outcome | When | What to do |
 |---|---|---|
-| **New bead** | A promoted finding (see two-tier model) with no existing bead | Author an audit-grade bead; record its ID in the Bead column |
-| **Skip** | Already has a bead, unchanged since last run | Leave it; no tracker action |
-| **Fold in** | Overlaps an existing bead but is distinct (a near-duplicate that belongs to the same work unit) | Extend that bead (add to its Acceptance Criteria / Steps to Reproduce / scope), set the ledger row status to `folded` and point its Bead column at the host bead. Do **not** file a near-duplicate |
-| **Close** | The finding has been fixed since last run (the hunt no longer reproduces it) | Set the ledger row status to `closed`, keep the row for history, close the bead if one exists |
+| **New bead** | A promoted finding with no existing bead. The two-tier model in `SKILL.md` defines promotion | Write a bead that passes the `bead-audit` standard; record its identifier in the Bead column |
+| **Skip** | It already has a bead, and it has not changed since the last run | Leave it. Do nothing in the tracker |
+| **Fold in** | It overlaps an existing bead but is distinct, so it belongs to the same unit of work | Extend that bead: add to its Acceptance Criteria, its Steps to Reproduce, or its scope. Set the ledger row's status to `folded`, and point its Bead column at the bead you extended. Do **not** file a near-duplicate |
+| **Close** | It has been fixed since the last run, and the search no longer reproduces it | Set the ledger row's status to `closed`. Keep the row for the record. Close the bead if one exists |
 
-Detecting fold-in candidates: when a new finding shares a surface and overlapping evidence (same file/endpoint/area) with an existing open bead, treat it as a fold-in candidate and surface it at the confirmation gate rather than auto-filing.
+Here is how to spot a fold-in candidate. A new finding shares a surface with an open bead, and
+shares evidence with it, such as the same file, endpoint, or area. Treat that finding as a
+fold-in candidate. Show it when you ask the user to confirm, and do not file it on your own.
 
-## Step R6: Promote and author beads (two-tier)
+## Step R6: Promote the findings and write the beads
 
-Per the two-tier model in SKILL.md: every finding is already a ledger row (cheap, done in R4). Now author full `bead-audit`-grade beads only for the **promoted** set (auto-promote High severity; Medium/Low stay ledger rows until a human promotes them). Batch-author the promoted set using `bead-audit`'s JSON/backlog mode rather than one expensive inline pass.
+Follow the two-tier model in `SKILL.md`. Every finding already has a ledger row, which Step R4
+wrote and which costs almost nothing. Now write a full bead, one that passes the `bead-audit`
+standard, only for the findings you promote. Promote every High severity finding without asking.
+A Medium or Low finding stays a ledger row until a person promotes it. Write the promoted beads
+in one batch through `bead-audit`'s JSON mode, the `--json` output built for whole-backlog work.
+Do not run one expensive pass per finding.
 
-## Step R7: Present and confirm
+## Step R7: Present the result and wait
 
-Summarize: stale docs reconciled, external surfaces re-pinned, findings by type/severity/outcome, and the promoted beads (drafted, not yet created). **Wait for confirmation** before creating or folding any beads. On confirmation, apply the tracker changes and write bead IDs back into the ledger.
+Summarize four things: the out-of-date documents you reconciled, the external surfaces you
+re-pinned, the findings counted by type, severity, and outcome, and the promoted beads. The beads
+are drafted, not created. **Wait for confirmation** before you create or fold any bead. Once the
+user says yes, apply the tracker changes and write each bead identifier back into the ledger.
 
 ## Refresh quality checklist
 
-- [ ] Tree adopted (frontmatter present on every doc) before relying on staleness
-- [ ] Prose findings migrated to F-IDs with in-situ back-references
-- [ ] `check_staleness.py` was run; stale + unverifiable docs were the focus
-- [ ] External surfaces verified against their repo and re-pinned
-- [ ] Re-hunt concentrated on changed code, new findings logged with F-IDs
+- [ ] Every document has frontmatter, before you rely on the staleness check
+- [ ] Every prose finding has an identifier, written into both the ledger and the prose
+- [ ] `check_staleness.py` was run, and the stale and unverifiable documents were the focus
+- [ ] Every external surface was checked against its repository and re-pinned
+- [ ] The second search concentrated on changed code, and every new finding has an identifier
 - [ ] Every finding has exactly one of the four outcomes
-- [ ] Fold-in candidates were surfaced, not auto-filed as near-duplicates
-- [ ] Only promoted findings were authored as beads; the rest remain ledger rows
-- [ ] Tracker changes applied only after confirmation; bead IDs written back
+- [ ] Fold-in candidates were shown to the user, not filed as near-duplicates
+- [ ] Only promoted findings became beads; the rest are still ledger rows
+- [ ] Tracker changes were applied only after confirmation, and bead identifiers were written back

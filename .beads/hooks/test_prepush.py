@@ -93,7 +93,6 @@ NOT_IN_HOOK = {
 # body that exits 0 in that file's language.
 SLOW_CHECKS = {
     "hooks/test-hooks.js": "process.exit(0)\n",
-    "skills/quality-gates/scripts/test_check_secrets.py": "raise SystemExit(0)\n",
     "skills/quality-gates/scripts/test_check_hygiene.py": "raise SystemExit(0)\n",
     "skills/quality-gates/scripts/test_changed_set.py": "raise SystemExit(0)\n",
     # Builds git repositories in temp directories, the same shape as

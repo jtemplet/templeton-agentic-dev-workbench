@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regression suite for changed_set.py.
 
-Stdlib only, no install, mirroring test_check_secrets.py. Run with:
+Stdlib only, no install. Run with:
     python3 skills/quality-gates/scripts/test_changed_set.py
 
 Every case builds a throwaway origin repository plus a clone of it, so

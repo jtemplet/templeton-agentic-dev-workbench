@@ -86,13 +86,13 @@ UNVERIFIABLE is a real answer and is not a soft FAIL. Say what would settle it a
 
 ### Step 4: Run the QA Gates
 
-**Read** `${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/SKILL.md` and run four of its gates against the current tree: **Tests**, **Lint and Format**, **Type Checking**, and **Secrets**. If that path does not resolve, locate it with `Glob: **/skills/quality-gates/SKILL.md` and read it from there.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/SKILL.md` and run three of its gates against the current tree: **Tests**, **Lint and Format**, and **Type Checking**. If that path does not resolve, locate it with `Glob: **/skills/quality-gates/SKILL.md` and read it from there.
 
-Those four are the subset that can invalidate an acceptance claim. Skip its doc freshness and hygiene gates here; they produce warnings, and a warning never changes a verdict. Run `/quality-gates` instead when the user wants the complete sweep.
+Those three are the subset that can invalidate an acceptance claim. Skip its doc freshness and hygiene gates here; they produce warnings, and a warning never changes a verdict. Run `/quality-gates` instead when the user wants the complete sweep.
 
 Read the file rather than restating the gates from memory. It owns how each gate is discovered, how it is scoped, and what its statuses mean, and a second copy of that here would drift from it.
 
-**Do not write its `quality-gates-report.json` artifact.** That file records a full-sweep verdict, and this skill runs four gates of seven. A partial run recorded there would gate a push on a conclusion nobody drew.
+**Do not write its `quality-gates-report.json` artifact.** That file records a full-sweep verdict, and this skill runs three gates of seven. A partial run recorded there would gate a push on a conclusion nobody drew.
 
 Two of its rules carry into this report unchanged:
 
@@ -126,7 +126,6 @@ Output the report below, then stop.
 | Tests | PASS | `pytest -q` | 218 passed, 0 failed |
 | Lint | PASS | `ruff check .` | 0 errors, 2 warnings |
 | Type checking | SKIP | - | No type checker configured |
-| Secrets | PASS | `gitleaks detect` | 0 findings |
 
 ### Verdict: ACCEPTED / NOT ACCEPTED / INCONCLUSIVE
 

@@ -1,6 +1,6 @@
 ---
 name: quality-gates
-description: "Run the project's QA gates against the change: tests, change coverage, live API probe, lint, type check, doc freshness, secrets, hygiene. Scoped to what changed by default. Reads the diff to pick the QA method the change actually needs: real curl requests against a local server for a REST change, a handoff to /qa for browser UI, or a test-coverage review for everything else. Takes the gate list from what the project declares, not from guesswork. Report-only, and it never addresses a host other than this machine."
+description: "Run the project's QA gates against the change: tests, change coverage, live API probe, lint, type check, doc freshness, hygiene. Scoped to what changed by default. Reads the diff to pick the QA method the change actually needs: real curl requests against a local server for a REST change, a handoff to /qa for browser UI, or a test-coverage review for everything else. Takes the gate list from what the project declares, not from guesswork. Report-only, and it never addresses a host other than this machine."
 ---
 
 # Quality Gates
@@ -99,7 +99,7 @@ Run the bundled script. Do not hand-roll the base resolution or the file list.
 python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/changed_set.py" --repo-root .
 ```
 
-It prints one changed path per line on stdout, so a caller can pipe stdout without filtering it. The base goes to stderr, as `base: <sha> (merge-base of HEAD and <ref>)`. **Keep that SHA. Gate 7 takes its `--base` from it**, and re-deriving it with `git merge-base` is the hand-rolling this script exists to replace.
+It prints one changed path per line on stdout, so a caller can pipe stdout without filtering it. The base goes to stderr, as `base: <sha> (merge-base of HEAD and <ref>)`. **Keep that SHA. Gate 6 takes its `--base` from it**, and re-deriving it with `git merge-base` is the hand-rolling this script exists to replace.
 
 | Exit | Status |
 |---|---|
@@ -118,12 +118,10 @@ It prints one changed path per line on stdout, so a caller can pipe stdout witho
 | Live API probe | The endpoints the diff changed | Every endpoint the changed files define |
 | Lint, doc freshness, hygiene | Changed files only | Whole tree |
 | Type checking | Analyze the whole project, report only errors in changed files | Analyze and report whole-project |
-| Secrets | Whole tree | Whole tree |
 
-Three rows need their reasoning stated, because getting them wrong produces a confident wrong answer:
+Two rows need their reasoning stated, because getting them wrong produces a confident wrong answer:
 
 - **Type checking always analyzes the whole project.** A type error usually surfaces in the file that consumes the changed one. Checking a subset of files reports clean while the project does not compile. Narrow the report, never the analysis.
-- **Secrets always cover the whole tree.** The scan is cheap, and a key committed three months ago is still a key.
 - **The live probe narrows hard, and it is the one gate where `--all` costs real time.** Every probe
   is a round trip against a running server. Probing every route a touched controller defines turns a
   two-line change into thirty requests, most of them about code nobody edited.
@@ -160,7 +158,7 @@ operator error, which is BLOCKED.
 
 | Surface in the diff | Method | What it means here |
 |---|---|---|
-| **http-api** | `curl` | Gate 8 drives the endpoints through a real server on this machine |
+| **http-api** | `curl` | Gate 7 drives the endpoints through a real server on this machine |
 | **browser-ui** | `handoff` to `/qa` | This skill cannot settle it. HANDOFF, and the run is INCOMPLETE |
 | **mobile-ui** | `handoff` to `/ios-qa` | Same. HANDOFF |
 | **cli** | `coverage` | Gate 2 alone, and its end-to-end rule means the real argv and the real exit code |
@@ -225,10 +223,10 @@ silently never appears. Every row the report can contain has an owner here.
 | Gate 2 for `http-api`, both the unit level and the end-to-end level | `integration` | Step 3 routed `http-api` |
 | Gate 2 as SKIP, carrying the router's reason | Orchestrator | Every surface Step 3 routed was `docs`, so nothing changed behavior |
 | Gate 2 as HANDOFF, in place of a graded row | Orchestrator | Every surface Step 3 routed was a handoff |
-| Gate 8, the live API probe | `integration` | Step 3 routed a surface to `curl` |
+| Gate 7, the live API probe | `integration` | Step 3 routed a surface to `curl` |
 | `Handoff: browser-ui`, naming `/qa` | `frontend` | Step 3 routed `browser-ui` |
 | `Handoff: mobile-ui`, naming `/ios-qa` | Orchestrator | Step 3 routed `mobile-ui` |
-| Gates 3, 4, 5, 6, and 7 | Orchestrator | Always |
+| Gates 3, 4, 5, and 6 | Orchestrator | Always |
 | **Project checks** | Orchestrator | Step 1 discovered a command that maps to no gate |
 | Any surface `route_qa.py` defines that no row above names | Orchestrator | Always, until a lane claims it |
 
@@ -237,9 +235,9 @@ belongs to the lane whose surface or suite produced it, and every row no single 
 belongs to the orchestrator. A surface added to `route_qa.py` later matches no row above, and
 without the residual it would have no owner at all, which is the row that silently never appears.
 
-When nothing routed to `curl`, Gate 8 is SKIP in its own wording, and the orchestrator emits it.
+When nothing routed to `curl`, Gate 7 is SKIP in its own wording, and the orchestrator emits it.
 
-Gates 3 through 7 stay with the orchestrator because each is a single scripted command, and
+Gates 3 through 6 stay with the orchestrator because each is a single scripted command, and
 dispatching a subagent to run one `python3` call costs more than it saves. Gate 5 is here for that
 reason and no other: it is one `check_doc_paths.py` invocation that forbids prose judgment, so a
 documentation lane would run one script and nothing else.
@@ -273,7 +271,7 @@ produces an answer about a different scope than the report claims.
 | The discovered gate set | Step 1 |
 | The numbered case list | Enumerated once over the whole changed set, per Gate 2 step B, before any case is graded |
 
-Two runs of `changed_set.py` against a moving working tree can disagree, and Gate 7 shows what that
+Two runs of `changed_set.py` against a moving working tree can disagree, and Gate 6 shows what that
 costs. A lane that re-discovers the gate set may pick a different source and run a command the
 project replaced. Three lanes numbering cases independently produce three unrelated lists, and a
 case nobody listed cannot be graded, which is what Gate 2 step B's numbering exists to prevent.
@@ -314,7 +312,7 @@ and what "end to end" means depends on which:
 
 | Surface | What end-to-end means here |
 |---|---|
-| **http-api** | Drive the route through the real HTTP stack: status code, body shape, auth, and the error responses. Gate 8 is where that happens, and this gate cites its result rather than repeating it |
+| **http-api** | Drive the route through the real HTTP stack: status code, body shape, auth, and the error responses. Gate 7 is where that happens, and this gate cites its result rather than repeating it |
 | **cli** | Invoke the built command the way a user does: real argv, real exit code, real stdout and stderr |
 | **library** | The public API is the surface. There is no separate end-to-end level |
 | **browser-ui**, **mobile-ui** | This skill cannot settle it. HANDOFF |
@@ -358,12 +356,12 @@ of a handler, and the quote is what makes that rule checkable: `subprocess.run([
 **A cell you cannot cite is an empty cell.** Grade it as no test, rather than as a test whose
 evidence is missing. Those two look the same to the reader, and the stricter reading cannot mislead.
 
-**A green Gate 8 does not satisfy the end-to-end rule here.** The two answer different questions,
+**A green Gate 7 does not satisfy the end-to-end rule here.** The two answer different questions,
 and merging them loses one of them:
 
 | | Question it answers | What it leaves behind |
 |---|---|---|
-| Gate 8's probe | Does this endpoint behave correctly right now, on this build? | Nothing. It is a measurement, not a test |
+| Gate 7's probe | Does this endpoint behave correctly right now, on this build? | Nothing. It is a measurement, not a test |
 | An end-to-end test | Will anyone notice when this endpoint stops behaving correctly? | A test that runs on every future change |
 
 So a REST diff with a passing probe and no committed request-level test is still a Gate 2 finding.
@@ -438,31 +436,7 @@ A path that a documented tool creates at runtime is not a broken reference. `doc
 
 **Do not judge whether the prose still describes the behavior.** That is not checkable from here, and an invented answer is worse than an honest skip. If the project has its own doc-consistency check, Step 1 will have found it, and this gate defers to it.
 
-#### Gate 6: Secrets
-
-Prefer a scanner the project already configures (`gitleaks`, `detect-secrets`, `trufflehog`) and name it in the report. Otherwise run the bundled script, which is the fallback rather than a replacement for a scanner the project already runs. Either way, do not hand-roll this check.
-
-```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_secrets.py" --repo-root .
-```
-
-It runs two checks over the whole tree: secret file names, and prefixed key formats in file content. `--exclude GLOB` is repeatable, for a path this project needs left out.
-
-| Exit | Status |
-|---|---|
-| 0 | PASS |
-| 1 | **FAIL**, with the reported findings. Unlike a stale doc reference, a key in the tree is not something to note and move past |
-| 2 | BLOCKED. The operator gave it a root that is not a git repository, or git will not run |
-
-Three rules the script encodes, stated here because the next person tempted to relax one reads this file rather than the script:
-
-- **The untracked half of the file check is the point.** It scans `git ls-files --others --exclude-standard` beside `git ls-files`, because an untracked `.env` that git does not ignore is one `git add -A` away from being committed. That is the case this gate exists to catch.
-- **Prefixed key formats only.** Generic long hex or base64 matching fires on lockfile hashes, test fixtures, and minified assets, and a gate that cries wolf gets ignored along with the real finding. Vendored, generated, minified, and fixture paths are excluded for the same reason.
-- **The matched value never reaches output.** A finding carries `file:line` and the pattern name, and nothing else. A report that quotes the secret copies it into one more place. That rule binds your report too, not just the script's.
-
-The script names any file it did not read, above its verdict, and a skipped file does not change the exit status. Carry that count into the report: "0 findings" above an unscanned file claims more than the gate checked.
-
-#### Gate 7: Hygiene
+#### Gate 6: Hygiene
 
 Run the bundled script. Do not hand-roll this check.
 
@@ -490,7 +464,7 @@ one base while this gate counted markers against another, and the report would s
 
 Under `--all` you may report the repository total instead, labeled as context rather than as a finding. A count of markers someone else added years ago changes nothing the reader can act on.
 
-#### Gate 8: Live API Probe
+#### Gate 7: Live API Probe
 
 **Runs only when Step 3 routed a surface to `curl`.** Otherwise it is SKIP, with the routed method
 as the reason: "SKIP, Step 3 routed browser-ui to /qa and cli to coverage; no HTTP surface changed".
@@ -691,7 +665,6 @@ This example is the run the Output Format section below reports, so the two can 
     {"name": "Lint", "status": "FAIL", "command": "ruff check src/api/exports.py", "detail": "2 errors, 11 warnings"},
     {"name": "Type checking", "status": "BLOCKED", "command": "mypy .", "detail": "exit 127, mypy not installed"},
     {"name": "Doc freshness", "status": "WARN", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py\" --repo-root .", "detail": "3 docs checked, 1 missing path"},
-    {"name": "Secrets", "status": "PASS", "command": "gitleaks detect", "detail": "0 findings"},
     {"name": "Hygiene", "status": "WARN", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_hygiene.py\" --base abc1234", "detail": "2 TODOs added"},
     {"name": "Project checks", "status": "PASS", "command": "node hooks/test-hooks.js", "detail": "19 checks, 0 failed"}
   ]
@@ -729,7 +702,6 @@ Five rules the consumer depends on:
 | Lint | FAIL | `ruff check src/api/exports.py` | 2 errors, 11 warnings |
 | Type checking | BLOCKED | `mypy .` | exit 127, mypy not installed |
 | Doc freshness | WARN | `python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py" --repo-root .` | 3 docs checked, 1 missing path |
-| Secrets | PASS | `gitleaks detect` | 0 findings |
 | Hygiene | WARN | `python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_hygiene.py" --base abc1234` | 2 TODOs added |
 | Project checks | PASS | `node hooks/test-hooks.js` | 19 checks, 0 failed |
 
@@ -845,7 +817,6 @@ The order is load-bearing. An all-BLOCKED run is a FAIL by rule 1 and never reac
 - Record a configured-but-unrunnable gate as BLOCKED
 - Give the reason beside every SKIP
 - Print the failing command's real output for every FAIL
-- Report `file:line` for a secret finding, never the matched value
 - Probe this machine unless the caller named another URL, and one probe per case rather than one per route
 - Name the probed host in the report, and mark it when it is not this machine
 - Stop any server you started, and say in the report whether you started it or found it running
@@ -903,7 +874,6 @@ Before reporting completion, verify:
 - [ ] Every server this run started is stopped, and the report says which servers it started
 - [ ] A REST change with a passing probe and no committed request-level test is still a Gate 2 finding
 - [ ] Every FAIL shows real command output, and says whether it looks new
-- [ ] No secret value was copied into the report
 - [ ] The overall verdict follows the Verdict Rules mechanically
 - [ ] The artifact's `verdict` matches the report's, its `routing` matches the router's output, and its `gates` array matches the table row for row
 - [ ] The Artifact line names the file written, or why the write was skipped

@@ -215,7 +215,7 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 - **Scoped to the change by default.** `--changed` runs the tests covering the changed code and
   narrows lint, doc freshness, and hygiene to changed files; the report states that the full suite
   did not run. Type checking still analyzes the whole project and reports only changed files,
-  because a type error surfaces in the consumer. The secret scan always covers the whole tree
+  because a type error surfaces in the consumer
 - Discovers the gate set from `AGENTS.md`, then CI config, then a task runner, and falls back to
   language auto-detect only when none of those names a check; the report says which source it used
 - **Picks the QA method from the diff, not from what is cheap to run.** A bundled router classifies
@@ -248,7 +248,6 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
   not a skip, and an all-skip run reports NO GATES RAN rather than PASS
 - Reports the exact command and real counts for every gate, and says whether each failure looks new
   by naming which changed files it involves
-- Scans for secrets on prefixed key formats only, and reports `file:line` without the matched value
 - Report-only: it never fixes, formats, or rewrites the working tree
 
 **Grade work against its criteria:** Use `/verify-acceptance` or the `verify-acceptance` skill

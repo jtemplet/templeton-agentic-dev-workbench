@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Drive a change's REST endpoints with real curl requests and grade the answers.
 
-This is Gate 8 of the quality-gates skill, and the `curl` method route_qa.py
+This is Gate 7 of the quality-gates skill, and the `curl` method route_qa.py
 picks. It takes a probe spec, sends each request through `curl`, and compares the
 real status, headers, and body against what the spec expects.
 
@@ -40,8 +40,8 @@ run has not passed and has not failed.
 NO SECRET REACHES THE OUTPUT. A header value that came from `${VAR}` prints as
 `${VAR}`, so the printed curl command stays runnable without carrying the token.
 A literal value under a sensitive header name prints as `<redacted>`, and the run
-says the spec should use an environment variable instead. This is Gate 6's rule
-about never quoting a matched secret, applied to the gate that handles live
+says the spec should use an environment variable instead. A report that quotes a
+secret copies it into one more place, and this gate is the one that handles live
 credentials.
 
 EXIT CODES, in the skill's own vocabulary:

@@ -7,11 +7,11 @@ Stdlib only, no install, mirroring test_changed_set.py. Run with:
 Every case builds a throwaway repository with one commit, plants one kind of
 change against it, and asserts the count and the exit status.
 
-RULE-TO-TEST MAPPING. This block is what proves the port from the Gate 7 shell
+RULE-TO-TEST MAPPING. This block is what proves the port from the Gate 6 shell
 recipe neither narrowed nor widened the count by accident. A rule with no test
 here is a rule nothing holds.
 
-  Gate 7 rule (skills/quality-gates/SKILL.md)     Pinned by
+  Gate 6 rule (skills/quality-gates/SKILL.md)     Pinned by
   ------------------------------------------------------------------------------
   Added lines are counted                        case_two_added_markers  (criterion 1)
   All four marker names count                   case_all_four_names_count

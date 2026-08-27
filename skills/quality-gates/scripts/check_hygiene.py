@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Count the TODO, FIXME, HACK, and XXX markers a diff adds.
 
-This is Gate 7 of the quality-gates skill. It exists as a script because the
+This is Gate 6 of the quality-gates skill. It exists as a script because the
 prose version was one shell recipe carrying a load-bearing `|| true`:
 
     git diff --unified=0 "$BASE" | grep -c '^+.*\\(TODO\\|FIXME\\|HACK\\|XXX\\)' || true

@@ -5,7 +5,7 @@ This is Step 3 of the quality-gates skill. The skill routes a change to one of
 three methods, and this script is what makes that choice from the diff instead of
 from a guess:
 
-    curl      a live HTTP probe through the real server (Gate 8)
+    curl      a live HTTP probe through the real server (Gate 7)
     handoff   a tool this skill cannot be: /qa for browser UI, /ios-qa for mobile
     coverage  a test-coverage review and nothing live (Gate 2 alone)
 

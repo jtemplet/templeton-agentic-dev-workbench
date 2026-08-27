@@ -1,26 +1,58 @@
 ---
-description: "Generate, refresh, and keep current a MECE/Pyramid product documentation tree under docs/products/, by surface, and surface bugs/gaps/debt"
+description: "Build and refresh a product documentation tree under docs/products/, one document per product surface, and report the bugs, gaps, and debt found along the way"
 argument-hint: "[target dir, default docs/products/]"
 ---
 
-**Read** `${CLAUDE_PLUGIN_ROOT}/skills/product-surface-docs/SKILL.md` and follow it to turn this codebase into a top-down, surface-organized product documentation tree.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/product-surface-docs/SKILL.md`. Follow it to turn this
+codebase into a product documentation tree organized by surface.
 
-Read the file rather than invoking the skill by name. `commands/product-surface-docs.md` and
-`skills/product-surface-docs/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
-`Skill(product-surface-docs)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/product-surface-docs/SKILL.md` and read it from there.
+Read that file. Do not invoke the skill by its name. `commands/product-surface-docs.md` and
+`skills/product-surface-docs/SKILL.md` share one `tadw:` invocation namespace, and the command
+wins. So `Skill(product-surface-docs)` returns this file and never reaches the skill. If that
+path does not resolve, find the file with `Glob: **/skills/product-surface-docs/SKILL.md` and
+read it from there.
 
-This operates from the `product-cartographer` role: a senior technical product documentarian and auditor who maps the product surfaces and, in the same pass, proactively hunts the code for bugs, feature gaps, and feature debt. Refer to `agents/product-cartographer.md` for the role's obligations and judgment principles.
+This runs in the `product-cartographer` role: a senior technical product documentarian and
+auditor. The role maps the product surfaces. In the same pass, it searches the code for bugs,
+feature gaps, and feature debt. Read `agents/product-cartographer.md` for the role's obligations
+and judgment principles.
 
-**Refresh-first, and safe to run on a schedule (e.g. weekly).** When a `docs/products/` tree already exists, this updates it in place: it follows the refresh track rather than regenerating from scratch. Existing docs are preserved and reconciled, not blown away; human prose and nuance are kept, facts are corrected additively, `last_reviewed` is bumped, and findings are reconciled against the ledger. Full-generation only happens for a surface (or the whole tree) that does not exist yet. Before writing, the skill checks for an existing tree and takes the refresh path when it finds one.
+**Refresh first. This is safe to run on a schedule, such as once a week.** When a
+`docs/products/` tree already exists, this updates it in place and follows the refresh workflow.
+It does not write the tree again from nothing. It keeps every existing document and the prose a
+person wrote. It corrects facts by adding to them, sets `last_reviewed` to today, and matches
+each finding against the ledger. It writes a document from nothing only for a surface, or a whole
+tree, that does not exist yet. The skill checks for an existing tree before it writes anything.
 
 The skill will:
 
-1. Detect whether a `docs/products/` tree already exists. If it does, take the **refresh track** (update in place, preserve prose, never wholesale-overwrite); if it does not, do a first stand-up. Either way, discover the real product surfaces from the codebase (web, api, iOS, CLI, etc.) and run a MECE audit so every capability maps to exactly one surface and nothing is missed
-2. Refresh (or, for anything not yet documented, generate) the apex `product_overview.md`, a doc per surface, and drill-down docs per capability and feature, each leading with its governing thought and linking up and down the pyramid; on an existing tree it follows the refresh track (adopt frontmatter if missing, detect staleness, reconcile changed facts, preserve everything still accurate)
-3. Ground every product claim in a specific file, endpoint, screen, or commit
-4. Proactively hunt for every bug, feature gap, and feature debt, logging each cheaply to the `docs/products/_findings.md` ledger with a stable F-ID and an in-situ back-reference (report everything)
-5. Promote the actionable findings (auto for High severity) into beads authored to the `bead-audit` standard, batch-authored and self-verified; on a refresh, reconcile each finding as new / skip / fold-in / close
-6. Stamp each doc with frontmatter (`source_refs`, `last_reviewed`, `status`; external surfaces use a pinned multi-repo ref) and ship a `check_staleness.py` so a later run detects staleness as a command, not a vibe
-7. Present a summary, the findings ledger, and the drafted beads, and **wait for confirmation** before creating or folding any beads
+1. Check whether a `docs/products/` tree already exists. When it does, take the **refresh
+   workflow**: update in place, keep the prose, and never overwrite a whole document. When it
+   does not, build the tree for the first time
+2. Find the real product surfaces in the codebase, such as web, api, iOS, and a command-line
+   tool. Then check that each capability belongs to exactly one surface, and that no capability
+   is missing
+3. Write or update every document. The tree holds one `product_overview.md` for the whole
+   product, one document for each surface, and one for each capability and feature below it.
+   Each document opens with a one-sentence answer to "what is this?" and links to the document
+   above it and to the documents below it
+4. On an existing tree, follow the refresh workflow. Add frontmatter where it is missing, find
+   the documents whose code has changed, correct the facts that changed, and keep what is still
+   accurate
+5. Ground every product claim in a specific file, endpoint, screen, or commit
+6. Search for every bug, feature gap, and feature debt. Write each one to the
+   `docs/products/_findings.md` ledger with an `F-NNN` identifier that never changes, and repeat
+   that identifier in the document itself. Report everything, because a ledger row is cheap
+7. Turn the findings worth acting on into beads written to the `bead-audit` standard. Promote
+   every High severity finding without asking. Author the beads in one batch, and check each
+   draft against the audit. On a refresh, give each finding exactly one outcome: new bead, skip,
+   fold into an existing bead, or close
+8. Stamp each document with frontmatter: `source_refs`, `last_reviewed`, and `status`. A surface
+   whose code lives in another repository uses the pinned multi-repository form. Include
+   `check_staleness.py`, so a later run finds out-of-date documents by running a command
+9. Present a summary, the findings ledger, and the drafted beads. Then **wait for confirmation**
+   before creating or folding any bead
 
-The gold-standard structure to match is `atlas/docs/products/` for voice and altitude (the spec adds the frontmatter and ledger atlas predates). Target directory defaults to `docs/products/`; pass a different path in `$ARGUMENTS` to override.
+Match `atlas/docs/products/` for voice and for how deep each document goes. This skill adds the
+frontmatter and the ledger that atlas does not have. The target directory defaults to
+`docs/products/`. Pass a different path in `$ARGUMENTS` to override it.

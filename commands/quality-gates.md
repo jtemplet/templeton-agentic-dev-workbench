@@ -1,5 +1,5 @@
 ---
-description: "QA the change: tests, change coverage and span, a live curl probe of changed REST endpoints, lint, type checks, doc freshness, secrets, hygiene. Scoped to what changed by default"
+description: "QA the change: tests, change coverage and span, a live curl probe of changed REST endpoints, lint, type checks, doc freshness, hygiene. Scoped to what changed by default"
 argument-hint: "[--changed | --all]"
 ---
 
@@ -13,7 +13,7 @@ The skill will:
 
 1. Discover the gate set from `AGENTS.md`, CI config, or a task runner, and fall back to language auto-detect only when none of those names a check
 2. **Read the diff and pick the QA method the change earns**: real curl requests against a local server for a REST surface, a handoff to `/qa` for browser UI (or `/ios-qa` for mobile), and a test-coverage review alone for a CLI, a library, or prompt assets. A full-stack diff gets several methods, not a choice between them
-3. Run tests, change coverage, the live API probe, lint, type checking, doc freshness, secrets, and hygiene, each with a bounded timeout
+3. Run tests, change coverage, the live API probe, lint, type checking, doc freshness, and hygiene, each with a bounded timeout
 4. Check that every case the change introduces is exercised at the unit level, and that every CLI command or HTTP route it touches is exercised end to end through the real entry point
 5. Check the span of each case, meaning the classes of input, state, and outcome, and name the classes nothing covers
 6. Hand a browser or mobile UI change to `/qa` on its own report row rather than passing it, which makes the run INCOMPLETE
@@ -38,7 +38,7 @@ written acceptance criteria.
 
 Report-only. It never fixes, formats, or edits anything in the working tree, and it never rewrites the working tree to establish a baseline. The single file it writes is the JSON artifact above, which sits inside the git directory, is never committed, and is skipped entirely when the tree is not a git repository.
 
-**The default scope is the change, not the repository.** `--changed` runs the tests that cover the changed code and narrows lint, doc freshness, and hygiene to changed files. The report says the full suite did not run. Two gates stay wide on purpose: type checking analyzes the whole project and reports only the changed files, because a type error surfaces in the consumer; the secret scan always covers the whole tree. Pass `--all` for the repository-wide sweep. With no argument it uses `--changed`, falling back to `--all` when the base will not resolve.
+**The default scope is the change, not the repository.** `--changed` runs the tests that cover the changed code and narrows lint, doc freshness, and hygiene to changed files. The report says the full suite did not run. One gate stays wide on purpose: type checking analyzes the whole project and reports only the changed files, because a type error surfaces in the consumer. Pass `--all` for the repository-wide sweep. With no argument it uses `--changed`, falling back to `--all` when the base will not resolve.
 
 The gate is proportionate by design. It asks for one test per span class, never their cross-product, and never for defensive code around a failure that cannot happen.
 
