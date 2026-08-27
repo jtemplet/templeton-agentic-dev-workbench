@@ -761,7 +761,7 @@ handle_stop() {
   init_repo
   [[ -d "$MARKER_DIR" ]] || quiet_exit
 
-  local marker basename_marker marker_label created bead_id skill mode report now branch
+  local marker basename_marker marker_label created bead_id skill mode report now branch bad_field
   now="$(date +%s)"
   branch="$(git branch --show-current 2>/dev/null || true)"
   for marker in "$MARKER_DIR"/*; do
@@ -774,6 +774,11 @@ handle_stop() {
     marker_label="${basename_marker%%__*}"
     if [[ -z "$marker_label" || "$marker_label" == "$basename_marker" ]]; then
       log "marker $basename_marker carries no label prefix; discarding"
+      # log_outcome too, not log alone. bead-label.log exists because stderr
+      # goes unread in a hook, so a discard recorded only on stderr is a label
+      # that never landed and left no trace anyone will find.
+      log_outcome Stop "" "$branch" "$(sed -n '2p' "$marker" 2>/dev/null)" \
+        "discarded $basename_marker, the filename carries no label prefix"
       rm -f "$marker"
       continue
     fi
@@ -785,7 +790,14 @@ handle_stop() {
     # that a fatal unbound-variable error. That kills the whole Stop handler, so
     # one unreadable marker would strand every other pending label in the
     # directory, silently, in a script whose contract is to fail open.
-    [[ "$created" =~ ^[0-9]+$ && -n "$bead_id" ]] || { rm -f "$marker"; continue; }
+    if [[ ! "$created" =~ ^[0-9]+$ || -z "$bead_id" ]]; then
+      if [[ ! "$created" =~ ^[0-9]+$ ]]; then bad_field="timestamp"; else bad_field="bead id"; fi
+      log "marker $basename_marker has an unreadable $bad_field; discarding"
+      log_outcome Stop "$(sed -n '3p' "$marker" 2>/dev/null)" "$branch" "$bead_id" \
+        "discarded $marker_label, the marker header has an unreadable $bad_field"
+      rm -f "$marker"
+      continue
+    fi
 
     if (( now - created > MARKER_TTL_SECONDS )); then
       log "abandoning stale marker $(basename "$marker")"

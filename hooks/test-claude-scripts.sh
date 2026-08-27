@@ -1059,6 +1059,37 @@ if case_start "label/log: a gate withheld at Stop is recorded, not just dropped"
   assert_match "$(label_log "$R")" "withheld qa-d" "recorded the withholding"
 fi
 
+if case_start "label/log: a marker with no label prefix is recorded, not just dropped"; then
+  # Both discard paths below used to remove the marker and write nothing to the
+  # durable log. That log exists precisely because a hook's stderr goes unread,
+  # so a label that never landed left no trace anyone would find.
+  R="$(new_repo g3b with-origin)"
+  M="$(marker_dir "$R")"; mkdir -p "$M"
+  printf '%s\ntadw-alpha-one\nqa\ngate\n' "$(date +%s)" > "$M/no-separator-here"
+  sleep 1; write_report "$R" 0 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  [[ ! -e "$M/no-separator-here" ]] && ok "removed the marker" || nope "removed the marker"
+  L="$(label_log "$R")"
+  assert_match "$L" "no label prefix" "said why it was discarded"
+  assert_match "$L" "no-separator-here" "named the discarded file"
+fi
+
+if case_start "label/log: a marker with an unreadable header is recorded, not just dropped"; then
+  R="$(new_repo g3c with-origin)"
+  M="$(marker_dir "$R")"; mkdir -p "$M"
+  printf 'not-a-timestamp\ntadw-alpha-one\nqa\ngate\n' > "$M/qa-d__aaa-corrupt"
+  sleep 1; write_report "$R" 0 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  [[ ! -e "$M/qa-d__aaa-corrupt" ]] && ok "removed the marker" || nope "removed the marker"
+  L="$(label_log "$R")"
+  assert_match "$L" "unreadable timestamp" "named the field that failed"
+  assert_no_match "$R/.hookerr" "unbound variable" "did not die in arithmetic"
+fi
+
 if case_start "label/log: an unmapped skill writes nothing at all"; then
   # A hook correctly declining to label /adr is not an outcome. Logging it
   # would bury the lines that are.
