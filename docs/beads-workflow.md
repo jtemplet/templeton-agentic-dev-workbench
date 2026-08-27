@@ -81,7 +81,9 @@ bd export -o .beads/issues.jsonl                  # Export DB to JSONL after Bea
 2. **Claim**: Use `bd update <id> --status=in_progress --json`
 3. **Work**: Implement the task
 4. **Complete**: Use `bd close <id> --reason="Completed" --json`
-5. **Sync**: Run `bd export -o .beads/issues.jsonl` after Beads mutations so the JSONL export is current
+5. **Sync**: Run `bd export -o .beads/issues.jsonl` after Beads mutations so the JSONL export is current.
+   The `-o` is not optional. A bare `bd export` writes the whole export to stdout, updates no file, and
+   exits 0, so it looks like it worked while `.beads/issues.jsonl` stays stale.
 
 ### Key Concepts
 

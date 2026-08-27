@@ -267,7 +267,7 @@ Claim it with: bd update <id> --claim
 - Write each section to its canonical destination in the `bd create` call itself: `--design`, `--notes`, and `--acceptance` for the sections with native fields, `-d` only for the sections without one
 - Pass a category label, reusing an existing category from `bd label list-all`
 - Read the bead back after creating it and confirm the native fields are populated
-- Run `bd export` yourself, and mention it only on failure
+- Run `bd export -o .beads/issues.jsonl` yourself, and mention it only on failure
 
 **Never:**
 
@@ -279,7 +279,7 @@ Claim it with: bd update <id> --claim
 - Treat an unmet acceptance criterion as a grounding failure. Unmet criteria are the bead's reason to exist
 - Re-run `bd create` for a bead whose create already succeeded
 - Put How, Done when, or Acceptance Criteria in the description body when the tracker has native fields for them
-- Ask the author to run `bd export` or to sync the tracker
+- Ask the author to run `bd export -o .beads/issues.jsonl` or to sync the tracker
 - Use `bd edit`; it opens `$EDITOR` and blocks
 
 ## Quality Checklist
@@ -299,4 +299,4 @@ Before reporting completion, verify:
 - [ ] `design`, `notes`, and `acceptance_criteria` were verified populated with `bd show`
 - [ ] A category label is set, reused from the existing label set, and any need for a person is stated in the body
 - [ ] Parent and dependency edges the author confirmed are wired
-- [ ] `bd export` ran, and was reported only if it failed
+- [ ] `bd export -o .beads/issues.jsonl` ran, and was reported only if it failed
