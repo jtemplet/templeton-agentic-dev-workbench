@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-08-27
+
+### Added
+
+- **`/build` now reads the repository's development workflow document, and creates the branch it
+  names, before Phase 3 writes a file.** Phase 2 read `AGENTS.md`, the dependency manifest, and the
+  nearest existing files, and none of those states where the code is supposed to be written. So
+  `/build` edited wherever the session happened to be standing, which on a fresh clone is the default
+  branch. The document is normally called `development_workflow.md`, and its directory differs per
+  repository, so the phase lists `docs`, `.agent_docs`, and `agent_docs` rather than guessing one
+  path. Reading it is not enough on its own: a document read alongside `AGENTS.md` lands as a
+  constraint, and Phase 3 then starts writing files, so the acting instruction lives in the skill and
+  the document supplies only the parameters. Naming is an ordered list. The document's own pattern
+  wins wherever it spells one, because a project instruction outranks this skill. Otherwise the
+  fallback is `<type>/<bead-id>/<slug>`, with `<type>` one of `chore`, `feature`, or `bugfix`, and
+  the worktree directory named after the branch. A free-text build with no bead drops the id segment,
+  and a worktree directory that is not ignored falls back to a plain branch of the same name rather
+  than stopping the phase. Branching is all `/build` takes from such a document: its later steps,
+  code review, QA, merging, and pushing, stay with `/quality-gates`, `/verify-acceptance`, and
+  `/tadw:ship`. Two live `/build` runs in throwaway fixture repositories pin both paths. With a
+  document present, the run produced `feature/fix-1/slugify-helper` in `.worktrees/fix-1`, the
+  document's shape. With none, it produced the same branch name from the fallback in
+  `.worktrees/feature/fix-1/slugify-helper`. Both left the default branch clean.
+
+### Changed
+
+- **Phase 5 of `/build` is now a gate rather than a report.** It ran the auto-fixer, reported what
+  was fixed, and passed whatever it could not fix to the user, so a build could finish with the
+  linter still failing. The phase now requires the linter to exit clean with zero violations, proven
+  by re-running it, and whatever the auto-fixer leaves behind is corrected by hand one violation at a
+  time, with the tests re-run after each correction. Two states end the phase without a clean run and
+  both are stops: a violation whose fix would contradict the bead or the Phase 2 conventions, which
+  is reported with its rule and `file:line`, and a missing linter, which is reported as not run
+  because manual reading is not a substitute. The suppression escape is closed: an inline disable is
+  allowed only where the repository already suppresses that same rule the same way and carries the
+  reason beside it, and a suppressed violation never counts as a fixed one. This can fail a run that
+  used to pass, which is what puts this release at MINOR.
+
 ## [2.14.0] - 2026-08-26
 
 ### Added
@@ -2037,7 +2075,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.14.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.15.0...HEAD
+[2.15.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.14.0...v2.15.0
 [2.14.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.1...v2.13.0
 [2.12.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.12.0...v2.12.1
