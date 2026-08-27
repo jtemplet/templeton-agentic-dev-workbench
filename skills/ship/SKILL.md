@@ -305,6 +305,8 @@ one does:
 
 ```bash
 git worktree list --porcelain                       # find the worktree holding <branch>
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/ship/scripts/check_worktree_occupants.py" \
+  --worktree <worktree-path>                        # who is still standing in it
 cd <main-checkout>                                  # LEAVE the worktree before removing it
 git -C <main-checkout> worktree remove <worktree-path>
 git -C <main-checkout> branch -D <branch>
@@ -313,6 +315,17 @@ git -C <main-checkout> branch -D <branch>
 - **Leave the worktree before removing it.** This skill often runs inside the worktree it deletes.
   Remove the directory you stand in, and every later command fails, including the ones that report
   what happened. Say in the report that the caller's shell moved.
+- **Say what a session left there loses, before removing it.** The removal does not stop a session
+  standing in the worktree. That session keeps running against a path that no longer exists, and it
+  goes quiet rather than failing: it labels no bead and writes no line to `bead-label.log`, because
+  the hook script it calls is one of the files just removed. Whoever owns that session is told
+  nothing. End it, or restart it somewhere that still exists.
+- **Report the occupants, then remove anyway.** `check_worktree_occupants.py` exits 0 when nobody
+  stands there, and prints nothing worth repeating; exit 1 lists each pid and its command, and that
+  list goes in the report. Exit 2 means it could not measure, which is not the same as nobody being
+  there, so say that instead of claiming the worktree was clear. **It kills nothing and removes
+  nothing**, and neither do you: a live pid is a warning, never a refusal. This skill runs
+  unattended, and the session it would refuse for is usually its own caller.
 - **Never remove the worktree holding the default branch.** Match on the branch you are shipping,
   never on position in `git worktree list --porcelain`.
 - **A dirty worktree stops the removal, and that is correct.** Report it as left behind, with the path
@@ -338,6 +351,8 @@ then stop.
 **Pushed:** origin/main
 **Cleaned up:** removed the worktree at .outrigger/worktrees/4kx-create-ship-command, deleted the
 local branch and origin/outrigger/4kx/create-ship-command. Your shell moved to /Users/you/Dev/project
+**Still standing there:** pid 27169 (claude). That session labels no bead now; end it. (Omit this
+line when the occupant check found nobody.)
 
 SHIP_DONE d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3
 ```
@@ -386,6 +401,8 @@ which is what an orchestrator checks against main.
   holds the feature branch
 - Reset local main when it carries a commit this run did not create
 - Remove the worktree holding the default branch, or force-remove a dirty one
+- Kill a process standing in a worktree, or refuse the removal because one is. Report the pid
+  and remove anyway; whose session it is, is not this skill's call.
 - Read a rebase conflict as real before checking whether the work already landed
 - Resolve a source conflict, fix a failing test, or edit the branch's code
 - Close a bead this run did not land, close two, or pass `--force` to `bd close`. A bead with open

@@ -32,6 +32,7 @@ python3 skills/quality-gates/scripts/check_secrets.py                # assert no
 python3 skills/quality-gates/scripts/test_check_hygiene.py          # regression suite for the hygiene counter
 python3 skills/quality-gates/scripts/test_route_qa.py                # regression suite for the QA-method router
 python3 skills/quality-gates/scripts/test_probe_api.py               # regression suite for the live API probe
+python3 skills/ship/scripts/test_check_worktree_occupants.py   # regression suite for the worktree occupant check
 python3 .githooks/test_prepush.py                             # regression suite for the pre-push hook
 claude plugin validate .                                      # parses every SKILL.md frontmatter
 python3 evals/test_run.py                                     # regression suite for the eval harness; calls no model
@@ -76,7 +77,7 @@ every case, which is too slow and too costly for a push. `python3 evals/test_run
 model and costs about 2 seconds, so cost is not why it left the hook. The evals are a measurement
 you run deliberately. Both stay in the list above, so the ship gate still runs the harness suite.
 
-That leaves 13 checks. They take tens of seconds, and the figure moves with the machine. It was
+That leaves 14 checks. They take tens of seconds, and the figure moves with the machine. It was
 46 seconds when first measured warm, and 68 seconds for a dry-run push on 2026-08-23. Six suites
 carry nearly all of it.
 
