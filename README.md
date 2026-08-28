@@ -214,6 +214,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | Agent | Description |
 |---|---|
 | `code-reviewer` | Auto-detects languages, dispatches to correct review skill (read-only) |
+| `quality-gates-orchestrator` | Runs the quality gates across three concurrent subagent lanes (backend-unit, frontend, integration): resolves the gate set, scope, and QA routing once, keeps the gates no lane owns, then merges every returned row into the one report the `quality-gates` skill specifies. Report-only; it decides the verdict, no lane does |
 | `software-engineer` | Editing role for code work; routes to code-simplify, review-fresh-eyes, or feature-development based on intent |
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
 | `feature-planner` | Explores codebase, drafts structured plans with acceptance criteria to `docs/plans/` |

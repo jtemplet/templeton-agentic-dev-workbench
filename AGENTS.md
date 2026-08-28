@@ -253,12 +253,12 @@ reads when deciding what to invoke.
 `style-rspec` `style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-audit`
 `ux-audit-ios` `verify-acceptance`
 
-**Registered Agents** (12). Descriptions live in the `README.md` agents table and in
+**Registered Agents** (13). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.
 
 `claude-md-reviewer` `code-reviewer` `diagnostician` `feature-planner` `product-analyst`
-`product-cartographer` `product-manager` `project-manager` `research-librarian`
-`software-engineer` `ux-product-designer` `ux-product-designer-ios`
+`product-cartographer` `product-manager` `project-manager` `quality-gates-orchestrator`
+`research-librarian` `software-engineer` `ux-product-designer` `ux-product-designer-ios`
 
 **Registered Commands** (31). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
