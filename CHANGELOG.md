@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-08-28
+
+### Added
+
+- **`agents/quality-gates-orchestrator.md`, the agent ADR 0002 decided and named.** Without it the
+  three lanes `skills/quality-gates/SKILL.md` already describes had nothing to start them. The agent
+  owns Steps 1, 2, 3, and 6 of that skill: it resolves the base SHA, the changed paths, the gate
+  set, and the numbered case list once, hands all four to every lane, starts `backend-unit`,
+  `frontend`, and `integration` in one message, runs Gates 3 through 6 itself, then merges the
+  returned rows and decides the verdict. No lane renders a section and no lane decides anything.
+  Every lane start carries `run_in_background: false`, because ADR 0002 Finding 4 measured that a
+  start is asynchronous by default: a fan-out that does not block loses every row while reporting no
+  error at all. The file defers to the skill for each gate's technique rather than restating it, and
+  takes the row-ownership partition from the skill's Step 4 rather than from
+  `docs/plans/quality-gates-agent-refactor.md`, which predates the ADR and still describes four
+  lanes. The registered agent count is now 13.
+
+### Changed
+
+- **`style-markdown` now fires on knowledge-base documents, not just on this plugin's own files.**
+  Its old description read "Use when the document is the deliverable", then listed a skill, agent,
+  command, doc page, ADR, plan, and README. That is a summary, and the runtime reads this field to
+  decide whether to load a skill, so it has to name the conditions that fire it. Rule 20 of that
+  same skill says exactly that. Three gaps are closed. A knowledge base had no word in the list, so
+  a wiki page, a runbook, a reference page, an onboarding or process document, and notes kept as a
+  record now match by name. Only writing triggered it, so compose, update, rewrite, restructure, and
+  review now trigger it too. A request that never says Markdown or style missed entirely, and the
+  description now says so, and says to load before writing the first line rather than after. The
+  `When to Use` section gains the same split, defining each family in the sentence that introduces
+  it, and the `README.md` row is updated so the two descriptions cannot disagree.
+
 ## [3.1.0] - 2026-08-28
 
 ### Added
@@ -2192,7 +2223,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.1.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.2.0...HEAD
+[3.2.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.16.0...v3.0.0
 [2.16.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.15.0...v2.16.0
