@@ -291,7 +291,7 @@ Five rules on applying:
 - **A Shrink rewrites the bead, so the bead must still pass its own audit.** Read
   `${CLAUDE_PLUGIN_ROOT}/skills/bead-audit/SKILL.md` first, and keep each section in its native
   `bd` field, per ADR 0001,
-  [native tracker fields are canonical](../../docs/decisions/0001-native-tracker-fields-are-canonical.md).
+  [native tracker fields are canonical](../../docs/adr/0001-native-tracker-fields-are-canonical.md).
 - **A pinned bead, and a bead with open blockers, both refuse to close.** Do not reach for
   `--force`. Report a pin and ask, because somebody pinned it deliberately. On a Done verdict the
   blocking edges are usually the stale part, because work that shipped without them was never

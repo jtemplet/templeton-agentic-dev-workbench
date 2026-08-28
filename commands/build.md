@@ -12,8 +12,8 @@ The implementation operates from the `software-engineer` role: a working enginee
 The skill will:
 
 1. **Ground** - Read the bead's Why, How, and Done when. Stop if the criteria are too thin to build against, or if its own notes say to split it first
-2. **Orient** - Read `AGENTS.md`/`CLAUDE.md`, the repository's `development_workflow.md` (under `docs`, `.agent_docs`, or `agent_docs`), the dependency manifest, and the two or three existing files nearest the change. Create the worktree or branch the workflow document names, then load the matching style skills (`style-python`, `style-rails`, `style-frontend`, `style-swift`, `style-go`, or `style-markdown`), plus `style-testing` for any test file and any project-local style skill
-3. **Implement** - Code criterion by criterion, each with a test named after the criterion it proves
+2. **Orient** - Read `AGENTS.md`/`CLAUDE.md`, the repository's `development_workflow.md` (under `docs`, `.agent_docs`, or `agent_docs`), `docs/adr/` for the ADRs that bind the area, the dependency manifest, and the two or three existing files nearest the change. Create the worktree or branch the workflow document names, then load the matching style skills (`style-python`, `style-rails`, `style-frontend`, `style-swift`, `style-go`, or `style-markdown`), plus `style-testing` for any test file and any project-local style skill
+3. **Implement** - Code criterion by criterion, each with a test named after the criterion it proves. Report any design decision that constrains work beyond this bead as an ADR candidate
 4. **Simplify** - Apply the `/simplify` command, then re-run the tests
 5. **Lint** - Run the project's own linter, or the language's standard one
 

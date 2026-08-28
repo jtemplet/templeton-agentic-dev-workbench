@@ -71,16 +71,17 @@ Grilling produces alignment, not artifacts. Hand the outcome to whichever skill 
 
 | Next step | Skill or command |
 |---|---|
-| Write the plan | `/plan-feature` |
+| Write the plan | `/write-plan` |
 | File one bead | `/bead-create` |
 | Break it into beads | `/plan-to-beads` |
 | Build it | `/build <bead-id>` |
 | Record a decision the interview settled | `architecture-decision-record` |
-| Sharpen the terms the interview surfaced | `domain-modeling` |
+| Sharpen the terms the interview surfaced | `mattpocock-skills:domain-modeling` |
 
-Run `grilling` and `domain-modeling` together when the interview is also teaching you the
-project's vocabulary. The interview settles the decisions; `domain-modeling` writes the terms
-into `CONTEXT.md` as they crystallize.
+Run `grilling` and `mattpocock-skills:domain-modeling` together when the interview is also
+teaching you the project's vocabulary. The interview settles the decisions; that skill writes the
+terms into `CONTEXT.md` as they crystallize. Name it in full: this plugin used to ship a
+`domain-modeling` of its own, and a bare name could still resolve to a stale copy elsewhere.
 
 ---
 

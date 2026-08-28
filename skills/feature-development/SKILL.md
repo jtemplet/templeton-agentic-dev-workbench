@@ -25,7 +25,7 @@ Do NOT use this skill when:
 
 - Fixing a one-line bug (just fix it).
 - Refactoring without behavior change (use `code-simplify`).
-- The spec does not exist yet (use `/plan-feature`, then `/plan-to-beads`).
+- The spec does not exist yet (use `/write-plan`, then `/plan-to-beads`).
 - The bead's criteria are too thin to build against. Run `bead-audit` first and stop; see Phase 1.
 - Grading finished work (use `/verify-acceptance`).
 
@@ -75,8 +75,9 @@ Language is not the same as convention. Two Python repositories with the same st
 
 1. **`AGENTS.md` or `CLAUDE.md` at the repo root.** Project instructions outrank every style skill; the injected core says so. Note anything that constrains the change: forbidden dependencies, privacy or tenancy invariants, required commands.
 2. **The repository's development workflow document, when it has one.** It is normally named `development_workflow.md`, and its directory differs per repository: `docs`, `.agent_docs`, and `agent_docs` are all in use. List those directories rather than guessing one path. The document states the branch and worktree convention, the route from branch to `main`, and which gate runs at which step. Read it here, before the first edit, because its first step is usually about where the code is supposed to be written.
-3. **The dependency manifest**, for the framework and the test runner, not just the language: `pyproject.toml`, `Gemfile`, `package.json`, `Package.swift`, `go.mod`, `*.csproj`.
-4. **The two or three existing files nearest the change.** Find them with Grep or Glob on the closest existing behavior. These tell you the real conventions: module layout, error handling, logging, naming, how tests are structured.
+3. **`docs/adr/`, when the repository has one.** These are the architecture decision records: choices already made and not up for re-litigation in this bead. Read the titles, then open any whose subject your change touches. An ADR that contradicts your plan outranks the plan, the same way `AGENTS.md` does; say so in the phase output rather than quietly working around it.
+4. **The dependency manifest**, for the framework and the test runner, not just the language: `pyproject.toml`, `Gemfile`, `package.json`, `Package.swift`, `go.mod`, `*.csproj`.
+5. **The two or three existing files nearest the change.** Find them with Grep or Glob on the closest existing behavior. These tell you the real conventions: module layout, error handling, logging, naming, how tests are structured.
 
 **Then set up the branch, before you edit anything.** Reading the document does not satisfy it, and this phase is where the commands run. Phase 3 writes files, and code written on the wrong branch costs a rebase or a cherry-pick to move.
 
@@ -135,6 +136,7 @@ For an unlisted language, say so, name what you will follow instead (the injecte
 **Stack:** [language, framework, test runner, from the manifest]
 **Project instructions:** [what AGENTS.md/CLAUDE.md constrains here, or "none found"]
 **Workflow document:** [path read, and the branch rule it states, or "none found"]
+**Decisions that bind this change:** [ADR number and the rule it sets, one line each, or "none found"]
 **Building in:** [branch and directory, and which pattern named it: the workflow document's, the `<type>/<bead-id>/<slug>` fallback, or already on it]
 **Patterns to match:** [file:line for each of the 2-3 files read, one clause each on what it establishes]
 **Style skills loaded:** [names]
@@ -165,8 +167,19 @@ Stop and ask when a criterion turns out to be unbuildable as written, or when it
 
 **Files written:** [paths]
 **Design decisions:** [decision and why, for anything a reader would question]
+**ADR candidates:** [any design decision that constrains work beyond this bead] (omit when none)
 **Criteria not met:** [any, and why] (omit when none)
 ```
+
+**Promote a design decision to an ADR when it constrains work beyond this bead.** The
+`Design decisions` block above is read once and then lost with the transcript; a file in
+`docs/adr/` is read by every later Phase 2. A decision earns one when reversing it would cost
+more than a day *and* somebody would otherwise argue it again. Everything else belongs in the
+bead's `design` field, where it already is.
+
+List each one under `ADR candidates`, then run `/adr` on it before the work ships. Do not write the
+ADR silently, and do not file one per bead: a directory of records nobody obeys is worse than none,
+because it makes the ones that do carry rules harder to find.
 
 ## Phase 4: Simplify
 

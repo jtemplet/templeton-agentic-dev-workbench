@@ -44,7 +44,7 @@ This command is for grooming the whole backlog at once. For a single bead, use `
 
    **Confirm before scoring.** The file you read must contain the headings "Scorecard", "Bands, capped by verdict", and "4. Grounding Audit". If it does not, you have the wrong file: stop and say so rather than scoring from memory. A wrong number here is indistinguishable from a right one downstream.
 
-5. **Audit each bead once.** Apply the rubric you just read to every bead, treating `bd`'s native fields (`design`, `notes`, `acceptance_criteria`) as canonical structure per ADR 0001 (`docs/decisions/0001-native-tracker-fields-are-canonical.md`). Produce the scorecard so each bead gets a score and band, showing the per-dimension verdicts and the weighted sum beside it so the arithmetic stays checkable. Audit each bead exactly once; do not re-audit.
+5. **Audit each bead once.** Apply the rubric you just read to every bead, treating `bd`'s native fields (`design`, `notes`, `acceptance_criteria`) as canonical structure per ADR 0001 (`docs/adr/0001-native-tracker-fields-are-canonical.md`). Produce the scorecard so each bead gets a score and band, showing the per-dimension verdicts and the weighted sum beside it so the arithmetic stays checkable. Audit each bead exactly once; do not re-audit.
 
    Grounding is the one dimension that costs repository reads, so it scales with backlog size. On a large backlog, ground the beads you will act on and mark the rest `ungroundable` with the reason "not checked at this scope". Never let an unchecked bead report `grounded`.
 

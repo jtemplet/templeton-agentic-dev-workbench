@@ -11,7 +11,7 @@ completion percentage. Do the analysis first; render second.
    what passes).
 2. **Beads tracker.** The authoritative list of outstanding work. Collect it with the bundled
    script, never by eyeballing the JSONL by hand.
-3. **Implicit signals.** `TODO`/`FIXME`/`HACK` comments, ADRs (often under `docs/decisions/`),
+3. **Implicit signals.** `TODO`/`FIXME`/`HACK` comments, ADRs (often under `docs/adr/` or `docs/decisions/`),
    and issue IDs referenced in recent commit messages (`git log --oneline -50`).
 
 ## Collecting Beads Data

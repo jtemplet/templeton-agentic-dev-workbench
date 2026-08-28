@@ -237,7 +237,7 @@ The five fixtures, authored as part of milestone 1: `excellent-task`, `reformat-
   `--description` and `bd list --status`, `--limit`, `--json` all exist. The acceptance flag is
   `--acceptance`; `bd` rejects `--acceptance-criteria` as an unknown flag. `bd` has no `sync`
   command, so this plan's flush and import steps are written against `bd export` and `bd import`.
-- ADR 0001 (`docs/decisions/0001-native-tracker-fields-are-canonical.md`), which settles that native fields are canonical. Already accepted, and `plan-to-beads` already updated to comply.
+- ADR 0001 (`docs/adr/0001-native-tracker-fields-are-canonical.md`), which settles that native fields are canonical. Already accepted, and `plan-to-beads` already updated to comply.
 - `bead-audit` must gain scoring (milestone 1) before the driver can target a band. Milestones 2-4 depend on 1.
 
 ## Testing Strategy

@@ -1,6 +1,6 @@
 ---
 name: style-markdown
-description: Writes and reviews Markdown in the house style. Use whenever the task is to compose, update, rewrite, restructure, or review a document as the deliverable, even when the request never says Markdown or style. That covers a knowledge base of any kind (a `docs/` tree, a wiki, a runbook, a reference page, a README, an onboarding or process document, meeting or research notes kept as a record) and every prompt asset this plugin ships (a `SKILL.md`, an `agents/*.md`, a `commands/*.md`, an ADR under `docs/decisions/`, a plan under `docs/plans/`, `AGENTS.md`, and `CLAUDE.md`). Load it before writing the first line, not after. Enforces Simplified Technical English, one meaning per word, no jargon, sentences under 30 words, and a ten-year-old reading level, because most of these documents are read and executed by an agent that cannot ask what you meant
+description: Writes and reviews Markdown in the house style. Use whenever the task is to compose, update, rewrite, restructure, or review a document as the deliverable, even when the request never says Markdown or style. That covers a knowledge base of any kind (a `docs/` tree, a wiki, a runbook, a reference page, a README, an onboarding or process document, meeting or research notes kept as a record) and every prompt asset this plugin ships (a `SKILL.md`, an `agents/*.md`, a `commands/*.md`, an ADR under `docs/adr/`, a plan under `docs/plans/`, `AGENTS.md`, and `CLAUDE.md`). Load it before writing the first line, not after. Enforces Simplified Technical English, one meaning per word, no jargon, sentences under 30 words, and a ten-year-old reading level, because most of these documents are read and executed by an agent that cannot ask what you meant
 ---
 
 # Templeton Markdown Style
@@ -22,7 +22,7 @@ Two families of document count, and the trigger is the same for both:
   `docs/` tree, a wiki page, a runbook, a reference page, `README.md`, an onboarding or process
   document, and notes kept as a record.
 - **A prompt asset.** Any document an agent reads and executes. That covers a `SKILL.md`, a file
-  under `agents/`, a file under `commands/`, an ADR under `docs/decisions/`, a plan under
+  under `agents/`, a file under `commands/`, an ADR under `docs/adr/`, a plan under
   `docs/plans/`, `AGENTS.md`, and `CLAUDE.md`.
 
 The verb does not matter. Composing a new document, updating one, rewriting one, restructuring one,

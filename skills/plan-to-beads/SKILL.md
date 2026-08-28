@@ -9,7 +9,7 @@ A systematic technique for converting a written feature plan into actionable `bd
 
 ## When to Use
 
-- After a feature plan has been written and reviewed (e.g., via `/plan-feature` and `/plan-review`)
+- After a feature plan has been written and reviewed (e.g., via `/write-plan` and `/plan-review`)
 - When work is about to start and needs to be broken into trackable issues
 - When an existing plan needs to be re-decomposed because scope has shifted
 
@@ -218,7 +218,7 @@ From the plan's milestones, components, and scope, identify natural work units. 
 
 **Structural check.** Every plan stage maps to at least one bead, and every bead maps back to a stage. Flag orphans on either side before running the Marr audit.
 
-**Inherit acceptance criteria from the plan.** Plans written by `/plan-feature` carry an `## Acceptance Criteria` section and a per-milestone "Done when" column. Trace each plan-level criterion to the bead that satisfies it, and derive that bead's `## Acceptance Criteria` from it rather than inventing a parallel set. Two failure modes to surface at the confirmation gate:
+**Inherit acceptance criteria from the plan.** Plans written by `/write-plan` or `/plan-from-idea` carry an `## Acceptance Criteria` section and a per-milestone "Done when" column. Trace each plan-level criterion to the bead that satisfies it, and derive that bead's `## Acceptance Criteria` from it rather than inventing a parallel set. Two failure modes to surface at the confirmation gate:
 
 - A plan criterion no bead proves. This is a decomposition gap; add or widen a bead.
 - A bead proving no plan criterion. This is scope the plan never asked for; cut it or confirm it is deliberate.
@@ -329,7 +329,7 @@ If `bd` is not found, or the command fails, stop and inform the user.
 
 ### Step 5: Create Issues
 
-**Write each section to its canonical destination.** Per ADR 0001 (`docs/decisions/0001-native-tracker-fields-are-canonical.md`), when the tracker exposes a first-class field for a section, that field is canonical and the description body carries only what has no native slot. `bd create` cannot set these fields, so creation is two calls: create, then immediately populate.
+**Write each section to its canonical destination.** Per ADR 0001 (`docs/adr/0001-native-tracker-fields-are-canonical.md`), when the tracker exposes a first-class field for a section, that field is canonical and the description body carries only what has no native slot. `bd create` cannot set these fields, so creation is two calls: create, then immediately populate.
 
 | Section | `bd` destination |
 |---|---|

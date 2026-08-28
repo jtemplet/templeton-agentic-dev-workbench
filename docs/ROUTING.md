@@ -171,22 +171,60 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
   is put to you twice
 - Finds every fact itself, dispatching subagents for the slow ones, and asks you only for decisions
 - Stops when the frontier is empty and waits for you to confirm alignment before writing anything
-- Feeds `/plan-feature`, `/bead-create`, `/plan-to-beads`, or `/build`; it produces alignment, never
+- Feeds `/write-plan`, `/bead-create`, `/plan-to-beads`, or `/build`; it produces alignment, never
   an artifact
 
-**Shared Language:** Use the `domain-modeling` skill
+**Write the Plan a Conversation Decided:** Use `/write-plan` or the `write-plan` skill
 
+- The step after `/grill-me` or `/grill-with-docs`, and the one that runs in the same context window
+- Synthesizes what this conversation settled and never re-interviews you; a decision it cannot find
+  goes to Open Questions rather than back to you as a question
+- Verifies every file path, module, and API before naming it, because `/plan-review` checks each one
+- Picks the **test seams**, the boundaries a test drives the feature through: existing over new,
+  the highest one that still proves the behavior, and as few as possible. This is the only thing it
+  asks you to confirm
+- Reads `docs/adr/` and records the binding ADRs in the plan, so no plan quietly contradicts one
+- Loads `style-markdown` before the first line, because a plan is a prompt asset that
+  `/plan-to-beads` turns into bead text
+- **Owns the canonical plan template.** `/plan-review` scores Completeness against it, so both plan
+  writers read it from `skills/write-plan/SKILL.md` rather than from memory
+- Writes `docs/plans/feature-plan-<name>.md`, then points at `/plan-review`
+
+**Plan From One Sentence:** Use `/plan-from-idea` or the `feature-planner` agent
+
+- The cold start: nothing decided, no interview behind you, one sentence to work from
+- Runs in its own context window, so it explores the codebase from scratch and writes the same
+  template through the same ADR and seam steps
+- **It cannot see the conversation that invoked it.** When the design was already worked out in this
+  window, use `/write-plan`; sending it here throws that thinking away and invites a second,
+  different answer
+
+**Review a Plan:** Use `/plan-review [path]` or the `plan-review` skill
+
+- Runs the acceptance-criteria gate first: a plan with no testable criteria is Major Rework, and the
+  review drafts the missing criteria for you rather than telling you to add some
+- Grounds the plan in the repository, checking that every path, module, and API it names exists and
+  behaves as described
+- Scores 7 dimensions (completeness, feasibility, scope, risks, dependencies, MECE, actionability)
+  and runs a dedicated MECE audit for overlaps and gaps
+- Report-only: it never edits the plan file, and it offers a paste-ready draft for anything missing
+- Renders Ready, Needs Revision, or Major Rework, and points a Ready plan at `/plan-to-beads`
+
+**Shared Language:** Use `mattpocock-skills:domain-modeling`
+
+- **This plugin no longer ships a `domain-modeling` skill.** It shipped a fork until 2026-08-28,
+  which existed only to send ADRs to the old docs/decisions directory. Moving this repository's ADRs to
+  `docs/adr/` removed that reason, so the fork went and the upstream skill is used as it ships
 - Builds and sharpens the project's glossary in `CONTEXT.md`: one word per concept, with the
   rejected synonyms listed so the choice is visible
-- Five active behaviors: challenge a term that conflicts with the glossary, sharpen an overloaded
-  word, stress-test relationships with edge-case scenarios, check a claim against the code, and write
-  a resolved term down immediately rather than batching it
-- Keeps `CONTEXT.md` a glossary and nothing else, with every implementation detail out of it
-- Reads `${CLAUDE_PLUGIN_ROOT}/skills/domain-modeling/CONTEXT-FORMAT.md` for the format, covering
-  both a single root `CONTEXT.md` and a multi-context repository indexed by `CONTEXT-MAP.md`
-- Delegates any ADR to `architecture-decision-record`, keeping only the three-part offer gate: hard
-  to reverse, surprising without context, the result of a real trade-off
+- Challenges a term that conflicts with the glossary, sharpens an overloaded word, stress-tests
+  relationships with edge-case scenarios, checks a claim against the code, and writes a resolved
+  term down as it crystallizes rather than batching
+- Offers an ADR only when all three hold: hard to reverse, surprising without context, and the
+  result of a real trade-off. It writes that ADR itself, to `docs/adr/`, in its own lighter format
 - Pairs with `grilling` when an interview is also teaching you the project's vocabulary
+- **It is another plugin's skill.** Nothing here works without `mattpocock-skills` installed, and
+  an update to that plugin can change this behavior without a change in this repository
 
 **Idea Generation:** Use `/idea-wizard` or the `idea-wizard` skill
 
@@ -198,7 +236,7 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 
 - Records architectural decisions with context and rationale
 - Tracks options considered and trade-offs
-- Saves to `docs/decisions/NNNN-<topic>.md`
+- Saves to `docs/adr/NNNN-<topic>.md`
 
 ### Multi-Language Reviews
 
@@ -332,7 +370,7 @@ command file)
 - Presents the full list, including each bead's Why, How, Done when, type-specific sections, and size
   estimate, and waits for confirmation before the first `bd create`
 - Writes each section to its canonical destination per ADR 0001
-  (`docs/decisions/0001-native-tracker-fields-are-canonical.md`): `--design`, `--notes`, and
+  (`docs/adr/0001-native-tracker-fields-are-canonical.md`): `--design`, `--notes`, and
   `--acceptance`, with the description body carrying only what has no native field
 - Classifies a partial failure into fully written, created-but-unpopulated, and never attempted, and
   asks which recovery path to take rather than retrying blindly; it never re-runs `bd create` for a

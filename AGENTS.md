@@ -167,8 +167,9 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Land a finished bead's branch on main | `/tadw:ship` (the skill itself) | `ship` |
 | Cut and publish a plugin release | `/publish-plugin` (the skill itself) | `publish-plugin` |
 | Align before planning or building | `/grill-me` | `grilling` |
-| Sharpen the project's vocabulary | - | `domain-modeling` |
-| Plan a feature | `/plan-feature`, `/plan-review` | `feature-planner` agent, `plan-review` |
+| Sharpen the project's vocabulary | - | `mattpocock-skills:domain-modeling` (external) |
+| Write the plan a conversation just decided | `/write-plan` | `write-plan` |
+| Plan a feature from one sentence | `/plan-from-idea`, `/plan-review` | `feature-planner` agent, `plan-review` |
 | Break a plan into issues | `/plan-to-beads` | `project-manager` agent |
 | File one well-crafted bead | `/bead-create` (the skill itself) | `bead-create` |
 | Audit issue quality | `/bead-audit` (the skill itself), `/bead-audit-all` | `bead-audit` |
@@ -186,19 +187,57 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Review a CLAUDE.md | `/review-claude-md` | `claude-md-reviewer` agent |
 
 [docs/ROUTING.md](docs/ROUTING.md) expands the rows above into workflows, grouped by language
-and by task. It covers 18 of the 30 commands, not all of them: `/aso-audit`, `/diagnose`,
-`/fresh-eyes-cr`, `/plan-review`, `/prod-ops`, `/product-surface-docs`, `/research-ingest`,
-`/response-style`, `/review-claude-md`, `/ux-audit`, `/ux-audit-ios`, and `/validate-plugin`
-have a one-line description in `README.md` and none there yet. `tadw-routing-gaps-9wq` covers
-closing that.
+and by task. It gives 19 of the 31 commands an entry of their own, not all of them: `/aso-audit`,
+`/bead-refine`, `/diagnose`, `/fresh-eyes-cr`, `/prod-ops`, `/product-surface-docs`,
+`/research-ingest`, `/response-style`, `/review-claude-md`, `/ux-audit`, `/ux-audit-ios`, and
+`/validate-plugin` have a one-line description in `README.md` and none there yet.
+`tadw-routing-gaps-9wq` covers closing that.
+
+Count entries, not mentions. `/response-style` appears in one line of the Markdown workflow and
+still has no entry, which is why it stays on the list above.
 
 **Pipelines.** Each step feeds the next. The per-step detail is in `README.md`.
 
 ```text
-A  Business Planning:  /business-ideas → /plan-feature → /plan-review → /plan-to-beads
-B  Code Quality:       /fresh-eyes-cr → /quality-gates → /verify-acceptance → /tadw:ship → /publish-plugin
+A  Business Planning:  /business-ideas → /grill-me → /write-plan → /plan-review → /plan-to-beads → /bead-audit-all
+B  Code Quality:       /build → /fresh-eyes-cr → /quality-gates → /verify-acceptance → /tadw:ship → /publish-plugin
 C  Product Strategy:   /competitive-analysis → /product-research → /product-roadmap → /product-brief → /ab-test-design
+D  Bug on-ramp:        /diagnose → /bead-create → pipeline B
 ```
+
+A hands work to B through the tracker, not through the transcript: A ends with beads, and B starts
+by reading one. D exists because a bug never arrives as a plan, so it needs its own route onto B.
+
+### Session shape
+
+Which context window a step runs in matters as much as its order.
+
+**Keep all of pipeline A in one unbroken window.** The interview, the plan, the review, and the
+beads all build on the same thinking. Do not clear or compact until `/bead-audit-all` has run.
+
+**`/write-plan` is the step after grilling, not `/plan-from-idea`.** The `feature-planner` agent
+behind `/plan-from-idea` runs in its own context and cannot see the interview, so it re-explores
+the codebase and can re-ask questions the grilling already closed. `/write-plan` runs in this
+window and synthesizes what was decided. Reach for `/plan-from-idea` only on a cold start, where
+there is nothing in the window to synthesize.
+
+**Clear the context between every `/build`.** A bead is self-contained on purpose: `/build`
+Phase 1 reads its spec from `bd`, never from the transcript. So the previous bead's context adds
+nothing and costs the window. Five builds in one session leave the last one reasoning at the
+bottom of a full context, which is where the quality drops first.
+
+**Audit the beads while the planning context is still loaded.** `/build` Phase 1 stops when a
+bead's criteria are vague or its `design` is empty, so a thin bead bounces the build. Running
+`/bead-audit-all` right after `/plan-to-beads` catches that while the plan is still in the window,
+where the fix takes seconds. After a clear the same fix costs a full re-read.
+
+**`/verify-acceptance` cites the gate results rather than re-deriving them.** Give it the
+`/quality-gates` output. Without it, the test suite runs twice to produce one verdict.
+
+**`/code-review` is the conventions pass, and pipeline B does not include it.** `/fresh-eyes-cr`
+hunts bugs and says so: real bugs, not style preferences. `/build`'s Simplify and Lint phases
+cover the author's own conventions on the code they just wrote. Add `/code-review` when the diff
+is large or touches unfamiliar code, and skip it otherwise.
 
 ## Plugin Configuration
 
@@ -243,7 +282,7 @@ table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtim
 reads when deciding what to invoke.
 
 `ab-test-design` `agentic-clean-code` `architecture-decision-record` `aso-audit` `bead-audit`
-`bead-create` `bead-refine` `business-ideas` `code-simplify` `competitive-analysis` `domain-modeling`
+`bead-create` `bead-refine` `business-ideas` `code-simplify` `competitive-analysis`
 `feature-development` `grilling` `house-response-style` `idea-wizard` `plan-review`
 `plan-to-beads` `pr-maintenance`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
@@ -251,7 +290,7 @@ reads when deciding what to invoke.
 `quality-gates` `research-ingest` `review-fresh-eyes` `review-python` `review-rails`
 `roadmap-dashboard` `ship` `style-fizzy` `style-frontend` `style-go` `style-markdown` `style-python` `style-rails`
 `style-rspec` `style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-audit`
-`ux-audit-ios` `verify-acceptance`
+`ux-audit-ios` `verify-acceptance` `write-plan`
 
 **Registered Agents** (13). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.
@@ -264,7 +303,7 @@ each `agents/<name>.md` frontmatter.
 and in each `commands/<name>.md` frontmatter.
 
 `/adr` `/agentic-clean-code` `/aso-audit` `/bead-audit-all` `/bead-refine` `/build` `/code-review` `/diagnose`
-`/fresh-eyes-cr` `/frontend-code-review` `/grill-me` `/plan-feature` `/plan-review` `/plan-to-beads`
+`/fresh-eyes-cr` `/frontend-code-review` `/grill-me` `/plan-from-idea` `/plan-review` `/plan-to-beads`
 `/pr-maintain` `/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
 `/quality-gates` `/rails-code-review` `/research-ingest` `/response-style`
 `/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-audit`
@@ -358,6 +397,36 @@ An agent should:
 - Carry a quality checklist, for consistency.
 - Name its integration points with other tools.
 
+### Architecture Decision Records
+
+`docs/adr/` holds them and `/adr` writes them. It was named docs/decisions until 2026-08-28, and that
+directory is gone. It moved so that `mattpocock-skills:domain-modeling`, which writes ADRs to `docs/adr/` and
+cannot be told otherwise, lands them where everything here reads. Three rules keep the directory
+from becoming write-only.
+
+**Two skills write into it, in two formats.** `/adr` writes the structured template in
+`skills/architecture-decision-record/SKILL.md`: Context, Options Considered with pros and cons,
+Decision, Consequences. `mattpocock-skills:domain-modeling` writes its own, which can be a single
+paragraph. Both scan the directory and increment the number, so they never collide on a filename.
+Prefer `/adr` when the rejected options are worth recording, which is most of the time.
+
+**An ADR earns its place when reversing the decision would cost more than a day, and somebody
+would otherwise argue it again.** Everything smaller belongs in the bead's `design` field, where it
+already is. `docs/adr/0001-native-tracker-fields-are-canonical.md` is the model to copy:
+`plan-to-beads` cites it by name five times, including in its own checklist, so it is a rule other
+components obey rather than a record of a past argument. An ADR that nothing cites is a diary
+entry, and it makes the ones that do carry rules harder to find.
+
+**Write them at two moments, not as a habit.** When `grilling` resolves a choice that is hard to
+reverse, `mattpocock-skills:domain-modeling` offers an ADR; accept when reversal is expensive. When
+`/plan-review` returns Needs Revision over a contested design choice, the argument just made is
+already the Context section.
+
+**They are read at build time, which is what makes writing one worthwhile.** `/build` Phase 2
+reads this directory before the first edit and reports which records bind the change, and Phase 3
+lists any decision that constrains work beyond the current bead as an ADR candidate. A record
+nothing reads changes no code.
+
 ## Common Tasks
 
 **Adding a skill, agent, or command.** Create the file. Then register it in two places: the name
@@ -371,17 +440,16 @@ command wins. So a command body that says "Use the `<name>` skill" resolves back
 fixes: rename the command, delete it so the skill takes the slash name, or have it **Read**
 `${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md`.
 
-**Five skills are accepted orphans.** `/validate-plugin` reports `business-ideas`,
-`domain-modeling`, `idea-wizard`, `publish-plugin`, and `ship` as orphans, because no agent and no
-command references them. You invoke all five directly as `/<name>`, so a referrer would add
-nothing.
+**Four skills are accepted orphans.** `/validate-plugin` reports `business-ideas`,
+`idea-wizard`, `publish-plugin`, and `ship` as orphans, because no agent and no command references
+them. You invoke all four directly as `/<name>`, so a referrer would add nothing.
 
-Two of the seven listed before are no longer orphans. `commands/bead-refine.md` now names
-`bead-create` and `triage-beads`, so the check finds them.
+The list was seven. Two left because `commands/bead-refine.md` now names `bead-create` and
+`triage-beads`, so the check finds them. The seventh, `domain-modeling`, was deleted on 2026-08-28
+in favor of `mattpocock-skills:domain-modeling`; it stopped being an orphan by ceasing to exist.
 
-The check follows agent and command references alone, so it misses two live paths: the `grilling`
-skill reaches `domain-modeling`, and `publish-plugin` invokes `ship` to land a branch. It also
-matches on the skill's name, so `commands/adr.md` counts as a referrer of
+The check follows agent and command references alone, so it misses one live path: `publish-plugin`
+invokes `ship` to land a branch. It also matches on the skill's name, so `commands/adr.md` counts as a referrer of
 `architecture-decision-record` even though it writes the name without backticks. Read the orphan
 rule as a prompt to check that a skill is still reachable, not as a defect list.
 

@@ -21,12 +21,12 @@ description: "Record architectural decisions with context, options considered, a
 
 ## Workflow
 
-1. **Check existing ADRs** — read `docs/decisions/` to determine the next sequence number
-2. **Gather context** — from conversation, brainstorming output, or codebase exploration
-3. **Identify the options** — what alternatives were considered and why
-4. **Document the decision** — using the template below
-5. **Write the file** — save to `docs/decisions/NNNN-<title-in-kebab-case>.md`
-6. **Create a tracking issue** — if status is "Proposed", use `bd create` to track approval
+1. **Check existing ADRs** - read `docs/adr/` to determine the next sequence number
+2. **Gather context** - from conversation, brainstorming output, or codebase exploration
+3. **Identify the options** - what alternatives were considered and why
+4. **Document the decision** - using the template below
+5. **Write the file** - save to `docs/adr/NNNN-<title-in-kebab-case>.md`
+6. **Create a tracking issue** - if status is "Proposed", use `bd create` to track approval
 
 ## ADR Template
 
@@ -60,7 +60,7 @@ technical constraints, business requirements, and prior decisions that apply.
 
 ## Decision
 
-State the decision clearly. One or two sentences. Then explain the reasoning —
+State the decision clearly. One or two sentences. Then explain the reasoning:
 why this option over the others.
 
 ## Consequences
@@ -72,8 +72,14 @@ positive and negative consequences. Be honest about trade-offs.
 ## Numbering
 
 - ADRs are numbered sequentially: `0001`, `0002`, etc.
-- If `docs/decisions/` doesn't exist, create it and start at `0001`
+- If `docs/adr/` doesn't exist, create it and start at `0001`
 - If it exists, read the highest-numbered file and increment
+
+**A second skill writes into this directory.** `mattpocock-skills:domain-modeling` offers an ADR
+during an interview and writes it itself, in its own lighter format, which can be a single
+paragraph. It numbers the same way, by scanning the directory and incrementing, so the two never
+collide on a filename. Expect both formats to be present. This skill's template is the one to
+prefer when the rejected options are worth recording.
 
 ## Superseding Decisions
 
@@ -85,7 +91,7 @@ When a decision replaces a previous one:
 
 ## Key Principles
 
-- **Capture the "why"** — the decision itself is obvious from code; the reasoning is what gets lost
-- **Be concise** — a good ADR is one page, not five
-- **Record at decision time** — don't try to reconstruct decisions retroactively
-- **Include rejected options** — knowing what was *not* chosen and why is as valuable as the choice itself
+- **Capture the "why"** - the decision itself is obvious from code; the reasoning is what gets lost
+- **Be concise** - a good ADR is one page, not five
+- **Record at decision time** - don't try to reconstruct decisions retroactively
+- **Include rejected options** - knowing what was *not* chosen and why is as valuable as the choice itself

@@ -27,11 +27,11 @@ Rate each dimension GREEN / YELLOW / RED. Use a comma, semicolon, or parentheses
 
 ## Canonical Sections
 
-Completeness is judged against the `/plan-feature` template, not against whatever headings the plan happens to declare. A plan cannot score GREEN by silently omitting a section. The canonical set:
+Completeness is judged against the canonical template in `skills/write-plan/SKILL.md`, not against whatever headings the plan happens to declare. Both `/write-plan` and `/plan-from-idea` write that template. A plan cannot score GREEN by silently omitting a section. The canonical set:
 
-Summary, Motivation, Scope (In and Out), Technical Approach, Implementation Milestones, Acceptance Criteria, Risks & Mitigations, Dependencies, Testing Strategy, Open Questions.
+Summary, Motivation, Scope (In and Out), Technical Approach, Decisions That Bind This Plan, Implementation Milestones, Acceptance Criteria, Risks & Mitigations, Dependencies, Testing Strategy, Open Questions.
 
-Data Model and API/Interface (subsections of Technical Approach) may be absent when genuinely not applicable. Every other section must be present, or carry an explicit "N/A because ..." line. Hold plans not authored by `/plan-feature` to the same set, mapping their headings by substance rather than name.
+Data Model and API/Interface (subsections of Technical Approach) may be absent when genuinely not applicable. **Test Seams is not among them.** It is a required subsection of Technical Approach: a plan that never says where the feature gets tested cannot have its Testing Strategy checked, so score a missing one under Completeness. **Decisions That Bind This Plan** is required as a top-level section, and reads "None found" when the repository has no `docs/adr/`. A plan that contradicts an ADR it never names is a Feasibility finding, not a Completeness one. Every other section must be present, or carry an explicit "N/A because ..." line. Hold plans not authored by `/write-plan` or `/plan-from-idea` to the same set, mapping their headings by substance rather than name.
 
 **Draft, don't instruct.** When Acceptance Criteria or Testing Strategy is missing or empty, the fix in Recommended Changes must be a paste-ready draft (criteria derived from the plan's goals and scope; a test plan naming test levels and key scenarios), never just "add acceptance criteria" or "add tests".
 

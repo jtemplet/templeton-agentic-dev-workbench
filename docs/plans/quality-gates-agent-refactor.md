@@ -334,7 +334,7 @@ by path, deliberately, to dodge the command-versus-skill namespace collision doc
 
 | # | Milestone | Files | Done when |
 |---|---|---|---|
-| 1 | The Open Question 0 spike, then an ADR resolving questions 0 through 3 | `docs/decisions/000N-*.md` | The spike has demonstrated a plugin agent dispatching a subagent and returning its result, or has proven it cannot; the ADR records a decision and rationale for each of the four questions plus the Gate 2 ownership rule; `/validate-plugin` passes |
+| 1 | The Open Question 0 spike, then an ADR resolving questions 0 through 3 | `docs/adr/000N-*.md` | The spike has demonstrated a plugin agent dispatching a subagent and returning its result, or has proven it cannot; the ADR records a decision and rationale for each of the four questions plus the Gate 2 ownership rule; `/validate-plugin` passes |
 | 2 | The orchestrator agent and its four lane contracts | `agents/quality-gates.md` | Dispatching against a REST-surface diff produces rows for all eight gates, each carrying every field of the lane contract |
 | 3 | Step 4 restructured into lanes | `skills/quality-gates/SKILL.md` | Every gate resolves to exactly one lane or to the orchestrator, all three couplings are stated in the skill rather than implied, and `/verify-acceptance` can still read the skill and run its four gates standalone |
 | 4 | Referrers, registration, hook wiring, changelog | `commands/quality-gates.md`, `skills/verify-acceptance/SKILL.md`, `AGENTS.md`, `README.md`, `docs/ROUTING.md`, both copies of the labeling hook (`.claude/scripts/label_bead_on_skill_invocation.sh`, which is the one that fires here, and `scripts/label_bead_on_skill_invocation.sh`, which ships to other repositories; the two have diverged), `CHANGELOG.md` | Every referrer resolves, the registration counts match disk, a `/quality-gates` run still labels its bead, and the stale "four gates of seven" count at `skills/verify-acceptance/SKILL.md:95` reads eight |
@@ -423,7 +423,7 @@ checks plus the manual runs the acceptance criteria describe.
   keep passing unchanged. This plan does not touch the scripts, so a failure here means the
   restructure moved something it should not have.
 - `python3 skills/quality-gates/scripts/check_doc_paths.py`, which covers the new ADR under
-  `docs/decisions/` and the edits to `AGENTS.md`, `README.md`, and `docs/ROUTING.md`. It proves
+  `docs/adr/` and the edits to `AGENTS.md`, `README.md`, and `docs/ROUTING.md`. It proves
   nothing about this plan's own citations: `.docpaths-ignore:19` is `doc:docs/plans/*`, which skips
   every document under `docs/plans/` on purpose, because a plan naming a file that does not exist
   yet is the plan working. This plan's citations were checked by hand and must be re-checked by hand

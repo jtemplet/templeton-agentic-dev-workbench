@@ -48,7 +48,7 @@ bd list --limit 1
 
 If `bd` is missing or the command fails, stop and say so. Do not draft a bead you cannot file.
 
-Note whether the tracker has native structured fields. `bd` does: `design`, `notes`, and `acceptance_criteria` are separate from `description`, and per ADR 0001 (`docs/decisions/0001-native-tracker-fields-are-canonical.md`) those fields are canonical. A plain-markdown tracker takes the whole body instead.
+Note whether the tracker has native structured fields. `bd` does: `design`, `notes`, and `acceptance_criteria` are separate from `description`, and per ADR 0001 (`docs/adr/0001-native-tracker-fields-are-canonical.md`) those fields are canonical. A plain-markdown tracker takes the whole body instead.
 
 ### Step 1: Capture the Request and Interview for the Gaps
 

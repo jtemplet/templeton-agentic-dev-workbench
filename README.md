@@ -28,36 +28,63 @@ published state you have; `/publish-plugin` is what creates them.
 
 ### Pipeline A: Business Planning
 
-`/business-ideas` → `/plan-feature <idea>` → `/plan-review` → `/plan-to-beads`
+`/business-ideas` → `/grill-me` → `/write-plan` → `/plan-review` → `/plan-to-beads` → `/bead-audit-all`
 
 | Command | What it does |
 |---|---|
 | `/business-ideas` | Analyze business model, surface 10 revenue-focused feature ideas |
-| `/plan-feature <idea>` | Explore codebase, draft structured plan with acceptance criteria to `docs/plans/` |
+| `/grill-me [topic]` | Interview you until the design tree is resolved, so the plan is drafted against your decisions rather than the agent's assumptions |
+| `/write-plan` | Write what this conversation decided to `docs/plans/`, in the canonical 11-section shape; no interview, and it confirms the test seams before writing |
 | `/plan-review <path>` | Gate on acceptance criteria, ground claims in the codebase, evaluate 7 dimensions (incl. MECE audit), render verdict; drafts missing criteria/test plan |
 | `/plan-to-beads <path>` | Decompose plan into `bd` issues; each bead audited for Why, How, and Done when |
+| `/bead-audit-all` | Score the new beads before anyone builds them, worst first |
 
-Run `/grill-me` before `/plan-feature` when the idea is still fuzzy. It interviews you until the
-design tree is resolved, so the plan is drafted against decisions you made rather than assumptions
-the agent had to invent.
+`/write-plan` is the step after grilling, not `/plan-from-idea`. The agent behind
+`/plan-from-idea` runs in its own context window and cannot see the interview, so it re-explores
+the codebase and can re-ask questions you already answered. Reach for it only on a cold start.
+
+`/grill-me` is optional only when the idea is already sharp. `/bead-audit-all` is not: `/build`
+refuses a bead whose criteria are vague or whose `design` field is empty, and catching that here
+costs seconds because the plan is still in the window.
+
+**Run this whole pipeline in one context window.** Every step builds on the previous one's
+thinking, so clearing or compacting before the audit throws away the reasoning the beads rest on.
 
 ### Pipeline B: Code Quality
 
-`/fresh-eyes-cr` → `/quality-gates` → `/verify-acceptance` → `/tadw:ship` → `/publish-plugin`
+`/build <bead-id>` → `/fresh-eyes-cr` → `/quality-gates` → `/verify-acceptance` → `/tadw:ship` → `/publish-plugin`
 
 | Command | What it does |
 |---|---|
+| `/build <bead-id>` | Implement the bead: read its spec from `bd`, learn the repo's conventions and its ADRs, code criterion by criterion with a test each, simplify, lint |
 | `/fresh-eyes-cr` | Review changed code with fresh eyes, find and fix bugs directly |
 | `/quality-gates` | QA the change, not the repository: runs the project's own checks, reads the diff to pick the QA method it earns (real curl requests against a local server for REST, a handoff to `/qa` for browser UI, a coverage review for the rest), and proves every case is exercised at the unit and end-to-end level across its input/state/outcome classes |
 | `/verify-acceptance` | Grade the work against its bead's acceptance criteria and the QA gates; report-only verdict |
 | `/tadw:ship` | Land the accepted branch on main locally: rebase, run the repo's own checks as the gate, squash-merge, close the bead, push, delete the branch; ends with `SHIP_DONE`/`SHIP_BLOCKED` |
 | `/publish-plugin` | Turn what landed into a release: derive the semver bump from the diff, write the changelog section, bump the manifest, commit `chore(release): X.Y.Z`, tag `vX.Y.Z`, push main and the tag; ends with `PUBLISH_DONE`/`PUBLISH_BLOCKED` |
 
-### Debugging
+**Clear the context between every bead.** `/build` reads its spec from `bd`, never from the
+transcript, so a bead carries no dependency on the one before it. Running five builds back to back
+in one window leaves the last one reasoning at the bottom of a full context.
+
+**Give `/verify-acceptance` the `/quality-gates` output.** It cites those results rather than
+re-deriving them, so passing them forward is the difference between running the suite once and
+running it twice for one verdict.
+
+**`/code-review` is the conventions pass, and it is not in this pipeline.** `/fresh-eyes-cr` hunts
+real bugs and deliberately ignores style; `/build`'s own Simplify and Lint phases cover conventions
+on the code it just wrote. Add `/code-review` when the diff is large or touches unfamiliar code.
+
+### Bug On-Ramp
+
+A bug does not arrive as a plan, so it needs its own route onto Pipeline B.
+
+`/diagnose <bug>` → `/bead-create` → Pipeline B
 
 | Command | What it does |
 |---|---|
 | `/diagnose <bug>` | Investigate thoroughly before fixing, gather evidence, test hypotheses, present root cause |
+| `/bead-create` | Turn the confirmed root cause into one well-formed bead, with steps to reproduce and acceptance criteria |
 
 ### PR Maintenance
 
@@ -125,6 +152,8 @@ Pair with `/loop` to run on a schedule:
 |---|---|
 | `/grill-me [topic]` | Get interviewed until every branch of the design tree is resolved: one numbered round of questions per frontier, a recommended answer for each, facts found by the agent rather than asked of you |
 | `/build <bead-id>` | Implement a bead's spec: read the bead, learn the repo's conventions, code criterion by criterion with a test each, simplify, lint. Accepts a free-text description when no bead exists |
+| `/write-plan` | Write the design this conversation settled to `docs/plans/`; synthesis, not an interview |
+| `/plan-from-idea <idea>` | Cold start: hand one sentence to a subagent that explores the codebase and drafts the plan. Use `/write-plan` instead when the design is already decided here |
 | `/adr <topic>` | Record an architectural decision with context and rationale |
 | `/agentic-clean-code [target]` | Design or review agentic code (tools, prompts, orchestration) against Clean Code + POODR |
 | `/response-style` | Re-assert the house response style (answer-first, Simplified Technical English, decision matrices, owner-split "Next actions") after a compaction or inside a subagent |
@@ -178,8 +207,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `idea-wizard` | Structured ideation: generate, evaluate, distill | Reviewing a codebase for improvements, or stuck and needing options |
 | `architecture-decision-record` | ADR format with context, options, and rationale | You made a non-obvious choice future-you will question |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis | A project needs to justify its investment or find revenue angles |
-| `grilling` | Relentless interview that resolves a design tree branch by branch: computes the **frontier** (the questions whose prerequisites are settled), asks the whole frontier in one numbered round with a recommended answer each, finds every fact itself (dispatching subagents) and asks you only for decisions, then recomputes the frontier from your answers; stops when the frontier is empty and waits for you to confirm alignment | Before `/plan-feature`, `/bead-create`, or `/build`, whenever you want the agent to interview you first |
-| `domain-modeling` | Build and sharpen the project's shared language: challenge a term that conflicts with `CONTEXT.md`, sharpen an overloaded word into one canonical term, stress-test relationships with edge-case scenarios, cross-check claims against the code, and write resolved terms into `CONTEXT.md` inline; delegates ADRs to `architecture-decision-record` | Naming a new concept, editing a `CONTEXT.md`, or when two words are being used for one thing |
+| `grilling` | Relentless interview that resolves a design tree branch by branch: computes the **frontier** (the questions whose prerequisites are settled), asks the whole frontier in one numbered round with a recommended answer each, finds every fact itself (dispatching subagents) and asks you only for decisions, then recomputes the frontier from your answers; stops when the frontier is empty and waits for you to confirm alignment | Before `/write-plan`, `/bead-create`, or `/build`, whenever you want the agent to interview you first |
 | `plan-review` | Acceptance-criteria gate + codebase grounding + 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability); report-only, drafts missing criteria/test plan | After writing a plan, as the gate before decomposing it |
 | `aso-audit` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan | Before an app launch, or when organic installs are low |
 | `ux-audit` | Web UX audit via Playwright; 7-dimension evaluation with severity-ranked report | Auditing the UX of a running web app |
@@ -207,6 +235,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `pr-maintenance` | Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop | A long-lived or stacked PR needs to stay current and green |
 | `roadmap-dashboard` | Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` collector and versions the output | Showing project maturity and remaining work to a stakeholder |
 | `production-ops` | Safely operate production Docker Compose apps on a single Hetzner VPS over SSH (two-hop `root` -> `su - deploy`); service ops and PostgreSQL data ops under strong guardrails: read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes / `prune` / `DROP` / `TRUNCATE` / `WHERE`-less writes | Checking, restarting, or changing data on the production VPS |
+| `write-plan` | Turn a design this conversation already settled into `docs/plans/feature-plan-<name>.md`: synthesize rather than interview, verify every path it names, pick and confirm the test seams, honor the ADRs, and write the canonical 11-section template that `/plan-review` grades. Owns that template | Right after `/grill-me` or `/grill-with-docs`, or any time a settled design needs to become a document |
 | `house-response-style` | The always-on response style, single-sourced for both the `SessionStart` hook and `/response-style`: lead with the answer, cut narration, write in Simplified Technical English (ASD-STE100 writing rules, not its licensed dictionary), put multi-factor choices in a decision matrix, and end open work with an owner-split "Next actions" section | Never chosen: injected into every session by the hook |
 
 ## Agents
@@ -217,7 +246,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `quality-gates-orchestrator` | Runs the quality gates across three concurrent subagent lanes (backend-unit, frontend, integration): resolves the gate set, scope, and QA routing once, keeps the gates no lane owns, then merges every returned row into the one report the `quality-gates` skill specifies. Report-only; it decides the verdict, no lane does |
 | `software-engineer` | Editing role for code work; routes to code-simplify, review-fresh-eyes, or feature-development based on intent |
 | `claude-md-reviewer` | CLAUDE.md optimization with quantitative scoring |
-| `feature-planner` | Explores codebase, drafts structured plans with acceptance criteria to `docs/plans/` |
+| `feature-planner` | Cold-start planner behind `/plan-from-idea`: explores the codebase in its own context and drafts a plan to `docs/plans/`. Cannot see the calling conversation, so use `/write-plan` when the design is already settled |
 | `project-manager` | Decomposes plans into `bd` issues; ensures each bead has Why, How, and acceptance criteria (uses `plan-to-beads` skill) |
 | `diagnostician` | Read-only investigation: evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
@@ -241,6 +270,29 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 2. Command loads `review-rails` skill via the Skill tool
 3. Skill defines the systematic review technique
 4. Output follows the skill's specified format
+
+## Architecture Decision Records
+
+`/adr` writes them to `docs/adr/`. The point of the directory is that other components read
+it, not that it exists. It was named docs/decisions until 2026-08-28, and that directory is gone. It moved so that
+`mattpocock-skills:domain-modeling`, which writes to `docs/adr/` and cannot be redirected, lands
+its ADRs where everything here reads.
+
+**`/build` reads it before the first edit.** Phase 2 opens the records whose subject the change
+touches and reports which ones bind it. An ADR that contradicts the plan outranks the plan.
+
+**`/build` proposes new ones.** Phase 3 lists any design decision that constrains work beyond the
+current bead as an ADR candidate, so a choice worth keeping does not die in the transcript.
+
+**Write one only when reversing the decision would cost more than a day, and somebody would
+otherwise argue it again.** Everything smaller belongs in the bead's `design` field. Two moments
+produce most of the ones worth having: when `/grill-me` resolves a hard-to-reverse choice, and when
+`/plan-review` returns Needs Revision over a contested design choice.
+
+The working example in this repository is `docs/adr/0001-native-tracker-fields-are-canonical.md`.
+The `plan-to-beads` skill cites it by name five times, including in its own checklist, so it is a
+rule other components obey. A record nothing cites is a diary entry, and it buries the ones that
+carry rules.
 
 ## Always-On Style Core
 
