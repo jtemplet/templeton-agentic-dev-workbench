@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-08-28
+
+### Added
+
+- **`bead-refine`, the backlog-pruning workflow, is now a skill.** It was the odd one out: its
+  whole 8-step workflow lived in `commands/bead-refine.md`, while its three neighbors
+  (`bead-audit`, `bead-create`, `triage-beads`) are skills. The body moves to
+  `skills/bead-refine/SKILL.md` unchanged in substance, taking the registered skill count to 45.
+  Every rule and trap survives, including the `--limit 0` default of 50, the repeated `--status`
+  flag that keeps only its last value, the closed beads `bd dep list` returns, the rule to read
+  `git ls-files` and `grep` output rather than their exit status, and the unquoted `*.md` glob
+  that `fish` expands before `grep` sees it.
+
+### Changed
+
+- **`/bead-refine` and `bead-audit` now name the word that should fire each one.** Typing "refine"
+  loaded `bead-audit`, because neither description said which verb belonged to it. `bead-audit`
+  now fires on audit, ground, re-ground, verify, and check, and says "refine" belongs to
+  `bead-refine`. `bead-refine` fires on refine, prune, and clean out, and says "audit" and
+  "ground" belong to `bead-audit`. The runtime reads these `description` fields to choose a
+  component, so this is the field that decides it.
+- **`commands/bead-refine.md` is now a thin loader.** It reads
+  `skills/bead-refine/SKILL.md` by `${CLAUDE_PLUGIN_ROOT}` path, carries the namespace-collision
+  warning and a `Glob` fallback, and summarizes what the skill does in seven numbered steps. This
+  is the shape `commands/quality-gates.md` and `commands/product-surface-docs.md` already use.
+- **The moved prose follows `style-markdown`.** Sentences run under 30 words, and under 20 when
+  they give an instruction. Mechanisms replace metaphors. Every term is defined in the sentence
+  that uses it, starting with "a bead is one issue in the `bd` tracker". Prose wraps at 100
+  columns.
+
+### Fixed
+
+- **`bead-audit`'s new exclusion bullet carried an em-dash**, which the house style bans
+  everywhere. Rewritten as two sentences.
+- **Three places listed six of the seven verdicts.** `commands/bead-refine.md` and
+  `skills/bead-audit/SKILL.md` both dropped **Done**, and the command's description listed
+  "close", which is what Kill and Done both do rather than a verdict of its own. All three now
+  list keep, shrink, merge, defer, kill, done, and promote.
+- **Step 4's grounding was reachable in one mode only.** Its heading read "cluster into themes
+  (map mode)", but the step also holds the grounding that Step 6 says to reuse in both modes. A
+  topic-mode run following it literally would skip grounding, then reach a Step 6 with nothing to
+  reuse. Grounding is now marked as running in both modes, and clustering as map mode only.
+- **The Step 8 summary template had no slot for a Done verdict**, so a run that marked a bead Done
+  could not report it. The example now reads `Done 0`, and its arithmetic still holds: 27 open
+  before and 21 after, from Killed 3, Merged 2, and Deferred 1.
+
 ## [3.0.0] - 2026-08-27
 
 ### Removed
@@ -2146,7 +2192,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.16.0...v3.0.0
 [2.16.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.15.0...v2.16.0
 [2.15.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.14.0...v2.15.0
