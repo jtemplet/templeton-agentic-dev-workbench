@@ -172,7 +172,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Break a plan into issues | `/plan-to-beads` | `project-manager` agent |
 | File one well-crafted bead | `/bead-create` (the skill itself) | `bead-create` |
 | Audit issue quality | `/bead-audit` (the skill itself), `/bead-audit-all` | `bead-audit` |
-| Prune the backlog by product value | `/bead-refine` (the command itself) | - |
+| Prune the backlog by product value | `/bead-refine` | `bead-refine` |
 | Decide what to work on next | `/triage-beads` (the skill itself) | `triage-beads` |
 | Product strategy | `/competitive-analysis`, `/product-research`, `/product-roadmap`, `/product-brief`, `/ab-test-design` | `product-manager` agent |
 | Generate ideas | `/idea-wizard`, `/business-ideas` | `idea-wizard`, `business-ideas` |
@@ -238,12 +238,12 @@ sat at 2.10.1 while main ran 13 commits past its release commit, and `v2.10.0` a
 created locally and never pushed. Read the last tag with `git tag --list 'v*' --sort=-v:refname`,
 because lexical order puts `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
-**Registered Skills** (44). One-line descriptions live in the `README.md` skills
+**Registered Skills** (45). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
 `ab-test-design` `agentic-clean-code` `architecture-decision-record` `aso-audit` `bead-audit`
-`bead-create` `business-ideas` `code-simplify` `competitive-analysis` `domain-modeling`
+`bead-create` `bead-refine` `business-ideas` `code-simplify` `competitive-analysis` `domain-modeling`
 `feature-development` `grilling` `house-response-style` `idea-wizard` `plan-review`
 `plan-to-beads` `pr-maintenance`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
