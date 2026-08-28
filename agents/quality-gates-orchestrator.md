@@ -22,7 +22,8 @@ is one line in the gate table the report prints.
 ## Core Responsibilities
 
 1. Run Steps 1, 2, 3, and 6 of the skill. No lane repeats them.
-2. Start three lanes at once, and wait for all three.
+2. Decide whether splitting the work pays at all, then start only the lanes that earn it and
+   wait for every one of them.
 3. Run the gates that no lane owns.
 4. Merge every returned row, decide the verdict, and render the whole report.
 
@@ -48,17 +49,39 @@ against another, and the report would still read clean.
 **Enumerate the numbered case list yourself, before any lane starts.** Three lanes numbering cases
 on their own produce three unrelated lists, and a case nobody listed cannot be graded.
 
-### Step 2: Start the three lanes
+### Step 2: Start only the lanes that pay for themselves
 
-Start `backend-unit`, `frontend`, and `integration` in one message, so they overlap. Wait for all
-three before you merge anything.
+**Count the lanes Step 1's routing would start, then follow this table.** Splitting the work is a
+means, not the goal.
 
-**Every start carries `run_in_background: false`.** This is a rule, not an implementation note. A
-start is asynchronous by default, so an agent can end its turn before the lanes answer. It then
-loses every row they produced and reports no error at all, and the failure reads as a short report
-rather than as a bug. ADR 0002 Finding 4 measured this: four lanes all succeeded and the aggregate
-line was never written. Blocking costs no concurrency, because four blocking starts issued in one
-message still ran at the same time.
+| Lanes the routing would start | What to do |
+|---|---|
+| 0 | Run every row yourself. Nothing routed to a lane's surface |
+| 1 | **Run that lane's rows yourself. Do not start it.** One lane overlaps with nothing, so the start is pure cost |
+| 2 or more | Start them in one message, so they overlap, and wait for all of them |
+
+**One lane is a detour, not a fan-out.** Starting a single subagent adds a cold context, a second
+full read of `skills/quality-gates/SKILL.md`, and a dispatch-and-wait round trip, and it overlaps
+with nothing at all. Six runs against one fixed diff, three each way, measured what that costs: a
+median of 462.0 seconds through this agent against 263.7 seconds for one session reading the skill
+directly, which is 75 percent slower to offload one test suite. The rows are identical either way,
+so pay the cost only when two lanes can genuinely run at the same time.
+
+Running a lane's rows yourself changes who executes them and nothing else. Grade them by the same
+Step 4 of the skill, under the same gate names, with the same eight fields. The report states which
+lanes started, and never claims a row was graded by a lane that never ran.
+
+**Wait for every lane you start, and never end your turn while one is outstanding.** A start is
+asynchronous unless the harness is told otherwise, so an agent can finish its turn before the lanes
+answer. It then loses every row they produced and reports no error at all, and the failure reads as
+a short report rather than as a bug. ADR 0002 Finding 4 measured exactly that: four lanes all
+succeeded and the aggregate line was never written.
+
+**Block by whatever means your harness gives you.** If its start accepts a blocking parameter, such
+as `run_in_background: false`, pass it. If it exposes none, block on each lane's completion
+notification instead, and merge nothing until every lane has returned. The requirement is the
+waiting, not the parameter, so a harness without the flag is not an excuse to merge early. Blocking
+costs no concurrency, because starts issued together in one message still run at the same time.
 
 Hand each lane the four inputs from Step 1, the path to `skills/quality-gates/SKILL.md`, and the
 rows it owns. Tell each lane to read that file for the technique.
@@ -111,8 +134,18 @@ routed surfaces:
   later matches no row in that table. Without this one it would have no owner at all, and a row
   with no owner is the row that silently never appears.
 
-**A lane you did not start still produces its rows.** Emit them as SKIP, carrying the router's
-reason: "SKIP, the diff changed no frontend file". A row that vanishes reads as a gate that passed.
+**A lane's rows always appear, whether or not the lane ran.** A row that vanishes reads as a gate
+that passed. Which status they carry depends on why the lane did not start, and the two reasons take
+opposite answers:
+
+- **The router sent it no work.** Emit SKIP, carrying the router's reason: "SKIP, the diff changed
+  no frontend file". Nothing ran, and nothing needed to.
+- **It had work and you ran its rows yourself**, because it was the only lane and Step 2 says a lone
+  lane is a detour. Grade those rows normally, as PASS, FAIL, WARN, BLOCKED, or HANDOFF. They ran.
+
+SKIP here means "there was nothing to check", never "somebody else checked it". Marking a lone
+lane's rows SKIP erases the result of the only lane that had real work, and the report then reads
+clean at exactly the moment it is most wrong.
 
 **When every routed surface is `docs`, start no lane at all.** Nothing changed behavior, so Gate 2
 is your SKIP row and the lanes have nothing to grade.
@@ -156,8 +189,15 @@ The report is the one `skills/quality-gates/SKILL.md` Step 6 specifies, unchange
 line names exactly one base SHA. Add one line naming the split:
 
 ```markdown
-**Lanes:** started backend-unit and integration, both with `run_in_background: false`. Did not
-start frontend, because the diff changed no frontend file; I emitted its rows as SKIP.
+**Lanes:** started backend-unit and integration in one message and waited for both. Did not start
+frontend, because the diff changed no frontend file; I emitted its rows as SKIP.
+```
+
+When fewer than two lanes had work, that line says so instead, and says who graded the rows:
+
+```markdown
+**Lanes:** none started. Only backend-unit had work, and one lane overlaps with nothing, so I ran
+its rows myself. frontend and integration are SKIP below, carrying the router's reason.
 ```
 
 ## Critical Rules
@@ -166,10 +206,13 @@ start frontend, because the diff changed no frontend file; I emitted its rows as
 
 - Read `skills/quality-gates/SKILL.md` for every gate's technique
 - Run `changed_set.py` exactly once, and number the cases once, before any lane starts
-- Pass `run_in_background: false` on every lane start
-- Start every lane in one message, then wait for all of them
+- Count the lanes that would start before you start any, and skip the split when fewer than two would
+- Run a lone lane's rows yourself, and grade them by the same Step 4 of the skill
+- Start two or more lanes in one message, then wait for all of them
+- Block until every lane you started has returned, by the harness's blocking parameter when it has
+  one and by the completion notification when it does not
 - Give every gate the skill defines a row, including the gates that did not run
-- Emit an unstarted lane's rows as SKIP, carrying the router's reason
+- Emit SKIP only for a lane the router sent no work; grade a lone lane's rows normally, because they ran
 - Record a lane that returned nothing as BLOCKED on every gate it owned
 - Merge two Gate 2 rows field by field, never on the status alone
 - Write the Step 5 attribution for every FAIL in a gate you ran yourself
@@ -178,6 +221,8 @@ start frontend, because the diff changed no frontend file; I emitted its rows as
 
 **Never:**
 
+- Start a single lane; it overlaps with nothing and costs a cold context and a second skill read
+- End your turn while a lane you started is still outstanding
 - Let a lane render a report section or decide the verdict
 - Let a lane re-derive the base SHA, the changed paths, the gate set, or the case list
 - Report a lane's missing answer as PASS or as SKIP
@@ -191,10 +236,12 @@ start frontend, because the diff changed no frontend file; I emitted its rows as
 Before emitting the report, verify:
 
 - [ ] `changed_set.py` ran once, and the Scope line names that one base SHA
-- [ ] Every lane start carried `run_in_background: false`
+- [ ] Two or more lanes were started, or none was and their rows were graded inline
+- [ ] Every lane that started was waited for, and no turn ended with one outstanding
 - [ ] Every gate the skill defines has a row, and every non-PASS row states a reason
 - [ ] Every row uses one of the six statuses
-- [ ] An unstarted lane's rows are SKIP with the router's reason, not missing
+- [ ] A lane the router sent no work has SKIP rows with its reason, not missing rows
+- [ ] A lone lane whose rows you ran yourself is graded normally, never SKIP
 - [ ] A lane that returned nothing is BLOCKED, and the verdict is FAIL
 - [ ] Every FAIL carries a Step 5 attribution, including the FAILs in gates you ran yourself
 - [ ] `raw_output` is filled in only on FAIL and BLOCKED rows whose gate ran a command
