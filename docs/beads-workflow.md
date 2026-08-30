@@ -81,9 +81,12 @@ bd export -o .beads/issues.jsonl                  # Export DB to JSONL after Bea
 2. **Claim**: Use `bd update <id> --status=in_progress --json`
 3. **Work**: Implement the task
 4. **Complete**: Use `bd close <id> --reason="Completed" --json`
-5. **Sync**: Run `bd export -o .beads/issues.jsonl` after Beads mutations so the JSONL export is current.
-   The `-o` is not optional. A bare `bd export` writes the whole export to stdout, updates no file, and
-   exits 0, so it looks like it worked while `.beads/issues.jsonl` stays stale.
+5. **Sync**: `.githooks/pre-push` exports the tracker and commits the change on every push
+   automatically (`tadw-pm8`), so no one runs `bd export` for that reason alone. An agent that
+   needs the export current for its own immediate purpose, such as resolving a rebase conflict on
+   `.beads/issues.jsonl`, still runs `bd export -o .beads/issues.jsonl` itself. The `-o` is not
+   optional there either: a bare `bd export` writes the whole export to stdout, updates no file,
+   and exits 0, so it looks like it worked while `.beads/issues.jsonl` stays stale.
 
 ### Key Concepts
 

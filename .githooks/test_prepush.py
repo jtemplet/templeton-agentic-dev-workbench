@@ -78,6 +78,21 @@ STAGE 2, the recorded quality-gates verdict (M4). Same fixture, same real
     the command resolves, not a literal .git/
   A deletion is gated by neither stage          case_delete_only_push_ignores_a_fail_verdict
 
+STAGE 3, the tracker export (tadw-pm8). Same fixture, same real `git push --dry-run`. A stub `bd`
+is installed ahead of any real one, so the default fixture stays silent the same way the six
+project checks are stubbed for stage 1; a case that needs one export behavior overwrites the stub.
+
+  Bead criterion                                  Pinned by
+  ------------------------------------------------------------------------------
+  1. A changed export lands as a follow-up      case_tracker_export_is_committed_when_it_changes
+     commit, never inside the push that caused it
+  2. A clean export adds no line and no commit  case_tracker_export_is_silent_when_nothing_changed
+  3. A failed export warns, names the cost,     case_tracker_export_failure_warns_and_allows
+     and still allows the push
+  4. A missing bd warns by name and allows      case_missing_bd_warns_and_allows
+  5. TADW_PREPUSH=off covers stage 3 too        case_off_switch_also_skips_the_tracker_export
+  6. A delete-only push runs no export either   case_delete_only_push_skips_the_tracker_export
+
 Criterion 5 has a second reading this suite cannot cover: that
 `.github/workflows/lint.yml` is byte-identical to its state before this
 milestone. That is a property of the change rather than of the hook, so it is
@@ -198,6 +213,31 @@ FAILING_BODY = "raise SystemExit(1)\n"
 # message has to name it and a generated one could not be asserted against.
 RECORDED_AT = "2026-08-11T04:12:07Z"
 
+# STAGE 3's own stub for `bd`. A silent no-op by default, matching a push with
+# nothing to export; Fixture.stub_bd() overwrites it for a case that needs a
+# specific export behavior. The two named bodies below are the two behaviors
+# every stage-3 case needs beyond the default: a change to commit, and a
+# failure to warn about.
+#
+# CHANGED_BD_STUB creates .beads/ itself. .gitattributes marks the whole
+# directory export-ignore, so it is absent from every fixture: build() clones
+# the tracked tree with `git archive`, which is exactly what export-ignore
+# strips. The real bd never meets that case, because a live workspace's
+# .beads/ already exists; only the fixture does, and only because of how it is
+# built.
+DEFAULT_BD_STUB = "#!/usr/bin/env sh\nexit 0\n"
+CHANGED_BD_STUB = (
+    "#!/usr/bin/env sh\n"
+    "mkdir -p .beads\n"
+    'echo \'{"id": "stub-export"}\' > .beads/issues.jsonl\n'
+    "exit 0\n"
+)
+FAILING_BD_STUB = (
+    "#!/usr/bin/env sh\n"
+    "echo 'no beads database found' >&2\n"
+    "exit 1\n"
+)
+
 GIT = shutil.which("git") or "git"
 
 workspaces: list[Path] = []
@@ -235,22 +275,43 @@ def git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 class Fixture:
     """A throwaway clone of this repository's tracked tree, wired to the hook."""
 
-    def __init__(self, work: Path) -> None:
+    def __init__(self, work: Path, bd_stub_dir: Path) -> None:
         self.work = work
+        self.bd_stub_dir = bd_stub_dir
 
     def write(self, relative: str, body: str) -> None:
         path = self.work / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(body, encoding="utf-8")
 
+    def stub_bd(self, body: str) -> None:
+        """Overwrite this fixture's `bd`, for a case that needs one export behavior.
+
+        Lives outside `self.work`, so it is never part of the tree `git status`
+        or the checks read; only PATH makes it reachable.
+        """
+        stub = self.bd_stub_dir / "bd"
+        stub.write_text(body, encoding="utf-8")
+        stub.chmod(0o755)
+
     def commit_all(self, message: str = "work") -> None:
         git(self.work, "add", "-A")
         git(self.work, "commit", "-qm", message)
 
-    def push(self, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-        """A real `git push --dry-run`, which runs the hook exactly as git does."""
+    def push(
+        self, *args: str, env: dict[str, str] | None = None, bd_stub: bool = True
+    ) -> subprocess.CompletedProcess[str]:
+        """A real `git push --dry-run`, which runs the hook exactly as git does.
+
+        `bd_stub` prepends this fixture's own `bd` onto PATH, ahead of any real
+        one, so stage 3 sees a controlled binary by default: the same reasoning
+        that stubs the six project checks for stage 1. A case proving `bd` is
+        genuinely absent passes `bd_stub=False` together with its own PATH.
+        """
         environment = dict(os.environ)
         environment.update(env or {})
+        if bd_stub:
+            environment["PATH"] = f"{self.bd_stub_dir}{os.pathsep}{environment.get('PATH', '')}"
         return subprocess.run(
             [GIT, "-c", "user.email=t@t", "-c", "user.name=t", "-C", str(self.work),
              "push", "--dry-run", "origin", *(args or ("main",))],
@@ -303,7 +364,15 @@ def build(*, stub_checks: bool = True, extra_branch: str | None = None) -> Fixtu
     shutil.copy2(HOOK, hook)
     hook.chmod(0o755)
 
-    fixture = Fixture(work)
+    # Sibling of `work`, never inside it: stage 3 finds it only through PATH,
+    # the same way it would find a real `bd` installed on the machine.
+    bd_stub_dir = workspace / "bd-stub"
+    bd_stub_dir.mkdir()
+    stub = bd_stub_dir / "bd"
+    stub.write_text(DEFAULT_BD_STUB, encoding="utf-8")
+    stub.chmod(0o755)
+
+    fixture = Fixture(work, bd_stub_dir)
     if stub_checks:
         for relative, body in hook_check_stubs().items():
             fixture.write(relative, body)
@@ -366,7 +435,7 @@ def record_verdict(root: Path, verdict: str, *, head: str | None = None) -> Path
 
 # Everything the hook reaches for: the checkers themselves, plus the four
 # utilities it shells out to, plus `sh` for its own `#!/usr/bin/env sh` line.
-HOOK_TOOLS = ("sh", "bash", "date", "mkdir", "cat", "rm", "git", "node", "python3", "rumdl")
+HOOK_TOOLS = ("sh", "bash", "date", "mkdir", "cat", "rm", "git", "node", "python3", "rumdl", "bd")
 
 
 def stub_path_without(*drop: str) -> str:
@@ -1035,6 +1104,119 @@ for name, fn in [
     ("a lowercase verdict still blocks", case_a_lowercase_verdict_still_blocks),
     ("the verdict is read from the resolved git directory", case_verdict_is_read_from_the_git_dir),
     ("a delete-only push ignores a recorded FAIL", case_delete_only_push_ignores_a_fail_verdict),
+]:
+    check(name, fn)
+
+
+print("\n  [stage 3: the tracker export, tadw-pm8]")
+
+
+def case_tracker_export_is_committed_when_it_changes() -> None:
+    """Criterion 1. A changed export lands as a follow-up commit.
+
+    Never inside the push that caused it: git resolves which commit to push
+    before this hook runs, and does not re-read the ref afterward, so a commit
+    made here cannot join THIS push. It advances local HEAD by one commit that
+    goes out on the next push, which stage 3's own header in the hook explains.
+    """
+    fixture = build()
+    record_verdict(fixture.work, "PASS")
+    before = head_of(fixture.work)
+    fixture.stub_bd(CHANGED_BD_STUB)
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a push with a tracker change must still succeed: {output}"
+    after = head_of(fixture.work)
+    assert after != before, f"the export must land as a new local commit: {output}"
+    assert git(fixture.work, "status", "--porcelain", ".beads/").stdout == "", (
+        f"the new commit must leave .beads/ clean: {output}"
+    )
+    content = (fixture.work / ".beads" / "issues.jsonl").read_text(encoding="utf-8")
+    assert content == '{"id": "stub-export"}\n', (
+        f"the committed file must hold what bd export wrote: {content!r}"
+    )
+
+
+def case_tracker_export_is_silent_when_nothing_changed() -> None:
+    """A clean export, the fixture's own default, adds no line and no commit.
+
+    Locks in the shape case_clean_push_is_quiet already pins: nothing about
+    stage 3 changes a clean push's single summary line.
+    """
+    fixture = build()
+    fixture.write("docs/NOTE2.md", "# Another note\n\nAdded so the push has a commit to carry.\n")
+    fixture.commit_all("add a note")
+    record_verdict(fixture.work, "PASS")
+    before = head_of(fixture.work)
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a clean push must still succeed: {output}"
+    after = head_of(fixture.work)
+    assert after == before, f"nothing changed, so no export commit should land: {output}"
+    lines = [line for line in output.splitlines() if line.startswith("tadw:")]
+    assert len(lines) == 1, f"stage 3 must add no line when it has nothing to commit: {lines}"
+
+
+def case_tracker_export_failure_warns_and_allows() -> None:
+    """Criterion 3. A failed export warns, names the cost, and still allows the push."""
+    fixture = build()
+    record_verdict(fixture.work, "PASS")
+    before = head_of(fixture.work)
+    fixture.stub_bd(FAILING_BD_STUB)
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a failed export must still allow the push: {output}"
+    assert "bd export failed" in output, f"the failure must be named: {output}"
+    assert "one machine only" in output, f"and say what that costs: {output}"
+    assert "no beads database found" in output, f"and carry the real error: {output}"
+    assert head_of(fixture.work) == before, f"a failed export must commit nothing: {output}"
+
+
+def case_missing_bd_warns_and_allows() -> None:
+    """Criterion 4. A missing `bd` is not evidence the tracker export failed."""
+    fixture = build()
+    record_verdict(fixture.work, "PASS")
+    before = head_of(fixture.work)
+    result = fixture.push(env={"PATH": stub_path_without("bd")}, bd_stub=False)
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a missing bd must still allow the push: {output}"
+    assert "bd not on PATH" in output, f"the missing tool must be named: {output}"
+    assert "WARNING" in output, f"the skip must be a warning, not silence: {output}"
+    assert head_of(fixture.work) == before, f"a missing bd must commit nothing: {output}"
+
+
+def case_off_switch_also_skips_the_tracker_export() -> None:
+    """Criterion 5. TADW_PREPUSH=off covers stage 3 too, not just stages 1 and 2."""
+    fixture = build()
+    before = head_of(fixture.work)
+    fixture.stub_bd(CHANGED_BD_STUB)
+    result = fixture.push(env={"TADW_PREPUSH": "off"})
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"the off-switch must allow the push: {output}"
+    assert "tadw:" not in output, f"off means silent, not merely permissive: {output!r}"
+    assert head_of(fixture.work) == before, (
+        f"the off-switch must skip stage 3 entirely, committing nothing: {output}"
+    )
+
+
+def case_delete_only_push_skips_the_tracker_export() -> None:
+    """Criterion 6, stage 3's half. A deletion pushes no code, so nothing exports."""
+    fixture = build(extra_branch="doomed")
+    before = head_of(fixture.work)
+    fixture.stub_bd(CHANGED_BD_STUB)
+    result = fixture.push("--delete", "doomed")
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a delete-only push must be allowed: {output}"
+    assert head_of(fixture.work) == before, f"a delete-only push must not run stage 3 either: {output}"
+
+
+for name, fn in [
+    ("a changed export lands as a follow-up commit [criterion 1]", case_tracker_export_is_committed_when_it_changes),
+    ("a clean export adds no line and no commit [criterion 2]", case_tracker_export_is_silent_when_nothing_changed),
+    ("a failed export warns, names the cost, and allows the push [criterion 3]", case_tracker_export_failure_warns_and_allows),
+    ("a missing bd warns by name and allows [criterion 4]", case_missing_bd_warns_and_allows),
+    ("TADW_PREPUSH=off skips the tracker export too [criterion 5]", case_off_switch_also_skips_the_tracker_export),
+    ("a delete-only push runs no export either [criterion 6]", case_delete_only_push_skips_the_tracker_export),
 ]:
     check(name, fn)
 

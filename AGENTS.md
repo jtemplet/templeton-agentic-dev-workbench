@@ -471,15 +471,23 @@ This is a standing instruction from the repository owner. It outranks any workfl
 
 1. **Never ask the author to run `bd export`, and never ask about `.beads/issues.jsonl`.** That
    file is a passive export, not something a person maintains. An agent that needs it current
-   runs the export itself, silently.
+   right now, mid-task, still runs the export itself, silently.
 2. **Never ask the author to sync the Dolt remote.** Syncing is a machine's job. An agent that is
    already pushing runs the sync too, or says nothing about it.
 3. **Report tracker plumbing only when it fails.** A successful export is not news. A failed one
    is, because the beads then exist on one machine alone.
 
-This constrains agents, not `bd` itself. `bd` stays explicit. The automation belongs in this
-repository's own `.githooks/`, where git tracks it and the author can read it. `tadw-pm8` covers
-building it. Until it lands, agents absorb the step by hand and stay quiet about it.
+This constrains agents, not `bd` itself. `bd` stays explicit. **`.githooks/pre-push` automates the
+baseline case** (`tadw-pm8`): every push exports the tracker and, if the export changed, commits
+it as a follow-up commit. That commit lands on the next push, not the one that triggered it,
+because git resolves what to push before the hook runs and cannot fold a new commit into a push
+already in flight. The step never gates the push: a missing `bd`, or a failed export, only warns.
+It carries the text export alone; the Dolt remote sync stays manual, per rule 2, until
+`bd dolt remote list` and `bd dolt show` agree on whether a remote exists.
+
+Rule 1 still applies within a task. The hook only catches state on the way out, so a skill that
+needs the export current *before* it decides what to commit, such as `ship` resolving a rebase
+conflict on `.beads/issues.jsonl`, still runs `bd export` itself.
 
 ### Workflow
 

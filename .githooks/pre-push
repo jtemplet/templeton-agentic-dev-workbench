@@ -290,4 +290,48 @@ fi
 if [ "$suite_failed" -eq 1 ] || [ "$verdict_failed" -eq 1 ]; then
   exit 1
 fi
+
+# ---------------------------------------------------------------------------
+# STAGE 3: keep .beads/issues.jsonl current, silently
+# ---------------------------------------------------------------------------
+#
+# AGENTS.md's "The author never handles tracker plumbing" says a person never
+# runs `bd export` by hand, and an agent that needs it current runs it itself.
+# That depended on every agent remembering. This stage makes it automatic: a
+# push now exports the tracker and commits the change, so a person who edits a
+# bead with no agent in the loop still pushes current state (tadw-pm8).
+#
+# NEVER A GATE. `bd` missing, or `bd export` failing, only warns; a stale
+# export is a worse outcome than a blocked push. Only stage 1 and stage 2 can
+# refuse a push.
+#
+# A FOLLOW-UP COMMIT, NEVER AN AMEND. Git resolves which commit to push before
+# invoking this hook and does not re-read the ref afterward, so a commit made
+# here cannot join THIS push; it advances local HEAD by one commit that goes
+# out on the NEXT push. tadw-pm8's own design records amending as the
+# alternative, and rejects it: it would push a stale SHA unless the hook
+# re-pushed itself, which is not obviously safe. `/tadw:ship`'s own Step 4
+# already names a hook-added commit as the accepted outcome for this case:
+# "Leave it, and name it in the report."
+#
+# THE WORKING TREE, NOT THE COMMITS BEING PUSHED, matching stage 1's own rule
+# above. Whichever branch is checked out here is the one that gets the commit,
+# regardless of which ref the push argument names.
+#
+# THE TEXT EXPORT ONLY, NOT THE DOLT REMOTE. tadw-pm8 measured `bd dolt remote
+# list` and `bd dolt show` disagreeing about whether one exists, so no bead
+# data has ever synced that way. That sync stays a manual `bd dolt push` until
+# the disagreement is resolved; this stage never attempts it.
+if ! command -v bd >/dev/null 2>&1; then
+  echo "tadw: WARNING - bd not on PATH, so the tracker export was skipped and this push does not carry current tracker state" >&2
+elif ! bd export -o .beads/issues.jsonl >"$work/bd-export.out" 2>&1; then
+  echo "tadw: WARNING - bd export failed, so this push does not carry current tracker state and beads now exist on one machine only" >&2
+  cat "$work/bd-export.out" >&2
+elif [ -n "$(git status --porcelain .beads/ 2>/dev/null)" ]; then
+  git add .beads/ >/dev/null 2>&1
+  if ! git commit -q -m "chore(beads): refresh tracker export" >/dev/null 2>&1; then
+    echo "tadw: WARNING - bd export changed .beads/ but committing it failed, so this push does not carry current tracker state" >&2
+  fi
+fi
+
 exit 0
