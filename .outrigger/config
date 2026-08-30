@@ -83,3 +83,17 @@ qa_tool='the `/qa` skill'
 # POSTs a Slack-compatible {"text":"..."} JSON payload via curl (best-effort).
 # The URL is a secret; payloads carry bead titles and reasons unsanitized.
 # notify_webhook_url='https://hooks.slack.com/services/T.../B.../...'
+
+# How the closeout phase lands the change, and what its claim must prove.
+#
+# Set, so closeout splices prompts/closeout_tool.md and hands the landing to
+# the named tool instead of opening a pull request. Humans land the same way,
+# so one repository has one landing path rather than one per author.
+closeout_tool = 'the `/tadw:ship` skill'
+
+# merged, not the default pr, because the tool above lands locally and closes
+# the bead. The pr arm reads back a needs-human label that a locally-landing
+# closeout never writes, so it would block every bead at the last phase.
+# merged proves two things instead: the landed commit is an ancestor of the
+# main branch, and the bead reads closed in the tracker committed at that ref.
+closeout_verify = merged
