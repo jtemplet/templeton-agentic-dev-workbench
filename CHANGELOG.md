@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.1] - 2026-08-30
+
+### Added
+
+- **`.githooks/pre-push` now exports the tracker and commits the change on every push.** Until now,
+  an agent had to remember to run `bd export` by hand before a push carried current
+  `.beads/issues.jsonl` state (`tadw-pm8`). The new stage never blocks the push: a missing `bd`, or
+  a failed export, only warns. It lands as a follow-up commit rather than folding into the push that
+  triggered it, because git resolves what to push before the hook runs and cannot fold a new commit
+  into a push already in flight.
+
 ## [3.2.0] - 2026-08-28
 
 ### Added
@@ -2223,7 +2234,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.2.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.3.1...HEAD
+[3.3.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.3.0...v3.3.1
 [3.2.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v2.16.0...v3.0.0

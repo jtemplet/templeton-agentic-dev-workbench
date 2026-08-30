@@ -1,6 +1,6 @@
 {
   "name": "tadw",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "description": "Personal agentic development workbench with role-named agents (software-engineer, code-reviewer, product-manager, project-manager, research-librarian, ux-product-designer) backed by action-named skills for code, planning, research, product strategy, design, and ASO work",
   "author": {
     "name": "Jason Templeton",
