@@ -212,7 +212,7 @@ Report what the auto-fixer changed, what you fixed by hand, and the count from t
 
 ## Phase 6: Label the bead
 
-Add the `implemented` label to the bead as the last action of the run:
+Add the `implemented` label to the bead as the final step, before you write the report below:
 
 ```bash
 bd update <bead-id> --add-label implemented
@@ -225,9 +225,10 @@ the label. Neither has a run that left a criterion unmet, a test failing, or a v
 **When the run misses that gate, add no label.** Name the failing condition on the `Label:` line of
 the report instead.
 
-This label is the only thing the run writes to the bead. It does not close the bead. It does not
-set the bead's status either, because the labeling hook already moved the bead to `in_progress`
-when the run started. A `Stop` hook reads the bead after the run and writes
+This label is the only thing the run writes to the bead. It does not close the bead, and it does
+not set the bead's status. The labeling hook sets the status, not this skill. It moves a bead from
+`open` to `in_progress` when the run starts, and it leaves a bead that already reads `in_progress`
+or `closed` alone. A `Stop` hook reads the bead after the run and writes
 `OWED implemented, the run never applied it` to `<git-common-dir>/bead-label.log` when the label is
 missing, so a skipped phase leaves a record either way.
 

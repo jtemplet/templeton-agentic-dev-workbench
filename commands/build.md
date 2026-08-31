@@ -22,8 +22,9 @@ If no arguments are provided, the skill will ask for a bead id or a feature desc
 
 It stops at implemented. The `implemented` label is the only thing it writes to the
 bead: it does not close the bead, and it does not grade its own work. Run
-`/quality-gates` and then `/verify-acceptance` for that. The bead's status moves to
-`in_progress` when the run starts, and the labeling hook does that, not the skill.
+`/quality-gates` and then `/verify-acceptance` for that. When the bead reads `open`,
+the labeling hook moves it to `in_progress` as the run starts. The skill itself never
+changes the status.
 
 This workflow is language-agnostic: the skill picks the style guide, test runner,
 and linter from what the repository actually contains.
