@@ -741,6 +741,24 @@ if case_start "label/prompt: a typed /tadw:build resolves to feature-development
   assert_match "$R/.hookout" '"hookEventName": *"UserPromptSubmit"' "labeled its output with the right event"
 fi
 
+if case_start "label/inject: the feature-development skill names its own label command"; then
+  # Inject mode applies no label. It asks the run to label its own bead, and the
+  # request arrives at the START of a build that then runs for twenty minutes.
+  # Three /build runs in a row dropped it, because skills/feature-development/SKILL.md
+  # never named the command. The skill body is the second copy of the instruction,
+  # and this case pins the two together: rename the label in classify_skill without
+  # rewriting Phase 6 and this fails.
+  SKILL_BODY="$SANDBOX/feature-development-skill.txt"
+  cat "$REPO_ROOT/skills/feature-development/SKILL.md" > "$SKILL_BODY"
+  assert_match "$SKILL_BODY" "\-\-add-label implemented" "the skill names the exact bd command"
+  assert_match "$SKILL_BODY" "## Phase 6" "the skill carries the labeling phase"
+  assert_match "$SKILL_BODY" "Track the six phases" "the TodoWrite list counts six phases"
+  # The label is an outcome, so the skill has to state the gate as well as the
+  # command. A body that says only "add the label" would label a run that stopped
+  # at Ground, which is exactly what inject mode exists to prevent.
+  assert_match "$SKILL_BODY" "stopped in Phase 1" "the skill states the gate it withholds on"
+fi
+
 if case_start "label/pre: an already-labeled bead is left alone"; then
   R="$(new_repo b5 with-origin)"
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON='"reviewed"'

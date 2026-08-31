@@ -1,6 +1,6 @@
 ---
 name: feature-development
-description: "Implement a spec in the house style, invoked as /build. Takes a bead id (preferred) or a feature description, reads the spec from bd rather than re-interviewing you, learns the repo's language, framework, and local conventions before writing anything, loads the matching style skills, implements criterion by criterion with a test per criterion, then simplifies and lints. Stops at implemented; grading and closing belong to /quality-gates and /verify-acceptance."
+description: "Implement a spec in the house style, invoked as /build. Takes a bead id (preferred) or a feature description, reads the spec from bd rather than re-interviewing you, learns the repo's language, framework, and local conventions before writing anything, loads the matching style skills, implements criterion by criterion with a test per criterion, then simplifies, lints, and labels the bead `implemented`. Stops at implemented; grading and closing belong to /quality-gates and /verify-acceptance."
 ---
 
 # Feature Development
@@ -210,7 +210,30 @@ Two states end this phase without a clean run. Both are stops, and neither is a 
 
 Report what the auto-fixer changed, what you fixed by hand, and the count from the final run. Never report a violation as fixed when it was suppressed.
 
-**Output of this phase:**
+## Phase 6: Label the bead
+
+Add the `implemented` label to the bead as the last action of the run:
+
+```bash
+bd update <bead-id> --add-label implemented
+```
+
+**Apply it only when all three are true:** every acceptance criterion is met, the tests pass, and
+the linter reports zero violations. A run that stopped in Phase 1 over a thin spec has not earned
+the label. Neither has a run that left a criterion unmet, a test failing, or a violation standing.
+
+**When the run misses that gate, add no label.** Name the failing condition on the `Label:` line of
+the report instead.
+
+This label is the only thing the run writes to the bead. It does not close the bead. It does not
+set the bead's status either, because the labeling hook already moved the bead to `in_progress`
+when the run started. A `Stop` hook reads the bead after the run and writes
+`OWED implemented, the run never applied it` to `<git-common-dir>/bead-label.log` when the label is
+missing, so a skipped phase leaves a record either way.
+
+Skip this phase when the work has no bead. A free-text description has nothing to label.
+
+**Output of the run**, written after Phase 6 applies or withholds the label:
 
 ```text
 ## Feature complete
@@ -220,13 +243,14 @@ Report what the auto-fixer changed, what you fixed by hand, and the count from t
 **Tests:** [command, and the real count: "14 passed, 0 failed"]
 **Linter:** [command, what it auto-fixed, what you fixed by hand, and the final count: "0 violations"]
 **Criteria met:** N of M [name any not met]
+**Label:** [`implemented` applied, or the condition that withheld it]
 
 **Next:** /quality-gates for the full sweep, then /verify-acceptance to grade this against the bead.
 ```
 
 ## Workflow Management
 
-Track the five phases with TodoWrite, marking each `in_progress` on entry and `completed` on exit:
+Track the six phases with TodoWrite, marking each `in_progress` on entry and `completed` on exit:
 
 ```text
 1. Ground: read the bead, confirm it is buildable
@@ -234,6 +258,7 @@ Track the five phases with TodoWrite, marking each `in_progress` on entry and `c
 3. Implement: code + a test per criterion
 4. Simplify: apply code-simplify, re-run tests
 5. Lint: run the project's linter, fix every violation, re-run it clean
+6. Label: add `implemented` to the bead, or say which condition withheld it
 ```
 
 ## Edge Cases
