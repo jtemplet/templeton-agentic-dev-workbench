@@ -51,5 +51,5 @@ adds more than it removes, and the backlog grows. Naming a gap in one closing li
 consent. In practice you cannot undo a Kill applied on a default.
 
 One run refines one theme. Refining a whole backlog in one sitting is how the session gets abandoned
-halfway, and a theme's verdicts apply as soon as you confirm that theme, so stopping after one loses
-nothing.
+halfway. A theme's verdicts apply as soon as you confirm that theme. So stopping after one theme
+loses nothing.
