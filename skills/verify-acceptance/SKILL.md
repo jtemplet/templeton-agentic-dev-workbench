@@ -1,6 +1,6 @@
 ---
 name: verify-acceptance
-description: "Check a finished unit of work against its bead's acceptance criteria and the QA gates. Resolves the bead from bd, grades each criterion against evidence rather than against the diff, runs the QA gates, and reports one verdict table. Report-only: it writes no file and closes no bead."
+description: "Check a finished unit of work against its bead's acceptance criteria and the QA gates. Resolves the bead from bd, grades each criterion against evidence rather than against the diff, runs the QA gates, and reports one verdict table. It writes no file and closes no bead; on an ACCEPTED verdict it adds the `accepted` label to the bead, and that is the only thing it writes."
 ---
 
 # Verify Acceptance
@@ -99,7 +99,28 @@ Two of its rules carry into this report unchanged:
 - A configured gate that could not run is **BLOCKED**, never SKIP. A missing binary proves nothing about the code.
 - Record real numbers. "Tests: 218 passed, 0 failed" is a gate result. "Tests: green" is not, and neither is "QA passed."
 
-### Step 5: Report
+### Step 5: Label the Bead
+
+**When, and only when, the verdict is ACCEPTED,** add the `accepted` label to the bead:
+
+```bash
+bd update <bead-id> --add-label accepted
+```
+
+Apply the Verdict Rules below first, then read the verdict you reached. NOT ACCEPTED and
+INCONCLUSIVE both withhold the label. So does an unresolved unit of work, because there is no bead
+to label.
+
+**When the verdict withholds the label, add none.** Name the verdict on the `Label:` line of the
+report instead. Never label a bead to record that you looked at it.
+
+This label is the only thing this skill writes anywhere. It does not close the bead and it does not
+change the bead's status. Closing is a separate decision, taken after this report. A `Stop` hook reads
+the bead after the run and writes `OWED accepted, the run never applied it` to
+`<git-common-dir>/bead-label.log` when the label is missing, so a skipped step leaves a record
+either way.
+
+### Step 6: Report
 
 Output the report below, then stop.
 
@@ -131,6 +152,8 @@ Output the report below, then stop.
 
 <One sentence naming what decided it.>
 
+**Label:** `accepted` applied to <bead-id> / withheld, the verdict is <verdict>
+
 ### What Is Left
 
 - [Criterion 2] <what is missing, and where>
@@ -156,10 +179,11 @@ A skipped gate does not change the verdict. A BLOCKED gate does, because a check
 - Put the evidence in the table, not a summary of the evidence
 - Run the QA gates and report their real counts
 - Report NOT ACCEPTED plainly when that is the answer
+- Apply the `accepted` label on an ACCEPTED verdict, and say on the `Label:` line what you did
 
 **Never:**
 
-- Edit code in the working tree, write the `quality-gates` JSON artifact, run `bd close`, or change a bead's status (this skill is report-only and writes no file at all)
+- Edit code in the working tree, write the `quality-gates` JSON artifact, run `bd close`, or change a bead's status (this skill writes no file at all; the `accepted` label from Step 5 is the single exception to writing nothing, and an ACCEPTED verdict is the only thing that earns it)
 - Infer acceptance criteria when the bead has none
 - Grade a criterion from the diff alone
 - Call a criterion PASS because the code looks like it should satisfy it
@@ -176,4 +200,5 @@ Before reporting completion, verify:
 - [ ] Every UNVERIFIABLE says what would settle it and who does it
 - [ ] Every gate reports a real count, an explicit SKIP with a reason, or BLOCKED with what stopped it
 - [ ] The verdict follows the Verdict Rules mechanically
+- [ ] The `accepted` label is applied when the verdict is ACCEPTED, and withheld otherwise
 - [ ] No file in the working tree was edited, no artifact was written, and no bead was closed

@@ -741,22 +741,35 @@ if case_start "label/prompt: a typed /tadw:build resolves to feature-development
   assert_match "$R/.hookout" '"hookEventName": *"UserPromptSubmit"' "labeled its output with the right event"
 fi
 
-if case_start "label/inject: the feature-development skill names its own label command"; then
-  # Inject mode applies no label. It asks the run to label its own bead, and the
-  # request arrives at the START of a build that then runs for twenty minutes.
-  # Three /build runs in a row dropped it, because skills/feature-development/SKILL.md
-  # never named the command. The skill body is the second copy of the instruction,
-  # and this case pins the two together: rename the label in classify_skill without
-  # rewriting Phase 6 and this fails.
-  SKILL_BODY="$SANDBOX/feature-development-skill.txt"
+if case_start "label/inject: every inject-mode skill names its own label command"; then
+  # Inject mode applies no label. It asks the RUN to label its own bead, and the
+  # request arrives at the START of a run that then works for twenty minutes. So
+  # the skill body has to carry the same instruction, or the request is the only
+  # copy and the run drops it. Both inject-mode skills did drop it: /build left
+  # tadw-jfr, tadw-pm8 and tadw-7xq.2 unlabeled, and /verify-acceptance left
+  # tadw-7xq.1 and tadw-pdi unlabeled, each logged as OWED.
+  #
+  # This case pins the two copies together. Rename a label in classify_skill and
+  # leave the skill body alone, and it fails here.
+  SKILL_BODY="$SANDBOX/inject-skill.txt"
+
   cat "$REPO_ROOT/skills/feature-development/SKILL.md" > "$SKILL_BODY"
-  assert_match "$SKILL_BODY" "\-\-add-label implemented" "the skill names the exact bd command"
-  assert_match "$SKILL_BODY" "## Phase 6" "the skill carries the labeling phase"
-  assert_match "$SKILL_BODY" "Track the six phases" "the TodoWrite list counts six phases"
-  # The label is an outcome, so the skill has to state the gate as well as the
+  assert_match "$SKILL_BODY" "\-\-add-label implemented" "feature-development names the exact bd command"
+  assert_match "$SKILL_BODY" "## Phase 6" "feature-development carries the labeling phase"
+  assert_match "$SKILL_BODY" "Track the six phases" "feature-development counts six phases"
+  # The label is an outcome, so each skill has to state the gate as well as the
   # command. A body that says only "add the label" would label a run that stopped
-  # at Ground, which is exactly what inject mode exists to prevent.
-  assert_match "$SKILL_BODY" "stopped in Phase 1" "the skill states the gate it withholds on"
+  # early, which is exactly what inject mode exists to prevent.
+  assert_match "$SKILL_BODY" "stopped in Phase 1" "feature-development states the gate it withholds on"
+
+  cat "$REPO_ROOT/skills/verify-acceptance/SKILL.md" > "$SKILL_BODY"
+  assert_match "$SKILL_BODY" "\-\-add-label accepted" "verify-acceptance names the exact bd command"
+  assert_match "$SKILL_BODY" "Step 5: Label the Bead" "verify-acceptance carries the labeling step"
+  assert_match "$SKILL_BODY" "INCONCLUSIVE both withhold the label" "verify-acceptance states the gate it withholds on"
+  # Its Critical Rules used to say the skill writes nothing at all. A rule that
+  # contradicts Step 5 is worse than no rule, because the run obeys one of them
+  # and there is no telling which.
+  assert_no_match "$SKILL_BODY" "report-only and writes no file at all" "verify-acceptance no longer claims it writes nothing"
 fi
 
 if case_start "label/pre: an already-labeled bead is left alone"; then
