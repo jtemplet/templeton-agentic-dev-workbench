@@ -147,6 +147,8 @@ check python3 skills/quality-gates/scripts/test_changed_set.py
 check python3 skills/quality-gates/scripts/test_check_hygiene.py
 check python3 skills/quality-gates/scripts/test_route_qa.py
 check python3 skills/quality-gates/scripts/test_probe_api.py
+check python3 skills/quality-gates/scripts/test_check_documented_bd_commands.py
+check python3 skills/quality-gates/scripts/check_documented_bd_commands.py
 check python3 skills/ship/scripts/test_check_worktree_occupants.py
 
 elapsed=$(( $(date +%s) - started ))
