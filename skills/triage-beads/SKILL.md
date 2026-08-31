@@ -81,18 +81,19 @@ All optional, from `$ARGUMENTS`:
 
 **Three traps, all of which silently shrink or pad the candidate set.**
 
-1. **Every listing command has a default limit and truncates without complaining.** `bd list` and
-   `bd blocked` default to 50, `bd ready` defaults to 20. Pass `--limit 0` for unlimited on every
-   call that feeds a ranking or a count.
+1. **Most listing commands have a default limit and truncate without complaining.** `bd list`
+   defaults to 50 and `bd ready` to 100. Pass `--limit 0` for unlimited on every call that feeds
+   a ranking or a count. `bd blocked` takes no `--limit`, and returns every blocked bead.
 2. **"Open" and "ready" are different sets.** `bd list --status=open` includes beads that are
-   blocked by an open dependency. `bd ready` is open, unblocked, and not deferred. The scored
-   candidates come from `bd ready`; the tail and the blocked list need the open set too.
-3. **`draft` is a status, not a label.** A draft bead is not pickup-ready. `bd ready` already
+   blocked by an open dependency. `bd ready` excludes four statuses: in_progress, blocked,
+   deferred, and hooked. The scored candidates come from `bd ready`; the tail and the blocked
+   list need the open set too.
+3. **`hooked` is a status, not a label.** A hooked bead is not pickup-ready. `bd ready` already
    excludes it, so do not add it back from the open set.
 
 ```bash
-bd ready --json --limit 0                # actionable: open, unblocked, not deferred, not draft
-bd blocked --json --limit 0              # blocked, each with blocked_by ids
+bd ready --json --limit 0                # no in_progress, blocked, deferred or hooked
+bd blocked --json                        # blocked, with blocked_by ids; it takes no --limit
 bd list --status=open --limit 0 --json   # full open set, for the tail and the counts
 ```
 
@@ -108,7 +109,8 @@ Note the shapes, which differ between commands:
 
 - `bd list`, `bd ready`, and `bd blocked` all return a bare array of issues. There is no envelope
   and no `has_more` flag, so guard against truncation with `--limit 0` (unlimited) rather than by
-  reading a field. `--limit` defaults to 50.
+  reading a field. That limit defaults to 50 on `bd list` and to 100 on `bd ready`. `bd blocked`
+  has no `--limit`, so it cannot truncate.
 - `--status` takes a comma-separated list in one flag (`--status open,in_progress`). Repeating the
   flag silently keeps only the last value.
 - Null fields are **omitted** from the JSON. A bead with no assignee has no `assignee` key, so test
@@ -167,7 +169,7 @@ Three cheap `bd` reads complete the momentum picture:
 
 ```bash
 bd list --status=in_progress --limit 0 --json                  # threads that are hot right now
-bd list --status=closed -a --limit 50 --json --sort updated_at # most recent first; --reverse flips it
+bd list --status=closed --limit 50 --json --sort updated       # most recent first; --reverse flips it
 bd show <id> --json                                            # per-candidate edges, for the shortlist
 ```
 
@@ -307,7 +309,7 @@ judgment.
 |---|---|---|
 | Blocked | present in `bd blocked` | Blocked list, naming the blocker |
 | Deferred | `status` is `deferred`, or `defer_until` is future | One count line |
-| Draft | `status` is `draft` | One count line |
+| Hooked | `status` is `hooked` | One count line |
 | Epic | `issue_type` is `epic` | Its children are scored instead; childless, flag for `plan-to-beads` |
 | Claimed by someone else | `assignee` set and not you | Omit, unless `--all` |
 | Marked not-ready by label | `BV_ROBOT_NOT_READY_LABELS`, or whatever label the repository uses to mark work not ready | Name it once, with the label |
@@ -348,7 +350,7 @@ Rest of the ready backlog, ROI order (7 of 12 ready; the 6 blocked are above):
   3.0  tadw-qg-script-hygiene-count-rkd    Script the hygiene marker count
   … and 5 more
 
-0 deferred, 0 draft, 0 in progress. Graph metrics: PageRank and betweenness computed
+0 deferred, 0 hooked, 0 in progress. Graph metrics: PageRank and betweenness computed
 (betweenness approximate); eigenvector, HITS, critical path skipped on a 21-bead graph.
 ```
 
@@ -391,10 +393,10 @@ Every call this skill makes, and why.
 | Call | Purpose |
 |---|---|
 | `bd ready --json --limit 0` | The scored candidate set |
-| `bd blocked --json --limit 0` | The blocked list, with `blocked_by` ids |
+| `bd blocked --json` | The blocked list, with `blocked_by` ids |
 | `bd list --status=open --limit 0 --json` | Open set for the tail, the counts, and `due_at` |
 | `bd list --status=in_progress --limit 0 --json` | Hot threads |
-| `bd list --status=closed -a --limit 50 --json --sort updated_at` | Recent closes, newest first |
+| `bd list --status=closed --limit 50 --json --sort updated` | Recent closes, newest first |
 | `bd show <id> --json` | Edge identity for the shortlist; returns a one-element array |
 | `bd search "<text>" --json` | Wide or fuzzy scope filter |
 | `bd epic status --json` | Epic progress only (`total_children`, `closed_children`); it carries no member ids |
@@ -410,8 +412,8 @@ Every call this skill makes, and why.
 - **Default scope is actionable, unassigned or yours.** That is the daily-driver case. `--all`
   widens to work others hold; a free-text argument or `--label` narrows to a thread.
 - **Readiness belongs to `bd`.** It already walks the dependency graph and excludes deferred and
-  draft beads. Recomputing it from raw JSONL invites a wrong answer, and a closed blocker is already
-  gone from `bd ready`.
+  hooked beads. Recomputing it from raw JSONL invites a wrong answer, and a closed blocker is
+  already gone from `bd ready`.
 - **The rubric's weights are policy, not measurement.** They are fixed here so the pick is
   reproducible across sessions and arguable in one place. Tuning a weight is an edit to this file,
   never an in-session judgment call, or "deterministic" stops being true.
