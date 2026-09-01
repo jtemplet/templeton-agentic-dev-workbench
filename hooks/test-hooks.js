@@ -468,10 +468,13 @@ check('no command both shares a skill name and delegates to that skill by name',
 // Nothing enforced that, so adding a skill without listing it, or listing one
 // and leaving the count behind, shipped green. /validate-plugin is a command an
 // LLM runs; this is the mechanical half of the same claim.
+// `prefix` is what README.md puts in front of the name. A command is written
+// `/build` there and stored as `commands/build.md` on disk, so comparing the
+// two without it reports every command as undocumented.
 const COMPONENTS = [
-  { label: 'Skills', dir: 'skills', names: (root) => componentNames(root, 'skills', true) },
-  { label: 'Agents', dir: 'agents', names: (root) => componentNames(root, 'agents', false) },
-  { label: 'Commands', dir: 'commands', names: (root) => componentNames(root, 'commands', false) },
+  { label: 'Skills', dir: 'skills', prefix: '', names: (root) => componentNames(root, 'skills', true) },
+  { label: 'Agents', dir: 'agents', prefix: '', names: (root) => componentNames(root, 'agents', false) },
+  { label: 'Commands', dir: 'commands', prefix: '/', names: (root) => componentNames(root, 'commands', false) },
 ];
 
 function componentNames(root, dir, isDirectory) {
@@ -533,13 +536,19 @@ check('AGENTS.md registers every component on disk, with matching counts', () =>
 // several are aliases for a differently-named skill or agent (/adr -> the
 // architecture-decision-record skill), so a name-match assertion would encode a
 // rule this repository does not follow and fail on eleven correct entries.
-check('README.md documents every skill and agent on disk', () => {
+check('README.md documents every component on disk', () => {
   const root = path.join(HOOKS_DIR, '..');
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
 
-  for (const label of ['Skills', 'Agents']) {
-    const { names } = COMPONENTS.find((c) => c.label === label);
-    const undocumented = names(root).filter((n) => !readme.includes(`\`${n}\``));
+  // The name must open a backticked token and end it, or be followed by a
+  // space. Nine command rows carry an argument in the same backticks, as
+  // `/diagnose <bug>`, so requiring the whole token to be the name alone
+  // reported every one of them as undocumented. Requiring the boundary keeps
+  // `/ux-audit` from matching the `/ux-audit-ios` row.
+  const documented = (name) => new RegExp('`' + name + '[`\\s]').test(readme);
+
+  for (const { label, prefix, names } of COMPONENTS) {
+    const undocumented = names(root).filter((n) => !documented(`${prefix}${n}`));
     assert.deepStrictEqual(
       undocumented,
       [],
