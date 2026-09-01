@@ -126,10 +126,52 @@ block defined in `references/frontmatter-schema.md`.
 - **Customer** (the personas under the surface's personas) / **Job-to-be-Done** (at this level)
 - **What is visible** (the actual user interface or output, with exact source-file references) /
   **States** (loading, empty, error, gated, and so on)
+- **How to drive this** (five lines an agent follows to reach this feature; the exact shape is
+  below)
 - **What is behind it** (stores, endpoints, methodology documents) / **Tier gating and access**
   (a table)
 - **Metrics** (with an "Instrumented today?" column; every "No" row is a finding) / **Open
   questions** (the bugs, gaps, and debt at this level)
+
+#### The drive block, on a leaf alone
+
+A leaf document names one feature, so it is the only document that can say how to reach it. Write
+the block on every leaf, and on no other level. An overview, surface, capability, or area document
+covers many features, so it carries no block.
+
+The `verify-app` skill reads this block to drive the feature. The block takes one of the two shapes
+below. The paired comments mark the block for `check_drive_blocks.py`. That script never finds the
+block by its heading, because renaming a heading would break the script without a word.
+
+```markdown
+<!-- drive:start -->
+## How to drive this
+
+- **Route:** /deals
+- **Precondition:** signed in as a lender whose workspace holds at least one deal
+- **Selector:** `[data-testid="deal-row"]`
+- **Action:** click the first row, then read the page header
+- **Success signal:** the header shows the deal name from that row
+<!-- drive:end -->
+```
+
+Each line answers one question. Route is the path, relative to the `base_url` field in the
+project's verification control document. That document holds what every journey in the project
+shares. Precondition is the state that must exist first. Selector is the stable
+identifier to bind to, such as a test id or an accessibility role, never a position on the page.
+Action is what a person does. Success signal is the one observation that proves the feature ran.
+
+**A feature nobody can drive still writes the block, and says so.** A background job, a scheduled
+export, and a webhook receiver all reach a leaf document with no screen to open. Write the reason,
+so a reader can tell an undrivable feature from an unfinished document.
+
+```markdown
+<!-- drive:start -->
+## How to drive this
+
+**Not drivable:** this feature has no user interface. It runs as the nightly export job.
+<!-- drive:end -->
+```
 
 ## Keeping Current (a command, not a judgment call)
 
@@ -368,6 +410,8 @@ apply the four outcomes, promote, and confirm.
 - [ ] Every document has frontmatter with `source_refs` and `last_reviewed`. A surface whose code
       is in another repository uses the pinned form
 - [ ] `check_staleness.py` runs against the tree with no unexpected `stub` or unverifiable result
+- [ ] Every leaf document carries the drive block between its paired comments, filled with the five
+      lines or with the reason the feature cannot be driven
 - [ ] Every product claim cites a file, endpoint, screen, or commit
 - [ ] Every finding is in `_findings.md` with an identifier that never changes, and that
       identifier also appears in the document. Nothing was dropped to avoid writing a bead
