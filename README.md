@@ -118,6 +118,7 @@ Pair with `/loop` to run on a schedule:
 |---|---|
 | `/product-analysis <product>` | Objective product analysis: features, pricing, competitors, pain points, market capture |
 | `/research-ingest` | Ingest a new source into the Research wiki: read, discuss, summarize, create entity/concept pages |
+| `/research-synthesize` | Answer a question from the Research wiki: weigh the sources, write a question page, link it from the agenda |
 
 ### Design & UX
 
@@ -226,6 +227,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `triage-beads` | Rank the open `bd` backlog by ROI (value ÷ effort) into a one-screen readout: one top pick with its scoring arithmetic and claim command, a scored leaderboard naming what each runner-up lost on, a blocked list naming each blocker, and a capped ROI-ordered tail; takes readiness from `bd ready`/`bd blocked`, the measured graph facts (unblock counts, PageRank) from `bv --robot-triage`, and prices each bead on a fixed evidence-cited rubric so the same tracker state always yields the same pick; report-only, `bd`/`bv` CLI only, no MCP | Choosing the next bead to claim, or when `bd ready` output has stopped being scannable |
 | `product-surface-docs` | Build/refresh a MECE/Pyramid product doc tree under `docs/products/` by surface; grounds claims in code, proactively hunts bugs/gaps/debt into `_findings.md` (cheap capture) and promotes actionable ones into bead-audit-compliant beads, ships a staleness checker (in-repo + multi-repo) | Standing up or refreshing `docs/products/`, or auditing for gaps |
 | `research-ingest` | Ingest a new source into the Research wiki, with study quality assessment and cross-referencing | A new file appeared in `Research/sources/` |
+| `research-synthesize` | Answer a question from the Research wiki, weighing each claim by its source's recorded validity | You need to know what the sources say, not what one source says |
 | `competitive-analysis` | Competitor teardown with positioning map, moat analysis, trajectory, and feature gaps | Before a planning cycle, or when a competitor ships something notable |
 | `ab-test-design` | A/B test design with hypothesis, metrics, sample size, rollout plan, and decision criteria | You have a hypothesis and want data to settle it, before building |
 | `product-research` | User signal synthesis by segment using JTBD, anti-jobs, and evidence-weighted opportunity scoring | Scattered user feedback and no clear priorities |
@@ -250,7 +252,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `project-manager` | Decomposes plans into `bd` issues; ensures each bead has Why, How, and acceptance criteria (uses `plan-to-beads` skill) |
 | `diagnostician` | Read-only investigation: evidence, hypotheses, root cause |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
-| `research-librarian` | Ingests sources into Research wiki: reads, assesses study quality, generates summaries and entity/concept pages (uses `research-ingest` skill) |
+| `research-librarian` | Curates the Research wiki and answers questions from it: ingests sources with a study quality assessment, and weighs the filed sources to answer a question (uses `research-ingest` and `research-synthesize`) |
 | `ux-product-designer` | UX audit of a web app via Playwright, 7-dimension evaluation with severity-ranked report |
 | `ux-product-designer-ios` | UX audit of an iOS app via Simulator, tests Dynamic Type / Dark Mode / accessibility, 7-dimension evaluation against Apple HIG |
 | `product-manager` | Senior/Staff PM routing agent; dispatches to competitive-analysis, ab-test-design, product-research, product-roadmap, and product-brief skills |
