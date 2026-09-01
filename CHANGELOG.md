@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.1] - 2026-09-01
+
+### Added
+
+- **`check_drive_blocks.py`, the gate behind the drive block.** 3.4.0 added a "How to drive this"
+  section to the leaf document template and shipped nothing that enforced it, so a tree could omit
+  the block everywhere and still pass (`tadw-4s2`). The checker finds the block by its paired
+  `<!-- drive:start -->` comments rather than by its heading, so renaming the heading cannot break
+  it in silence, and grades every leaf as ok, not-drivable, missing, incomplete, or unterminated. A
+  leaf is a document with no document below it, which is the skill's own rule read from the other
+  side, so a surface document is never asked for a block. Two rules keep it from crying wolf: a
+  feature with no user interface writes the block with a reason and passes, and a repository with
+  no `docs/products` tree exits 0 rather than failing every push. `--json` prints every finding as
+  an array. It is wired into `.githooks/pre-push` and the `AGENTS.md` check list, which now holds
+  16 checks rather than 14.
+- **`docs/plans/feature-plan-verification-loop.md`** records the design this checker is the first
+  step of: `verify-app`, a control document, the drive block, and the wiring that makes an
+  unresolved handoff change the acceptance verdict.
+
+### Fixed
+
+- **`skills/product-surface-docs/SKILL.md` named a script that did not ship.** Its leaf template
+  has referenced `check_drive_blocks.py` since 3.4.0, and the file itself lands only now. Anyone
+  who followed that reference in 3.4.0 found nothing there.
+- **The drive-block report numbered its nouns wrongly**, reading "1 leaves" and "1 of 1 leaf
+  documents carry". Its regression suite pinned the first of those, so the wrong wording was also
+  the tested wording. Both sentences now agree with their noun, and four checks cover the singular
+  and the plural on each, taking the suite from 27 checks to 30.
+
 ## [3.4.0] - 2026-09-01
 
 ### Added
@@ -2283,7 +2312,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.1...HEAD
+[3.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.0...v3.4.1
 [3.4.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.3.0...v3.3.1
 [3.2.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.1.0...v3.2.0
