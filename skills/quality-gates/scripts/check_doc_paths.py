@@ -48,6 +48,10 @@ NOT_A_PATH_PREFIX = ("/", "http://", "https://", "@", "#", "~", "mailto:")
 NOT_A_PATH_CHARS = frozenset("<>*$? ")
 
 DEFAULT_DOCS = ("README.md", "AGENTS.md", "CLAUDE.md")
+# Prompt assets: documents an agent reads and acts on. A `references/` file
+# under a skill is deliberately absent; those are prose the skill quotes, not
+# paths a command depends on.
+DEFAULT_ASSET_GLOBS = ("skills/*/SKILL.md", "commands/*.md", "agents/*.md")
 IGNORE_FILE = ".docpaths-ignore"
 DOC_PREFIX = "doc:"
 
@@ -177,10 +181,20 @@ def check(
 
 
 def resolve_docs(root: Path, given: list[str]) -> list[Path]:
+    """The documents checked when the caller names none.
+
+    The three named files, everything under `docs/`, and every prompt asset: a
+    skill, a command, or an agent. The prompt assets are here because they carry
+    the delegation path each command reads its skill from. A typo in one breaks
+    that command with no error message, so leaving them out made this gate
+    report a clean run over the paths that fail most quietly.
+    """
     if given:
         return [Path(g) if Path(g).is_absolute() else root / g for g in given]
     docs = [root / name for name in DEFAULT_DOCS]
     docs.extend(sorted((root / "docs").rglob("*.md")))
+    for pattern in DEFAULT_ASSET_GLOBS:
+        docs.extend(sorted(root.glob(pattern)))
     return [d for d in docs if d.is_file()]
 
 

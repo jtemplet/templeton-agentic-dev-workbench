@@ -28,3 +28,32 @@ agents/quality-gates-orchestrator.md
 # The name that ADR 0002 rejects, kept in the text so the rejection is legible.
 # This file is never created, so this entry is permanent.
 agents/quality-gates.md
+
+# The three groups below became visible when the default document list grew to
+# cover skills/*/SKILL.md, commands/*.md, and agents/*.md.
+
+# Where the product skills write their output. Absent until someone runs one.
+# Named by competitive-analysis, product-brief, product-research,
+# product-roadmap, and agents/product-manager.md. Both forms of each, because
+# the checker compares the name with any trailing slash already stripped.
+docs/product/*
+docs/product
+docs/experiments/*
+docs/experiments
+
+# agents/claude-md-reviewer.md recommends these file names to the repository it
+# is reviewing. They are a suggestion about someone else's tree, never a claim
+# about this one, so this entry is permanent.
+docs/PYTHON_WORKFLOWS.md
+docs/RAILS_WORKFLOWS.md
+docs/TESTING.md
+docs/ARCHITECTURE.md
+docs/PLUGIN_DEVELOPMENT.md
+docs/BUILD.md
+docs/GIT_WORKFLOW.md
+docs/API_CONVENTIONS.md
+
+# commands/bead-audit-all.md names this file to explain that it was deleted,
+# and why deleting it fixed the skill it used to shadow. Same case as
+# agents/quality-gates.md above, so this entry is permanent too.
+commands/bead-audit.md

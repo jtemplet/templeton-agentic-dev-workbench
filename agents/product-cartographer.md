@@ -60,7 +60,7 @@ is the source of truth for all of the following:
 - The search techniques, and the two-tier findings model.
 - The ledger and frontmatter schemas, in `references/frontmatter-schema.md`.
 - The refresh workflow, in `references/refresh-workflow.md`.
-- The staleness checker, `scripts/check_staleness.py`.
+- The staleness checker, `skills/product-surface-docs/scripts/check_staleness.py`.
 
 Do not invent a different structure.
 

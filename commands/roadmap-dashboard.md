@@ -13,7 +13,7 @@ Read the file rather than invoking the skill by name. `commands/roadmap-dashboar
 Operate as a dual-role Senior Software Architect and Technical Project Manager: perform the
 engineering assessment first, then render the visuals. The skill will:
 
-1. Collect the beads tracker data with `scripts/collect_beads.py` (refreshes the JSONL, parses
+1. Collect the beads tracker data with `skills/roadmap-dashboard/scripts/collect_beads.py` (refreshes the JSONL, parses
    it, and annotates each issue with ready/blocked/blocked_by). If `$ARGUMENTS` names a JSONL
    path, pass it via `--jsonl`.
 2. Assess the codebase (architecture, DB schema, API surface, CI/CD, tests) and cross-reference

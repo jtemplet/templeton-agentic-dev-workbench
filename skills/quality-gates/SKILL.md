@@ -420,7 +420,9 @@ Run the bundled script. Do not hand-roll this check.
 python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py" --repo-root .
 ```
 
-Pass document paths as arguments to narrow it under `--changed`. With none, it checks `README.md`, `AGENTS.md`, `CLAUDE.md`, and every markdown file under `docs/`.
+Pass document paths as arguments to narrow it under `--changed`. With none, it checks `README.md`, `AGENTS.md`, `CLAUDE.md`, every markdown file under `docs/`, and every prompt asset: `skills/*/SKILL.md`, `commands/*.md`, and `agents/*.md`.
+
+The prompt assets are in that list because each command reads its skill through a delegation path. A typo in one breaks that command and prints no error, so the paths that fail most quietly were the ones the gate never opened. A `references/` file under a skill stays out: it is prose the skill quotes, not a path a command depends on.
 
 **Why a script and not a method.** This gate was three prose steps until it met a real repository. Told to extract "tokens that look like a path", the first run reported **194 missing paths, none of them real**: slash commands, `<name>` placeholders, and a worked example in this file's own text. A gate that cries wolf gets ignored, and the real miss gets ignored with it. The script encodes the three rules that cut those 194 to zero, and `test_check_doc_paths.py` pins each one.
 

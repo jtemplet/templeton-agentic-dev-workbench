@@ -312,5 +312,82 @@ def case_real_repo() -> None:
 
 check("this repository's own documents all resolve", case_real_repo)
 
+
+# --- The default document list covers the prompt assets --------------------
+# A command reads its skill from a delegation path, and a typo there breaks the
+# command silently. The list held README.md, AGENTS.md, CLAUDE.md, and docs/**
+# only, so every such path went unchecked and the gate reported a clean run.
+
+
+def build_assets(files: dict[str, str]) -> Path:
+    """A throwaway repository holding an empty README plus the named files."""
+    root = Path(tempfile.mkdtemp())
+    (root / "README.md").write_text("nothing here\n", encoding="utf-8")
+    for name, body in files.items():
+        target = root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body, encoding="utf-8")
+    return root
+
+
+def case_command_delegation_path_checked() -> None:
+    root = build_assets(
+        {
+            "commands/build.md": "Read `skills/gone/SKILL.md` and follow it.\n",
+            "skills/here/SKILL.md": "A real skill.\n",
+        }
+    )
+    r = run(root)
+    assert r.returncode == 1, f"a dead delegation path must exit 1: {r.returncode}"
+    assert any("skills/gone/SKILL.md" in m for m in misses(r)), r.stdout
+
+
+def case_skill_and_agent_checked() -> None:
+    for name in ("skills/one/SKILL.md", "agents/one.md"):
+        root = build_assets({name: "See `commands/gone.md` for the rest.\n", "commands/x.md": "x\n"})
+        r = run(root)
+        assert r.returncode == 1, f"{name}: a dead path must exit 1: {r.returncode}"
+        assert any("commands/gone.md" in m for m in misses(r)), f"{name}: {r.stdout}"
+
+
+def case_plugin_root_variable_still_stripped() -> None:
+    root = build_assets(
+        {
+            "commands/build.md": "Read `${CLAUDE_PLUGIN_ROOT}/skills/here/SKILL.md`.\n",
+            "skills/here/SKILL.md": "A real skill.\n",
+        }
+    )
+    r = run(root)
+    assert r.returncode == 0, f"a resolvable delegation path must exit 0:\n{r.stdout}"
+
+
+def case_skill_relative_path_still_resolves() -> None:
+    # A skill naming its own script writes the path relative to itself, and the
+    # checker resolves a target against the document's directory as well as the
+    # root. Widening the list must not turn that convention into a miss.
+    root = build_assets(
+        {
+            "skills/one/SKILL.md": "Run `scripts/go.py` to collect the data.\n",
+            "skills/one/scripts/go.py": "print(1)\n",
+        }
+    )
+    r = run(root)
+    assert r.returncode == 0, f"a skill-relative script path must resolve:\n{r.stdout}"
+
+
+def case_references_file_not_checked() -> None:
+    # `references/` under a skill is prose the skill quotes, not a path a
+    # command depends on, so it stays out of the default list.
+    root = build_assets({"skills/one/references/notes.md": "See `skills/gone/SKILL.md`.\n"})
+    r = run(root)
+    assert r.returncode == 0, f"a references file must not be scanned:\n{r.stdout}"
+
+
+check("a command's dead delegation path is a miss", case_command_delegation_path_checked)
+check("a skill and an agent are both scanned", case_skill_and_agent_checked)
+check("${CLAUDE_PLUGIN_ROOT} is still stripped in a command", case_plugin_root_variable_still_stripped)
+check("a skill-relative script path still resolves", case_skill_relative_path_still_resolves)
+check("a references file under a skill is not scanned", case_references_file_not_checked)
+
 print(f"\nAll {passed} checks passed." if not failed else f"\n{failed} FAILED, {passed} passed.")
 sys.exit(1 if failed else 0)
