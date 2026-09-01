@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-09-01
+
+### Added
+
+- **`research-synthesize`, the skill that reads the Research wiki back.** The pipeline could only
+  file knowledge; nothing ever read it except the next ingest, which made the wiki an archive
+  rather than a brain (`tadw-x8b.5`). The skill answers one question from the pages already there:
+  it finds them through the index, the page text, and the `aliases:` field, weighs every claim by
+  the source page's `validity` and `verification` frontmatter, and writes the answer as a question
+  page under `Research/wiki/questions/` with Evidence For and Evidence Against. A source page with
+  no `verification` field is treated as unverified and drops a weight step, because every page
+  ingested so far lacks that field and an unchecked source must not read like a checked one. Both
+  sides of a disagreement stay on the page. `commands/research-synthesize.md` is its entry point,
+  and `agents/research-librarian.md` now covers filing and answering rather than filing alone.
+  The registered counts are now 46 skills and 32 commands.
+- **`check_documented_bd_commands.py`, a gate that runs every `bd` command the documents show.**
+  Three commands in `skills/triage-beads/SKILL.md` did not work, and nothing caught them
+  (`tadw-epi`). The checker extracts each fenced `bd` command and runs it, so a documented command
+  that exits non-zero now fails a push. It is wired into `.githooks/pre-push`.
+- **A "How to drive this" section in the leaf document template.** An agent that can launch an app
+  still cannot find a feature in it, and the leaf documents under `docs/products/` described what a
+  feature is but never how to reach it (`tadw-3ya`). The template now carries the route, the
+  precondition, the selector, the action, and the success signal.
+- **`/build` applies the `implemented` label as its Phase 6**, and `/verify-acceptance` applies
+  `accepted` when its verdict is ACCEPTED. Both skills described a label they never wrote, so the
+  bead's state depended on whoever remembered to set it by hand.
+
+### Changed
+
+- **The doc-path gate now reads the prompt assets, taking it from 18 documents to over 100.** It
+  checked `README.md`, `AGENTS.md`, `CLAUDE.md`, and `docs/**` only, so it never opened the
+  delegation path each command reads its skill through (`tadw-ryx`). A typo there breaks the
+  command and prints no error, which is the failure that fails most quietly. Widening it found two
+  real defects: `commands/roadmap-dashboard.md` and `agents/product-cartographer.md` each named a
+  script path relative to a skill directory while the repository root holds a different `scripts/`
+  directory. Both now name the full path. The remaining 18 unresolved names went to
+  `.docpaths-ignore`, each with its reason.
+- **The README check covers commands, not just skills and agents.** A command added without a
+  `README.md` row passed every check in the repository (`tadw-nu6`). The match is now a boundary
+  rule rather than a whole-token compare, because nine command rows carry an argument in the same
+  backticks, as `` `/diagnose <bug>` ``, and the strict compare reported all nine as undocumented.
+- **The tracker skills are rewritten to the `style-markdown` rules** (`tadw-7xq.2`): `bead-audit`,
+  `bead-create`, `plan-review`, `plan-to-beads`, and `commands/bead-refine.md`.
+
+### Fixed
+
+- **Three `bd` commands in `skills/triage-beads/SKILL.md` were wrong** and are corrected
+  (`tadw-pdi`). The gate added above is what stops the next one.
+
 ## [3.3.1] - 2026-08-30
 
 ### Added
@@ -2234,7 +2283,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.3.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.0...HEAD
+[3.4.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.3.0...v3.3.1
 [3.2.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.0.0...v3.1.0
