@@ -541,6 +541,37 @@ release. See "Releasing" above.
 - Never say "ready to push when you are". You push.
 - If the push fails, resolve the cause and retry until it succeeds.
 
+## Agent skills
+
+Configuration the external `mattpocock-skills` engineering skills read. Each file below is the
+one place that answers its question, so a skill never has to guess.
+
+### Issue tracker
+
+Issues live in **bd (beads)**, not in GitHub Issues; the GitHub remote carries code alone. See
+[docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
+
+### Triage labels
+
+The five canonical triage roles keep their default names. `ready-for-human` is a routing
+decision and is not the same label as `needs-human`, which the `ship` skill applies on a stop.
+See [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` at the root, not yet written, plus `docs/adr/`. See
+[docs/agents/domain.md](docs/agents/domain.md).
+
+### Which plugin's skill wins
+
+**Where a tadw skill and a `mattpocock-skills` skill answer the same question, use the tadw
+one.** It writes bd beads with the native fields ADR 0001 makes canonical, grounds its claims
+against `main`, and emits the lines the pipelines read. Two skills are the deliberate exception
+and stay his: `domain-modeling`, which tadw deleted its own in favor of, and `grill-with-docs`,
+which `/write-plan` names as a valid predecessor. The full mapping, including the partial
+overlaps, is in
+[docs/agents/skill-precedence.md](docs/agents/skill-precedence.md).
+
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
 ## Beads Issue Tracker
 
