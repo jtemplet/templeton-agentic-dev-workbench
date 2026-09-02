@@ -182,8 +182,8 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Product strategy | `/competitive-analysis`, `/product-research`, `/product-roadmap`, `/product-brief`, `/ab-test-design` | `product-manager` agent |
 | Generate ideas | `/idea-wizard`, `/business-ideas` | `idea-wizard`, `business-ideas` |
 | Record a decision | `/adr` | `architecture-decision-record` |
-| Audit UX | `/ux-audit`, `/ux-audit-ios` | `ux-product-designer` agents |
-| Audit an App Store listing | `/aso-audit` | `aso-audit` |
+| Audit UX | `/ux-review`, `/ux-review-ios` | `ux-product-designer` agents |
+| Audit an App Store listing | `/aso-review` | `aso-review` |
 | Map product surfaces to docs | `/product-surface-docs` | `product-cartographer` agent |
 | Build a project dashboard | `/roadmap-dashboard` | `roadmap-dashboard` |
 | Keep a PR green | `/pr-maintain` | `pr-maintenance` |
@@ -191,10 +191,10 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Review a CLAUDE.md | `/review-claude-md` | `claude-md-reviewer` agent |
 
 [docs/ROUTING.md](docs/ROUTING.md) expands the rows above into workflows, grouped by language
-and by task. It gives 19 of the 32 commands an entry of their own, not all of them: `/aso-audit`,
+and by task. It gives 19 of the 32 commands an entry of their own, not all of them: `/aso-review`,
 `/bead-refine`, `/diagnose`, `/fresh-eyes-cr`, `/prod-ops`, `/product-surface-docs`,
-`/research-ingest`, `/research-synthesize`, `/response-style`, `/review-claude-md`, `/ux-audit`,
-`/ux-audit-ios`, and `/validate-plugin` have a one-line description in `README.md` and none there
+`/research-ingest`, `/research-synthesize`, `/response-style`, `/review-claude-md`, `/ux-review`,
+`/ux-review-ios`, and `/validate-plugin` have a one-line description in `README.md` and none there
 yet.
 `tadw-routing-gaps-9wq` covers closing that.
 
@@ -227,7 +227,7 @@ window and synthesizes what was decided. Reach for `/plan-from-idea` only on a c
 there is nothing in the window to synthesize.
 
 **Clear the context between every `/build`.** A bead is self-contained on purpose: `/build`
-Phase 1 reads its spec from `bd`, never from the transcript. So the previous bead's context adds
+Phase 1 reads the bead from `bd`, never from the transcript. So the previous bead's context adds
 nothing and costs the window. Five builds in one session leave the last one reasoning at the
 bottom of a full context, which is where the quality drops first.
 
@@ -286,7 +286,7 @@ because lexical order puts `v2.10.1` above `v2.5.2` and a released tag then read
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
-`ab-test-design` `agentic-clean-code` `architecture-decision-record` `aso-audit` `bead-audit`
+`ab-test-design` `agentic-clean-code` `architecture-decision-record` `aso-review` `bead-audit`
 `bead-create` `bead-refine` `business-ideas` `code-simplify` `competitive-analysis`
 `feature-development` `grilling` `house-response-style` `idea-wizard` `plan-review`
 `plan-to-beads` `pr-maintenance`
@@ -294,8 +294,8 @@ reads when deciding what to invoke.
 `publish-plugin` `quality-gates`
 `research-ingest` `research-synthesize` `review-fresh-eyes` `review-python` `review-rails`
 `roadmap-dashboard` `ship` `style-fizzy` `style-frontend` `style-go` `style-markdown` `style-python` `style-rails`
-`style-rspec` `style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-audit`
-`ux-audit-ios` `verify-acceptance` `write-plan`
+`style-rspec` `style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-review`
+`ux-review-ios` `verify-acceptance` `write-plan`
 
 **Registered Agents** (13). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.
@@ -307,12 +307,12 @@ each `agents/<name>.md` frontmatter.
 **Registered Commands** (32). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
-`/adr` `/agentic-clean-code` `/aso-audit` `/bead-audit-all` `/bead-refine` `/build` `/code-review` `/diagnose`
+`/adr` `/agentic-clean-code` `/aso-review` `/bead-audit-all` `/bead-refine` `/build` `/code-review` `/diagnose`
 `/fresh-eyes-cr` `/frontend-code-review` `/grill-me` `/plan-from-idea` `/plan-review` `/plan-to-beads`
 `/pr-maintain` `/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
 `/quality-gates` `/rails-code-review` `/research-ingest` `/research-synthesize` `/response-style`
-`/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-audit`
-`/ux-audit-ios` `/validate-plugin` `/verify-acceptance`
+`/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-review`
+`/ux-review-ios` `/validate-plugin` `/verify-acceptance`
 
 ### Hooks
 

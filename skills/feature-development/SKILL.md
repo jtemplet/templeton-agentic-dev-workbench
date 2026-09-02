@@ -1,13 +1,13 @@
 ---
 name: feature-development
-description: "Implement a spec in the house style, invoked as /build. Takes a bead id (preferred) or a feature description, reads the spec from bd rather than re-interviewing you, learns the repo's language, framework, and local conventions before writing anything, loads the matching style skills, implements criterion by criterion with a test per criterion, then simplifies, lints, and labels the bead `implemented`. Stops at implemented; grading and closing belong to /quality-gates and /verify-acceptance."
+description: "Implement a bead in the house style, invoked as /build. Takes a bead id (preferred) or a feature description, reads the bead from bd rather than re-interviewing you, learns the repo's language, framework, and local conventions before writing anything, loads the matching style skills, implements criterion by criterion with a test per criterion, then simplifies, lints, and labels the bead `implemented`. Stops at implemented; grading and closing belong to /quality-gates and /verify-acceptance."
 ---
 
 # Feature Development
 
 Turns a written spec into working code that matches this repository's conventions. The spec is normally a bead: `/build tadw-some-bead-xyz`.
 
-Five phases: **Ground**, **Orient**, **Implement**, **Simplify**, **Lint**. The first two exist because code that ignores its spec or its repo is the expensive failure, and both are knowable before the first edit.
+Five phases: **Ground**, **Orient**, **Implement**, **Simplify**, **Lint**. The first two exist because code that ignores its bead or its repo is the expensive failure, and both are knowable before the first edit.
 
 ## Universal Core (injected)
 
@@ -29,7 +29,7 @@ Do NOT use this skill when:
 - The bead's criteria are too thin to build against. Run `bead-audit` first and stop; see Phase 1.
 - Grading finished work (use `/verify-acceptance`).
 
-## Phase 1: Ground the spec
+## Phase 1: Ground the bead
 
 **With a bead id.** Read it, and do not interview the user about what it already says.
 
@@ -288,7 +288,7 @@ Track the six phases with TodoWrite, marking each `in_progress` on entry and `co
 
 **Never:**
 
-- Interview the user about a spec the bead already states.
+- Interview the user about what the bead already states.
 - Detect language by extension alone and call that understanding the repo.
 - Restate language style rules here; they live in the style skills.
 - Build a bead its own notes call too big, or one whose criteria you had to invent.

@@ -37,7 +37,7 @@ responsibility (a human pasting, a script looping over a backlog, or a `/goal`-s
 - After inheriting a project or picking up someone else's work
 - Before a sprint to verify every in-scope bead is implementation-ready
 - After running `/plan-to-beads` on a modified plan to verify the generated beads meet the bar
-- To rank a backlog by quality, or gate on a target band, using the Scorecard (request a score; use
+- To rank a backlog by quality, or gate on a target quality band, using the Scorecard (request a score; use
   JSON mode for a loop)
 - Before re-opening an aging backlog, to find beads whose premise the code has already overtaken
   (Grounding Audit)
@@ -177,7 +177,7 @@ The bead as a whole gets a third verdict, on its own axis:
   - `satisfied`: the bead's desired end state already holds, so the work appears done or obsolete
   - `ungroundable`: the repository was unavailable, or the bead names nothing checkable
 
-Grounding never changes a content verdict. It caps the reported band, and it is reported in its own
+Grounding never changes a content verdict. It caps the reported quality band, and it is reported in its own
 column.
 
 ### 1. Marr Audit (Why / How / Done when)
@@ -205,7 +205,7 @@ apply to every bead.**
 | **Too big** | > 10 | > 600 | Fail: must be split |
 | **Hard ceiling** | > 30 | > 2000 | Fail: cannot ship autonomously |
 
-**When dimensions disagree, the worse band wins** (code-bearing beads only).
+**When dimensions disagree, the worse quality band wins** (code-bearing beads only).
 
 **Applicability rules:**
 
@@ -215,14 +215,14 @@ apply to every bead.**
   evident from the type or the How) are `N/A (operational)`. A `## Estimated size` of "N/A
   (operational)" passes; absence is not a finding.
 - **Code-bearing beads** (task/feature/bug that change the repo) require `## Estimated size`. If it
-  is absent, flag it as a missing section (a content FAIL on size), not a band failure. Do not guess
-  a band from the title or body **for the purpose of scoring** (you may not invent a passing band to
+  is absent, flag it as a missing section (a content FAIL on size), not a size-band failure. Do not guess
+  a size band from the title or body **for the purpose of scoring** (you may not invent a passing size band to
   suppress the FAIL during the audit).
 
 **Size is the one section where a drafted fix may infer a value.** The audit rule "do not guess a
-band" governs *scoring*; it does not forbid a *drafted fix* from supplying a reasonable estimate.
-When you fix a missing `## Estimated size`, derive a provisional band from the How. Count the files
-and modules, and note whether the work is a port or new code. Mark the band explicitly as
+size band" governs *scoring*; it does not forbid a *drafted fix* from supplying a reasonable estimate.
+When you fix a missing `## Estimated size`, derive a provisional size band from the How. Count the files
+and modules, and note whether the work is a port or new code. Mark the size band explicitly as
 provisional:
 
 ```markdown
@@ -233,7 +233,7 @@ provisional:
 A provisional size estimate is **not** a blocking `[AUTHOR TO COMPLETE]` placeholder. See "Drafting
 Corrected Content" below. It is low-risk and safe to write back. It must carry the
 `(provisional ...)` marker, so the author knows it was inferred. If the How is too thin to infer
-even a band, fall back to `[AUTHOR TO COMPLETE: estimate size]`. That placeholder *does* block
+even a size band, fall back to `[AUTHOR TO COMPLETE: estimate size]`. That placeholder *does* block
 write-back.
 
 ### 3. Type-specific Section Audit
@@ -377,7 +377,7 @@ Each bead rolls up to one of three overall states:
 | Overall | Condition | Caller action |
 |---|---|---|
 | **PASS** | Every content verdict is `pass` AND every structure verdict is `canonical` | None |
-| **REFORMAT** | Every content verdict is `pass` (or N/A) but at least one structure verdict is `variant`/`absent`, or a Trivial-band warn | Auto-fixable: reformat to canonical headings, no human input needed |
+| **REFORMAT** | Every content verdict is `pass` (or N/A) but at least one structure verdict is `variant`/`absent`, or a Trivial size-band warn | Auto-fixable: reformat to canonical headings, no human input needed |
 | **NEEDS WORK** | At least one content verdict is `fail` (genuine under-specification or missing required section) | Human input may be required; see drafting guidance |
 
 A WARN on content (borderline-weak) rolls up to REFORMAT if the author chooses to leave it, or NEEDS
@@ -391,14 +391,14 @@ the two verdicts would change a bead's Overall without anyone touching the bead.
 the difference between "needs writing" and "needs re-grounding". Those two have different fixes and
 different owners.
 
-Report grounding as its own column. It reaches the score only through a band cap (see "Bands, capped
+Report grounding as its own column. It reaches the score only through a quality-band cap (see "Bands, capped
 by verdict"), so a stale bead cannot report Excellent while its premise is false.
 
 ## Scorecard
 
 The three-state verdict answers "is this bead done?" The scorecard answers "how close, and which
-band?" That lets a caller rank and gate. The caller may be a human triaging, or a refinement loop
-targeting a band. The score **refines the verdict; it never overrides it.** The bands are
+quality band?" That lets a caller rank and gate. The caller may be a human triaging, or a refinement loop
+targeting a quality band. The score **refines the verdict; it never overrides it.** The quality bands are
 constructed so that Excellent is exactly equivalent to PASS.
 
 ### The score is derived, never asserted
@@ -441,7 +441,7 @@ the denominator.
 
 ### Bands, capped by verdict
 
-Compute the raw score, map it to a band, then take the **lower** of that band and the ceiling
+Compute the raw score, map it to a quality band, then take the **lower** of that band and the ceiling
 implied by the rollup verdict:
 
 | Band | Score |
@@ -468,7 +468,7 @@ ceilings:
 | `satisfied` | Weak | The work appears already done. However well written, this bead's remaining value is a status update |
 | `drifted` | Adequate | An implementer following it goes to code that is not there. Worse than a formatting defect, comparable to a missing section |
 | `grounded` | none | |
-| `ungroundable` | none | An unmeasured dimension is not a finding. It must still be named in the report so a clean band is not read as verified |
+| `ungroundable` | none | An unmeasured dimension is not a finding. It must still be named in the report so a clean quality band is not read as verified |
 
 **Grounding contributes no points and changes no denominator.** It is a ceiling only. A `grounded`
 verdict cannot raise a thin bead's score, and strong prose elsewhere cannot offset a `drifted`
@@ -496,7 +496,7 @@ computed from the weights and rules above:
 | task, all pass, canonical, size Trivial | 95.0 | Excellent | Great | **Great** |
 | epic, all sections pass, size N/A | 100.0 | Excellent | Excellent | **Excellent** |
 
-The lower-of-two rule means a cap only ever moves a band down, as in rows 3 and 6. It never moves
+The lower-of-two rule means a cap only ever moves a quality band down, as in rows 3 and 6. It never moves
 one up. So a NEEDS WORK bead can never report above Weak, however high its raw score, as in rows 2
 and 4. The bug row denominator is 110: Why, How, Done, AC, Steps, and Size total 100, plus
 Structure 10. 5 of 6 sections canonical gives structure `10 × 5/6`. Recompute it to confirm that the
@@ -590,7 +590,7 @@ Omit the claim table when the verdict is `ungroundable`, and replace it with the
 Include it whenever any claim was checked, including an all-`verified` result: the evidence is what
 makes `grounded` re-checkable rather than asserted.
 
-A caller targeting a band, or a human, may request a score. Then add a trailing `Points` column to
+A caller targeting a quality band, or a human, may request a score. Then add a trailing `Points` column to
 the table, holding the weighted contribution of each dimension, for example `20/20`, `10/20`,
 or `size excluded`. Add a line under Overall too:
 
@@ -871,7 +871,7 @@ to Reproduce / Success Criteria, draft them. Otherwise insert
 
 - FAIL a bead whose Why/How/Done content is present and adequate but written under non-canonical
   headings. That is a REFORMAT.
-- Force a files/LOC band onto an epic or operational bead.
+- Force a files/LOC size band onto an epic or operational bead.
 - Manufacture a passing size band during scoring to suppress a FAIL. (A *drafted* fix may supply a
   `(provisional ...)`-marked estimate; that is the one allowed inference, and it is distinct from a
   `[AUTHOR TO COMPLETE]` placeholder.)
@@ -902,7 +902,7 @@ Before reporting completion, verify:
 - [ ] No bead was failed for heading format alone (format-only issues are REFORMAT)
 - [ ] Native-field content (where the tracker has fields) was audited as canonical, not flagged as a
   missing heading
-- [ ] Size was recorded as N/A for epics and operational beads, not forced into a band
+- [ ] Size was recorded as N/A for epics and operational beads, not forced into a size band
 - [ ] Any inferred size estimate in a drafted fix carries the `(provisional ...)` marker
 - [ ] Every drafted fix was self-verified by re-auditing it (Step 6) and re-passes
 - [ ] Corrected drafts use the byte-exact canonical headings (or write to the correct native field)

@@ -27,7 +27,7 @@ and nobody opened the page.
 called "Reproduce and Gather Evidence". Its frontmatter declares four tools: `Read`, `Bash`,
 `Grep`, and `Glob`. It cannot open the application it is investigating.
 
-Two skills here do drive a running application, `ux-audit` through Playwright and `ux-audit-ios`
+Two skills here do drive a running application, `ux-review` through Playwright and `ux-review-ios`
 through `xcrun simctl`. Both judge design quality. Neither answers the question "did this change
 work".
 
@@ -62,7 +62,7 @@ person is the only thing standing between a broken screen and a closed bead.
 - The eval invocation battery for all 45 skills. `docs/eval-driven-development.html` section 11
   already specifies it. It is a different subject, so it becomes beads rather than part of this
   plan.
-- Any change to `ux-audit` or `ux-audit-ios`. They audit design, and this plan does not touch that
+- Any change to `ux-review` or `ux-review-ios`. They audit design, and this plan does not touch that
   job.
 - Deleting `/qa` and `/ios-qa` from a user's setup. This plan stops pointing at them. It does not
   stop anyone from running them.
@@ -192,7 +192,7 @@ not, and 2 on operator error. It accepts `--json`, matching `check_staleness.py`
 | 1 | The drive block | Add **How to drive this** to the leaf template in `skills/product-surface-docs/SKILL.md`. Write `check_drive_blocks.py` and its regression suite. Add both to the check list in `CLAUDE.md` | S | `python3 skills/product-surface-docs/scripts/test_check_drive_blocks.py` passes, and `check_drive_blocks.py` reports every leaf document in a fixture tree that carries no block |
 | 2 | The control document | Write `skills/verify-app/references/control-template.md` with the six fields | S | The template holds all six fields, and `python3 skills/quality-gates/scripts/check_doc_paths.py` exits 0 |
 | 3 | `verify-app` | Write the skill, the agent, and the command. Cover launch, the ready poll, authentication, snapshot before each screen, and the PASS or FAIL report with its machine-readable last line | M | `claude plugin validate .` exits 0, `/validate-plugin` reports no orphan and no broken reference, and the three registration places name the component |
-| 4 | `verify-app-ios` | The same skill for the iOS Simulator, driven by `xcrun simctl`. Reuse the technique from `skills/ux-audit-ios/SKILL.md` for capture and for setting Dynamic Type | M | `claude plugin validate .` exits 0, and the skill is registered in the three places |
+| 4 | `verify-app-ios` | The same skill for the iOS Simulator, driven by `xcrun simctl`. Reuse the technique from `skills/ux-review-ios/SKILL.md` for capture and for setting Dynamic Type | M | `claude plugin validate .` exits 0, and the skill is registered in the three places |
 | 5 | The wiring | Point the two handoff rows in `skills/quality-gates/SKILL.md` Step 3 at the new skills. Add a browser lane row to its owner table. Make an unresolved HANDOFF give an INCONCLUSIVE verdict in `skills/verify-acceptance/SKILL.md` | S | Both files name `tadw:verify-app`, neither names `/qa`, and the verdict rules in `verify-acceptance` list HANDOFF |
 | 6 | Diagnostician reproduction | Add the browser tools to the `agents/diagnostician.md` tool list. Rewrite Step 2 to drive the application when the bug is in a web page, and to say plainly when it could not | S | The frontmatter lists the browser tools, and the quality checklist item "The failing behavior was actually reproduced or observed" names how |
 | 7 | The two proofs | Add `evals/cases/verify-app-loads/case.json`. Run `verify-app` once against a real running application and record the transcript in the bead | M | The eval case passes 3 of 3 runs on the with-plugin arm, and the bead holds the transcript of a run that returned a verdict |
@@ -240,7 +240,7 @@ alone, which is stated under Risks below.
 ## Dependencies
 
 - A browser tool must already be enabled in the project being verified. The Playwright plugin is
-  the first choice, because `skills/ux-audit/SKILL.md` already uses it. The `claude-in-chrome`
+  the first choice, because `skills/ux-review/SKILL.md` already uses it. The `claude-in-chrome`
   tools are the fallback. A skill cannot install either one.
 - `xcrun simctl` and Xcode, for milestone 4 only.
 - A running application to record the live seam against, for milestone 7.

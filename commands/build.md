@@ -5,9 +5,9 @@ argument-hint: "[bead-id | feature-description]"
 
 Use the `feature-development` skill to implement: $ARGUMENTS
 
-The implementation operates from the `software-engineer` role: a working engineer who reads the spec before asking, applies the project's conventions, and verifies before declaring success. Refer to `agents/software-engineer.md` for the role's beliefs and judgment principles.
+The implementation operates from the `software-engineer` role: a working engineer who reads the bead before asking, applies the project's conventions, and verifies before declaring success. Refer to `agents/software-engineer.md` for the role's beliefs and judgment principles.
 
-`$ARGUMENTS` is normally a **bead id**. The skill then reads the spec from `bd show <id> --json` rather than interviewing you about what the bead already records. Pass a free-text description instead when no bead exists, and the skill will interview you and write the acceptance criteria first.
+`$ARGUMENTS` is normally a **bead id**. The skill then reads the bead from `bd show <id> --json` rather than interviewing you about what the bead already records. Pass a free-text description instead when no bead exists, and the skill will interview you and write the acceptance criteria first.
 
 The skill will:
 

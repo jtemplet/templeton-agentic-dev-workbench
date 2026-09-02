@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: `/ux-audit`, `/ux-audit-ios`, and `/aso-audit` are now `/ux-review`,
+  `/ux-review-ios`, and `/aso-review`.** The skill directories moved with them. This repository
+  reserves "audit" for the `bead-audit` discipline, which asks whether a bead can be built
+  without mistakes and returns verdicts on content, structure, and grounding. The three renamed
+  commands used the word in its ordinary English sense, so a reader could not tell which was
+  meant. `CONTEXT.md` records the decision. Anyone invoking the old names must update them; there
+  is no alias. The report output directories `docs/ux-audits/` and `docs/aso-audits/` did not
+  move, so existing reports stay where they are.
+- **The MECE audit inside `plan-review` is now the MECE check**, for the same reason.
+- **A bead's content is called the bead, not its spec.** `/build` "reads the bead from `bd`". The
+  word "spec" was carrying three meanings: a bead's content, Ruby's `spec/` test directory, and
+  the probe spec that `quality-gates` writes. The last two keep their names, because a compound
+  and a directory path are never ambiguous.
+- **`band` is always written as `size band` or `quality band`** in `skills/bead-audit/SKILL.md`
+  and `docs/ROUTING.md`, the two live documents that use both senses. The JSON keys `band` and
+  `band_ceiling` are a machine contract and are unchanged.
+
+### Added
+
+- **`CONTEXT.md`, the project glossary.** 43 terms, every one already in use in the repository
+  and none invented for the glossary. `skills/write-plan/SKILL.md` and `agents/feature-planner.md`
+  have always said to take vocabulary "from `CONTEXT.md` when one exists"; until now it did not,
+  so both fell back to guessing from the code on every run. Written in the format
+  `mattpocock-skills:domain-modeling` reads and edits, so that skill can sharpen it in place.
+- **`docs/agents/`, the configuration the `mattpocock-skills` engineering skills read**:
+  `issue-tracker.md` (bd, not GitHub Issues), `triage-labels.md`, `domain.md`, and
+  `skill-precedence.md`, which rules that a tadw skill wins wherever the two plugins overlap.
+
 ## [3.4.1] - 2026-09-01
 
 ### Added

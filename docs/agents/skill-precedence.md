@@ -25,7 +25,7 @@ produces work the rest of the pipeline cannot consume.
 | `mattpocock-skills:triage` | `/triage-beads` | Ranks by value over effort with evidence cited per point, is deterministic on the same tracker state, and never edits a bead |
 | `mattpocock-skills:code-review` | `/code-review` | Detects the language and dispatches to `review-python`, `review-rails`, `style-swift`, `style-frontend`, or `terraform-iac-expert` |
 | `mattpocock-skills:diagnosing-bugs` | `/diagnose` | The `diagnostician` agent has no Edit or Write access, so it cannot start fixing before it has explained |
-| `mattpocock-skills:implement` | `/build` | Reads the spec from `bd` rather than the transcript, implements criterion by criterion with a test each, then simplifies and lints |
+| `mattpocock-skills:implement` | `/build` | Reads the bead from `bd` rather than the transcript, implements criterion by criterion with a test each, then simplifies and lints |
 | `mattpocock-skills:tdd` | `style-testing` | One behavior per test, hoisted setup, deterministic clocks, and a list of what not to test |
 | `mattpocock-skills:research` | `/research-ingest`, `/research-synthesize` | Weighs each claim by the source's recorded validity, and keeps the wiki and its index current |
 | `mattpocock-skills:grilling` | `/grill-me` | tadw's own `grilling` skill, adapted from his under MIT and since diverged |

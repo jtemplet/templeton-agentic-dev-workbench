@@ -17,8 +17,8 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 
 **Feature Development:** Use `/build <bead-id>` or the `software-engineer` agent + `feature-development` skill
 
-- 5-phase workflow: ground the spec, orient in the repo, implement, simplify, lint
-- Reads the spec from `bd show <id> --json` rather than interviewing about what the bead records
+- 5-phase workflow: ground the bead, orient in the repo, implement, simplify, lint
+- Reads the bead from `bd show <id> --json` rather than interviewing about what the bead records
 - Loads `style-python` for Python file style decisions, plus `style-testing` for tests
 - Runs `ruff` for linting, or the command the project declares
 - Leaves the bead open; grading is `/quality-gates` then `/verify-acceptance`
@@ -206,7 +206,7 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 - Grounds the plan in the repository, checking that every path, module, and API it names exists and
   behaves as described
 - Scores 7 dimensions (completeness, feasibility, scope, risks, dependencies, MECE, actionability)
-  and runs a dedicated MECE audit for overlaps and gaps
+  and runs a dedicated MECE check for overlaps and gaps
 - Report-only: it never edits the plan file, and it offers a paste-ready draft for anything missing
 - Renders Ready, Needs Revision, or Major Rework, and points a Ready plan at `/plan-to-beads`
 
@@ -366,7 +366,7 @@ command file)
   modes: a criterion no bead proves (a decomposition gap) and a bead proving no criterion (scope the
   plan never asked for)
 - Sizes every bead against the diff-size window (Target is 1 to 5 files and 20 to 300 LOC, Stretch up
-  to 10 files and 600 LOC), splits anything above it, and demotes Trivial-band units to direct commits
+  to 10 files and 600 LOC), splits anything above it, and demotes Trivial size-band units to direct commits
 - Presents the full list, including each bead's Why, How, Done when, type-specific sections, and size
   estimate, and waits for confirmation before the first `bd create`
 - Writes each section to its canonical destination per ADR 0001
@@ -417,14 +417,14 @@ command file)
   the bead's reason to exist; it runs those sections the other way instead and reports `satisfied` when
   main already meets them, which is the cheapest finding in a backlog to resolve
 - Produces an optional 0 to 100 scorecard, banded Poor to Excellent, derived from the verdicts and
-  capped so a band can never outrank the pass/fail verdict or the grounding verdict
+  capped so a quality band can never outrank the pass/fail verdict or the grounding verdict
 - Drafts corrected bodies, self-verifies each by re-auditing its own draft, and gates write-back behind
   an `applyable` flag: a placeholder-bearing draft, a drifted bead, or a satisfied bead goes to a person
   instead of the tracker
 - `--json` mode emits per-bead verdicts, scores, corrected fields, and the `applyable` flag, so a
   grooming loop can apply the safe fixes and route the rest
 - `/bead-audit-all` enumerates the backlog in one unlimited page (`bd list --status open --limit 0 --json`),
-  resolves the grounding baseline once for every bead, and reports a health table ranked worst band
+  resolves the grounding baseline once for every bead, and reports a health table ranked worst quality band
   first; it is report-only and does not write back
 
 ### Backlog Triage

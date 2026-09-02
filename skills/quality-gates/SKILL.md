@@ -188,7 +188,7 @@ Three things the script reports that the report must carry:
 - **`unread`** names a file routed on its path alone, because it was binary or too large.
 
 **Every endpoint is a candidate until you read the definition.** The extractors are deliberately
-conservative and they are not a router. An endpoint in the spec that does not exist reports a
+conservative and they are not a router. An endpoint in the probe spec that does not exist reports a
 failing API when the truth is a bad spec.
 
 ### Step 4: Run Each Gate
@@ -473,7 +473,7 @@ as the reason: "SKIP, Step 3 routed browser-ui to /qa and cli to coverage; no HT
 
 This is the gate that sends real requests. Every other gate reads code or counts things.
 
-**A. Write the spec.** Author it from Step 3's endpoints, one probe per endpoint the diff changed,
+**A. Write the probe spec.** Author it from Step 3's endpoints, one probe per endpoint the diff changed,
 and write it beside the report artifact inside the git directory:
 
 ```bash
@@ -506,8 +506,8 @@ Four rules for writing it:
 - **Probe the cases, not the endpoints.** A route with a 201, a 422, and a 401 is three probes.
   One probe per route proves the happy path and nothing else, which is the shape of test suite this
   skill exists to refuse.
-- **Never put a credential in the spec.** Write `${API_TOKEN}` and let the script expand it from the
-  environment. A literal token gets redacted in the output, and the run says to fix the spec.
+- **Never put a credential in the probe spec.** Write `${API_TOKEN}` and let the script expand it from the
+  environment. A literal token gets redacted in the output, and the run says to fix the probe spec.
 - **Order a write flow so it cleans up after itself.** Create, read, then delete. Nothing enforces
   this, and a dev database full of probe rows is the cost of skipping it.
 - **`capture` chains one probe into the next.** `{"id": "data.id"}` reads a dot path out of the JSON
@@ -519,7 +519,7 @@ script.
 
 | What you found | What to do |
 |---|---|
-| Something is already listening on the port | Probe it. Omit `server` from the spec, and say in the report that you used a server you did not start |
+| Something is already listening on the port | Probe it. Omit `server` from the probe spec, and say in the report that you used a server you did not start |
 | Nothing is listening, and the project declares a start command | Put it in `server.start` with a `health_path`. The script starts it, waits for it, and always stops it |
 | Nothing is listening, and the project declares no start command | **SKIP**, with that exact reason. Do not invent `rails s` or `npm run dev` |
 
@@ -539,12 +539,12 @@ python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/probe_api.py" \
 | 1 | **FAIL**, with each mismatch. This is the finding the gate exists to produce |
 | 2 | **BLOCKED**. The gate could not run as specified |
 
-Exit 2 covers a missing or unparseable spec, a spec with no probes, a scheme curl cannot speak, an
+Exit 2 covers a missing or unparseable probe spec, a probe spec with no probes, a scheme curl cannot speak, an
 unset `${VAR}`, a server that never became healthy, an absent curl, a refused connection, and a
 `{capture}` nothing captured. **A refused connection is BLOCKED, not FAIL**: no endpoint answered, so
 telling the author their route is broken points at the wrong file.
 
-`--base-url URL` overrides the spec's `base_url`, so one spec can be pointed somewhere else without
+`--base-url URL` overrides the probe spec's `base_url`, so one probe spec can be pointed somewhere else without
 editing it.
 
 When the script starts a server it prints `server log: <path>` on stderr. Read that file when the

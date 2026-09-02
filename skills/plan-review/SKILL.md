@@ -1,12 +1,12 @@
 ---
 name: plan-review
-description: "Fresh-eyes review of a feature plan: acceptance-criteria gate, codebase grounding, 7-dimension evaluation with MECE audit, and a verdict"
+description: "Fresh-eyes review of a feature plan: acceptance-criteria gate, codebase grounding, 7-dimension evaluation with MECE check, and a verdict"
 ---
 
 # Plan Review
 
 Evaluate a feature implementation plan across 7 dimensions, ground its claims in the real codebase,
-run a dedicated MECE audit, identify gaps and overlaps, and provide a clear verdict.
+run a dedicated MECE check, identify gaps and overlaps, and provide a clear verdict.
 
 **Report-only.** This review never edits the plan file. A required section may be missing, most
 often Acceptance Criteria or Testing Strategy. Draft it in the report, ready to paste, and offer to
@@ -191,7 +191,7 @@ under Dependencies:
 3. **Run the Acceptance Criteria gate**: locate the criteria, judge them testable or not, and record
    the result. This sets the Actionability floor before any other scoring.
 4. **Score each dimension**: assign GREEN/YELLOW/RED with a 1-sentence justification.
-5. **Run the MECE audit**: list every overlap and gap explicitly using the categories above;
+5. **Run the MECE check**: list every overlap and gap explicitly using the categories above;
    classify each as major or minor.
 6. **Identify other gaps**: gaps the MECE Audit does not cover, such as vague language or missing
    rationale. Give each one a suggestion for how to fill it.

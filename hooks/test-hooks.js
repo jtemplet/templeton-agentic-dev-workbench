@@ -544,7 +544,7 @@ check('README.md documents every component on disk', () => {
   // space. Nine command rows carry an argument in the same backticks, as
   // `/diagnose <bug>`, so requiring the whole token to be the name alone
   // reported every one of them as undocumented. Requiring the boundary keeps
-  // `/ux-audit` from matching the `/ux-audit-ios` row.
+  // `/ux-review` from matching the `/ux-review-ios` row.
   const documented = (name) => new RegExp('`' + name + '[`\\s]').test(readme);
 
   for (const { label, prefix, names } of COMPONENTS) {

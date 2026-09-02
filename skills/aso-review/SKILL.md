@@ -1,5 +1,5 @@
 ---
-name: aso-audit
+name: aso-review
 description: "Comprehensive App Store Optimization audit across 10 weighted factors, producing an ASO Score Card and prioritized action plan for iOS and Android"
 ---
 

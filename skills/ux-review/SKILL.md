@@ -1,6 +1,6 @@
 ---
-name: ux-audit
-description: Conduct a comprehensive UX audit of a running web app via Playwright. Captures screenshots, exercises forms and error states, performs keyboard accessibility and three-viewport responsive evaluation, then produces a severity-ranked report covering accessibility, design system, IA, interaction, content, emotional design, and cognitive load.
+name: ux-review
+description: Conduct a comprehensive UX review of a running web app via Playwright. Captures screenshots, exercises forms and error states, performs keyboard accessibility and three-viewport responsive evaluation, then produces a severity-ranked report covering accessibility, design system, IA, interaction, content, emotional design, and cognitive load.
 ---
 
 # UX Audit (Web)

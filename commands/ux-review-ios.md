@@ -1,13 +1,13 @@
 ---
-description: "Run a UX audit of an iOS app in the Simulator: captures screenshots, tests Dynamic Type / Dark Mode / accessibility settings, and produces a severity-ranked report against Apple HIG standards"
+description: "Run a UX review of an iOS app in the Simulator: captures screenshots, tests Dynamic Type / Dark Mode / accessibility settings, and produces a severity-ranked report against Apple HIG standards"
 argument-hint: "<app-bundle-id-or-name> [notes]"
 ---
 
-**Read** `${CLAUDE_PLUGIN_ROOT}/skills/ux-audit-ios/SKILL.md` and follow it to conduct a UX audit of the iOS app specified in $ARGUMENTS.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/ux-review-ios/SKILL.md` and follow it to conduct a UX review of the iOS app specified in $ARGUMENTS.
 
-Read the file rather than invoking the skill by name. `commands/ux-audit-ios.md` and
-`skills/ux-audit-ios/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
-`Skill(ux-audit-ios)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/ux-audit-ios/SKILL.md` and read it from there.
+Read the file rather than invoking the skill by name. `commands/ux-review-ios.md` and
+`skills/ux-review-ios/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+`Skill(ux-review-ios)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/ux-review-ios/SKILL.md` and read it from there.
 
 The audit operates from the `ux-product-designer-ios` role: a senior product designer working at the standard of Apple's Human Interface team. Refer to `agents/ux-product-designer-ios.md` for the role's beliefs and judgment principles.
 

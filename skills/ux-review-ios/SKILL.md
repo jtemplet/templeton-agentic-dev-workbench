@@ -1,6 +1,6 @@
 ---
-name: ux-audit-ios
-description: Conduct a comprehensive UX audit of an iOS app running in the Simulator. Captures screenshots via xcrun simctl, tests Dynamic Type and Dark Mode and Bold Text configurations, and produces a severity-ranked report covering all seven design dimensions against Apple HIG standards.
+name: ux-review-ios
+description: Conduct a comprehensive UX review of an iOS app running in the Simulator. Captures screenshots via xcrun simctl, tests Dynamic Type and Dark Mode and Bold Text configurations, and produces a severity-ranked report covering all seven design dimensions against Apple HIG standards.
 ---
 
 # UX Audit (iOS)

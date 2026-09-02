@@ -1,17 +1,17 @@
 ---
-description: "Run a UX audit of a web app: drives it via Playwright, captures screenshots, and produces a severity-ranked report across 7 design dimensions (accessibility, design system, IA, interaction, content, emotional design, cognitive load)"
+description: "Run a UX review of a web app: drives it via Playwright, captures screenshots, and produces a severity-ranked report across 7 design dimensions (accessibility, design system, IA, interaction, content, emotional design, cognitive load)"
 argument-hint: "<app-url> [notes]"
 ---
 
-**Read** `${CLAUDE_PLUGIN_ROOT}/skills/ux-audit/SKILL.md` and follow it to conduct a UX audit of the web app at $ARGUMENTS.
+**Read** `${CLAUDE_PLUGIN_ROOT}/skills/ux-review/SKILL.md` and follow it to conduct a UX review of the web app at $ARGUMENTS.
 
-Read the file rather than invoking the skill by name. `commands/ux-audit.md` and
-`skills/ux-audit/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
-`Skill(ux-audit)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/ux-audit/SKILL.md` and read it from there.
+Read the file rather than invoking the skill by name. `commands/ux-review.md` and
+`skills/ux-review/SKILL.md` share one `tadw:` invocation namespace and the command wins, so
+`Skill(ux-review)` returns this file and never reaches the skill. If that path does not resolve, locate the file with `Glob: **/skills/ux-review/SKILL.md` and read it from there.
 
 The audit operates from the `ux-product-designer` role: a senior product designer working at the standard of Apple, Stripe, and Airbnb design teams. Refer to `agents/ux-product-designer.md` for the role's beliefs and judgment principles.
 
-For iOS apps, use `/ux-audit-ios` instead.
+For iOS apps, use `/ux-review-ios` instead.
 
 The skill will:
 
