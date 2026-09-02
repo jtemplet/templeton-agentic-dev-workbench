@@ -287,11 +287,33 @@ above before any command that moves a branch pointer or writes a file.
 Then bring it current, and refuse rather than reconcile:
 
 ```bash
-git -C <path> pull --ff-only origin main
+git -C <path> pull --ff-only origin main        # skip when there is no origin
+git -C <path> log --oneline origin/main..main   # skip when there is no origin
 ```
 
-A failure here is `main-diverged`. Local main holds something `origin/main` does not, and choosing
-between two histories of the default branch is a human's call.
+`git pull --ff-only` succeeds when local main is only ahead of `origin/main`. The merge is already
+up to date, so git prints "Already up to date." and exits 0. It fails only on a real divergence,
+where each side holds a commit the other lacks. So a successful pull is no evidence that the default
+branch holds nothing unpushed. A real divergence is `main-diverged`, because choosing between two
+histories of the default branch is a human's call.
+
+**Then list what the default branch already carries.** This run has created no release commit yet.
+So every commit that `git log --oneline origin/main..main` prints was already on main, and the push
+in Step 6 publishes it. Record each one, hash and subject, for the report.
+
+**Report those commits; do not stop for them.** They are the operator's own finished commits on
+their own default branch, and any push of that branch was always going to publish them. A stop would
+strand a cut release over work this run never had to withhold. The rejected alternative was to stop,
+on the argument that a side effect that reaches a remote deserves a stop. It lost because it makes
+the skill unusable in a repository whose default branch is routinely ahead. That is the normal state
+for a solo repository that commits locally and pushes in batches.
+
+**When that range prints nothing, write nothing.** A default branch equal to its remote adds no line
+to the report, and no "none" placeholder.
+
+**With no origin, run neither command.** `origin/main` does not resolve there, so `git log` exits
+128 with `fatal: ambiguous argument`. That state is already a stop under "No origin" in Edge Cases,
+so the report line is omitted with it.
 
 **Write the version into the manifest,** and change nothing else in it:
 
@@ -381,6 +403,9 @@ carries a commit this run did not create. Delete the local tag, rebase the relea
 new `origin/main`, and re-run Steps 5 and 6 so the gate grades what will actually be tagged. Bound
 the whole cycle at 3 attempts, then stop with `push-rejected`.
 
+**Carry the commits Step 5 recorded through that rebase.** They are commits this run did not
+create, so a rebase that replays the release commit alone would discard them.
+
 **Never amend the release commit once it is pushed.** An amended commit replaces the one the remote
 holds, so main can then advance only by a force-push, and that is forbidden here. The temptation
 arrives in one specific shape: the push succeeds, and then you notice an entry the changelog owed.
@@ -431,6 +456,9 @@ from the log because `Unreleased` never recorded them
 **Tag:** `v2.11.0`, annotated, `claude plugin validate` passed at the tag hook
 **Pushed:** `origin/main` at `e5f6a7b`, then `v2.11.0`. Also pushed `v2.10.0` and `v2.10.1`, which
 existed locally and had never left the machine.
+**Also published:** 2 commits that were already on main and unpushed: `a1b2c3d` `fix: clamp the
+retry budget`, `b2c3d4e` `docs: correct the hook count`. The push carried them. (Omit this line when
+the default branch was equal to its remote.)
 
 PUBLISH_DONE 2.11.0 e5f6a7b
 ```
@@ -509,6 +537,7 @@ can fetch has not been released.
 - Write the manifest through a JSON round-trip, and prove the diff is one line
 - Run the repository's gate on the tree that will be tagged, after the bump
 - Delegate the land to `ship`, and pass its block reason through unchanged
+- Name the commits the push carries that were already unpushed on the default branch
 - Push main before the tag
 - Push a tag in the same run that creates it, including older tags that never left the machine
 - Push every tag by name

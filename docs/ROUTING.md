@@ -348,6 +348,8 @@ command file)
   before the commit on any non-zero exit
 - Commits `chore(release): X.Y.Z` touching exactly `CHANGELOG.md` and `.claude-plugin/plugin.json`,
   never folding the bump into a feature squash, since releases here batch several landings
+- Lists every commit already sitting unpushed on the default branch before it commits, and names
+  each one in the report, because the push publishes those too
 - Pushes main before the tag, so the remote never holds a tag naming a commit it does not have, and
   pushes any older tag that was created locally and never left the machine
 - Treats the `reference-transaction` hook's `claude plugin validate` refusal as a stop, and never
