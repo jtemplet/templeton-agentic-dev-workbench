@@ -316,6 +316,8 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
   skip, and a non-zero exit stops the run before any merge
 - Squash-merges as `<type>: <title> (<bead-id>)` with a `Closes <bead-id>` body, closes the bead, and
   folds the tracker export into the landing commit
+- Lists every commit already sitting unpushed on the default branch before it merges, and names each
+  one in the report, because the push publishes those commits too
 - Pushes main without ever forcing; a rejected push refetches, re-rebases, and re-gates once, and it
   resets local main only after proving it carries nothing this run did not create
 - Deletes the local branch and its remote ref only after checking that main holds the branch's

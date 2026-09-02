@@ -216,10 +216,31 @@ uncommitted files. Switching it would disturb work this run never looked at.
 git -C <path> branch --show-current    # must print the default branch
 git switch main
 git pull --ff-only origin main         # skip when there is no origin
+git log --oneline origin/main..main    # skip when there is no origin
 ```
 
-A failed `git pull --ff-only` means local main holds commits `origin/main` does not. Stop with
-`git-state` and change nothing.
+`git pull --ff-only` succeeds when local main is only ahead of `origin/main`. The merge is already
+up to date, so git prints "Already up to date." and exits 0. It fails only on a real divergence,
+where each side holds a commit the other lacks. So a successful pull is no evidence that the default
+branch holds nothing unpushed. On a real divergence, stop with `git-state` and change nothing.
+
+**Then list what the default branch already carries.** This run has created no commit yet. So every
+commit that `git log --oneline origin/main..main` prints was already on the default branch, and the
+push in Step 5 publishes it. Record each one, hash and subject, for the report.
+
+**Report those commits; do not stop for them.** They are the operator's own finished commits on
+their own default branch, and any push of that branch was always going to publish them. A stop would
+strand a reviewed branch over work this run never had to withhold. The rejected alternative was to
+stop, on the argument that a side effect that reaches a remote deserves a stop. It lost because it
+makes the skill unusable in a repository whose default branch is routinely ahead. That is the normal
+state for a solo repository that commits locally and pushes in batches.
+
+**When that range prints nothing, write nothing.** A default branch equal to its remote adds no line
+to the report, and no "none" placeholder.
+
+**With no origin, run neither command.** `origin/main` does not resolve there, so `git log` exits 128
+with `fatal: ambiguous argument`, and an unattended run reads that as a stop. Step 5 pushes nothing
+in that state, so nothing gets published and the report line is omitted.
 
 **Check that the base has not moved** since Step 2. If `origin/main` is now ahead of the SHA you
 rebased onto, the gate result no longer describes what lands. Switch back to the feature branch, then
@@ -277,9 +298,10 @@ git reset --hard origin/main
 ```
 
 That `git log` guard is not optional. If local main carries a commit this run did not create, stop
-with `git-state` and change nothing, because a reset would destroy someone else's work. When the check
-passes, switch back to the feature branch and re-run Steps 2 through 5 once. If the second push is
-rejected too, stop with `git-state` and say what is on disk.
+with `git-state` and change nothing, because a reset would destroy someone else's work. The commits
+Step 4 recorded are commits this run did not create. They stop this reset too, because the reset
+would discard them. When the check passes, switch back to the feature branch and re-run Steps 2
+through 5 once. If the second push is rejected too, stop with `git-state` and say what is on disk.
 
 **Then run `bd dolt push`**, unless the ship is bead-free. `git push` does not cover it: issue history
 travels under `refs/dolt/data`, and the committed export is no substitute, because JSONL import is
@@ -349,6 +371,10 @@ then stop.
 **Landed:** `d4e5f6a` `feat: Create the ship skill (tadw-ship-command-4kx)`
 **Tracker:** closed tadw-ship-command-4kx, export folded into the landing commit, `bd dolt push` ok
 **Pushed:** origin/main
+**Also published:** 4 commits that were already on main and unpushed: `a1b2c3d` `fix: clamp the
+retry budget`, `b2c3d4e` `docs: correct the hook count`, `c3d4e5f` `chore: refresh the tracker
+export`, `e5f6a7b` `fix: escape the branch slug`. The push carried them. (Omit this line when the
+default branch was equal to its remote, and when there is no origin.)
 **Cleaned up:** removed the worktree at .outrigger/worktrees/4kx-create-ship-command, deleted the
 local branch and origin/outrigger/4kx/create-ship-command. Your shell moved to /Users/you/Dev/project
 **Still standing there:** pid 27169 (claude). That session labels no bead now; end it. (Omit this
