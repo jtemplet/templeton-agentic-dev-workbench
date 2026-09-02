@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-09-01
+
+### Added
+
+- **`CONTEXT.md`, the project glossary.** 43 terms, every one already in use in the repository
+  and none invented for the glossary. `skills/write-plan/SKILL.md` and `agents/feature-planner.md`
+  have always said to take vocabulary "from `CONTEXT.md` when one exists"; until now it did not,
+  so both fell back to guessing from the code on every run. Written in the format
+  `mattpocock-skills:domain-modeling` reads and edits, so that skill can sharpen it in place.
+- **Five ADRs, 0003 through 0007**, for decisions that until now lived only as prose in AGENTS.md
+  or `docs/HOOKS.md`, where a section trim would have taken the reasoning with it: a push to
+  `main` is already published; the pre-push hook forgives by design; the evals are a measurement
+  and not a gate; the style core ships as several hook entries and must never be collapsed into
+  one; a tadw skill wins over an overlapping external skill. Each names the options that lost,
+  which the prose never carried. AGENTS.md now points at each one from the section it explains.
+- **`docs/agents/`, the configuration the `mattpocock-skills` engineering skills read**:
+  `issue-tracker.md` (bd, not GitHub Issues), `triage-labels.md`, `domain.md`, and
+  `skill-precedence.md`, which rules that a tadw skill wins wherever the two plugins overlap.
+
 ### Changed
 
 - **BREAKING: `/ux-audit`, `/ux-audit-ios`, and `/aso-audit` are now `/ux-review`,
@@ -25,23 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`band` is always written as `size band` or `quality band`** in `skills/bead-audit/SKILL.md`
   and `docs/ROUTING.md`, the two live documents that use both senses. The JSON keys `band` and
   `band_ceiling` are a machine contract and are unchanged.
-
-### Added
-
-- **`CONTEXT.md`, the project glossary.** 43 terms, every one already in use in the repository
-  and none invented for the glossary. `skills/write-plan/SKILL.md` and `agents/feature-planner.md`
-  have always said to take vocabulary "from `CONTEXT.md` when one exists"; until now it did not,
-  so both fell back to guessing from the code on every run. Written in the format
-  `mattpocock-skills:domain-modeling` reads and edits, so that skill can sharpen it in place.
-- **Five ADRs, 0003 through 0007**, for decisions that until now lived only as prose in AGENTS.md
-  or `docs/HOOKS.md`, where a section trim would have taken the reasoning with it: a push to
-  `main` is already published; the pre-push hook forgives by design; the evals are a measurement
-  and not a gate; the style core ships as several hook entries and must never be collapsed into
-  one; a tadw skill wins over an overlapping external skill. Each names the options that lost,
-  which the prose never carried. AGENTS.md now points at each one from the section it explains.
-- **`docs/agents/`, the configuration the `mattpocock-skills` engineering skills read**:
-  `issue-tracker.md` (bd, not GitHub Issues), `triage-labels.md`, `domain.md`, and
-  `skill-precedence.md`, which rules that a tadw skill wins wherever the two plugins overlap.
 
 ## [3.4.1] - 2026-09-01
 
@@ -2348,7 +2350,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.1...v4.0.0
 [3.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.0...v3.4.1
 [3.4.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.3.0...v3.3.1
