@@ -54,6 +54,7 @@ also costs twelve real model calls and several minutes.
 
 Run the evals deliberately, to measure whether the style rules still change the model's behavior.
 Read the delta between the two arms, not a pass or a fail.
+[ADR 0005](docs/adr/0005-the-evals-are-a-measurement-not-a-gate.md) records the options that lost.
 
 ### Git hooks (one-time setup per clone)
 
@@ -96,7 +97,9 @@ Three behaviors are deliberate:
   the push still proceeds. The hook then reports that it verified nothing, because a run that
   checked nothing has not earned the word "passed".
 - **`TADW_PREPUSH=off` skips the hook.** It is documented here so that nobody invents a
-  workaround under deadline. The value is exact: any other value, empty included, leaves the
+  workaround under deadline.
+  [ADR 0004](docs/adr/0004-the-pre-push-hook-forgives-by-design.md) records why the hook forgives
+  rather than failing closed. The value is exact: any other value, empty included, leaves the
   hook on.
 
 A push that only deletes a remote ref carries no code, so the hook runs nothing. A push that
@@ -332,6 +335,8 @@ them.
 
 Do not collapse those entries into one. The tail is then discarded in silence, and the marker
 that says the core loaded survives inside the surviving preview.
+[ADR 0006](docs/adr/0006-the-style-core-ships-as-several-hook-entries.md) records the incident and
+the options that lost.
 
 **Read the count from the manifest, never from memory.** It was three until the response style
 was cut to 9,713 characters on 2026-08-26, which brought that document back inside one payload.
@@ -529,6 +534,9 @@ Complete every step below before you end a work session. The work is not complet
 7. **Verify.** Every change is committed and pushed.
 8. **Hand off.** Give the next session its context.
 
+See [ADR 0003](docs/adr/0003-a-push-to-main-is-already-published.md) for why there is no publish
+step, and what that costs.
+
 **Publishing is a separate decision, not step 9.** The push in step 5 already put the change in
 front of every consumer, because the marketplace follows this repository's default branch.
 Numbering and tagging that state is `/publish-plugin`. Several landings usually batch into one
@@ -570,7 +578,8 @@ against `main`, and emits the lines the pipelines read. Two skills are the delib
 and stay his: `domain-modeling`, which tadw deleted its own in favor of, and `grill-with-docs`,
 which `/write-plan` names as a valid predecessor. The full mapping, including the partial
 overlaps, is in
-[docs/agents/skill-precedence.md](docs/agents/skill-precedence.md).
+[docs/agents/skill-precedence.md](docs/agents/skill-precedence.md), and the reasoning is in
+[ADR 0007](docs/adr/0007-a-tadw-skill-wins-over-an-overlapping-external-skill.md).
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
 ## Beads Issue Tracker

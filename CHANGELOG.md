@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   have always said to take vocabulary "from `CONTEXT.md` when one exists"; until now it did not,
   so both fell back to guessing from the code on every run. Written in the format
   `mattpocock-skills:domain-modeling` reads and edits, so that skill can sharpen it in place.
+- **Five ADRs, 0003 through 0007**, for decisions that until now lived only as prose in AGENTS.md
+  or `docs/HOOKS.md`, where a section trim would have taken the reasoning with it: a push to
+  `main` is already published; the pre-push hook forgives by design; the evals are a measurement
+  and not a gate; the style core ships as several hook entries and must never be collapsed into
+  one; a tadw skill wins over an overlapping external skill. Each names the options that lost,
+  which the prose never carried. AGENTS.md now points at each one from the section it explains.
 - **`docs/agents/`, the configuration the `mattpocock-skills` engineering skills read**:
   `issue-tracker.md` (bd, not GitHub Issues), `triage-labels.md`, `domain.md`, and
   `skill-precedence.md`, which rules that a tadw skill wins wherever the two plugins overlap.
