@@ -567,7 +567,7 @@ See [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
 
 ### Domain docs
 
-Single-context: one `CONTEXT.md` at the root, not yet written, plus `docs/adr/`. See
+Single-context: one `CONTEXT.md` at the root, plus `docs/adr/`. Both exist. See
 [docs/agents/domain.md](docs/agents/domain.md).
 
 ### Which plugin's skill wins

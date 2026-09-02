@@ -12,16 +12,22 @@ If either is missing, **proceed silently**. Do not flag its absence, and do not 
 one up front. `mattpocock-skills:domain-modeling` creates them lazily, when a term or a decision
 actually gets resolved.
 
-`CONTEXT.md` does not exist here today. `docs/adr/` does.
+Both exist here today. `CONTEXT.md` carries the glossary and the resolved collisions, and
+`docs/adr/` carries seven records.
 
 ## File structure
 
 ```text
 /
-├── CONTEXT.md          (not yet written)
+├── CONTEXT.md
 ├── docs/adr/
 │   ├── 0001-native-tracker-fields-are-canonical.md
-│   └── 0002-the-quality-gates-orchestrator-fans-out-to-blocking-subagents.md
+│   ├── 0002-the-quality-gates-orchestrator-fans-out-to-blocking-subagents.md
+│   ├── 0003-a-push-to-main-is-already-published.md
+│   ├── 0004-the-pre-push-hook-forgives-by-design.md
+│   ├── 0005-the-evals-are-a-measurement-not-a-gate.md
+│   ├── 0006-the-style-core-ships-as-several-hook-entries.md
+│   └── 0007-a-tadw-skill-wins-over-an-overlapping-external-skill.md
 └── skills/ agents/ commands/ hooks/ scripts/
 ```
 
@@ -33,6 +39,19 @@ avoids.
 
 A concept missing from the glossary is a signal. Either you are inventing language the project
 does not use, so reconsider, or there is a real gap, so note it for `/domain-modeling`.
+
+## Search the tracker before reporting a collision
+
+`mattpocock-skills:domain-modeling` reads the code and the committed files. It does not read
+the bead tracker, so a collision that was argued and settled in a closed bead looks new to it.
+
+Before you report a naming collision, run `bd search <term>` for each spelling of the term. A
+collision that a closed bead already settled is not a finding. Say which bead settled it, and
+move on. Report the collision only when the search returns nothing, or when no bead it returns
+settled the term.
+
+`CONTEXT.md` records the settled ones too, under "Resolved collisions". Read that section first,
+because it is faster than a search.
 
 ## Flag ADR conflicts
 
