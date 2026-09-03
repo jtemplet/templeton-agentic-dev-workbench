@@ -58,14 +58,24 @@ Read the delta between the two arms, not a pass or a fail.
 
 ### Git hooks (one-time setup per clone)
 
-Two hooks live in `.githooks/`. Wire them once per clone. `core.hooksPath` is local config, and
+Six hooks live in `.githooks/`. Wire them once per clone. `core.hooksPath` is local config, and
 it does not travel with the repository:
 
 ```bash
 git config core.hooksPath .githooks
+bd hooks list                      # five hooks, each "installed"
 ```
 
-One command serves both hooks.
+One command serves them all. Two carry this repository's own gates (`pre-push` and
+`reference-transaction`); four are beads shims that call `bd hooks run <hook>`: `pre-commit`,
+`post-merge`, `post-checkout`, and `prepare-commit-msg`. Those four did not exist before, so
+beads did no flushing, no importing after a pull, and added no identity trailers; the shims
+beads had written sat in `.beads/hooks`, which git never reads while `core.hooksPath` names
+this directory.
+
+**`pre-push` is deliberately not a beads shim.** It exports the tracker and commits `.beads/`
+itself, on the terms recorded at the end of that file, and calling `bd hooks run pre-push` there
+would export twice. `bd hooks list` therefore reports it with an empty version; that is expected.
 
 **`pre-push` runs the check list above, minus the last four.** Each exclusion has its own reason:
 
