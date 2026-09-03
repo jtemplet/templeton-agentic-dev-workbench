@@ -134,6 +134,18 @@ did not find. Three outcomes:
 Record the sha you grounded against in the body. A grounding claim without its commit is an
 assertion.
 
+**Take every domain term from `CONTEXT.md`, when the repository has one.** That file is the
+project's glossary, meaning the list of terms and what each one means here. Read it before you
+write the title, the Why, or the Acceptance Criteria. Use the glossary's word for a thing rather
+than a synonym. A bead outlives the session that filed it, so a synonym costs every later reader a
+translation.
+
+A concept the glossary does not carry is a signal, not an error. It means one of two things. Either
+you are inventing a word the project does not use, or the glossary has a real gap. Say which at the
+confirmation gate in Step 7. Do not write to `CONTEXT.md`. [ADR
+0007](../../docs/adr/0007-a-tadw-skill-wins-over-an-overlapping-external-skill.md) keeps
+`mattpocock-skills:domain-modeling` as the only skill that writes it.
+
 ### Step 4: Choose the Type and Draft the Body
 
 The type decides which sections are required. Take the headings byte-exact from `bead-audit`'s

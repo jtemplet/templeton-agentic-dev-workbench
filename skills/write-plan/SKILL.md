@@ -79,7 +79,7 @@ A **seam** is the place where the feature gets tested: the boundary a test drive
 **Confirm the seams with the user before writing the file.** State them in one short list and ask
 whether they match expectations. This is the only question this skill asks.
 
-### Step 4: Read the decisions that bind this plan
+### Step 4: Read the decisions and the glossary that bind this plan
 
 Read `docs/adr/` when the repository has one. These are choices already made and not open
 for re-litigation. Open any whose subject the plan touches.
@@ -87,8 +87,17 @@ for re-litigation. Open any whose subject the plan touches.
 An ADR that contradicts the plan outranks the plan. Change the approach, or say plainly in
 **Open Questions** that the plan proposes superseding that ADR and name it.
 
-Use the project's own vocabulary throughout, from `CONTEXT.md` when one exists and from the
-codebase otherwise. A plan that renames the domain's terms costs every later reader a translation.
+**Then read `CONTEXT.md`, when the repository has one.** That file is the project's glossary,
+meaning the list of terms and what each one means here. Take every domain term in the plan from it,
+and use the glossary's word rather than a synonym. When the file does not exist, fall back to the
+codebase's own names. A plan that renames the domain's terms costs every later reader a
+translation. `/plan-to-beads` then copies those renamed terms into every bead it files.
+
+A concept the glossary does not carry is a signal, not an error. It means one of two things.
+Either the plan is inventing a word the project does not use, or the glossary has a real gap.
+Say which under **Open Questions**. Do not write to `CONTEXT.md`. [ADR
+0007](../../docs/adr/0007-a-tadw-skill-wins-over-an-overlapping-external-skill.md) keeps
+`mattpocock-skills:domain-modeling` as the only skill that writes it.
 
 ### Step 5: Write the file
 
@@ -230,6 +239,7 @@ Before writing the file:
 - [ ] Every file path, module, and API named in the plan was verified to exist
 - [ ] Test Seams is filled, the seams were confirmed with the user, and the count is as low as the behavior allows
 - [ ] `docs/adr/` was read, and any ADR the plan touches appears in Decisions That Bind This Plan
+- [ ] `CONTEXT.md` was read, and every domain term in the plan uses the glossary's word
 - [ ] Acceptance Criteria is present and every criterion is testable, with no "works well" or "is fast"
 - [ ] Every In Scope item and every stated goal is proven by at least one criterion
 - [ ] Every milestone carries a "Done when" condition a second person could check

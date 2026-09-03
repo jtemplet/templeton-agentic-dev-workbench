@@ -283,6 +283,17 @@ Ask the user to pick if multiple exist.
 diff of new, changed, and removed beads against the existing set. Require the user's confirmation
 before any create, update, or close. Do not silently re-create.
 
+**Read `CONTEXT.md` next, when the repository has one.** That file is the project's glossary,
+meaning the list of terms and what each one means here. Take every bead title's vocabulary from it,
+and every domain term in the body too. Use the glossary's word for a thing rather than a synonym.
+A bead outlives the session that filed it, so a synonym costs every later reader a translation.
+
+A concept the glossary does not carry is a signal, not an error. It means one of two things.
+Either the plan is inventing a word the project does not use, or the glossary has a real gap.
+Say which at the confirmation gate in Step 3. Do not write to `CONTEXT.md`. [ADR
+0007](../../docs/adr/0007-a-tadw-skill-wins-over-an-overlapping-external-skill.md) keeps
+`mattpocock-skills:domain-modeling` as the only skill that writes it.
+
 From the plan's milestones, components, and scope, identify natural work units. Each issue should:
 
 - Fall in the Target or Stretch size band (see "The Size Window")
