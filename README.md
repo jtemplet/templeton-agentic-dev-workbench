@@ -251,6 +251,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `feature-planner` | Cold-start planner behind `/plan-from-idea`: explores the codebase in its own context and drafts a plan to `docs/plans/`. Cannot see the calling conversation, so use `/write-plan` when the design is already settled |
 | `project-manager` | Decomposes plans into `bd` issues; ensures each bead has Why, How, and acceptance criteria (uses `plan-to-beads` skill) |
 | `diagnostician` | Read-only investigation: evidence, hypotheses, root cause |
+| `bulk-reader` | Read-only worker on a cheap model: answers a question about many files and returns structured bullets, so those files never enter the caller's context. Its tools are `Read`, `Grep`, and `Glob` alone, so it cannot write. Orientation only; an edit reads its own file |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
 | `research-librarian` | Curates the Research wiki and answers questions from it: ingests sources with a study quality assessment, and weighs the filed sources to answer a question (uses `research-ingest` and `research-synthesize`) |
 | `ux-product-designer` | UX review of a web app via Playwright, 7-dimension evaluation with severity-ranked report |

@@ -65,6 +65,12 @@
 //      that file says which one to pass. ADR 0002 Finding 4 measured what a
 //      dropped orchestrator rule costs: every lane succeeded, the aggregate line
 //      was never written, and the run read as a short report rather than a bug.
+//  17. agents/bulk-reader.md can never write a file. The agent exists so a
+//      caller can ask about many files without those files entering its
+//      context, and the prompt tells it not to write. A prompt is not the
+//      guarantee; the tools list is, because an agent cannot call a tool it was
+//      never given. So the list must stay exactly Read, Grep, and Glob, and
+//      adding Write or Edit has to fail here rather than in review.
 //
 // Finally, the check count documented in docs/HOOKS.md is asserted against the
 // real total. That number drifted three times while this suite was being written.
@@ -868,6 +874,31 @@ check('the orchestrator states its lane model in the workflow and in the Always 
   assert.ok(
     /lane start/.test(always),
     'the Always entry must say the model rides on the lane start, not on the orchestrator'
+  );
+});
+
+// --- 13. The bulk-reader agent holds no tool that can write ---------------
+// The orientation-not-editing rule rests on the tools list, not on the prompt.
+// An agent cannot call a tool it was never given, so Read, Grep, and Glob is
+// the whole guarantee. Adding Write or Edit would keep every word of the prompt
+// true and still let the agent rewrite a file it was asked to describe.
+check('the bulk-reader agent holds only Read, Grep, and Glob', () => {
+  const doc = fs.readFileSync(
+    path.join(HOOKS_DIR, '..', 'agents', 'bulk-reader.md'),
+    'utf8'
+  );
+  const frontmatter = doc.match(/^---\n([\s\S]*?)\n---\n/);
+  assert.ok(frontmatter, 'agents/bulk-reader.md must open with YAML frontmatter');
+
+  const tools = frontmatter[1].match(/^tools:\s*\[(.*)\]\s*$/m);
+  assert.ok(tools, 'agents/bulk-reader.md must declare a tools list in its frontmatter');
+
+  const declared = [...tools[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
+  assert.deepStrictEqual(
+    declared,
+    ['Glob', 'Grep', 'Read'],
+    `agents/bulk-reader.md declares [${declared.join(', ')}]. It must hold Read, Grep, and Glob ` +
+      'and nothing else, because the tools list is what stops it writing a file, not the prompt.'
   );
 });
 

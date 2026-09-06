@@ -109,7 +109,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 20 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 21 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
 frontmatter stripped), the three that hold the split shut (every payload inside the
@@ -133,7 +133,10 @@ was a flake" hides the very thing the reader needs (a test count; the argument f
 is unrelated). One reads `agents/quality-gates-orchestrator.md` for the model its lanes run on,
 in the Required Workflow and again in the Always list. That agent names no `subagent_type`, so a
 lane has no frontmatter to carry a model, and deleting the one sentence that states it costs the
-whole saving in silence. Three cover **repository
+whole saving in silence. One reads `agents/bulk-reader.md` for its tools list, which must hold
+`Read`, `Grep`, and `Glob` and nothing else. That agent answers questions about files a caller never
+reads, and its prompt tells it not to write; the tools list is what makes that true, because an
+agent cannot call a tool it was never given. Three cover **repository
 structure**, added after a `/quality-gates` run found nothing enforcing them: `AGENTS.md`
 registers every skill, agent, and command on disk with a count that matches; `README.md`
 mentions every skill and agent (commands are out of scope, since several are aliases for a
