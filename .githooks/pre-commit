@@ -4,6 +4,39 @@
 # pre-push deliberately does NOT call `bd hooks run`: it exports the tracker and
 # commits .beads/ itself, for the reasons recorded at the end of that file. Do not
 # 'fix' it by adding a beads section there, which would export twice.
+# --- BEGIN BEADS EXPORT ---
+# Fold .beads/issues.jsonl into the commit being made, so it is never left dirty
+# for someone to notice later. Ported from atlas (atlas-xh3s).
+#
+# Deliberately contains no `exit`: this runs inside a hook whose own status
+# decides the commit, and an `exit 0` here would turn a failing gate into a
+# passing one. Every failure path below leaves the status alone.
+#
+# Two guards, both load-bearing:
+#   - A timeout, because bd can block on database lock contention and a stuck bd
+#     would otherwise hang the commit with nothing on screen. Shorter than bd's
+#     own 300s: a commit should not stall for minutes over an export.
+#   - A temp file, because `bd export -o` truncates its target as it starts, so
+#     a killed export would leave a partial file, and staging that is worse than
+#     not exporting at all.
+if command -v bd >/dev/null 2>&1; then
+  _bx_tmp=".beads/.issues.jsonl.hook-tmp"
+  _bx_timeout="${BEADS_HOOK_TIMEOUT:-30}"
+  if command -v timeout >/dev/null 2>&1; then _bx_run="timeout $_bx_timeout"
+  elif command -v gtimeout >/dev/null 2>&1; then _bx_run="gtimeout $_bx_timeout"
+  else _bx_run=""; fi
+  if $_bx_run bd export -o "$_bx_tmp" >/dev/null 2>&1 && [ -s "$_bx_tmp" ]; then
+    mv -f "$_bx_tmp" .beads/issues.jsonl
+    if ! git diff --quiet HEAD -- .beads/issues.jsonl 2>/dev/null; then
+      git add -- .beads/issues.jsonl
+      echo "pre-commit: refreshed .beads/issues.jsonl into this commit"
+    fi
+  else
+    rm -f "$_bx_tmp"
+  fi
+fi
+# --- END BEADS EXPORT ---
+
 # --- BEGIN BEADS INTEGRATION v1.2.2 ---
 # This section is managed by beads. Do not remove these markers.
 if command -v bd >/dev/null 2>&1; then
