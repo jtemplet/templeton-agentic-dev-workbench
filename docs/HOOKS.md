@@ -109,7 +109,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 19 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 20 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
 frontmatter stripped), the three that hold the split shut (every payload inside the
@@ -125,12 +125,15 @@ skill file rather than invoking the disabled skill through the Skill tool, and f
 the off-switch is set, it needs neither an external command nor `HOME`, and its off-switch
 agrees with `runtime.js`. One check **executes the manifest commands themselves** against a
 working and a broken `node`, because everything else tests the manifest as a string and the
-wrapper as a program, never the two together, so a shell-quoting error would ship green. A final
+wrapper as a program, never the two together, so a shell-quoting error would ship green. One
 check pins the **report-your-own-work** rule in both response-style sources (the skill and
 `preamble.js`'s fallback): the no-jargon rule illustrated only words about system behavior, so
 the words an agent uses for its *own* work read as allowed, and "the suite is green" or "that
 was a flake" hides the very thing the reader needs (a test count; the argument for why a failure
-is unrelated). Three cover **repository
+is unrelated). One reads `agents/quality-gates-orchestrator.md` for the model its lanes run on,
+in the Required Workflow and again in the Always list. That agent names no `subagent_type`, so a
+lane has no frontmatter to carry a model, and deleting the one sentence that states it costs the
+whole saving in silence. Three cover **repository
 structure**, added after a `/quality-gates` run found nothing enforcing them: `AGENTS.md`
 registers every skill, agent, and command on disk with a count that matches; `README.md`
 mentions every skill and agent (commands are out of scope, since several are aliases for a

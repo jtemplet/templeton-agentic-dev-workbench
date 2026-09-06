@@ -83,6 +83,14 @@ notification instead, and merge nothing until every lane has returned. The requi
 waiting, not the parameter, so a harness without the flag is not an excuse to merge early. Blocking
 costs no concurrency, because starts issued together in one message still run at the same time.
 
+**Start every lane on `sonnet`, by passing `model: "sonnet"` on the lane's start.** A lane is a
+generic dispatch, because this file never names a `subagent_type`, so no frontmatter can carry the
+model. The model reaches a lane on the `Agent` call or not at all.
+
+Use `sonnet` rather than a cheaper model, because a lane judges as well as runs. It grades Gate 2 change
+coverage, and it writes the Step 5 sentence saying whether a failure looks new. You trust a lane's
+rows as returned and cannot detect a mis-graded one, so that judgment has to survive.
+
 Hand each lane the four inputs from Step 1, the path to `skills/quality-gates/SKILL.md`, and the
 rows it owns. Tell each lane to read that file for the technique.
 
@@ -209,6 +217,7 @@ its rows myself. frontend and integration are SKIP below, carrying the router's 
 - Count the lanes that would start before you start any, and skip the split when fewer than two would
 - Run a lone lane's rows yourself, and grade them by the same Step 4 of the skill
 - Start two or more lanes in one message, then wait for all of them
+- Pass `model: "sonnet"` on every lane start, so no lane runs on the model you run on
 - Block until every lane you started has returned, by the harness's blocking parameter when it has
   one and by the completion notification when it does not
 - Give every gate the skill defines a row, including the gates that did not run
@@ -237,6 +246,7 @@ Before emitting the report, verify:
 
 - [ ] `changed_set.py` ran once, and the Scope line names that one base SHA
 - [ ] Two or more lanes were started, or none was and their rows were graded inline
+- [ ] Every lane that started carried `model: "sonnet"`
 - [ ] Every lane that started was waited for, and no turn ended with one outstanding
 - [ ] Every gate the skill defines has a row, and every non-PASS row states a reason
 - [ ] Every row uses one of the six statuses
