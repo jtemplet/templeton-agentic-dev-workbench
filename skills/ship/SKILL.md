@@ -36,14 +36,15 @@ and do not add one. Do not set `TADW_PREPUSH=off` either.
 
 ## Required workflow
 
-Track the six steps with TodoWrite. On a stop, go straight to Step 6 and report.
+Work the six steps in order. On a stop, go straight to Step 6 and report.
 
 ### Step 1: Resolve the ground and the bead
 
 ```bash
 git rev-parse --show-toplevel                       # a repository at all
 git branch --show-current                           # the feature branch
-git status --porcelain                              # must print nothing
+git status --porcelain --untracked-files=no         # tracked changes; must print nothing
+git status --porcelain                              # the full picture, for the report
 git remote get-url origin                           # origin, or no origin
 git worktree list --porcelain                       # who has the default branch checked out
 ```
@@ -53,8 +54,13 @@ Resolve the **default branch** in this order: `git symbolic-ref refs/remotes/ori
 run; this file writes `main` for readability only.
 
 Five conditions stop the run with `git-state`. Check them in this order, and name the one you found:
-no repository at all, HEAD already on the default branch, detached HEAD, a dirty tree, or a rebase,
-merge, or cherry-pick already in progress.
+no repository at all, HEAD already on the default branch, detached HEAD, a changed tracked file, or a
+rebase, merge, or cherry-pick already in progress.
+
+**An untracked file does not stop the run. A changed tracked file does.** `git rebase` refuses to
+start with a modified tracked file, so that condition is a real stop. An untracked file is usually
+build output, and a gate that writes one is normal, so refusing over it would make this skill
+unusable in those repositories. Name any untracked path in the report and carry on.
 
 Test that last one by asking whether the path exists. `git rev-parse --git-path` exits 0 either way,
 so its exit code reports an in-progress rebase in every clean repository:
@@ -312,6 +318,27 @@ travels under `refs/dolt/data`, and the committed export is no substitute, becau
 upsert-only and cannot express a deletion. A failure here is a warning, not a stop. Name it in the
 report and carry on, because running it again recovers.
 
+**Then record what follows the shipped bead.** Run this before cleanup, because removing a worktree
+can move the shell out of the repository, and `bd` finds its database through the git common
+directory.
+
+```bash
+bd ready -n 1 --json
+```
+
+Read the array it prints, never its exit code, because it exits 0 whether the array holds a bead or
+is empty. Keep that output. Step 6 pastes it and derives nothing of its own.
+
+| What you have | The Next row says |
+|---|---|
+| Step 4's `Newly unblocked:` list named at least one bead | Every bead it named, id first |
+| That list was absent, and this array holds a bead | That bead's id, title, and priority |
+| That list was absent, and this array is empty | That the tracker holds no ready bead |
+| The command failed, or there is no tracker | `lookup failed: bd ready -n 1 --json exited 1` |
+
+**This lookup never stops the run.** It reads the tracker after the push, so the ship is already
+complete when it runs.
+
 **Then clean up.** Verify the content landed before you delete anything:
 
 ```bash
@@ -363,28 +390,14 @@ git -C <main-checkout> branch -D <branch>
 On a stop, run `bd update <id> --add-label needs-human` first, when Step 1 resolved a bead. Some stops
 happen before that; the report then says nothing was labeled.
 
-**Then resolve what follows the shipped bead**, and write it as the report's last row. Take the first
-source below that yields a bead, and say in the row which source you used.
+**The Next row comes from Step 5, and from nowhere else.** Paste what those commands printed. Do not
+re-run them here, and never write the row from memory. A run that names a bead it did not read has
+invented one, and the reader cannot tell the difference.
 
-| Source | When it applies | What the row names |
-|---|---|---|
-| The `Newly unblocked:` list from Step 4 | The close released at least one bead | Every bead it released, id first |
-| `bd ready -n 1 --json` | The close released nothing, or the ship was bead-free | The one bead at the top of the list |
-| Neither | The command returned `[]`, or there is no tracker | That the tracker holds no ready bead |
+`bd ready` orders by priority, which is not a ranking by value. The row names a starting point, and
+`/triage-beads` is what ranks the backlog.
 
-```bash
-bd ready -n 1 --json
-```
-
-That command prints a JSON array and exits 0 whether or not the array is empty, so read the array
-rather than the exit code. `bd ready` orders by priority, and it is not a ranking by value. The row
-names a starting point, and `/triage-beads` is what ranks the backlog.
-
-**This lookup never stops the run.** It reads the tracker after the push, so the ship is already
-complete when it runs. If it fails, write the row as "lookup failed", name the command and its exit
-code, and still emit `SHIP_DONE`.
-
-**A stop carries no such row.** Nothing shipped, so nothing follows; the bead this run just attempted
+**A stop carries no Next row.** Nothing shipped, so nothing follows; the bead this run just attempted
 is still the next thing to work on.
 
 Emit the report, then the machine line, then stop.
@@ -415,13 +428,15 @@ line when the occupant check found nobody.)
 SHIP_DONE d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3
 ```
 
-The **Next:** row takes one of three forms, and it is always the last line before the machine line:
+The **Next:** row is always the last line before the machine line, and Step 5 measured every form of
+it:
 
-| Source | The row opens with |
+| What Step 5 found | The row opens with |
 |---|---|
 | The close released beads | `closing this bead unblocked 2:` then every id, title, and priority |
 | The top of `bd ready` | `nothing was unblocked; the top of bd ready is` then that id, title, and priority |
-| Nothing ready | `nothing was unblocked, and bd ready is empty` |
+| An empty array | `nothing was unblocked, and bd ready is empty` |
+| The lookup failed | `lookup failed: bd ready -n 1 --json exited 1` |
 
 ```markdown
 ## Not shipped
@@ -475,4 +490,6 @@ which is what an orchestrator checks against main.
   blocking dependencies stops the run with `internal`, naming the blockers.
 - Stop the run because the next-bead lookup failed, or claim the bead it names. The lookup is a read
   that runs after the push, and choosing what to work on next is the operator's call.
+- Write the Next row from anything but what the Step 5 commands printed. Naming a bead you did not
+  read is inventing one, and a reader cannot tell an invented row from a measured one.
 - Ask the user a question; stop with a report instead

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`/tadw:ship` now survives a smaller model, and its stop conditions no longer need judgment.**
+  Measured, not assumed: four Haiku runs against throwaway fixtures with a bare remote, a real
+  rebase, and a declared gate, graded by a 13-check end-state script that reads git rather than the
+  model's own report. The git mechanics were already sound and scored 26 of 26 after the change.
+  What failed was the reporting step. One run wrote a Next row naming a bead it never looked up,
+  and another left the row out. So the next-bead lookup moved from Step 6 into Step 5, where the
+  run is still doing work rather than composing prose, and Step 6 now pastes what Step 5 measured
+  and derives nothing. A re-run against a tracker whose blocked bead could not be guessed named
+  that bead correctly. Step 1 also says outright that an untracked file does not stop the run and a
+  changed tracked file does, because a run read `?? src/__pycache__/`, had to decide what "dirty"
+  meant, and decided differently from the document. The `TodoWrite` requirement is gone: no run
+  followed it, and it cannot be followed outside Claude Code at all. (`tadw-w9l`)
+
 ### Added
 
 - **`/tadw:ship` now names which bead to pick up next.** The report gained a **Next:** row, placed
