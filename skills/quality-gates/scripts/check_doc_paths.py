@@ -11,7 +11,10 @@ Three rules cut that to a usable signal, and each one is load-bearing:
 
   1. ANCHOR TO A REAL DIRECTORY. A backticked token counts only when its first
      segment is a directory that exists in the repository. `docs/ROUTING.md` is
-     a claim about this tree; `src/export.py` in a worked example is not.
+     a claim about this tree; `src/export.py` in a worked example is not. One
+     shape anchors elsewhere: a token under `references/` is measured against
+     the directory of the document that names it, because that is where a skill
+     keeps its own reference prose and no such directory sits at the root.
   2. SKIP WHAT IS NOT A PATH. Slash commands, URLs, placeholders in angle
      brackets, globs, variables, and `file:line` references are all excluded by
      shape, before any disk access.
@@ -49,9 +52,15 @@ NOT_A_PATH_CHARS = frozenset("<>*$? ")
 
 DEFAULT_DOCS = ("README.md", "AGENTS.md", "CLAUDE.md")
 # Prompt assets: documents an agent reads and acts on. A `references/` file
-# under a skill is deliberately absent; those are prose the skill quotes, not
-# paths a command depends on.
+# under a skill is deliberately absent from this list; those are prose the skill
+# quotes, not paths a command depends on. A SKILL.md that POINTS at one is still
+# checked, which is what DOC_RELATIVE_ROOT below resolves.
 DEFAULT_ASSET_GLOBS = ("skills/*/SKILL.md", "commands/*.md", "agents/*.md")
+# A skill keeps its reference prose beside itself, so `references/schema.md`
+# names a file under that skill's own directory and nothing at the repository
+# root. A bare `references/` names the directory as a concept, which is how the
+# prose here discusses it, so a pointer needs a segment after the slash.
+DOC_RELATIVE_ROOT = "references"
 IGNORE_FILE = ".docpaths-ignore"
 DOC_PREFIX = "doc:"
 
@@ -139,12 +148,29 @@ def targets_in(text: str, anchors: frozenset[str]) -> list[tuple[int, str, str]]
             candidate = normalize(token)
             if not is_shaped_like_a_path(candidate):
                 continue
-            if candidate.split("/")[0] in anchors:
+            head, _, rest = candidate.partition("/")
+            if head == DOC_RELATIVE_ROOT and rest:
+                found.append((lineno, token, "reference"))
+            elif head in anchors:
                 found.append((lineno, token, "backtick"))
     return found
 
 
-def reachable(root: Path, doc: Path, resolved: str) -> bool:
+def owning_skill_dir(doc: Path) -> Path:
+    """The directory a `references/` pointer is written from.
+
+    A SKILL.md names `references/x.md` from the skill's own directory. A document
+    already inside that `references/` directory names its siblings with the same
+    wording, copied from the skill, so it is writing from one level up. Reading
+    it from the document's own directory instead doubles the segment and reports
+    a live sibling as missing.
+    """
+    if doc.parent.name == DOC_RELATIVE_ROOT:
+        return doc.parent.parent
+    return doc.parent
+
+
+def reachable(root: Path, doc: Path, resolved: str, kind: str) -> bool:
     """Whether a normalized target names something that exists.
 
     Two ways, because this tree uses both and neither is wrong. A markdown link
@@ -156,7 +182,13 @@ def reachable(root: Path, doc: Path, resolved: str) -> bool:
     Trying only the root form reported 65 live links as broken in one run, every
     one of which a renderer resolves. Trying both reports a miss only when the
     target resolves NEITHER way, so a genuinely dead link is still a finding.
+
+    A `reference` kind takes neither, and resolves against the skill that owns
+    the pointer. Trying the root too would let an unrelated `references/` file
+    there silence a skill's dead pointer.
     """
+    if kind == "reference":
+        return (owning_skill_dir(doc) / resolved).exists()
     if (doc.parent / resolved).exists():
         return True
     return (root / resolved).exists()
@@ -174,7 +206,7 @@ def check(
         text = doc.read_text(encoding="utf-8")
         for lineno, target, kind in targets_in(text, anchors):
             resolved = normalize(target)
-            if ignored(resolved, patterns) or reachable(root, doc, resolved):
+            if ignored(resolved, patterns) or reachable(root, doc, resolved, kind):
                 continue
             misses.append(Miss(label, lineno, target, kind))
     return misses

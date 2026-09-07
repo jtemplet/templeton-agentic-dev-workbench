@@ -58,8 +58,8 @@ is the source of truth for all of the following:
 
 - The directory layout, and the document template for each level.
 - The search techniques, and the two-tier findings model.
-- The ledger and frontmatter schemas, in `references/frontmatter-schema.md`.
-- The refresh workflow, in `references/refresh-workflow.md`.
+- The ledger and frontmatter schemas, in `skills/product-surface-docs/references/frontmatter-schema.md`.
+- The refresh workflow, in `skills/product-surface-docs/references/refresh-workflow.md`.
 - The staleness checker, `skills/product-surface-docs/scripts/check_staleness.py`.
 
 Do not invent a different structure.

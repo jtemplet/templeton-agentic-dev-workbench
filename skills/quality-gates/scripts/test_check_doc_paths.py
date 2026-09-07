@@ -389,5 +389,94 @@ check("${CLAUDE_PLUGIN_ROOT} is still stripped in a command", case_plugin_root_v
 check("a skill-relative script path still resolves", case_skill_relative_path_still_resolves)
 check("a references file under a skill is not scanned", case_references_file_not_checked)
 
+
+# --- A `references/` pointer resolves against the skill that names it ------
+# Rule 1 counts a backticked token only when its first segment is a directory in
+# the repository root, and `references` is not one. So every `references/`
+# pointer a skill wrote went unchecked: the file could be renamed or deleted and
+# this gate still reported a clean run. What such a token means changed here;
+# which documents are scanned did not.
+
+
+def case_missing_reference_pointer_is_a_miss() -> None:
+    root = build_assets({"skills/one/SKILL.md": "The schema is in `references/missing.md`.\n"})
+    r = run(root)
+    assert r.returncode == 1, f"a dead references pointer must exit 1: {r.returncode}"
+    assert any("references/missing.md" in m for m in misses(r)), r.stdout
+
+
+def case_live_reference_pointer_is_clean() -> None:
+    root = build_assets(
+        {
+            "skills/one/SKILL.md": "The schema is in `references/schema.md`.\n",
+            "skills/one/references/schema.md": "The schema.\n",
+        }
+    )
+    r = run(root)
+    assert not misses(r), f"a references pointer that resolves is not a miss: {r.stdout}"
+    assert r.returncode == 0, f"and must exit 0, got {r.returncode}"
+
+
+def case_reference_pointer_does_not_resolve_at_the_root() -> None:
+    # The counterweight. A `references/` file sits beside the document that names
+    # it, so a same-named file at the repository root must not silence a skill's
+    # dead pointer.
+    root = build_assets(
+        {
+            "skills/one/SKILL.md": "The schema is in `references/schema.md`.\n",
+            "references/schema.md": "Someone else's schema.\n",
+        }
+    )
+    r = run(root)
+    assert len(misses(r)) == 1, f"a root references file must not resolve it: {r.stdout}"
+
+
+def case_bare_references_directory_is_not_a_pointer() -> None:
+    # Prose that discusses the directory itself names no file, so it is not a
+    # claim that anything exists. The quality-gates skill writes exactly this.
+    root = build_assets({"skills/one/SKILL.md": "A `references/` file stays out of the list.\n"})
+    r = run(root)
+    assert not misses(r), f"a bare directory mention is not a pointer: {r.stdout}"
+
+
+def case_pointer_inside_a_references_file_finds_its_sibling() -> None:
+    # A document already inside `references/` copies the skill's wording and
+    # names its siblings the same way, so the directory name must not double.
+    # These files are outside the default list, so the case names one directly.
+    root = build_assets(
+        {
+            "skills/one/references/guide.md": "See `references/extraction.md`.\n",
+            "skills/one/references/extraction.md": "The extraction.\n",
+        }
+    )
+    r = run(root, "skills/one/references/guide.md")
+    assert not misses(r), f"a sibling under references must resolve: {r.stdout}"
+
+
+def case_pointer_inside_a_references_file_still_reports_a_dead_sibling() -> None:
+    root = build_assets({"skills/one/references/guide.md": "See `references/gone.md`.\n"})
+    r = run(root, "skills/one/references/guide.md")
+    assert len(misses(r)) == 1, f"a dead sibling must still be reported: {r.stdout}"
+
+
+check("a dead references pointer is a miss, exit 1", case_missing_reference_pointer_is_a_miss)
+check(
+    "a pointer inside a references file finds its sibling",
+    case_pointer_inside_a_references_file_finds_its_sibling,
+)
+check(
+    "a pointer inside a references file still reports a dead sibling",
+    case_pointer_inside_a_references_file_still_reports_a_dead_sibling,
+)
+check(
+    "a bare `references/` mention is not a pointer",
+    case_bare_references_directory_is_not_a_pointer,
+)
+check("a references pointer that resolves is clean, exit 0", case_live_reference_pointer_is_clean)
+check(
+    "a references pointer does not resolve at the repository root",
+    case_reference_pointer_does_not_resolve_at_the_root,
+)
+
 print(f"\nAll {passed} checks passed." if not failed else f"\n{failed} FAILED, {passed} passed.")
 sys.exit(1 if failed else 0)
