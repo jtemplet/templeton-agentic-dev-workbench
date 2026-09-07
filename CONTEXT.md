@@ -22,7 +22,9 @@ _Avoid_: prompt, playbook, recipe
 
 **Agent**:
 A workflow definition in `agents/<name>.md` that references skills and runs in its own context
-window, which is why it cannot see the conversation that launched it.
+window, which is why it cannot see the conversation that launched it. It is the only component
+kind that can pin a model in its frontmatter. A skill's `SKILL.md` carries no `model:` field, so
+`grep -l '^model:' skills/*/SKILL.md` returns nothing. Every file in `agents/` carries one.
 _Avoid_: persona, bot
 
 **Command**:

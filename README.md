@@ -244,6 +244,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 
 | Agent | Description |
 |---|---|
+| `acceptance-verifier` | Grades a finished unit of work against its bead's acceptance criteria and the QA gates, pinned to `sonnet` regardless of the caller's own model (uses `verify-acceptance` skill). Never applies the `accepted` label and never edits or writes any file it grades; the calling session applies the label |
 | `code-reviewer` | Auto-detects languages, dispatches to correct review skill (read-only) |
 | `quality-gates-orchestrator` | Runs the quality gates across three concurrent subagent lanes (backend-unit, frontend, integration): resolves the gate set, scope, and QA routing once, keeps the gates no lane owns, then merges every returned row into the one report the `quality-gates` skill specifies. Report-only; it decides the verdict, no lane does |
 | `software-engineer` | Editing role for code work; routes to code-simplify, review-fresh-eyes, or feature-development based on intent |

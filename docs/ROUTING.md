@@ -288,12 +288,19 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
   by naming which changed files it involves
 - Report-only: it never fixes, formats, or rewrites the working tree
 
-**Grade work against its criteria:** Use `/verify-acceptance` or the `verify-acceptance` skill
+**Grade work against its criteria:** Use `/verify-acceptance`, which dispatches to the
+`acceptance-verifier` agent
 
+- Runs on `sonnet` whatever the calling session runs on, per
+  [ADR 0008](adr/0008-delegated-work-runs-on-a-cheaper-model.md)
 - Resolves the bead from `bd`, the branch name, or the commit messages
 - Grades each acceptance criterion against a named test, a command's output, or a `file:line`,
   never against the diff
-- Runs the four gates from `quality-gates` that can invalidate an acceptance claim
+- Runs the three gates from `quality-gates` that can invalidate an acceptance claim: Tests, Lint
+  and Format, and Type Checking
+- Reads no conversation of its own, so paste the `/quality-gates` output into its prompt when you
+  have it; gates it is not given are gates it runs again
+- Applies no label: the calling session adds `accepted` on an ACCEPTED verdict
 - Report-only: it never edits code and never closes a bead
 
 **Land the accepted branch:** Use `/tadw:ship` (the `ship` skill directly; there is no command file)

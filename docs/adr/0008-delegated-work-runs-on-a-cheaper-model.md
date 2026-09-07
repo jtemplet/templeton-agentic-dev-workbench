@@ -8,9 +8,11 @@
 An agent spends most of its work reading files and writing predictable output, not reasoning.
 Both cost the same as reasoning when they run on the largest model.
 
-Twelve of the fourteen files in `agents/` set `model: inherit`, so a subagent runs on whatever
-the parent runs on. Derive the count with `grep -l '^model: inherit' agents/*.md | wc -l`. Only
-`agents/product-analyst.md` and `agents/bulk-reader.md` name a model of their own.
+Most files in `agents/` set `model: inherit`, so a subagent runs on whatever the parent runs on.
+Derive both counts rather than reading them here: `grep -l '^model: inherit' agents/*.md | wc -l`
+against `ls agents/*.md | wc -l`. When this was decided it was twelve of fourteen, and only
+`agents/product-analyst.md` and `agents/bulk-reader.md` named a model of their own.
+`agents/acceptance-verifier.md` joined them on 2026-09-07, under `tadw-lqj`.
 
 The clearest case is `agents/quality-gates-orchestrator.md`.
 [ADR 0002](0002-the-quality-gates-orchestrator-fans-out-to-blocking-subagents.md) gave it three

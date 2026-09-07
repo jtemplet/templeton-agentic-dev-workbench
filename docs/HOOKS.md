@@ -109,7 +109,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 21 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 22 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
 frontmatter stripped), the three that hold the split shut (every payload inside the
@@ -136,7 +136,12 @@ lane has no frontmatter to carry a model, and deleting the one sentence that sta
 whole saving in silence. One reads `agents/bulk-reader.md` for its tools list, which must hold
 `Read`, `Grep`, and `Glob` and nothing else. That agent answers questions about files a caller never
 reads, and its prompt tells it not to write; the tools list is what makes that true, because an
-agent cannot call a tool it was never given. Three cover **repository
+agent cannot call a tool it was never given. One reads `agents/acceptance-verifier.md` for its
+model and its tools list: `model: sonnet`, and exactly `Read`, `Bash`, `Grep`, and `Glob`. ADR 0008
+pins the sonnet choice because grading is a judgment nobody downstream re-checks. That agent is
+the case where the tools list is not the whole guarantee: `Bash` can redirect into a file and can
+change a bead, so its prompt carries the rest, and the check holds the list to four so nothing
+wider arrives unnoticed. Three cover **repository
 structure**, added after a `/quality-gates` run found nothing enforcing them: `AGENTS.md`
 registers every skill, agent, and command on disk with a count that matches; `README.md`
 mentions every skill and agent (commands are out of scope, since several are aliases for a

@@ -180,7 +180,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Investigate a bug before fixing | `/diagnose` | `diagnostician` agent |
 | Write or restructure tests | - | `style-testing`, plus `style-rspec` for RSpec |
 | Run the QA gates | `/quality-gates` | `quality-gates` |
-| Grade work against its bead | `/verify-acceptance` | `verify-acceptance` |
+| Grade work against its bead | `/verify-acceptance` | `acceptance-verifier` agent, running `verify-acceptance` |
 | Land a finished bead's branch on main | `/tadw:ship` (the skill itself) | `ship` |
 | Cut and publish a plugin release | `/publish-plugin` (the skill itself) | `publish-plugin` |
 | Align before planning or building | `/grill-me` | `grilling` |
@@ -249,8 +249,10 @@ bead's criteria are vague or its `design` is empty, so a thin bead bounces the b
 `/bead-audit-all` right after `/plan-to-beads` catches that while the plan is still in the window,
 where the fix takes seconds. After a clear the same fix costs a full re-read.
 
-**`/verify-acceptance` cites the gate results rather than re-deriving them.** Give it the
-`/quality-gates` output. Without it, the test suite runs twice to produce one verdict.
+**`/verify-acceptance` cites the gate results rather than re-deriving them.** Paste the
+`/quality-gates` output into its prompt. It dispatches to the `acceptance-verifier` agent, which
+runs in its own context window and cannot read this one, so gate results it is not given are gate
+results it runs again. Without them the whole suite runs twice to produce one verdict.
 
 **`/code-review` is the conventions pass, and pipeline B does not include it.** `/fresh-eyes-cr`
 hunts bugs and says so: real bugs, not style preferences. `/build`'s Simplify and Lint phases
@@ -310,11 +312,11 @@ reads when deciding what to invoke.
 `style-rspec` `style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-review`
 `ux-review-ios` `verify-acceptance` `write-plan`
 
-**Registered Agents** (14). Descriptions live in the `README.md` agents table and in
+**Registered Agents** (15). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.
 
-`bulk-reader` `claude-md-reviewer` `code-reviewer` `diagnostician` `feature-planner`
-`product-analyst`
+`acceptance-verifier` `bulk-reader` `claude-md-reviewer` `code-reviewer` `diagnostician`
+`feature-planner` `product-analyst`
 `product-cartographer` `product-manager` `project-manager` `quality-gates-orchestrator`
 `research-librarian` `software-engineer` `ux-product-designer` `ux-product-designer-ios`
 
