@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-09-07
+
+### Added
+
+- **`acceptance-verifier`, an agent that grades a finished unit of work against its bead on
+  `sonnet` regardless of the caller's own model.** It holds `Read`, `Bash`, `Grep`, and `Glob`.
+  `Bash` is there so it runs the QA gates rather than predicting them; there is no `Write` and no
+  `Edit`, because letting the grader fix what it grades is the one thing this role must never do.
+  It never applies the `accepted` label and never edits any file it grades, and the calling session
+  applies the label from the verdict it reports. Pinned per
+  [ADR 0008](docs/adr/0008-delegated-work-runs-on-a-cheaper-model.md): grading is a judgment nobody
+  downstream re-checks, so it keeps a model that can judge. (`tadw-lqj`)
+- **Three architecture decision records.** 0008 records that delegated work runs on a cheaper model
+  named per job, and carries the measurement behind the rule that decides which one. 0009 records
+  why the large skill documents are not split into reference files, with the per-section numbers so
+  the next reader does not re-derive them. 0010 records that the tracker export rides the commit
+  and the audit log stays untracked.
+- **Ten terms in `CONTEXT.md` that were already in live use and absent from the glossary**:
+  orchestrator, lane, fan-out, and spike under a new Delegation section, plus shim, interactions
+  log, qa surface, handoff, worktree, and product surface.
+
+### Changed
+
+- **`/verify-acceptance` now dispatches to the `acceptance-verifier` agent** instead of telling the
+  reader to open `skills/verify-acceptance/SKILL.md`. It still takes an optional bead id. Before
+  this, grading ran on whatever model the session ran on, which is usually the most expensive one
+  available, because a skill carries no `model:` field and an agent does. Measured against a
+  fixture whose three criteria were fixed in advance to grade PASS, FAIL, and UNVERIFIABLE: both
+  the agent arm and the inline arm returned all three correctly, so the cheaper model did not
+  fabricate a PASS on the criterion no artifact can settle. The agent arm moved 32,547 tokens off
+  the caller's model and returned about 630 tokens of report, against about 1,400 tokens of raw
+  evidence entering context inline. (`tadw-lqj`)
+- **`hooks/test-hooks.js` asserts the `acceptance-verifier` model and tool list,** the way it
+  already asserted `bulk-reader`'s. A silently dropped model or a widened tools list would still
+  read as a working agent. The suite now runs 22 checks, up from 21.
+- **"surface" has one meaning per document in `CONTEXT.md`.** It carried two senses across 487 uses
+  with neither defined: the nine QA surfaces `route_qa.py` routes, and the product surface a leaf
+  document names. Resolved on the "band" precedent, which requires the compound only in a document
+  carrying both senses. `AGENTS.md` is the only live one.
+
+### Fixed
+
+- **The new check's failure message no longer teaches the wrong lesson.** It said the missing
+  `Write` and `Edit` tools are what stop the grader from fixing what it grades. That is true of
+  `bulk-reader`, which the wording was copied from, and false here: this agent holds `Bash`, which
+  can write a file and change a bead. The prompt carries that rule, and the tools list only holds
+  the reachable set to four. (`tadw-lqj`)
+- **[ADR 0008](docs/adr/0008-delegated-work-runs-on-a-cheaper-model.md) no longer states counts that
+  adding a fifteenth agent falsified.** It counted fourteen agent files with two naming their own
+  model. The counts now derive from the two commands beside them, and the twelve-of-fourteen figure
+  is dated to the decision, so the record still reads as what was true then. (`tadw-lqj`)
+- **`skills/style-testing/references/invocation-battery.md` was named by nothing.** It is a
+  measurement procedure rather than reference prose, so wiring a pointer to it would have
+  contradicted ADR 0009's own rule. It moves to `evals/style-testing/invocation-battery.md`, where
+  [ADR 0005](docs/adr/0005-the-evals-are-a-measurement-not-a-gate.md) puts a deliberate
+  measurement, and its symlink development loop is lifted into section 5 of
+  `docs/eval-driven-development.html`, which applies to every artifact and was documented nowhere.
+
 ## [4.1.0] - 2026-09-06
 
 ### Added
@@ -2412,7 +2470,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.1.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.2.0...HEAD
+[4.2.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.1...v4.0.0
 [3.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.0...v3.4.1
