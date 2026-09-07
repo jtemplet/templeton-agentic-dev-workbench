@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-09-06
+
+### Added
+
+- **`bulk-reader`, an agent that answers a question about many files without those files entering
+  the caller's context.** It holds only `Read`, `Grep`, and `Glob`, so it cannot write a file even
+  when asked, and it runs on `haiku`. Use it to orient in unfamiliar code or to find where
+  something is defined across a tree. Do not use it to prepare an edit, because its line numbers go
+  stale and the caller must read the file it is about to change. (`tadw-019`)
+- **`/tadw:ship` now names which bead to pick up next.** The report gained a **Next:** row, placed
+  last, above the `SHIP_DONE` line. Step 4 passes `--suggest-next` to the `bd close` it already
+  runs, so the beads the close released from their blocker cost nothing extra to learn. When the
+  close released none, the row names the top of `bd ready` instead. Before this, the report ended
+  at cleanup and the operator ran `bd ready` by hand, in a fresh session, after the context that
+  knew the work was gone. `/triage-beads` still owns ranking the backlog by value; `bd ready`
+  orders by priority. (`tadw-vls`)
+- **Four beads git hook shims that never existed in this clone**: `pre-commit`, `post-merge`,
+  `post-checkout`, and `prepare-commit-msg`. Beads had written its own copies into `.beads/hooks`,
+  which git never reads while `core.hooksPath` names `.githooks`. So beads did no flushing, no
+  importing after a pull, and added no identity trailers.
+
 ### Changed
 
 - **`/tadw:ship` now survives a smaller model, and its stop conditions no longer need judgment.**
@@ -16,23 +37,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   What failed was the reporting step. One run wrote a Next row naming a bead it never looked up,
   and another left the row out. So the next-bead lookup moved from Step 6 into Step 5, where the
   run is still doing work rather than composing prose, and Step 6 now pastes what Step 5 measured
-  and derives nothing. A re-run against a tracker whose blocked bead could not be guessed named
-  that bead correctly. Step 1 also says outright that an untracked file does not stop the run and a
+  and derives nothing. Step 1 also says outright that an untracked file does not stop the run and a
   changed tracked file does, because a run read `?? src/__pycache__/`, had to decide what "dirty"
   meant, and decided differently from the document. The `TodoWrite` requirement is gone: no run
   followed it, and it cannot be followed outside Claude Code at all. (`tadw-w9l`)
+- **The `quality-gates` lanes run on `sonnet` rather than on the model the caller runs on.** The
+  orchestrator passes `model: "sonnet"` on each lane start, stated as a rule rather than a note.
+  The spike `tadw-1hs` measured first that an `Agent` call honors a model parameter, including one
+  made from inside a plugin agent. The model is `sonnet` and not something cheaper because a lane
+  judges as well as runs: it grades Gate 2 change coverage, and the orchestrator has no way to
+  detect a mis-graded row. (`tadw-r9i`)
+- **`check_doc_paths.py` now resolves a `references/` pointer against the directory that writes
+  it.** Such a pointer used to be skipped in silence, because rule 1 counted a backticked token
+  only when its first segment was a directory in the repository root. The fix found three dead
+  pointers already in the tree, two in `agents/product-cartographer.md` and one stale
+  `docs/decisions/` mention in `roadmap-dashboard`. This check can now fail a run that used to
+  pass. (`tadw-ubc`)
+- **`write-plan`, `bead-create`, and `plan-to-beads` read `CONTEXT.md` before they write.** All
+  three already said to take vocabulary from the project glossary when one exists. None of them
+  opened it, so each fell back to guessing terms from the code on every run. (`tadw-dyz`)
+- **The `pre-commit` hook refreshes the tracker export itself.** The two tracker JSONL files were
+  hand-managed before, which is the plumbing the repository owner is never supposed to touch.
 
-### Added
+### Fixed
 
-- **`/tadw:ship` now names which bead to pick up next.** The report gained a **Next:** row, placed
-  last, above the `SHIP_DONE` line. Step 4 passes `--suggest-next` to the `bd close` it already
-  runs, so the beads the close released from their blocker cost nothing extra to learn. When the
-  close released none, the row names the top of `bd ready` instead. Before this, the report ended
-  at cleanup and the operator ran `bd ready` by hand, in a fresh session, after the context that
-  knew the work was gone. The row is a read that runs after the push: a failed lookup omits it and
-  still reports `SHIP_DONE`, a stop carries no row at all, and the skill never claims the bead it
-  names. `/triage-beads` still owns ranking the backlog by value; `bd ready` orders by priority.
-  (`tadw-vls`)
+- **`/tadw:ship` reports the commits already sitting unpushed on the default branch.** Its push
+  publishes them too, and the report said nothing about it. It names each one, and does not stop
+  for them: they are the operator's own finished commits, and stopping would strand a reviewed
+  branch over work the run never had to withhold. (`tadw-mnu`)
+- **`/publish-plugin` reports the same thing, for the same reason.** (`tadw-20p`)
+- **The domain-doc claims in `AGENTS.md` and `docs/agents/domain.md` were stale.** They described a
+  layout the repository no longer had. (`tadw-iva`)
 
 ## [4.0.0] - 2026-09-01
 
@@ -2377,7 +2412,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.1.0...HEAD
+[4.1.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.1...v4.0.0
 [3.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.0...v3.4.1
 [3.4.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.3.1...v3.4.0
