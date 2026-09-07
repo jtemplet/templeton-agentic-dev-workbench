@@ -5,7 +5,8 @@ Its domain is the tooling itself, so the vocabulary below names the parts of the
 work it tracks, and the checks it runs. It does not name the languages the plugin reviews.
 
 Every term here is already in use somewhere in this repository. Nothing was invented for the
-glossary. Four collisions remain unresolved and are listed at the bottom.
+glossary. Five terms carried more than one meaning; each was resolved, and the decisions are at
+the bottom.
 
 ## Language
 
@@ -47,9 +48,36 @@ A script Claude Code runs at a lifecycle event. A plugin hook belongs to this pl
 wired in `plugin.json`; a portable hook belongs to whatever repository installs it, and lives
 in `scripts/`.
 
+**Shim**:
+A hook file in `.githooks/` whose body only calls another tool's hook runner, such as
+`bd hooks run <hook>`. It carries no check of its own.
+_Avoid_: wrapper, which here means `hooks/run-hook.sh`
+
 **Payload**:
 One chunk of the text a `SessionStart` hook injects. A 10,000-character cap per hook output is
 why the style core ships as several manifest entries rather than one.
+
+### Delegation
+
+**Orchestrator**:
+An agent whose own work is starting other agents and merging what they return. It decides the
+verdict; nothing it starts does.
+
+**Lane**:
+One subagent the orchestrator starts, owning a named set of gate rows. There are three, and each
+returns rows rather than raw output, which is what keeps test-runner output out of the calling
+context.
+_Avoid_: worker, thread, job
+
+**Fan-out**:
+Starting every lane in one message. Concurrency comes from the single message; the blocking flag
+on each start decides only whether the caller waits, per
+[ADR 0002](docs/adr/0002-the-quality-gates-orchestrator-fans-out-to-blocking-subagents.md).
+
+**Spike**:
+A throwaway run that measures whether a mechanism works, before anything is built on it. A spike
+must return a usable answer either way, so it records a control alongside the test.
+_Avoid_: experiment, proof of concept, prototype
 
 ### Style
 
@@ -87,6 +115,12 @@ _Avoid_: backlog, which means only the non-closed beads
 **Export**:
 `.beads/issues.jsonl`, a passive text dump of the tracker. Never a source of truth, never
 hand-edited, and never a person's responsibility.
+
+**Interactions log**:
+`.beads/interactions.jsonl`, an append-only per-machine audit line per field change. Untracked,
+and never a source of truth, per
+[ADR 0010](docs/adr/0010-the-tracker-export-rides-the-commit-and-the-audit-log-is-untracked.md).
+_Avoid_: history, which here means git's
 
 **Native field**:
 One of bd's first-class `design`, `notes`, and `acceptance_criteria` columns. Content belongs
@@ -161,6 +195,16 @@ is never a score.
 The files a change touches, resolved from a git base by a bundled script. Never classified by
 eye.
 
+**QA surface**:
+What a changed file demands of a test, resolved by a bundled router. Nine exist, such as
+`http-api` and `prompt-assets`. Always written as the compound, because a product surface is a
+different thing.
+_Avoid_: bare "surface", area, category
+
+**Handoff**:
+A QA surface this plugin cannot grade itself, so its row states who grades it instead. `mobile-ui`
+and `browser-ui` are the two.
+
 **Hygiene**:
 The gate that counts leftovers in the changed set: dead code, stray debugging output, and
 committed scratch files.
@@ -187,6 +231,10 @@ they are running; it does not gate distribution.
 The single parseable last line of a skill's report, such as `SHIP_DONE <sha>`. A wrapper reads
 that line and nothing else, so no prose may follow it.
 
+**Worktree**:
+A second checkout of this repository on one branch, which landing that branch removes. Each has
+its own git directory, so a gate verdict recorded in one is not read by another.
+
 **Occupant**:
 A live process standing in a worktree that is about to be removed. An occupant is reported and
 never killed, and never blocks the removal.
@@ -195,7 +243,13 @@ never killed, and never blocks the removal.
 
 **ADR**:
 A record in `docs/adr/` of a decision that would cost more than a day to reverse and that
-somebody would otherwise argue again. Thirteen files read this directory.
+somebody would otherwise argue again. Eighteen live skills, agents, commands, and documents read
+this directory; the filed plans and the CHANGELOG cite it as history and are not counted.
+
+**Product surface**:
+One place a person touches the running product, which is what a leaf document names. Always
+written as the compound, because a QA surface is a different thing.
+_Avoid_: bare "surface", screen, page
 
 **Leaf document**:
 The one document in `docs/products/` that names a single product feature. Only a leaf can say
@@ -207,8 +261,8 @@ feature in the running product.
 
 ## Resolved collisions
 
-Four terms carried more than one meaning. Each was decided on 2026-09-01, and the decision is
-recorded here so it is not re-argued.
+Five terms carried more than one meaning. Each is decided here so it is not re-argued. The first
+four were decided on 2026-09-01, and `surface` on 2026-09-06.
 
 **gate**: kept as one concept at three scales. A gate is a check that can refuse to let work
 proceed, whether it is a command, a list, or a step. No rename. 892 uses stand as written.
@@ -227,3 +281,9 @@ spec in `skills/quality-gates/SKILL.md` keeps its compound name.
 audit inside `plan-review` became the MECE check. The report output directories
 `docs/ux-audits/` and `docs/aso-audits/` were deliberately left alone, so that a consumer's
 existing reports do not scatter across two paths.
+
+**surface**: split into `qa surface` and `product surface`. The compound is required in any
+document carrying both senses. `AGENTS.md` is the only live one; `CHANGELOG.md` and the filed
+plans under `docs/plans/` are a historical record and were left alone. The nine surface names
+`route_qa.py` defines, such as `http-api`, are a machine contract and keep their names. This
+follows the `band` resolution above rather than renaming 487 uses that context already settles.

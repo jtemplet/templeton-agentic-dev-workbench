@@ -2,10 +2,11 @@
 # Git Attributes for Claude Code Plugin Repository
 # ============================================================================
 
-# Beads (bd): JSONL files use union merge to preserve lines from both sides
-# This prevents conflicts on append-only issue tracking files
+# Beads (bd): the tracker export uses union merge, so a merge keeps the beads
+# both sides added instead of conflicting. interactions.jsonl is deliberately
+# absent: it is untracked, per docs/adr/0010-the-tracker-export-rides-the-
+# commit-and-the-audit-log-is-untracked.md.
 .beads/issues.jsonl merge=union
-.beads/interactions.jsonl merge=union
 
 # The changelog is append-only too: every branch adds to [Unreleased], so a
 # conflict there is structural and both entries are correct

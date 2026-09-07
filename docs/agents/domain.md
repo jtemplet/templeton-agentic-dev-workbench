@@ -13,7 +13,7 @@ one up front. `mattpocock-skills:domain-modeling` creates them lazily, when a te
 actually gets resolved.
 
 Both exist here today. `CONTEXT.md` carries the glossary and the resolved collisions, and
-`docs/adr/` carries seven records.
+`docs/adr/` carries ten records.
 
 ## File structure
 
@@ -27,7 +27,10 @@ Both exist here today. `CONTEXT.md` carries the glossary and the resolved collis
 │   ├── 0004-the-pre-push-hook-forgives-by-design.md
 │   ├── 0005-the-evals-are-a-measurement-not-a-gate.md
 │   ├── 0006-the-style-core-ships-as-several-hook-entries.md
-│   └── 0007-a-tadw-skill-wins-over-an-overlapping-external-skill.md
+│   ├── 0007-a-tadw-skill-wins-over-an-overlapping-external-skill.md
+│   ├── 0008-delegated-work-runs-on-a-cheaper-model.md
+│   ├── 0009-the-large-skill-documents-are-not-split.md
+│   └── 0010-the-tracker-export-rides-the-commit-and-the-audit-log-is-untracked.md
 └── skills/ agents/ commands/ hooks/ scripts/
 ```
 

@@ -1,47 +1,31 @@
-# style-testing Invocation Battery (AC7)
+# style-testing Invocation Battery
 
 Measures whether the skill's frontmatter `description` actually causes it to fire. A skill that is
 well written but never invoked is worthless; `style-rspec` is the cautionary example, its
 description scoped so narrowly ("RSpec tests in Rails apps") that it could not fire on this repo's
 current work.
 
+This is an **invocation eval**, the first of the three types
+[docs/eval-driven-development.html](../../docs/eval-driven-development.html) defines. That document
+carries the method; this file is the one worked battery, and the shape to copy for another skill.
+It is a deliberate measurement and never a gate, on the terms
+[ADR 0005](../../docs/adr/0005-the-evals-are-a-measurement-not-a-gate.md) sets, so no git hook runs
+it.
+
+It ran once, as acceptance criterion 7 of the bead that built `style-testing`. The result is under
+"Last run" below.
+
 ## Prerequisite: the skill must be in the session's registry
 
-**A fresh session is necessary but not sufficient.** This repo is a plugin, but sessions do not
-load the working tree. They load a versioned marketplace cache built from the GitHub remote:
-
-```text
-~/.claude/plugins/cache/templeton-agentic-marketplace/tadw/<version>/
-```
-
-So any skill authored here is invisible to every session and subagent until it is merged, version
-bumped, pushed, and the plugin updated. Restarting alone reloads the same cache and scores 0 of 8
-for a reason the battery is not measuring.
-
-**Dev-loop fix.** Symlink the working-tree skill into the personal skills directory, which is a
-live registry source and already holds symlinks (`qmd`, `debug`) by the same pattern:
-
-```bash
-ln -sfn ~/Dev/templeton-agentic-dev-workbench/skills/style-testing ~/.claude/skills/style-testing
-```
-
-Because it points at the working tree, editing the `description` and restarting is enough to
-re-measure. No publish cycle per iteration.
+**A fresh session is necessary but not sufficient.** A session loads the versioned marketplace
+cache, never the working tree, so a skill edited here is invisible until it ships. Run the battery
+first thing in a fresh session, and to iterate on a `description` without a publish cycle, use the
+symlink dev loop in section 5 of
+[docs/eval-driven-development.html](../../docs/eval-driven-development.html). That section also
+carries the two caveats, including removing the symlink once the skill ships.
 
 **Verify before running.** Ask a subagent to list its available skills matching "style". If
 `style-testing` is absent, stop; the registry has not picked it up and every prompt will miss.
-
-**Two caveats.**
-
-1. The skill registers unprefixed as `style-testing` rather than `tadw:style-testing`. This does not
-   affect what the battery measures,
-   since selection is driven by the description text, not the namespace.
-2. The symlink is global and fires in every project. **Remove it once the skill ships via the
-   plugin**, or you will have two registrations of the same skill:
-
-   ```bash
-   rm ~/.claude/skills/style-testing
-   ```
 
 ## Procedure
 

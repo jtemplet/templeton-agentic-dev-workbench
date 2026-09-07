@@ -46,6 +46,20 @@ the grader is a ceiling on runaway sentences, not a restatement of the target: i
 39-word case this suite has produced, and 25 stays the number to write toward. Keep the
 tighter number in the rule and the looser one in the grader.
 
+## What is here
+
+Two things, and only the first is automated.
+
+**The response-style suite**, `run.py` over `cases/`. Everything below describes it.
+
+**One invocation battery**, [style-testing/invocation-battery.md](style-testing/invocation-battery.md).
+It measures whether a skill's frontmatter `description` actually makes the skill fire, which is
+the cheapest coverage there is and the type this harness does not yet run. It is a manual
+procedure: fresh session, one subagent per prompt, 8 positives and 3 controls, with a
+pre-registered bar. `run.py` does not know about it. Generalizing it into a `skill_loaded` grader
+and a namespaced `evals/<artifact>/cases/` layout is described in section 6 of
+[../docs/eval-driven-development.html](../docs/eval-driven-development.html).
+
 ## Current state
 
 **13 of 18 runs pass** (2026-08-05, `--runs 3`, sonnet, with-plugin arm only), measured

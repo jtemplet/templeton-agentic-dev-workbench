@@ -463,6 +463,34 @@ git worktree remove /tmp/baseline --force</code></pre></div>
     </p>
   </div>
 
+  <div class="callout good">
+    <h4>Symlink the working tree to iterate on a description</h4>
+    <p>
+      A session loads the versioned marketplace cache built from the GitHub remote
+      (<code>~/.claude/plugins/cache/templeton-agentic-marketplace/tadw/&lt;version&gt;/</code>), never the
+      working tree. So a skill you just edited stays invisible until it is merged, bumped, pushed, and
+      updated, and a battery run against it scores zero for a reason it is not measuring. Restarting alone
+      reloads the same cache.
+    </p>
+    <p>
+      Point the personal skills directory at the working tree instead. It is a live registry source and
+      already holds symlinks by this pattern:
+    </p>
+    <pre><code>ln -sfn ~/Dev/templeton-agentic-dev-workbench/skills/&lt;name&gt; ~/.claude/skills/&lt;name&gt;</code></pre>
+    <p>
+      Editing the <code>description</code> and restarting is then enough to re-measure, with no publish cycle
+      per iteration. Two caveats. The skill registers unprefixed as <code>&lt;name&gt;</code> rather than
+      <code>tadw:&lt;name&gt;</code>, which does not affect an invocation eval, because selection is driven by
+      the description text and not by the namespace. And the symlink is global and fires in every project, so
+      <strong>remove it once the skill ships via the plugin</strong> (<code>rm ~/.claude/skills/&lt;name&gt;</code>)
+      or you will have two registrations of the same skill.
+    </p>
+    <p>
+      Verify before running: ask a subagent to list its available skills matching the name. If it is absent,
+      stop, because the registry has not picked it up and every prompt will miss.
+    </p>
+  </div>
+
   <div class="callout bad">
     <h4>ANTHROPIC_API_KEY breaks the nested call</h4>
     <p>
