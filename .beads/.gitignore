@@ -83,3 +83,15 @@ bd.db
 dolt
 dolt-wal
 dolt-shm
+
+# Interaction audit log (per-machine, append-only, not shared).
+#
+# bd appends a line here on every field change, so it is dirty in the working
+# tree almost continuously. Nothing regenerates it: `bd export` covers the
+# issues table only. Nothing reads it in CI. And unlike issues.jsonl it has no
+# merge driver, so two branches that both touched a bead conflict on it line by
+# line. The forensic record it holds lives in the Dolt database.
+interactions.jsonl
+
+# Scratch file the pre-commit export writes before replacing issues.jsonl.
+.issues.jsonl.hook-tmp
