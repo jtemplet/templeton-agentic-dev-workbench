@@ -59,6 +59,12 @@
 //      argues the three-entry split from character counts, and nothing
 //      measured them, so its table claimed 4,499 for a core that had grown to
 //      4,780. Numbers that carry an argument have to be checked like one.
+//  16. agents/quality-gates-orchestrator.md states the model its lanes run on,
+//      as a rule in its Required Workflow and again in its Always list. A lane
+//      is a generic dispatch, so no frontmatter can carry the model and only
+//      that file says which one to pass. ADR 0002 Finding 4 measured what a
+//      dropped orchestrator rule costs: every lane succeeded, the aggregate line
+//      was never written, and the run read as a short report rather than a bug.
 //
 // Finally, the check count documented in docs/HOOKS.md is asserted against the
 // real total. That number drifted three times while this suite was being written.
@@ -817,6 +823,52 @@ check('both response-style sources carry the report-your-own-work rule', () => {
       `${label} must exclude the licensed dictionary, not just cite the standard`
     );
   }
+});
+
+// --- 12. The orchestrator states the model its lanes run on ---------------
+// A lane is a generic dispatch: agents/quality-gates-orchestrator.md names no
+// subagent_type, so a lane has no frontmatter and the model can only travel on
+// the Agent call. That file is the only place that says which model to pass, and
+// a deleted sentence there costs the whole saving in silence.
+//
+// The rule is stated twice on purpose, in the Required Workflow and in the Always
+// list, so this check reads both. ADR 0002 Finding 4 measured what a dropped
+// orchestrator rule costs: four lanes all succeeded, the aggregate line was never
+// written, and the run read as a short report rather than as a bug.
+check('the orchestrator states its lane model in the workflow and in the Always list', () => {
+  const doc = fs.readFileSync(
+    path.join(HOOKS_DIR, '..', 'agents', 'quality-gates-orchestrator.md'),
+    'utf8'
+  );
+  const laneModel = /model:\s*"sonnet"/;
+  const fix =
+    'State it in agents/quality-gates-orchestrator.md as `model: "sonnet"`. A lane is a generic ' +
+    'dispatch, so no frontmatter carries the model and the Agent call is the only place it fits.';
+
+  // Bound each region by its own headings. Reading everything before Critical
+  // Rules would pass on a rule that had moved into Output Format, while the
+  // failure message still named the Required Workflow.
+  const section = (heading, next) => {
+    const start = doc.indexOf(heading);
+    const end = doc.indexOf(next);
+    assert.ok(start > -1 && end > start, `the orchestrator must keep its ${heading} section`);
+    return doc.slice(start, end);
+  };
+  const workflow = section('## Required Workflow', '## Output Format');
+  const always = section('## Critical Rules', '## Quality Checklist').split('**Never:**')[0];
+
+  assert.ok(
+    laneModel.test(workflow),
+    `the orchestrator's Required Workflow no longer states the model its lanes run on. ${fix}`
+  );
+  assert.ok(
+    laneModel.test(always),
+    `the orchestrator's Always list no longer states the model its lanes run on. ${fix}`
+  );
+  assert.ok(
+    /lane start/.test(always),
+    'the Always entry must say the model rides on the lane start, not on the orchestrator'
+  );
 });
 
 // The documented count has drifted three times while iterating on this suite.
