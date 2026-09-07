@@ -322,6 +322,10 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
   resets local main only after proving it carries nothing this run did not create
 - Deletes the local branch and its remote ref only after checking that main holds the branch's
   version of every file the branch touched
+- Ends the report by naming which bead to pick up next: the beads the close released from their
+  blocker, from `bd close --suggest-next`, or the top of `bd ready` when the close released none.
+  The lookup runs after the push, so a failure omits the row and never stops the run, and the skill
+  never claims the bead it names
 - Unattended by design: it never asks a question, and it ends with exactly one machine-readable
   `SHIP_DONE <hash>` or `SHIP_BLOCKED <slug>` line. The hash is what an orchestrator checks against
   main; the slug is one of five categories (`gate`, `conflict`, `tracker`, `git-state`, `internal`)

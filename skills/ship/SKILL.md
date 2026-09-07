@@ -1,6 +1,6 @@
 ---
 name: ship
-description: "Land a reviewed bead's feature branch on main locally: rebase onto the base, run the repository's own check suite as the gate, squash-merge, close the bead, push main, and delete the branch. No PR and no GitHub CI; the local gate is the only thing that decides. Runs unattended, fails closed on a red or undetected gate, never force-pushes main, never hand-edits the tracker JSONL, and ends with one machine-readable SHIP_DONE / SHIP_BLOCKED line."
+description: "Land a reviewed bead's feature branch on main locally: rebase onto the base, run the repository's own check suite as the gate, squash-merge, close the bead, push main, delete the branch, and name which bead to pick up next. No PR and no GitHub CI; the local gate is the only thing that decides. Runs unattended, fails closed on a red or undetected gate, never force-pushes main, never hand-edits the tracker JSONL, and ends with one machine-readable SHIP_DONE / SHIP_BLOCKED line."
 ---
 
 # Ship
@@ -266,10 +266,14 @@ when the merge staged without conflicting, and say which you ran.
 ship:
 
 ```bash
-bd close <id> --reason "shipped: <subject>"
+bd close <id> --reason "shipped: <subject>" --suggest-next
 bd export -o .beads/issues.jsonl   # no-op when export.auto is on; harmless either way
 git status --porcelain .beads/
 ```
+
+**`--suggest-next` prints the beads this close released from their blocker**, under a
+`Newly unblocked:` heading, one line each with the id, the title, and the priority. It prints that
+heading only when the close released at least one bead. Keep the list; Step 6 puts it in the report.
 
 Stage whatever `.beads/` reports, not `issues.jsonl` alone, because a repository may also track
 `interactions.jsonl` and `bd` auto-stages only `export.path`.
@@ -357,8 +361,33 @@ git -C <main-checkout> branch -D <branch>
 ### Step 6: Report
 
 On a stop, run `bd update <id> --add-label needs-human` first, when Step 1 resolved a bead. Some stops
-happen before that; the report then says nothing was labeled. Emit the report, then the machine line,
-then stop.
+happen before that; the report then says nothing was labeled.
+
+**Then resolve what follows the shipped bead**, and write it as the report's last row. Take the first
+source below that yields a bead, and say in the row which source you used.
+
+| Source | When it applies | What the row names |
+|---|---|---|
+| The `Newly unblocked:` list from Step 4 | The close released at least one bead | Every bead it released, id first |
+| `bd ready -n 1 --json` | The close released nothing, or the ship was bead-free | The one bead at the top of the list |
+| Neither | The command returned `[]`, or there is no tracker | That the tracker holds no ready bead |
+
+```bash
+bd ready -n 1 --json
+```
+
+That command prints a JSON array and exits 0 whether or not the array is empty, so read the array
+rather than the exit code. `bd ready` orders by priority, and it is not a ranking by value. The row
+names a starting point, and `/triage-beads` is what ranks the backlog.
+
+**This lookup never stops the run.** It reads the tracker after the push, so the ship is already
+complete when it runs. If it fails, write the row as "lookup failed", name the command and its exit
+code, and still emit `SHIP_DONE`.
+
+**A stop carries no such row.** Nothing shipped, so nothing follows; the bead this run just attempted
+is still the next thing to work on.
+
+Emit the report, then the machine line, then stop.
 
 ## Output format
 
@@ -379,9 +408,20 @@ default branch was equal to its remote, and when there is no origin.)
 local branch and origin/outrigger/4kx/create-ship-command. Your shell moved to /Users/you/Dev/project
 **Still standing there:** pid 27169 (claude). That session labels no bead now; end it. (Omit this
 line when the occupant check found nobody.)
+**Next:** closing this bead unblocked 2: `tadw-ship-report-7bq` Report the gate source (P1),
+`tadw-ship-timeout-2mn` Bound the gate with a timeout (P3). Claim one with
+`bd update <id> --claim`.
 
 SHIP_DONE d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3
 ```
+
+The **Next:** row takes one of three forms, and it is always the last line before the machine line:
+
+| Source | The row opens with |
+|---|---|
+| The close released beads | `closing this bead unblocked 2:` then every id, title, and priority |
+| The top of `bd ready` | `nothing was unblocked; the top of bd ready is` then that id, title, and priority |
+| Nothing ready | `nothing was unblocked, and bd ready is empty` |
 
 ```markdown
 ## Not shipped
@@ -433,4 +473,6 @@ which is what an orchestrator checks against main.
 - Resolve a source conflict, fix a failing test, or edit the branch's code
 - Close a bead this run did not land, close two, or pass `--force` to `bd close`. A bead with open
   blocking dependencies stops the run with `internal`, naming the blockers.
+- Stop the run because the next-bead lookup failed, or claim the bead it names. The lookup is a read
+  that runs after the push, and choosing what to work on next is the operator's call.
 - Ask the user a question; stop with a report instead

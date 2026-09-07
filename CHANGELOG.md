@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`/tadw:ship` now names which bead to pick up next.** The report gained a **Next:** row, placed
+  last, above the `SHIP_DONE` line. Step 4 passes `--suggest-next` to the `bd close` it already
+  runs, so the beads the close released from their blocker cost nothing extra to learn. When the
+  close released none, the row names the top of `bd ready` instead. Before this, the report ended
+  at cleanup and the operator ran `bd ready` by hand, in a fresh session, after the context that
+  knew the work was gone. The row is a read that runs after the push: a failed lookup omits it and
+  still reports `SHIP_DONE`, a stop carries no row at all, and the skill never claims the bead it
+  names. `/triage-beads` still owns ranking the backlog by value; `bd ready` orders by priority.
+  (`tadw-vls`)
+
 ## [4.0.0] - 2026-09-01
 
 ### Added
