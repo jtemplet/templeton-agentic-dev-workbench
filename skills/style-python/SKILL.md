@@ -1,6 +1,6 @@
 ---
 name: style-python
-description: Writes and reviews Python in the house style - Python-specific deltas on top of the injected universal TRUE-code core (Sandi Metz / Clean Code), emphasizing modules-before-classes, dataclasses/protocols, lazy logging, and modern type hints
+description: Writes and reviews Python in the house style. Use when writing, editing, or reviewing any `.py` file, including a design or object-oriented-design review of Python.
 ---
 
 # Templeton Python Style

@@ -107,26 +107,7 @@ Two adjustments to the fallback shape:
 
 **Branching is all you take from a workflow document.** Such a document usually runs on to code review, QA, merging into `main`, and pushing. This skill stops at implemented, so those later steps stay with `/quality-gates`, `/verify-acceptance`, and `/tadw:ship`. Reading them here does not make them yours to run.
 
-**Then load the style skills.** Match on the extensions you will write:
-
-| Extension | Style skill |
-|---|---|
-| `.py` | `style-python` |
-| `.rb`, `.erb`, `.rake` | `style-rails` |
-| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `style-frontend` |
-| `.swift` | `style-swift` |
-| `.go` | `style-go` |
-| `.md`, `.markdown` | `style-markdown`, when the document is the deliverable |
-
-A Markdown file is the deliverable when the bead's acceptance criteria are satisfied by what the document says: a skill, an agent, a command, a `docs/` page, an ADR, or a plan. It is not the deliverable when you are adding a line to a changelog or a release note beside a code change. In a repository whose product is documentation, this row fires on most beads, and that is the intent.
-
-Add these on top, when they apply:
-
-- **`style-testing`** for any test file, in any language. Match on `test_*.py`, `*_test.py`, `*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.spec.tsx`, `*_spec.rb`, `*_test.rb`, `*Tests.swift`, `*_test.go`, or anything under `tests/`, `test/`, `spec/`, or `__tests__/`.
-- **`style-rspec`** on top of `style-testing` when the suite is RSpec.
-- **A project-local style skill, when one exists and covers what you are about to write.** This is the difference between correct-for-the-language and correct-for-this-repo. Check the available skill list for one naming this project or this surface, and load it. `style-fizzy` for the Fizzy codebase and `jbuilder-style` for Loan Labs factory API views are examples of the kind. When one exists and contradicts the general language skill, the local skill wins.
-
-For an unlisted language, say so, name what you will follow instead (the injected core plus the conventions you read in step 4), and continue.
+**Then load the style skills.** [docs/style-routing.md](../../docs/style-routing.md) maps each extension to the skill that owns it, names what stacks on top (`style-testing`, `style-rspec`, a project-local skill), and defines when a Markdown file is the deliverable. Read it and load every skill it matches.
 
 **Output of this phase:**
 

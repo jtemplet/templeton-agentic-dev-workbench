@@ -208,6 +208,11 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Operate production | `/prod-ops` | `production-ops` |
 | Review a CLAUDE.md | `/review-claude-md` | `claude-md-reviewer` agent |
 
+The rows above name the skill a human reaches for. [docs/style-routing.md](docs/style-routing.md)
+is the dispatch three documents execute (`code-simplify`, `feature-development`, and the
+`software-engineer` agent): it maps a file extension to its style skill, names what stacks on top
+for test files and project-local surfaces, and defines when a Markdown file is the deliverable.
+
 [docs/ROUTING.md](docs/ROUTING.md) expands the rows above into workflows, grouped by language
 and by task. It gives 19 of the 32 commands an entry of their own, not all of them: `/aso-review`,
 `/bead-refine`, `/diagnose`, `/fresh-eyes-cr`, `/prod-ops`, `/product-surface-docs`,
