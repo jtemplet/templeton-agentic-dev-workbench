@@ -29,6 +29,10 @@ agents/quality-gates-orchestrator.md
 # This file is never created, so this entry is permanent.
 agents/quality-gates.md
 
+# Named by skills/bead-refine/SKILL.md, which reads it as its second yardstick.
+# Bead tadw-ee1 creates this. Remove the entry when it lands.
+docs/milestones.md
+
 # The three groups below became visible when the default document list grew to
 # cover skills/*/SKILL.md, commands/*.md, and agents/*.md.
 

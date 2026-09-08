@@ -1,6 +1,6 @@
 ---
 name: bead-refine
-description: "Refine a bd (beads) backlog by product value: cluster every non-closed bead into themes, pick one theme, and give each bead in it one of seven verdicts (keep, shrink, merge, defer, kill, done, promote). Use whenever someone asks to refine the backlog, prune it, clean it out, or decide whether a bead still deserves to exist, even if they do not say refine by name. It answers 'does this bead deserve to exist?' for a product owner. It is not for 'can this bead be built without mistakes?', which is the bead-audit skill, and not for 'which bead comes first?', which is triage-beads. It computes no score and files no new bead. It grounds each bead by checking only whether the paths and symbols the bead names still exist. It applies the verdicts as bd commands in one batch, and only after the author confirms them."
+description: "Refine a bd (beads) backlog by product value: cluster every non-closed bead into themes, pick one theme, and give each bead in it one of seven verdicts (keep, shrink, merge, defer, kill, done, promote). Use whenever someone asks to refine the backlog, prune it, clean it out, or decide whether a bead still deserves to exist, even if they do not say refine by name. It answers 'does this bead deserve to exist?' for a product owner. It is not for 'can this bead be built without mistakes?', which is the bead-audit skill, and not for 'which bead comes first?', which is triage-beads. It computes no score and files no new bead. It grounds each bead by checking only whether the paths and symbols the bead names still exist. It reads docs/milestones.md as a second yardstick and records a route on every bead (on route, detour, or hardening), labeling every hardening bead overbuilt. It applies the verdicts as bd commands in one batch, and only after the author confirms them."
 ---
 
 # Bead Refine
@@ -87,11 +87,13 @@ The JSON carries `description`, `design`, `acceptance_criteria`, `labels`, `prio
 
 If the set is empty, say so and stop.
 
-### Step 2: State the yardstick and let the author correct it
+### Step 2: State the two yardsticks and let the author correct them
 
-"Why do we even need this?" needs something to measure against. Read these in order, and stop at
-the first that states what the product is for: `docs/products/`, a roadmap document, `README.md`,
-then `AGENTS.md` or `CLAUDE.md`.
+"Why do we even need this?" needs something to measure against. This skill measures a bead against
+two things. The purpose says what the product is for. The milestones say what is wanted next.
+
+**The purpose.** Read these in order, and stop at the first that states what the product is for:
+`docs/products/`, a roadmap document, `README.md`, then `AGENTS.md` or `CLAUDE.md`.
 
 Print what you inferred, and **name the file you read**:
 
@@ -101,9 +103,23 @@ Print what you inferred, and **name the file you read**:
 Correct this before I judge anything against it.
 ```
 
-Wait for the answer. Every verdict later cites this purpose, and an inferred purpose nobody
-corrected is a made-up standard applied to real decisions. When no file carries a purpose, say so,
-propose one from what the code appears to do, and wait.
+**The milestones.** Read `docs/milestones.md`. It holds one table with four columns: milestone,
+target date, what it delivers, and the `plan:<name>` label that maps beads to it. Print the table,
+then ask the author to correct it before you judge anything against it.
+
+When `docs/milestones.md` does not exist, infer the milestone names yourself. Read the file names
+under `docs/plans/`, then collect every `plan:<name>` label from the census you took in Step 1.
+Print the inferred table with a plain hyphen in every date cell. Say in one line that the schedule
+is unknown, so the route in Step 4 reports which milestone needs a bead and never whether it fits a
+date.
+
+After the author corrects the names, write `docs/milestones.md` with the corrected names, and keep
+a plain hyphen in every date cell. The next run then reads the file rather than inferring again.
+Never write a date the author did not give you. A guessed date looks exactly like a real one.
+
+Wait for the answer on both yardsticks. Every verdict later cites the purpose, and an inferred
+purpose nobody corrected is a made-up standard applied to real decisions. When no file carries a
+purpose, say so, propose one from what the code appears to do, and wait.
 
 ### Step 3: Build the set under review
 
@@ -154,6 +170,32 @@ bead whose target is gone is frequently the answer to "why do we even need this"
 
 That is the whole grounding check. Read no implementations and judge no correctness. The full
 Grounding Audit belongs to `bead-audit`, and it costs more than this skill can spend per bead.
+
+**Then set the route on every bead, in both modes.** The route says whether a bead moves the
+product toward a milestone the author confirmed in Step 2. Check these three in order, and stop at
+the first that matches:
+
+1. **`hardening`.** The bead makes something that already works harder to break, and no milestone
+   needs it. A new check over shipped code, a test for a bug already fixed, and a guard against an
+   input nobody sends are all hardening.
+2. **`detour`.** The bead serves no milestone, and it is not hardening. New scope nobody asked for
+   is the common case. A bug fix nobody scheduled and a cleanup nobody asked for are also detours.
+   Every bead that is not hardening and serves no milestone gets this value.
+3. **`on route`.** A milestone in the table needs the bead.
+
+**Check `hardening` before `detour`.** All hardening serves no milestone, so checking `detour`
+first would swallow every hardening bead, and the two could never be told apart.
+
+When the author has not confirmed the milestone names, record a plain hyphen for every bead. Then
+say in one line that the route is unjudged, and name the missing confirmation as the reason. A
+blank date cell does not block the route. The route reads the names, never the dates.
+
+Record the route beside the grounding result. The two answer "why do we even need this" from
+different sides. A missing target says the bead points at code that is gone. A `hardening` route
+says the bead points at working code the schedule cannot pay to harden.
+
+Step 7 reads the route, and gives a `hardening` bead the `overbuilt` label. That is the only place
+the route is used, so keep every bead's route until Step 7 runs.
 
 **Then cluster, in map mode only.** Topic mode already has its set, and Step 3 refines it as one
 theme. Cluster by what the work is for, using three sources in this order:
@@ -272,12 +314,18 @@ tells the next reader you rejected work you actually delivered. So a Done verdic
 `refined-out` label, and its reason names the evidence that the work shipped: a version, a
 changelog heading, a commit, or a path that now exists.
 
+Each label below has its own condition. Run only the lines whose condition the bead meets:
+
 ```bash
-bd update <id> --add-label refined-out
+# Every bead that took a verdict, including the kept ones.
 bd update <id> --add-label "refined:$(date -u +%Y-%m)"
+# Only a bead you closed on a Kill verdict. Never on a Done verdict.
+bd update <id> --add-label refined-out
+# Only a bead whose route is `hardening`. Kept or closed, either way.
+bd update <id> --add-label overbuilt
 ```
 
-Five rules on applying:
+Six rules on applying:
 
 - **Apply nothing the author did not confirm.** A recommended verdict is a proposal, silence is not
   consent, and in practice you cannot undo a Kill applied on a default.
@@ -288,6 +336,13 @@ Five rules on applying:
 - **Label every bead that took a verdict `refined:YYYY-MM`**, including the kept ones. A later run
   can then skip beads refined recently. Refinement decays: a Keep from March means little in
   September.
+- **Label every bead whose route is `hardening` `overbuilt`**, whether you kept it or closed it.
+  Then `bd list --label=overbuilt` names every place the product is being hardened beyond what the
+  schedule asks for. A closed bead keeps its labels, so the closed ones record what you decided
+  against. Give this label to no bead whose route is `on route`, `detour`, or a plain hyphen.
+  There is no eighth verdict for a hardening bead. A verdict named `Overbuilt` would overlap two
+  that already exist. It means `Shrink` for a bead that is partly useful, and `Kill` for a bead
+  that is wholly premature. Two runs would then file the same bead differently.
 - **A Shrink rewrites the bead, so the bead must still pass its own audit.** Read
   `${CLAUDE_PLUGIN_ROOT}/skills/bead-audit/SKILL.md` first, and keep each section in its native
   `bd` field, per ADR 0001,
@@ -330,13 +385,18 @@ is `/bead-create`, and it is the author's call.
 - Pass `--limit 0` and one comma-separated `--status`, then check the row count against `bd stats`
 - State the inferred purpose, name the file it came from, and wait for a correction before judging
   anything
+- Read `docs/milestones.md`, print it, and wait. When it is missing, infer the milestone names,
+  wait, then write the file with a plain hyphen in every date cell
+- Set a route on every bead: `hardening`, `detour`, or `on route`, checked in that order, or a
+  plain hyphen when the author has not confirmed the milestones
 - Put every bead in exactly one theme, and print the count sum
 - Mark topic-mode beads `topic` or `adjacent`
 - Write every sentence in Simplified Technical English, per "Write the output in plain English"
 - Keep every `Why` cell to one plain sentence of 15 words or fewer, and put its evidence in the
   `Detail` list
 - Apply verdicts in one batch, after confirmation, and report the result of each command
-- Label every touched bead `refined:YYYY-MM`, and every killed bead `refined-out`
+- Label every touched bead `refined:YYYY-MM`, every killed bead `refined-out`, and every
+  `hardening` bead `overbuilt`
 
 **Never:**
 
@@ -351,3 +411,6 @@ is `/bead-create`, and it is the author's call.
 - File a new bead, or write a session report to `docs/`
 - Walk the beads one at a time for approval
 - Copy a term out of another skill's text without defining it in the same sentence
+- Add an eighth verdict for a hardening bead. The `overbuilt` label carries that finding, and a
+  verdict named `Overbuilt` would overlap `Shrink` and `Kill`
+- Write a date into `docs/milestones.md` that the author did not give you
