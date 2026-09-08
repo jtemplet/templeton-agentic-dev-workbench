@@ -42,7 +42,7 @@ hook output string at **10,000 characters**. The cap applies to plain stdout and
 `hookSpecificOutput.additionalContext` alike, so no output format avoids it. Anything longer
 is written to a file and replaced with a short preview plus that path.
 
-The combined payload is 14,493 characters (style core 4,780, response style 9,713), over the
+The combined payload is 13,857 characters (style core 4,780, response style 9,077), over the
 cap. Under a single entry the session received the first ~2,000 characters and a file path. The
 coding core arrived truncated after principle 4, and **the response style never arrived at all**.
 
@@ -59,7 +59,7 @@ manifest entries that differ only in a payload index:
 | Entry | Payload | Characters |
 |---|---|---|
 | 0 | Coding-style core | 4,780 |
-| 1 | Response style | 9,713 |
+| 1 | Response style | 9,077 |
 
 `getSessionStartPayloads()` in `hooks/preamble.js` decides the split at run time, cutting on
 line boundaries and naming the resumed section in each continuation marker. Nothing is
@@ -70,9 +70,23 @@ than dropping the tail in silence.
 
 **The entry count is not a constant to rely on.** It was three until the response style was cut
 from 18,886 characters to 9,713 on 2026-08-26, which brought that document back inside one
-payload. The response style now runs 287 characters short of the cap, so the next
-substantial addition to it splits again and needs a third entry back. The suite says so when it
-happens.
+payload. It fell again to 9,077 when the skill split into two tiers, described below.
+
+**Two tiers, one file.** `skills/house-response-style/SKILL.md` carries the marker
+`<!-- always-on ends here -->`. The hook injects only the rules above it; `/response-style` reads
+the whole file, including the Reference section below it that holds the reasoning, the full word
+list, and a worked example. One file stays the single source of truth, and the material that
+explains the rules stops being paid for on every turn. `getResponseStylePreamble()` in
+`hooks/preamble.js` does the truncation and documents the no-marker fallback.
+
+The response style now runs 923 characters short of the cap, and 843 short of the budget the
+splitter actually uses (the cap less `MARKER_RESERVE`). The next substantial addition above the
+marker splits it again and needs a third entry back. The suite says so when it happens. Every
+number in this section is measured, never remembered; re-derive them with:
+
+```bash
+node -e "require('./hooks/preamble.js').getSessionStartPayloads().forEach((p,i)=>console.log(i,p.length))"
+```
 
 **Off-switch.** Disable both surfaces with either:
 
@@ -109,7 +123,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 22 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 23 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
 frontmatter stripped), the three that hold the split shut (every payload inside the

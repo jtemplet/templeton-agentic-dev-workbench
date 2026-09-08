@@ -77,6 +77,12 @@
 //      downstream re-checks, so a silent drop to a cheaper model or a
 //      widened tools list would ship a weaker grader that still looks like
 //      a working one.
+//  19. The response style injects only what sits ABOVE its always-on marker, and
+//      every rule stays above it. The skill is one file on purpose so the hook and
+//      /response-style cannot drift, which means a heading can be moved below the
+//      marker by an ordinary edit and stop being injected, with no other signal.
+//      That shipped: the pre-send closer fell below the marker and the session
+//      simply stopped receiving it.
 //
 // Finally, the check count documented in docs/HOOKS.md is asserted against the
 // real total. That number drifted three times while this suite was being written.
@@ -87,6 +93,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {
+  ALWAYS_ON_END,
   getSessionStartPayloads,
   getResponseStylePreamble,
   HOOK_OUTPUT_CAP,
@@ -945,6 +952,36 @@ check('the acceptance-verifier agent runs on sonnet with Read, Bash, Grep, and G
       'Grep, and Glob and nothing else. Bash runs the QA gates, and it can also write a file and ' +
       'change a bead, so the prompt is what keeps the grader off both. This list is the only ' +
       'thing holding the tools it can reach to four.'
+  );
+});
+
+// --- 19. The always-on marker splits the response style, and loses no rule ----
+check('the response style injects everything above its always-on marker', () => {
+  const skillPath = path.join(HOOKS_DIR, '..', 'skills', 'house-response-style', 'SKILL.md');
+  const body = fs.readFileSync(skillPath, 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
+  const injected = getResponseStylePreamble();
+
+  assert.ok(body.includes(ALWAYS_ON_END), `SKILL.md must carry the ${ALWAYS_ON_END} marker`);
+  assert.ok(!injected.includes(ALWAYS_ON_END), 'the marker itself must not be injected');
+
+  // Only the Reference section may sit below the marker, and it holds no rule.
+  const below = body.slice(body.indexOf(ALWAYS_ON_END));
+  const headingsBelow = [...below.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+  assert.deepStrictEqual(
+    headingsBelow,
+    ['Reference'],
+    `only "## Reference" may sit below the marker, found: ${headingsBelow.join(', ')}`
+  );
+
+  // Every rule above the marker reaches the session.
+  [...body.slice(0, body.indexOf(ALWAYS_ON_END)).matchAll(/^## (.+)$/gm)].forEach((m) => {
+    assert.ok(injected.includes(m[1]), `section "${m[1]}" sits above the marker but is not injected`);
+  });
+
+  // No marker means inject whole, so deleting it degrades rather than blanks.
+  assert.ok(
+    body.replace(ALWAYS_ON_END, '').length > injected.length,
+    'the Reference section must be larger than nothing, or the split is not doing work'
   );
 });
 

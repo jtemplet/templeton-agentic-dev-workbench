@@ -16,7 +16,8 @@ need this command there. Reach for it when:
 
 - A compaction or long tangent has eroded the style and you want to re-anchor it.
 - You are inside a subagent, which does not inherit the parent session's injected style.
-- You want to read the full ruleset (why it is shaped this way, Bad/Good examples, escape
-  hatches, the pre-send check) rather than the abbreviated always-on injection.
+- You want the Reference section, which the hook never injects: why the rules are shaped this
+  way, the full word list, and a worked example. Everything below the
+  `<!-- always-on ends here -->` marker is reachable only by reading the file.
 
 Apply it silently; do not narrate that you have loaded it.
