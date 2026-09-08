@@ -100,6 +100,16 @@ verified with `git diff` at review time. What is pinned here is the runtime
 half, and the sharper risk: a hook that rewrites the tree it was asked to check.
 Dropping `--check` from the rumdl line would reformat every markdown file during
 a push, and `case_hook_leaves_the_tree_alone` is what catches that.
+
+WHICH DIRECTORY GIT READS (tadw-yqu). Two static cases, no fixture. They guard
+the hooks directory beads owns, because a tadw hook copied there is a gate that
+prints the same success line and runs a shorter list.
+
+  Bead criterion                                  Pinned by
+  ------------------------------------------------------------------------------
+  1. .beads/hooks holds the beads shims and     case_beads_hooks_holds_only_beads_shims
+     nothing else
+  2. A re-copied tadw hook fails this suite     case_no_tadw_hook_sits_in_beads_hooks
 """
 
 from __future__ import annotations
@@ -118,6 +128,20 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 HOOK = REPO / ".githooks" / "pre-push"
 AGENTS = REPO / "AGENTS.md"
+
+# The hooks directory beads writes, which git never reads while core.hooksPath
+# names .githooks. The two markers tell the two kinds of file there apart on
+# sight: a beads shim writes its integration marker under the shebang, and a
+# tadw hook writes its banner there.
+BEADS_HOOKS = REPO / ".beads" / "hooks"
+BEADS_SHIM_MARKER = "--- BEGIN BEADS INTEGRATION"
+TADW_BANNER = "# tadw -"
+
+# Both markers sit on the second line by construction, so only the header is
+# searched. Searching whole files matched this suite against both markers, which
+# it merely names as the two constants above: a copy of it read as a beads shim
+# and passed. A file that NAMES a marker is not a file that CARRIES one.
+MARKER_HEADER_LINES = 5
 
 # See "WHY THE FIXTURE LIVES UNDER /tmp" above. Falls back to the default when
 # /tmp is not writable, in which case the rumdl control case reports the problem
@@ -478,6 +502,24 @@ def commands_in_hook() -> list[str]:
         if line.startswith("check "):
             commands.append(line[len("check "):].strip())
     return commands
+
+
+def files_in_beads_hooks() -> list[Path]:
+    """Every file under `.beads/hooks`, sorted so a failure names them in order.
+
+    The directory is asserted rather than left to `iterdir`, which raises
+    FileNotFoundError when it is gone. `check` catches AssertionError alone, so
+    that raise would end the whole run in a traceback and skip every case after
+    it, instead of reporting the one thing that is wrong.
+    """
+    assert BEADS_HOOKS.is_dir(), f"{BEADS_HOOKS} is missing; beads writes its shims there"
+    return sorted(path for path in BEADS_HOOKS.iterdir() if path.is_file())
+
+
+def marker_header(path: Path) -> str:
+    """The opening lines of a file, where both markers above are written."""
+    lines = path.read_text(encoding="utf-8").splitlines()[:MARKER_HEADER_LINES]
+    return "\n".join(lines)
 
 
 def check(name: str, fn) -> None:
@@ -1261,6 +1303,55 @@ def case_every_hook_command_exists() -> None:
 for name, fn in [
     ("the hook's list is the AGENTS.md block minus the documented exclusions", case_command_list_matches_agents_md),
     ("every command the hook runs names a real path", case_every_hook_command_exists),
+]:
+    check(name, fn)
+
+
+print("\n  [.beads/hooks belongs to beads, and holds no copy of a tadw hook]")
+
+
+def case_no_tadw_hook_sits_in_beads_hooks() -> None:
+    """A copy there is a gate that reports success and runs a shorter list.
+
+    On 2026-09-07 this clone had `core.hooksPath` set to `.beads/hooks`, so a
+    10-check copy of `pre-push` ran every push while `.githooks/pre-push` ran 18.
+    Both print the same success line, so nothing reported the eight that never
+    ran.
+    """
+    tadw_copies = [
+        path.name for path in files_in_beads_hooks() if TADW_BANNER in marker_header(path)
+    ]
+    assert not tadw_copies, (
+        f"{tadw_copies} carry the {TADW_BANNER!r} banner. A tadw hook lives in .githooks/ "
+        f"alone, because git reads only the directory core.hooksPath names."
+    )
+
+
+def case_beads_hooks_holds_only_beads_shims() -> None:
+    """The banner catches a copied hook, and misses everything else copied there.
+
+    `.beads/hooks/test_prepush.py` was a stale copy of this suite, half the size
+    of the original, and it opened with a docstring rather than a banner line.
+    Asserting what the directory MAY hold catches that; asserting what it may not
+    hold does not.
+
+    The emptiness guard is the positive control, in the same spirit as
+    `case_fixture_is_walkable_by_rumdl`: a loop over no files asserts nothing and
+    reports ok, so an emptied directory would read as a directory holding only
+    shims.
+    """
+    shims = files_in_beads_hooks()
+    assert shims, f"{BEADS_HOOKS} is empty, so this case would pass over no files at all"
+    for path in shims:
+        assert BEADS_SHIM_MARKER in marker_header(path), (
+            f".beads/hooks/{path.name} opens with no {BEADS_SHIM_MARKER!r} marker, so it "
+            f"is not a beads shim. Only the shims beads writes belong in this directory."
+        )
+
+
+for name, fn in [
+    ("no file under .beads/hooks carries the tadw banner", case_no_tadw_hook_sits_in_beads_hooks),
+    ("every file under .beads/hooks is a beads shim", case_beads_hooks_holds_only_beads_shims),
 ]:
     check(name, fn)
 
