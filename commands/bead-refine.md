@@ -41,9 +41,9 @@ The skill will:
    whole table, then ask which one to refine
 6. Present that whole theme in one round, in a six-column table, each bead carrying its route, a
    verdict, a 15-word plain-English reason, and its evidence in a detail list below the table
-7. Apply the confirmed verdicts in one batch as `bd` commands, label every touched bead
-   `refined:YYYY-MM`, every killed bead `refined-out`, and every `hardening` bead `overbuilt`, then
-   report the result of each command
+7. Apply the confirmed verdicts in one batch as `bd` commands, write the `**Ask:**` line on every
+   bead a verdict leaves open, label every touched bead `refined:YYYY-MM`, every killed bead
+   `refined-out`, and every `hardening` bead `overbuilt`, then report the result of each command
 8. Close with the verdict counts, the backlog size before and after, and one route line for the
    theme and one for the whole backlog
 

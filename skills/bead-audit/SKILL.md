@@ -25,9 +25,9 @@ responsibility (a human pasting, a script looping over a backlog, or a `/goal`-s
    file its How names was renamed last month, the bead is *stale*, not under-specified, and the fix
    is to re-ground it, not to write missing content. Grounding is therefore a third verdict on its
    own axis, never folded into the content verdict.
-3. **One canonical structure.** The required headings per type live in exactly one place ("Canonical
-   Bead Structure" below). The audit checks against that list and the drafting template reproduces
-   it byte-for-byte, so a bead that this skill fixes is guaranteed to re-pass.
+3. **One canonical structure.** The required headings per type live in exactly one file,
+   [docs/bead-body-contract.md](../../docs/bead-body-contract.md). The audit checks against that
+   file and every fix this skill drafts is written from it, so a bead this skill fixes re-passes.
 
 ## When to Use
 
@@ -55,46 +55,26 @@ responsibility (a human pasting, a script looping over a backlog, or a `/goal`-s
 
 ## Canonical Bead Structure
 
-This is the single source of truth for required headings. The audit and the drafting template both
-reference this list. Heading strings are byte-exact and match `plan-to-beads`.
+[docs/bead-body-contract.md](../../docs/bead-body-contract.md) owns the bead body shape. Read it
+before you audit a bead or draft a fix. It names every section, gives the byte-exact heading, says
+which type requires it, and says which `bd` field holds it. It also explains why Done when and
+Acceptance Criteria are different sections, with a worked example.
 
-| Section | Heading (byte-exact) | Required for |
-|---|---|---|
-| Why | `## Why (Computational)` | all types |
-| How | `## How (Algorithmic)` | all types |
-| Done when | `## Done when (Acceptance)` | all types |
-| Acceptance Criteria | `## Acceptance Criteria` | task, feature, bug |
-| Steps to Reproduce | `## Steps to Reproduce` | bug |
-| Success Criteria | `## Success Criteria` | epic |
-| Estimated size | `## Estimated size` | task, feature, bug (code-bearing). N/A for epic and operational beads |
-| Out of scope | `## Out of scope (optional)` | optional, any type |
+This skill keeps no second copy of that list. Two copies contradicted each other once. [ADR
+0001](../../docs/adr/0001-native-tracker-fields-are-canonical.md) records the cost: every bead this
+repository generated failed its own auditor. Where this skill and the contract disagree, the
+contract wins.
 
-### Done when vs. Acceptance Criteria (normative)
+Three things the contract does not cover, because they belong to the audit and not to the body:
 
-These are **not** duplicates. They sit at different altitudes and a complete bead has both:
-
-- **Done when (Acceptance)** states the *outcome-level* conditions that mean the work is finished.
-  This is the implementer's definition of done, phrased as observable end states.
-- **Acceptance Criteria** is the *formal, testable checklist* a reviewer or QA walks through to
-  verify those outcomes. Prefer Given/When/Then or a numbered list of concrete,
-  individually-checkable assertions.
-
-Rule of thumb: if you can hand the line to QA and they can mark it pass/fail without interpretation,
-it belongs in **Acceptance Criteria**. If it describes the end state in the implementer's words, it
-belongs in **Done when**.
-
-**Worked example** (a "rate-limit failed logins" bead):
-
-```markdown
-## Done when (Acceptance)
-- Repeated failed logins from one source are throttled.
-- The threshold is configurable without a redeploy.
-
-## Acceptance Criteria
-1. Given 5 failed logins in 60s from one IP, When a 6th is attempted, Then the response status is 429.
-2. Given the RATE_LIMIT env var is changed, When config reloads, Then the new limit applies without a process restart.
-3. Given a successful login, When the rolling window elapses, Then the failure counter resets to 0.
-```
+- **Heading Recognition**, below. The contract says what to write. This skill says what to accept
+  when a bead was written before the contract, or in another tracker.
+- **The audit dimensions**, further down. Marr, size, type-specific sections, and grounding.
+- **A tracker with no native fields**, such as GitHub Issues or a body the user pasted as plain
+  text. The contract writes for `bd`, so it tells you to write `## How (Algorithmic)` and
+  `## Acceptance Criteria` nowhere. On a tracker with no `design` field and no
+  `acceptance_criteria` field, those two headings are the canonical structure, and the recognition
+  table below carries them.
 
 ## Heading Recognition
 
@@ -126,14 +106,9 @@ separate from `description`, and surfaces them as their own blocks in `bd show`.
 (`bd ready`, reporting, dashboards) reads those native fields directly.
 
 When a tracker has a native field for a section, **the audit applies to that field's content, not to
-a body heading**, and the field counts as canonical structure:
-
-| Canonical section | Maps to native field (when the tracker has one) | Example: `bd` |
-|---|---|---|
-| Acceptance Criteria | the acceptance-criteria field | `--acceptance` |
-| How (Algorithmic) | the design / approach field | `--design` |
-| Done when / Out of scope / supporting detail | the notes field | `--notes` |
-| Why, and anything without a native slot | the description / body field | `-d` / `--description` |
+a body heading**, and the field counts as canonical structure. The "Where each section goes" table
+in [docs/bead-body-contract.md](../../docs/bead-body-contract.md) maps every section to its `bd`
+field.
 
 Rules when native fields are present:
 
@@ -777,52 +752,16 @@ says nothing about today's main.
 
 ## Drafting Corrected Content
 
-Reproduce the bead using the byte-exact headings from "Canonical Bead Structure". For a REFORMAT,
-this means relocating existing prose under the right heading and preserving its substance verbatim.
-For NEEDS WORK, fill the gap or insert a placeholder.
+Reproduce the bead against [docs/bead-body-contract.md](../../docs/bead-body-contract.md). It
+carries the section list, the byte-exact heading for each one, the `bd` field each one goes in, and
+a complete worked bead. Draft from that file, and keep no second template here.
 
-```markdown
-## Why (Computational)
+For a REFORMAT, move the existing prose into the right field and keep its wording verbatim. For
+NEEDS WORK, fill the gap or insert a placeholder.
 
-[The problem this solves. The stakeholder or motivating constraint. What depends on this.]
-
-## How (Algorithmic)
-
-[The approach, strategy, or representation. Key data flows, contracts, or sequencing.]
-
-## Done when (Acceptance)
-
-[Outcome-level conditions that mean the work is done, in the implementer's words.]
-
-<!-- For task, feature, bug -->
-## Acceptance Criteria
-
-[Formal, testable checklist. Given/When/Then or numbered concrete assertions. See "Done when vs. Acceptance Criteria".]
-
-<!-- For bug only -->
-## Steps to Reproduce
-
-1. [First step]
-2. [Second step]
-
-**Expected behavior:** [what should happen]
-**Actual behavior:** [what currently happens]
-**Environment / version:** [branch, OS, config, if known]
-
-<!-- For epic only -->
-## Success Criteria
-
-[High-level outcome-level indicators legible to a product stakeholder.]
-
-<!-- For code-bearing beads only; omit for epics and operational beads -->
-## Estimated size
-
-[<files> files, <LOC> LOC, band: <band>. One-sentence justification if Stretch.]
-
-## Out of scope (optional)
-
-[Anything explicitly deferred to a sibling or follow-up bead.]
-```
+On a tracker with no native fields, write every section as a heading in the body. Add the two
+headings the contract tells you to write nowhere: `## How (Algorithmic)` and
+`## Acceptance Criteria`. Both appear in the recognition table above.
 
 ### Guidance for weak sections
 
@@ -854,7 +793,7 @@ to Reproduce / Success Criteria, draft them. Otherwise insert
 - Evaluate every applicable dimension. Skip size only for epics and operational beads, and record
   those as N/A rather than as a finding.
 - Default the type to `task` if it cannot be determined, and flag it as a WARN.
-- Use the byte-exact headings from "Canonical Bead Structure" when drafting, so a fixed bead
+- Use the byte-exact headings from `docs/bead-body-contract.md` when drafting, so a fixed bead
   re-passes the audit.
 - Self-verify every draft (Step 6): re-run the audit against your own draft and confirm it re-passes
   before returning it.

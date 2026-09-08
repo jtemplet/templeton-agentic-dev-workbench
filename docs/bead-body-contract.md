@@ -5,12 +5,11 @@ holds it, and how to write the sentences inside it. Write a bead against this fi
 else. No single bead carries all nine: the type decides which ones are required, and the table
 below gives the type for each.
 
-This file is the one owner of that shape. Four skills are meant to read it:
+This file is the one owner of that shape. Four skills read it and keep no copy of it:
 `skills/bead-create/SKILL.md`, `skills/bead-audit/SKILL.md`, `skills/plan-to-beads/SKILL.md`, and
-`skills/bead-refine/SKILL.md`. None of them reads it yet. Each of the first three still carries its
-own copy of the shape, and `skills/bead-refine/SKILL.md` carries a shortened copy of the sentence
-rules below. Bead `tadw-vzw` replaces those four copies with a pointer to this file. Until it
-lands, this file wins wherever one of them disagrees with it.
+`skills/bead-refine/SKILL.md`. This file wins wherever one of them disagrees with it. Confirm that
+all four still point here with
+`grep -l bead-body-contract skills/bead-*/SKILL.md skills/plan-to-beads/SKILL.md`.
 
 ## The Ask line
 

@@ -24,28 +24,26 @@ closing line is all this skill may do about it.
 **Stop when `bd` does not run.** The verdicts are `bd` commands, so there is no pasted-text
 fallback.
 
-## Write the output in plain English
+## Read the bead body contract before you write
 
-You are writing to the product owner, not to an engineer reading a rubric. Use the writing rules of
-Simplified Technical English, specified in ASD-STE100, never its licensed word list.
-`house-response-style` carries the same rules.
+Read [docs/bead-body-contract.md](../../docs/bead-body-contract.md) before you print a table or
+rewrite a bead. Its "Sentence rules" section holds ten numbered rules. Apply every one of them to
+every sentence you print. Apply them again to every bead body you rewrite under a Shrink verdict.
+
+Apply the ten rules, never a summary of them. A four-rule summary stood here once, and the plugin's
+owner reported that it did not bind. The same file owns the bead body shape, so a Shrink verdict
+puts each section in the `bd` field the contract names.
+
+Two things this skill adds on top of that file:
+
+1. **You write to the product owner, not to an engineer reading a rubric.** Say the consequence to
+   the reader. Write "a bead pointing at a deleted file now gets the word Excellent", not "this
+   improves auditability".
+2. **Keep every path, command, label, flag, and bead id verbatim.** The author has to type or
+   search for them.
 
 This binds the theme map, the round table, the detail list, the closing summary, and any bead body
-you rewrite under a Shrink verdict. Four rules carry most of it:
-
-1. **Twenty-five words per sentence, and twenty for an instruction.** Cut at "which", "so", "but",
-   "because", ", meaning".
-2. **Define a term in the sentence that uses it, or drop the term.** Jargon copied from another
-   skill is the main failure. `bead-audit` says "band" and "ceiling". The author does not. Write
-   "rating word".
-3. **Name the mechanism, not the metaphor.** Not "a ceiling stops working", but "a bead pointing at
-   a deleted file now gets the word Excellent".
-4. **Say the consequence to the reader.** Not "this improves auditability", but "you cannot tell
-   whether the number is real".
-
-Use active voice and simple tenses. Keep paths, commands, labels, flags, and bead ids verbatim,
-because the author has to type or search for them. The test: could a ten-year-old read a table cell
-and decide correctly?
+you rewrite. The test for a table cell: could a ten-year-old read it and decide correctly?
 
 ## Scope
 
@@ -375,7 +373,7 @@ none of them sit in the table.
 | Verdict | Means | Command |
 |---|---|---|
 | **Keep** | Earns its place. Fix the priority if it is wrong | `bd update <id> -p <n>` |
-| **Shrink** | The valuable part is worth doing, the rest is not | `bd update <id> -d ... --design ... --acceptance ...` |
+| **Shrink** | The valuable part is worth doing, the rest is not | `bd update <id> -d '**Ask:** ...' --design ... --acceptance ...` |
 | **Merge** | A duplicate or a subset of another bead | `bd supersede <id> --with=<keeper-id>` |
 | **Defer** | Real, but not now, and you can name the trigger | `bd defer <id> --reason="<trigger>"` |
 | **Kill** | Does not serve the purpose. Close it unbuilt | `bd close <id> --reason="refined out: <why>"` |
@@ -400,8 +398,13 @@ bd update <id> --add-label refined-out
 bd update <id> --add-label overbuilt
 ```
 
-Six rules on applying:
+Seven rules on applying:
 
+- **Every verdict that leaves the bead open writes the bead's Ask line.** Keep, Shrink, Defer, and
+  Promote all leave it open. Kill and Done close it, so neither writes the line. Read the
+  `description` field first. When its first line is not `**Ask:**`, write one. It is a single
+  sentence of 20 words or fewer, and it says what the bead wants done.
+  `docs/bead-body-contract.md` defines that line. The block below shows how to send it.
 - **Apply nothing the author did not confirm.** A recommended verdict is a proposal, silence is not
   consent, and in practice you cannot undo a Kill applied on a default.
 - **Give every Kill a reason beginning `refined out:`**, plus the `refined-out` label. Then
@@ -419,14 +422,30 @@ Six rules on applying:
   that already exist. It means `Shrink` for a bead that is partly useful, and `Kill` for a bead
   that is wholly premature. Two runs would then file the same bead differently.
 - **A Shrink rewrites the bead, so the bead must still pass its own audit.** Read
-  `${CLAUDE_PLUGIN_ROOT}/skills/bead-audit/SKILL.md` first, and keep each section in its native
-  `bd` field, per ADR 0001,
-  [native tracker fields are canonical](../../docs/adr/0001-native-tracker-fields-are-canonical.md).
+  [docs/bead-body-contract.md](../../docs/bead-body-contract.md) for the sections and the `bd`
+  field each one goes in. Read `${CLAUDE_PLUGIN_ROOT}/skills/bead-audit/SKILL.md` for the checks
+  the rewrite has to pass.
 - **A pinned bead, and a bead with open blockers, both refuse to close.** Do not reach for
   `--force`. Report a pin and ask, because somebody pinned it deliberately. On a Done verdict the
   blocking edges are usually the stale part, because work that shipped without them was never
   waiting on them: remove the false edges with `bd dep remove <id> <blocker-id>` and let the close
   succeed on its own. Forcing leaves the wrong graph behind, and the next reader inherits it.
+
+Send the repaired description in the same `bd update` call that applies the verdict. `bd update -d`
+replaces the whole description, so a second call would overwrite the first:
+
+```bash
+bd update <id> -d "$NEW_DESCRIPTION" <the flags this verdict needs>
+```
+
+`bd defer` takes no `-d`, so a Defer needs its own `bd update` first:
+
+```bash
+bd update <id> -d "$NEW_DESCRIPTION"
+bd defer <id> --reason="<trigger>"
+```
+
+Set `NEW_DESCRIPTION` to the old description with the `**Ask:**` line and one blank line on top.
 
 Report the result of every command. If one fails, name the bead, the command, and the error, then
 continue with the rest. A half-applied batch that says nothing is worse than a failed one that
@@ -483,7 +502,7 @@ is `/bead-create`, and it is the author's call.
 - Put every bead in exactly one theme, and print the count sum
 - Mark topic-mode beads `topic` or `adjacent`, and print that marker in the `Detail` list
 - Print the full ranked theme table, carrying its `Off route` column, before `AskUserQuestion` opens
-- Write every sentence in Simplified Technical English, per "Write the output in plain English"
+- Write every sentence to the ten sentence rules in `docs/bead-body-contract.md`
 - Give the Step 6 round table exactly six columns: `#`, `ID`, `Title`, `Route`, `Verdict`, `Why`
 - Keep every `Why` cell to one plain sentence of 15 words or fewer, and put the eight moved fields
   and its evidence in the `Detail` list
@@ -491,6 +510,7 @@ is `/bead-create`, and it is the author's call.
 - Apply verdicts in one batch, after confirmation, and report the result of each command
 - Label every touched bead `refined:YYYY-MM`, every killed bead `refined-out`, and every
   `hardening` bead `overbuilt`
+- Write the `**Ask:**` line on every bead a verdict leaves open, in the same `bd update` call
 
 **Never:**
 

@@ -12,12 +12,16 @@ a bug report, a code observation, or a passing thought. It also does the work `p
 for free from the plan: finding the context, grounding the claims, and asking the author only for
 what nothing else can supply.
 
-**The standard lives in `bead-audit`, not here.** Before drafting, read
-`${CLAUDE_PLUGIN_ROOT}/skills/bead-audit/SKILL.md` and use its "Canonical Bead Structure" table for
-byte-exact headings and its Audit Dimensions for the quality bar. If that path does not resolve,
-locate it with `Glob: **/skills/bead-audit/SKILL.md`. This skill owns the *workflow*; that skill
-owns the *rubric*. Do not restate the rubric from memory, because a bead drafted against a
-remembered standard fails the real one.
+**The standard lives in two other files, not here.** Read both before drafting. Do not restate
+either from memory. A bead drafted against a remembered standard fails the real one.
+
+- [docs/bead-body-contract.md](../../docs/bead-body-contract.md) owns the body shape and the
+  sentence rules: the sections, the byte-exact headings, the `bd` field each section goes in, and
+  the `**Ask:**` line.
+- `${CLAUDE_PLUGIN_ROOT}/skills/bead-audit/SKILL.md` owns the quality bar: its Audit Dimensions.
+  Locate it with `Glob: **/skills/bead-audit/SKILL.md` when that path does not resolve.
+
+This skill owns the workflow alone.
 
 ## When to Use
 
@@ -148,21 +152,14 @@ confirmation gate in Step 7. Do not write to `CONTEXT.md`. [ADR
 
 ### Step 4: Choose the Type and Draft the Body
 
-The type decides which sections are required. Take the headings byte-exact from `bead-audit`'s
-"Canonical Bead Structure" table:
+Read [docs/bead-body-contract.md](../../docs/bead-body-contract.md) before you draft the body. It
+owns the bead body shape, and this skill keeps no second copy of it. Take three things from it:
+which sections the type requires, the byte-exact heading for each one, and the `bd` field each one
+goes in. It also explains why Done when and Acceptance Criteria are different sections, with a
+worked example. It defines the `**Ask:**` line every description opens with.
 
-| Type | Required sections |
-|---|---|
-| `task`, `feature` | Why, How, Done when, Acceptance Criteria, Estimated size |
-| `bug` | the above, plus Steps to Reproduce |
-| `epic` | Why, How, Done when, Success Criteria (no size estimate; an epic carries no direct diff) |
-
-Operational beads (config, deploy, a manual production change) carry `N/A (operational)` as their
-size rather than a band.
-
-**Done when and Acceptance Criteria are not duplicates.** Done when states the outcome in the
-implementer's words. Acceptance Criteria is the checklist QA walks, phrased so each line is
-pass/fail without interpretation. `bead-audit` carries the worked example; follow it.
+Write every sentence to that file's ten sentence rules. The reader of a bead is a person who cannot
+tell what it asks for.
 
 Write the title as a single action with no conjunction bundling two work units. "Add user auth
 middleware" is a title. "Add user auth middleware and migrate the callers" is two beads wearing one.
@@ -243,6 +240,8 @@ unknown flag). Setting them at creation keeps the bead from ever existing in a h
 ```bash
 id=$(bd create "<Title>" -p <priority> -t <task|feature> -l "<category>" --silent \
   -d "$(cat <<'EOF'
+**Ask:** <one sentence, 20 words or fewer, saying what the bead wants done>
+
 ## Why (Computational)
 <L1 content, with the evidence and the grounding sha>
 
@@ -338,7 +337,7 @@ Claim it with: bd update <id> --claim
 
 **Always:**
 
-- Read `bead-audit`'s "Canonical Bead Structure" before drafting, and use its headings byte-exact
+- Read `docs/bead-body-contract.md` before drafting, and use its headings byte-exact
 - Search the tracker for a duplicate before drafting
 - Ground every current-state claim against `origin/main` and record the sha
 - Infer what the artifacts can answer; ask the author only for what they cannot

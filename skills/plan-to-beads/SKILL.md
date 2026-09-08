@@ -41,100 +41,26 @@ parent plan.
 
 ### Required body shape
 
-Every issue carries this set of sections. Sections marked with a type tag are required only for
-beads of that type.
+[docs/bead-body-contract.md](../../docs/bead-body-contract.md) owns the bead body shape. Read it
+before you draft the first bead. It names every section, gives the byte-exact heading, says which
+type requires it, and says which `bd` field holds it. It also explains why Done when and Acceptance
+Criteria are different sections, with a worked example.
 
-The headings below define each section's **content and canonical wording**. Where that content is
-*stored* depends on the tracker. Per ADR 0001, a section goes to the tracker's native field when one
-exists. On `bd`, How goes to `--design`, Done when and Out of scope go to `--notes`, and Acceptance
-Criteria goes to `--acceptance`. A section with no native field goes to the description body. On a
-tracker with no native fields, the whole set lives in the body exactly as written here.
+This skill keeps no second copy of that list, and neither does `bead-audit`. Two copies
+contradicted each other once. [ADR
+0001](../../docs/adr/0001-native-tracker-fields-are-canonical.md) records the cost: every bead this
+repository generated failed its own auditor. Where this skill and the contract disagree, the
+contract wins.
 
-**This template shows content, not storage. Do not paste it verbatim into `bd create -d`.** On `bd`,
-the `→` annotations below say which native field each section belongs in. Putting How, Done when, or
-Acceptance Criteria in the description body instead produces a bead that fails `bead-audit`'s
-structure check on day one. Step 5 has the exact create-then-update commands. Follow those, not this
-block.
+Two things to carry from the contract into Step 5 below:
 
-````markdown
-## Why (Computational)                         <!-- bd: --description body -->
-
-[The problem this solves. The stakeholder or motivating constraint. What depends on this.]
-
-## How (Algorithmic)                           <!-- bd: --design field, NOT the body -->
-
-[The approach, strategy, or representation. Key data flows, contracts, or sequencing.]
-
-## Done when (Acceptance)                       <!-- bd: --notes field, NOT the body -->
-
-[Specific, verifiable conditions. Two people must be able to agree independently whether each
-criterion is satisfied without asking the author. Prefer observable behavior, named tests,
-or measurable thresholds over subjective judgements.]
-
-<!-- Required for type: task, feature, bug. bd: --acceptance field, NOT the body -->
-## Acceptance Criteria
-
-[Formal, testable conditions written from the user or system perspective. Use Given/When/Then
-or numbered criteria. These complement Done when by capturing the observable behavior a QA
-reviewer or product owner would check, not just the implementer.]
-
-<!-- Required for type: bug only (in addition to Acceptance Criteria) -->
-## Steps to Reproduce
-
-1. [First step]
-2. [Second step]
-3. ...
-
-**Expected behavior:** [what should happen]
-**Actual behavior:** [what currently happens]
-**Environment / version:** [branch, OS, relevant config, if known]
-
-<!-- Required for type: epic only -->
-## Success Criteria
-
-[High-level outcomes that signal the epic is delivering value. These are business- or
-product-level indicators, for example a metric threshold, a user capability unlocked, or
-a milestone reached. They are not line-by-line implementation checks. Each criterion must
-be verifiable at the epic level by a stakeholder who has not read the child beads.]
-
-## Estimated size
-
-[<files> files, <LOC> LOC, band: Trivial / Target / Stretch. One-sentence justification if Stretch.
-See "The Size Window" for bands. This estimate is also what the loop's diff-budget gate measures
-against; budgeting in advance prevents iteration timeouts.]
-
-## Out of scope (optional)
-
-[Anything explicitly deferred to a sibling or follow-up bead.]
-````
-
-### Done when vs. Acceptance Criteria (normative)
-
-`## Done when (Acceptance)` and `## Acceptance Criteria` are **not** duplicates. They sit at
-different altitudes and a complete task/feature/bug bead has both:
-
-- **Done when (Acceptance)** states the *outcome-level* conditions that mean the work is finished.
-  This is the implementer's definition of done, phrased as observable end states.
-- **Acceptance Criteria** is the *formal, testable checklist* a reviewer or QA walks through to
-  verify those outcomes. Prefer Given/When/Then or a numbered list of concrete,
-  individually-checkable assertions.
-
-Rule of thumb: if you can hand the line to QA and they can mark it pass/fail without interpretation,
-it belongs in **Acceptance Criteria**. If it describes the end state in the implementer's words, it
-belongs in **Done when**.
-
-**Worked example** (a "rate-limit failed logins" bead):
-
-```markdown
-## Done when (Acceptance)
-- Repeated failed logins from one source are throttled.
-- The threshold is configurable without a redeploy.
-
-## Acceptance Criteria
-1. Given 5 failed logins in 60s from one IP, When a 6th is attempted, Then the response status is 429.
-2. Given the RATE_LIMIT env var is changed, When config reloads, Then the new limit applies without a process restart.
-3. Given a successful login, When the rolling window elapses, Then the failure counter resets to 0.
-```
+- **A section goes in its native `bd` field, never in the description body.** The contract's
+  "Where each section goes" table names the field for each section. Step 5 below has the exact
+  create-then-update commands. Follow those, and paste no template from the contract into
+  `bd create -d`.
+- **Write `## How (Algorithmic)` and `## Acceptance Criteria` nowhere on `bd`.** The field name
+  already says which section it is. Both headings still govern a tracker with no native fields,
+  such as GitHub Issues.
 
 ### Audit checks
 
@@ -437,28 +363,21 @@ If `bd` is not found, or the command fails, stop and inform the user.
 
 ### Step 5: Create Issues
 
-**Write each section to its canonical destination.** Per ADR 0001
-(`docs/adr/0001-native-tracker-fields-are-canonical.md`), a tracker may expose a first-class field
-for a section. That field is then canonical. The description body carries only what has no native
-field. `bd create` cannot set these fields, so creation takes two calls: create, then immediately
-populate.
-
-| Section | `bd` destination |
-|---|---|
-| Why (Computational) | `--description` body |
-| How (Algorithmic) | `--design` |
-| Done when (Acceptance), Out of scope | `--notes` |
-| Acceptance Criteria | `--acceptance` |
-| Estimated size | `--description` body |
-| Steps to Reproduce, Success Criteria | `--description` body (no native slot) |
+**Write each section to its canonical destination.** The "Where each section goes" table in
+[docs/bead-body-contract.md](../../docs/bead-body-contract.md) names the `bd` field for every
+section. [ADR 0001](../../docs/adr/0001-native-tracker-fields-are-canonical.md) records why the
+native field wins over the description body. `bd create` cannot set these fields, so creation takes
+two calls: create, then immediately populate.
 
 Writing everything into `-d` instead produces a bead that fails `bead-audit`'s structure check on
-day one, which is the defect this ADR exists to fix.
+day one, which is the defect that ADR exists to fix.
 
 **task or feature:**
 
 ```bash
 id=$(bd create "<Title>" -p <priority> -t task -l "<labels>" --silent -d "$(cat <<'EOF'
+**Ask:** <one sentence, 20 words or fewer, saying what the bead wants done>
+
 ## Why (Computational)
 <L1 content>
 
@@ -499,6 +418,8 @@ alongside Why and Estimated size.
 
 ```bash
 id=$(bd create "<Title>" -p <priority> -t bug -l "<labels>" --silent -d "$(cat <<'EOF'
+**Ask:** <one sentence, 20 words or fewer, saying what the bead wants done>
+
 ## Why (Computational)
 <L1 content>
 
@@ -534,6 +455,8 @@ estimate.
 
 ```bash
 id=$(bd create "<Title>" -p <priority> -t epic -l "<labels>" --silent -d "$(cat <<'EOF'
+**Ask:** <one sentence, 20 words or fewer, saying what the bead wants done>
+
 ## Why (Computational)
 <L1 content>
 
