@@ -1,12 +1,35 @@
-# Changelog
-
-All notable changes to this plugin are documented here.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [Unreleased]
 
+## [4.2.1] - 2026-09-08
+
+### Fixed
+
+- **`/tadw:ship` writing the landing commit only once, not multiple times on amend.** Step 4 used to
+  commit the squash merge, then close the bead, then amend the commit to fold in the tracker export.
+  Amending changed the commit hash, forcing Step 6 to re-read it. Now `git merge --squash` stages
+  without committing, so the export joins the same staged tree, and a single `git commit` writes both
+  at once. The hash never moves. (`tadw-yqu`)
+- **`/tadw:ship` abort command fixed.** The old version named `git merge --abort` as the way to clear
+  a squash merge, but squash merge records no MERGE_HEAD, so that command exited 128. Changed to
+  `git reset --hard HEAD`, which clears both conflicted and clean squash merges. Measured on real
+  `git merge --squash` runs. (`tadw-yqu`)
+- **Deleted the stale `tadw` hook copies under `.beads/hooks`.** Beads had written its own hook
+  shims there when `core.hooksPath` named `.githooks`. Git never reads `.beads/hooks`, so those
+  copies had no effect and lived only as clutter. (`tadw-yqu`)
+
+### Changed
+
+- **`/bead-refine` reads `docs/milestones.md` as a second yardstick and sets a route on every bead.**
+  Routes are `hardening`, `detour`, or `on route`, checked in that order. Step 7 gives a hardening
+  bead the overbuilt label. This supplements the existing verdicts without changing them. (`tadw-6n9`)
+- **`/bead-refine` output reworked for readability.** The six-column Step 6 table now reads clearer
+  and the format is locked by a regression suite. Measured and stable. (`tadw-1zh`)
+
+### Added
+
+- **First eval case for `bead-refine`.** `evals/cases/bead-refine-round/` runs a refine round
+  against a fixture repository and grades the Step 6 table: six columns, nothing after `Why`, filled
+  route cell, Why under 15 words, and moved fields in Detail. (`tadw-3xh`)
 ## [4.2.0] - 2026-09-07
 
 ### Added
@@ -2470,7 +2493,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.2.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.2.1...HEAD
+[4.2.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.2.0...v4.2.1
 [4.2.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v3.4.1...v4.0.0
