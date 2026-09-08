@@ -254,27 +254,31 @@ re-run Steps 2 and 3 against the new base; re-running them from the default bran
 onto itself. If the base moves a second time, stop with `git-state`.
 
 ```bash
-git merge --squash <branch>
-git commit -m "<type>: <title> (<bead-id>)" -m "Closes <bead-id>"
+git merge --squash <branch>          # stages the whole diff; writes no commit
+git status --porcelain               # staged entries, and no `U` path
 ```
 
-The `<type>` comes from the bead's `type` field: `feat` for `feature` and `epic`, `fix` for `bug`,
-`docs` for `docs`, `chore` for `chore` and `task`. Use `<title>` verbatim from the bead; if the
-subject exceeds 72 characters, shorten the title and keep the id. On a bead-free ship, write the
-subject from the branch slug and the diff, and omit the `Closes` line.
+**`git merge --squash` stages the branch's diff and leaves HEAD alone.** It prints
+`Squash commit -- not updating HEAD`. The landing commit comes at the end of this step, after the
+tracker export joins the same staged tree. So the commit is written once, and its hash never moves.
+
+**A squash merge records no `MERGE_HEAD`, so `git merge --abort` cannot clear it.** It exits 128
+with `fatal: There is no merge to abort (MERGE_HEAD missing)`. That holds after a clean squash and
+after a conflicted one alike. `git reset --hard HEAD` clears both. Measured on 2026-09-08 against
+real `git merge --squash` runs in a throwaway repository.
 
 A conflict at `git merge --squash` means the base moved between the pull and the merge. Run
-`git merge --abort` and treat it as a moved base. Any other non-zero exit stops the run with
-`git-state`: clear the staged merge first with `git merge --abort`, or with `git reset --hard HEAD`
-when the merge staged without conflicting, and say which you ran.
+`git reset --hard HEAD` and treat it as a moved base. Any other non-zero exit stops the run with
+`git-state`: clear the staged merge with `git reset --hard HEAD`, and say that you ran it.
 
-**Then close the bead and fold the export into the landing commit.** Skip this block on a bead-free
-ship:
+**Then close the bead and stage its export into that same tree.** Skip this block on a bead-free
+ship, and go straight to the commit:
 
 ```bash
 bd close <id> --reason "shipped: <subject>" --suggest-next
 bd export -o .beads/issues.jsonl   # no-op when export.auto is on; harmless either way
 git status --porcelain .beads/
+git add .beads/                    # stage whatever that reported
 ```
 
 **`--suggest-next` prints the beads this close released from their blocker**, under a
@@ -284,13 +288,39 @@ heading only when the close released at least one bead. Keep the list; Step 6 pu
 Stage whatever `.beads/` reports, not `issues.jsonl` alone, because a repository may also track
 `interactions.jsonl` and `bd` auto-stages only `export.path`.
 
-| What you find | What to do |
-|---|---|
-| `.beads/issues.jsonl` is dirty | `git add .beads/issues.jsonl`, then `git commit --amend --no-edit`. Amending is safe, because nothing is pushed yet. |
-| A commit sits on top of the landing commit | A repository hook committed the export. Leave it, and name it in the report. |
-| Nothing changed | The close was already exported. Say so. |
+**An empty `git status --porcelain .beads/` is a normal outcome, not a failed export.** `bd export`
+is deterministic: two exports of an unchanged tracker write the same bytes. Measured on 2026-09-08.
+So an empty result means the close was already exported. Say so, and carry on.
 
-Report the landing commit's hash after any amend; the machine line carries that hash.
+**If `bd close` fails, stop with `tracker`.** Clear the staged merge with `git reset --hard HEAD`
+first, so the bead stays open and the tree agrees with it. Nothing landed, and the report says so.
+
+**Then write the landing commit, once:**
+
+```bash
+git commit -m "<type>: <title> (<bead-id>)" -m "Closes <bead-id>"
+git rev-parse HEAD                   # the hash the machine line carries
+git status --porcelain               # must print nothing
+```
+
+The `<type>` comes from the bead's `type` field: `feat` for `feature` and `epic`, `fix` for `bug`,
+`docs` for `docs`, `chore` for `chore` and `task`. Use `<title>` verbatim from the bead; if the
+subject exceeds 72 characters, shorten the title and keep the id. On a bead-free ship, write the
+subject from the branch slug and the diff, and omit the `Closes` line.
+
+**Do not amend this commit.** The export is already inside it, so an amend would only move a hash
+that Step 6 has to report. An earlier version of this step committed first and amended the export
+in, which is why the report once had to be told to re-read the hash.
+
+**If the commit itself fails, stop with `git-state`.** The bead is then closed and nothing landed,
+which is the one state this step can leave that the disk does not show. Say it in the first lines
+of the report, and give the human `bd reopen <id>` as the action.
+
+| What you find after the commit | What to do |
+|---|---|
+| `git status --porcelain` prints nothing | The land is complete. Report the hash `git rev-parse HEAD` printed. |
+| A commit sits on top of the landing commit | A repository hook committed something. Leave it, and name it in the report. |
+| Anything is still staged or modified | A hook rewrote the tree. Stop with `git-state`, and name the paths. |
 
 ### Step 5: Push and clean up
 
