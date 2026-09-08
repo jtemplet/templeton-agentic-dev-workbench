@@ -32,19 +32,9 @@ If the request does not match any of the rows above, **ask the user to clarify w
 
 Whichever skill you load, the actual style decisions (what idiomatic Python looks like, what good React components look like) live in the language style skills. The skill you load will tell you which style skill to compose with based on the file extensions present:
 
-- `style-python` for Python (`.py`)
-- `style-frontend` for JavaScript / TypeScript / React / Vue (`.js`, `.jsx`, `.ts`, `.tsx`, `.vue`)
-- `style-swift` for Swift (`.swift`)
-- `style-rails` for Ruby on Rails (`.rb`, `.erb`, `.rake`)
-- `style-go` for Go (`.go`)
-- `style-markdown` for Markdown deliverables (`.md`, `.markdown`): a skill, agent, command, doc, ADR, or plan
-- `style-fizzy` if working specifically in the Fizzy codebase
-
-**Test files load `style-testing` in addition to the language style skill.** It is
-language-agnostic and applies to every framework. Match on: `test_*.py`, `*_test.py`, `*.test.ts`,
-`*.test.tsx`, `*.spec.ts`, `*.spec.tsx`, `*_spec.rb`, `*_test.rb`, `*Tests.swift`, `*_test.go`, or
-anything under a `tests/`, `test/`, `spec/`, or `__tests__/` directory. Add `style-rspec` on top
-only when the suite is RSpec.
+[docs/style-routing.md](../docs/style-routing.md) owns that mapping: the extension table, what
+stacks on top for test files and project-local surfaces, and when a Markdown file is the
+deliverable. Read it and load every skill it matches.
 
 Do not restate language rules. The language style skills own them.
 

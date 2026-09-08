@@ -36,16 +36,9 @@ If the user specifies a path, use that instead. Never simplify the entire codeba
 
 ### Step 2: Detect Language and Load the Right Style Skill
 
-Detect by file extension and load the matching style skill via the Skill tool:
-
-| Extension | Style Skill |
-|---|---|
-| `.py` | `style-python` |
-| `.rb`, `.erb`, `.rake` | `style-rails` (or `style-fizzy` if working in the Fizzy codebase) |
-| `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `style-frontend` |
-| `.swift` | `style-swift` |
-| `.go` | `style-go` |
-| `.md`, `.markdown` | `style-markdown` |
+[docs/style-routing.md](../../docs/style-routing.md) maps each file extension to the style skill
+that owns its rules, and names what stacks on top for test files and project-local surfaces. Read
+it, then load every skill it matches with the Skill tool.
 
 The style skill owns the language-specific rules. This skill owns the simplification *process*. Do not restate language rules here.
 

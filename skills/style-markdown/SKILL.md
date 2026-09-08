@@ -1,6 +1,6 @@
 ---
 name: style-markdown
-description: Writes and reviews Markdown in the house style. Use whenever the task is to compose, update, rewrite, restructure, or review a document as the deliverable, even when the request never says Markdown or style. That covers a knowledge base of any kind (a `docs/` tree, a wiki, a runbook, a reference page, a README, an onboarding or process document, meeting or research notes kept as a record) and every prompt asset this plugin ships (a `SKILL.md`, an `agents/*.md`, a `commands/*.md`, an ADR under `docs/adr/`, a plan under `docs/plans/`, `AGENTS.md`, and `CLAUDE.md`). Load it before writing the first line, not after. Enforces Simplified Technical English, one meaning per word, no jargon, sentences under 30 words, and a ten-year-old reading level, because most of these documents are read and executed by an agent that cannot ask what you meant
+description: Writes and reviews Markdown when the document itself is the deliverable. Use when composing, revising, or reviewing a README, a runbook, a wiki or `docs/` page, an ADR under `docs/adr/`, a plan, kept notes, or any prompt asset (`SKILL.md`, `agents/*.md`, `commands/*.md`, `AGENTS.md`), even when the request never says Markdown or style. Load before writing the first line.
 ---
 
 # Templeton Markdown Style
