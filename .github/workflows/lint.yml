@@ -60,3 +60,9 @@ jobs:
 
       - name: Framework-leak check on the shipped skill
         run: python3 skills/style-testing/scripts/check_framework_leak.py
+
+      - name: Refine-round format checker tests
+        run: python3 skills/bead-refine/scripts/test_check_round_format.py
+
+      - name: Refine-round format check on the shipped skill
+        run: python3 skills/bead-refine/scripts/check_round_format.py

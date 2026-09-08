@@ -141,9 +141,10 @@ bd dep list <seed-ids> --direction=up --json
 every row whose `status` is `closed`. Giving a verdict to finished work would re-open it.
 
 Mark every surviving bead `topic` (it matched the phrase) or `adjacent` (it arrived through an
-edge), and keep that column in the table. An adjacent bead has not been shown to belong to the
-topic, and killing one on the strength of a theme it never joined is the mistake this column
-prevents.
+edge). Keep that marker to Step 6, which prints it in the `Detail` list. An adjacent bead has not
+been shown to belong to the topic, and killing one on the strength of a theme it never joined is
+the mistake this marker prevents. It takes no column of its own. The Step 6 table holds six
+columns, in topic mode as in map mode.
 
 ### Step 4: Ground every bead, then cluster into themes
 
@@ -194,8 +195,9 @@ Record the route beside the grounding result. The two answer "why do we even nee
 different sides. A missing target says the bead points at code that is gone. A `hardening` route
 says the bead points at working code the schedule cannot pay to harden.
 
-Step 7 reads the route, and gives a `hardening` bead the `overbuilt` label. That is the only place
-the route is used, so keep every bead's route until Step 7 runs.
+Three later steps read the route, so keep every bead's route until Step 8 ends. Step 5 counts each
+theme's `hardening` and `detour` beads into its `Off route` cell. Step 6 prints the route in its
+own column. Step 7 gives a `hardening` bead the `overbuilt` label.
 
 **Then cluster, in map mode only.** Topic mode already has its set, and Step 3 refines it as one
 theme. Cluster by what the work is for, using three sources in this order:
@@ -224,59 +226,87 @@ When the set holds fewer than 8 beads, skip clustering, say why, and judge it as
 
 ### Step 5: Rank the themes by suspicion, then let the author pick one
 
-Rank by how likely a theme is to hold beads nobody will build. Four signals, all already in the
-JSON: **staleness** (days since any bead was updated), **age** (days since the oldest was created),
-**size** (bead count, because a big untouched theme costs the most to carry), and **grounding**
-(how many beads name code that no longer exists).
+Rank by how likely a theme is to hold beads nobody will build. Five signals, all already in hand:
+**staleness** (days since any bead was updated), **age** (days since the oldest was created),
+**size** (bead count, because a big untouched theme costs the most to carry), **grounding** (how
+many beads name code that no longer exists), and **off route** (how many beads Step 4 gave the
+route `hardening` or `detour`).
+
+**`Off route` counts both routes together**, because both mean the same thing to the author: no
+milestone needs the bead. Write the count as `<hardening> + <detour>`, so the two stay legible.
+When the author never confirmed the milestone names, every route is a plain hyphen, so write a
+plain hyphen in the cell.
+
+Print every theme in one table, ordered from most suspicious to least:
+
+<!-- refine-round:themes-start -->
 
 ```markdown
 ## Backlog themes (N beads, M themes)
 
 **Purpose:** <as confirmed in Step 2>
 
-| Theme | Beads | Oldest | Last touched | Targets present | What it is for |
-|---|---|---|---|---|---|
-| <name> | 9 | 94d | 61d | 4 of 9 | <one clause> |
-| Unclustered | 3 | 40d | 12d | 3 of 3 | singletons, no shared purpose |
+| Theme | Beads | Oldest | Last touched | Targets present | Off route | What it is for |
+|---|---|---|---|---|---|---|
+| <name> | 9 | 94d | 61d | 4 of 9 | 2 + 3 | <one clause> |
+| Unclustered | 3 | 40d | 12d | 3 of 3 | 0 + 1 | singletons, no shared purpose |
 
 Counts: 9 + 8 + 6 + 3 = 26. Set total 26 (24 open, 1 in_progress, 1 deferred).
 Matches `bd stats`: 56 total - 30 closed = 26.
 ```
 
+<!-- refine-round:themes-end -->
+
 The sum is a claim that no bead was dropped, so it covers the whole set, including the in-progress
 and deferred beads.
 
+**Print that whole table before you open `AskUserQuestion`, every time.** `AskUserQuestion` shows a
+header of at most 12 characters per option. No reasoning fits in 12 characters. So the table is the
+only place the author can read why one theme is more suspicious than another.
+
 Then ask with `AskUserQuestion`. Offer the three highest-suspicion themes, plus a fourth option
-letting the author name another. Each option's reason states its suspicion evidence.
+letting the author name another. **Put no reasoning in any option label.** A label carries the
+theme name alone. The author reads the evidence in the table above it.
 
 ### Step 6: Judge one theme in a single round
 
 Reuse the grounding from Step 4. Do not compute it again, and do not deepen it. Present the whole
 theme at once:
 
+<!-- refine-round:round-start -->
+
 ```markdown
 ## Theme: <name> (N beads)
 
 Judged against: <purpose, one clause>
 
-| # | ID | Title | Type | P | Age | Idle | Blocks | Blocked by | Serves | Target | Verdict | Why |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | tadw-abc | ... | task | 3 | 94d | 61d | 0 | 0 | <who, from the Why> | present | Kill | <one short sentence> |
+| # | ID | Title | Route | Verdict | Why |
+|---|---|---|---|---|---|
+| 1 | tadw-abc | <short title> | detour | Kill | <one sentence, 15 words or fewer> |
 
 **Detail**
 
-- **1 tadw-abc**: <the evidence for that verdict: a path, a line number, a sha, a sibling bead id, or a field value>
+- **1 tadw-abc**: task, P3, 94d old, 61d idle, blocks 0, blocked by 0, serves <who, from the Why>,
+  target present. <the evidence for that verdict: a path, a line number, a sha, a sibling bead id,
+  or a field value>
 
 Reply with your corrections, for example "3 and 7 keep, rest as proposed".
 ```
 
+<!-- refine-round:round-end -->
+
+**The table holds exactly six columns, in that order.** Add no column to it, not even a useful one.
+A terminal wraps a wider table into text nobody can read. A decision the author cannot read is a
+decision the author does not make. Eight fields sit in the `Detail` list instead: type, priority,
+age, idle days, blocks, blocked by, serves, and target.
+
 Rules for that table:
 
-- **`Serves`** comes from the bead's own Why. When the Why names no stakeholder and no constraint,
-  the cell reads `nobody named`. That is evidence for Kill on its own. Do not fill it in on the
-  bead's behalf.
+- **The `Route` cell holds what Step 4 set**, and nothing else: `on route`, `detour`, `hardening`,
+  or a plain hyphen. The hyphen means the author never confirmed the milestone names, so the route
+  was left unjudged. Do not judge the route here. Step 4 already did it for every bead.
 - **The `Why` cell is one plain sentence of 15 words or fewer.** The whole decision rests on this
-  cell, and the author reads it in a narrow column beside twelve others. So 15 words replaces the
+  cell, and the author reads it in a narrow column beside five others. So 15 words replaces the
   25-word limit here. No subordinate clause, no paths, no line numbers, no shas, no bead ids. Say
   the consequence to the reader, not the property of the bead.
 
@@ -287,13 +317,58 @@ Rules for that table:
   | "It pins two regressions that already occurred once in commit a093acc" | "Two old bugs can come back, and this would catch them" |
   | "The vague cell is real and unchanged, but three of five items are already enforced" | "Most of this is already checked. Only two items are left" |
 
-- **Put every verdict's evidence in the `Detail` list**, one bullet per bead, keyed to the row
-  number. The table carries the decision, the list carries the proof. Splitting them keeps the
-  table readable without the verdict becoming a feeling.
+- **Put the eight moved fields and the evidence in the `Detail` list**, one bullet per bead, keyed
+  to the row number. The table carries the decision, the list carries the proof. Splitting them
+  keeps the table readable without the verdict becoming a feeling.
+- **`serves` comes from the bead's own Why.** When the Why names no stakeholder and no constraint,
+  write `serves nobody named`. That is evidence for Kill on its own. Do not fill it in on the
+  bead's behalf.
+- **`target` holds what Step 4 recorded**: `target present`, `target missing`, or a plain hyphen
+  when the bead names nothing checkable.
+- **In topic mode, start each bullet with `topic` or `adjacent`**, as Step 3 marked the bead. That
+  makes nine fields in the bullet rather than eight. It still takes no column.
 - **Give an in-progress bead no verdict.** Show it with `-` in the Verdict column. Killing a bead
   under construction is a different decision made with different information.
 - **One round, corrected by exception.** Do not walk the beads one at a time. One approval round
   trip per bead is the cost that stops this from getting done at all.
+
+**Worked example.** The beads, paths, and counts below are invented. They belong to an example
+product that emails a weekly report, not to this repository. The theme is named "Weekly email",
+and the confirmed purpose is "a report that reaches every subscriber once a week".
+
+<!-- refine-round:round-start -->
+
+```markdown
+## Theme: Weekly email (3 beads)
+
+Judged against: a report that reaches every subscriber once a week
+
+| # | ID | Title | Route | Verdict | Why |
+|---|---|---|---|---|---|
+| 1 | acme-4kp | Retry a send that the mail server refused | on route | Keep | A refused send is lost today, and no subscriber ever gets it |
+| 2 | acme-9tb | Add a second test for the unsubscribe link | hardening | Kill | The link is already tested. A second test finds nothing new |
+| 3 | acme-2mc | Let a subscriber pick the send day | detour | Defer | Nobody asked for this. Worth doing when the first person does |
+
+**Detail**
+
+- **1 acme-4kp**: task, P1, 12d old, 3d idle, blocks 2, blocked by 0, serves every subscriber,
+  target present. `mailer/send.py` exists and holds no retry, so the bead names real missing work.
+- **2 acme-9tb**: task, P3, 88d old, 88d idle, blocks 0, blocked by 0, serves nobody named,
+  target present. `tests/test_unsubscribe.py:41` already covers the link. Route is `hardening`, so
+  Step 7 gives it the `overbuilt` label whether you keep it or close it.
+- **3 acme-2mc**: feature, P2, 45d old, 45d idle, blocks 0, blocked by 1, serves nobody named,
+  target `-`, because the bead names no path. Defer trigger: the first subscriber who asks for a
+  different day.
+
+Reply with your corrections, for example "3 and 7 keep, rest as proposed".
+```
+
+<!-- refine-round:round-end -->
+
+Copy the shape of that example. A rule alone did not hold last time, so read the four things it
+shows. The table holds six columns. Every row carries a route. Each `Why` cell stays under 15 words
+and names a consequence to the author. Every number, path, and label sits in the `Detail` list, and
+none of them sit in the table.
 
 ### Step 7: Apply the confirmed verdicts in one batch
 
@@ -365,6 +440,8 @@ bd export -o .beads/issues.jsonl
 
 ### Step 8: Close the session
 
+<!-- refine-round:closing-start -->
+
 ```markdown
 ## Refined: <theme> (N beads)
 
@@ -372,8 +449,22 @@ Kept 4 · Shrank 1 · Merged 2 · Deferred 1 · Killed 3 · Done 0 · Promoted 0
 
 Backlog: 27 open before, 21 after.
 
+This theme: 5 on route, 4 detours, 2 hardening.
+Whole backlog: 12 on route, 9 detours, 6 hardening, of the 27 beads routed in Step 4.
+
 Remaining themes, by suspicion: <names>. Run `/bead-refine` again to take the next one.
 ```
+
+<!-- refine-round:closing-end -->
+
+**Print both route lines, every time.** The theme line says how much of the work you just judged
+the schedule asked for. The backlog line says the same about the whole set Step 4 routed. Count
+that line over the set as Step 4 saw it, before this run closed anything. Its total is the
+"before" number, so it is larger than the open count after the verdicts. One refined theme moves
+the theme line a long way and the backlog line a little. The author needs to see both.
+
+When the author never confirmed the milestone names, every route is a plain hyphen. Then write both
+lines as `route unjudged, the milestone names were not confirmed`, and say nothing about counts.
 
 You may add **one** closing line naming a gap the theme made obvious. Name it and stop. Filing it
 is `/bead-create`, and it is the author's call.
@@ -390,10 +481,13 @@ is `/bead-create`, and it is the author's call.
 - Set a route on every bead: `hardening`, `detour`, or `on route`, checked in that order, or a
   plain hyphen when the author has not confirmed the milestones
 - Put every bead in exactly one theme, and print the count sum
-- Mark topic-mode beads `topic` or `adjacent`
+- Mark topic-mode beads `topic` or `adjacent`, and print that marker in the `Detail` list
+- Print the full ranked theme table, carrying its `Off route` column, before `AskUserQuestion` opens
 - Write every sentence in Simplified Technical English, per "Write the output in plain English"
-- Keep every `Why` cell to one plain sentence of 15 words or fewer, and put its evidence in the
-  `Detail` list
+- Give the Step 6 round table exactly six columns: `#`, `ID`, `Title`, `Route`, `Verdict`, `Why`
+- Keep every `Why` cell to one plain sentence of 15 words or fewer, and put the eight moved fields
+  and its evidence in the `Detail` list
+- Close the session with one route line for the theme and one for the whole backlog
 - Apply verdicts in one batch, after confirmation, and report the result of each command
 - Label every touched bead `refined:YYYY-MM`, every killed bead `refined-out`, and every
   `hardening` bead `overbuilt`
@@ -413,4 +507,7 @@ is `/bead-create`, and it is the author's call.
 - Copy a term out of another skill's text without defining it in the same sentence
 - Add an eighth verdict for a hardening bead. The `overbuilt` label carries that finding, and a
   verdict named `Overbuilt` would overlap `Shrink` and `Kill`
+- Add a seventh column to the Step 6 round table
+- Open `AskUserQuestion` before the ranked theme table is printed, or put reasoning in an option
+  label
 - Write a date into `docs/milestones.md` that the author did not give you

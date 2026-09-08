@@ -25,19 +25,29 @@ Two neighboring skills answer different questions, and this one must not drift i
 
 The skill will:
 
+<!-- refine-round:steps-start -->
+
 1. Check that `bd` runs, fetch every non-closed bead in one unlimited page, and check the row count
    against `bd stats` before trusting any later number
-2. Infer what the product is for from `docs/products/`, a roadmap, `README.md`, or `AGENTS.md`, name
-   the file it read, and wait for you to correct it
+2. State two yardsticks and wait for you to correct both: what the product is for, inferred from
+   `docs/products/`, a roadmap, `README.md`, or `AGENTS.md`, and the milestone table in
+   `docs/milestones.md`, which it writes with blank dates when the file is missing
 3. Ground each bead by checking only whether the paths and symbols it names still exist, reading the
    output of `git ls-files` and `grep` rather than their exit status
-4. Cluster the backlog into 4 to 8 themes, keep one `Unclustered` bucket for the singletons, and
+4. Set a route on every bead, `hardening`, `detour`, or `on route`, checked in that order, then
+   cluster the backlog into 4 to 8 themes, keep one `Unclustered` bucket for the singletons, and
    print the count sum so no bead was dropped
-5. Rank the themes by staleness, age, size, and grounding, then ask which one to refine
-6. Present that whole theme in one round, each bead carrying a verdict, a 15-word plain-English
-   reason, and its evidence in a detail list below the table
+5. Rank the themes by staleness, age, size, grounding, and how many beads are off route, print that
+   whole table, then ask which one to refine
+6. Present that whole theme in one round, in a six-column table, each bead carrying its route, a
+   verdict, a 15-word plain-English reason, and its evidence in a detail list below the table
 7. Apply the confirmed verdicts in one batch as `bd` commands, label every touched bead
-   `refined:YYYY-MM`, label every killed bead `refined-out`, and report the result of each command
+   `refined:YYYY-MM`, every killed bead `refined-out`, and every `hardening` bead `overbuilt`, then
+   report the result of each command
+8. Close with the verdict counts, the backlog size before and after, and one route line for the
+   theme and one for the whole backlog
+
+<!-- refine-round:steps-end -->
 
 **It computes no score.** `triage-beads` owns the value-over-effort arithmetic, and a second number
 computed here would disagree with it forever. The discipline comes from citing evidence for every
