@@ -109,6 +109,43 @@ for p in rebase-merge rebase-apply MERGE_HEAD CHERRY_PICK_HEAD; do
 done
 ```
 
+**Then resolve the release tip: the ref whose contents Step 6 will push.** Two ancestry tests decide
+it. They are also the test behind the `main-diverged` row above, which states a condition and gives
+no way to check it:
+
+```bash
+git merge-base --is-ancestor origin/main main   # exit 0: local main holds all of origin/main
+git merge-base --is-ancestor main origin/main   # run only when the first exits 1
+```
+
+| First test | Second test | State | Release tip |
+|---|---|---|---|
+| exit 0 | not run | Local main equals `origin/main`, or is ahead of it | `main` |
+| exit 1 | exit 0 | Local main is behind, and Step 5 fast-forwards it | `origin/main` |
+| exit 1 | exit 1 | The two histories diverged | stop with `main-diverged` |
+
+Steps 2 and 4 both read this ref, and write it as `$RELEASE_TIP`. Name it in the report, and carry
+it forward. It is a value you substitute into a command, not a shell variable, because each command
+block runs in its own shell.
+
+**Carry the ref name, never a resolved hash.** Write `main` or `origin/main`, not the hash it points
+at today. Step 3 lands a named branch onto main, which moves both refs. Step 4 then re-reads the ref
+and picks up the landed commit. A frozen hash would leave that commit out of the changelog, which is
+the failure this whole range rule exists to stop.
+
+**Do not fast-forward local main here to make one endpoint safe.** Tested on git 2.55.0:
+`git fetch origin main:main` exits 1 with `! [rejected] main -> main (non-fast-forward)` when local
+main is ahead, which is the state this test exists for. It exits 128 with
+`refusing to fetch into branch` when a worktree holds main. Step 1 reads, and it moves no branch
+pointer.
+
+Two cases the ancestry tests do not cover:
+
+- **No local `main` ref.** The release tip is `origin/main`. Step 5's `git switch main` creates the
+  local branch from it.
+- **No origin.** Skip both tests, because `origin/main` does not resolve and `git merge-base` exits
+  128. That state is already a stop under "No origin" in Edge Cases.
+
 **Read the current version and the last tag:**
 
 ```bash
@@ -136,13 +173,20 @@ An unpushed tag is not a stop. Name each one, and push it by name in Step 6 alon
 
 ### Step 2: Derive the Bump
 
-**Read what changed since the last tag.** Both the shape and the substance:
+**Read what changed since the last tag.** Both the shape and the substance. The range ends at the
+release tip Step 1 resolved, written here as `$RELEASE_TIP`:
 
 ```bash
-git log --oneline "$LAST_TAG"..origin/main
-git diff --stat "$LAST_TAG"..origin/main
-git diff --name-status "$LAST_TAG"..origin/main -- skills/ agents/ commands/ hooks/
+git log --oneline "$LAST_TAG".."$RELEASE_TIP"
+git diff --stat "$LAST_TAG".."$RELEASE_TIP"
+git diff --name-status "$LAST_TAG".."$RELEASE_TIP" -- skills/ agents/ commands/ hooks/
 ```
+
+**The range must end at the release tip, never at `origin/main`.** A solo repository commits
+locally and pushes in batches, so local main is routinely ahead of its remote. Every commit in that
+gap is one Step 6 pushes. Grading `origin/main` alone would derive the bump from part of the release
+and leave the rest unnumbered, and ADR 0003 says the push is the publish, so consumers get the
+ungraded commits immediately.
 
 When a branch was named at invocation, include its commits too; they are part of this release.
 
@@ -223,9 +267,11 @@ and one bolded lead sentence per entry:
 
 Four rules for the section, and the first is the one that gets skipped:
 
-1. **Every entry in it must be true of the diff.** Read `git log` for this range and add an entry
-   for anything the `Unreleased` section never recorded. A changelog that documents three of eight
-   changes is worse than an empty one, because it reads as complete.
+1. **Every entry in it must be true of the diff.** Read `git log "$LAST_TAG".."$RELEASE_TIP"`, the
+   same range Step 2 graded, and add an entry for anything the `Unreleased` section never recorded.
+   A changelog that documents three of eight changes is worse than an empty one, because it reads
+   as complete. Use the release tip here, the same ref Step 2 used. Ending this range anywhere else
+   makes the changelog and the bump describe two different sets of commits.
 2. **The date is the release date, in `YYYY-MM-DD`.** Take it from `date +%F`, never from memory.
 3. **Leave an empty `## [Unreleased]` heading above the new section.** The next change has somewhere
    to go, and its absence is why entries end up in the wrong version.
@@ -300,6 +346,12 @@ histories of the default branch is a human's call.
 **Then list what the default branch already carries.** This run has created no release commit yet.
 So every commit that `git log --oneline origin/main..main` prints was already on main, and the push
 in Step 6 publishes it. Record each one, hash and subject, for the report.
+
+**These commits are already graded.** Step 1 resolved the release tip to `main` whenever local main
+holds commits `origin/main` lacks, so Step 2 read them for the bump and Step 4 wrote each one an
+entry. This listing exists to name them in the report, not to discover them. A commit that appears
+here and carries no changelog entry means Step 4 rule 1 was not finished; go back and finish it,
+because Step 6 has not pushed yet.
 
 **Report those commits; do not stop for them.** They are the operator's own finished commits on
 their own default branch, and any push of that branch was always going to publish them. A stop would
@@ -447,7 +499,8 @@ On success:
 
 **Bump:** MINOR. A new skill (`skills/publish-plugin/SKILL.md`) is added, and the rubric's MINOR
 tier covers a new component. Nothing was renamed or removed, so nothing reaches MAJOR.
-**Range:** `v2.10.1..main`, 14 commits, 23 files
+**Range:** `v2.10.1..main`, 14 commits, 23 files. The release tip is `main`, because local main held
+2 commits `origin/main` did not.
 **Landed first:** `outrigger/tadw-muo/publish-plugin-skill` via `ship`, `SHIP_DONE a1b2c3d`
 **Changelog:** `## [2.11.0] - 2026-08-23`, 4 entries under Added and Changed, 2 of them written
 from the log because `Unreleased` never recorded them
@@ -457,8 +510,9 @@ from the log because `Unreleased` never recorded them
 **Pushed:** `origin/main` at `e5f6a7b`, then `v2.11.0`. Also pushed `v2.10.0` and `v2.10.1`, which
 existed locally and had never left the machine.
 **Also published:** 2 commits that were already on main and unpushed: `a1b2c3d` `fix: clamp the
-retry budget`, `b2c3d4e` `docs: correct the hook count`. The push carried them. (Omit this line when
-the default branch was equal to its remote.)
+retry budget`, `b2c3d4e` `docs: correct the hook count`. The push carried them. Both are inside the
+graded range above, and both have a changelog entry. (Omit this line when the default branch was
+equal to its remote.)
 
 PUBLISH_DONE 2.11.0 e5f6a7b
 ```
