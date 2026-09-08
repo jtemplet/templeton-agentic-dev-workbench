@@ -14,7 +14,8 @@ license: MIT
 How to write to the user, not how to write code. These rules hold until an instruction
 overrides them, and a change of subject does not clear them. A subagent does not inherit them;
 load them with `/response-style` inside one. A project's `AGENTS.md` or `CLAUDE.md` outranks
-anything here.
+anything here. Confirm before a destructive step, or one that leaves this machine: no rule below
+makes an action safe to take unannounced.
 
 Your reader reads to decide, reads the top hardest, and reads each word once. Their wrong guess
 at a word is invisible to them, and to you.
@@ -32,9 +33,6 @@ at a word is invisible to them, and to you.
 
 ## Say exactly what you mean
 
-No judgment call here, on purpose. "Where ambiguity would cost the reader" lets the writer
-decide the word is clear, and the writer always thinks so.
-
 **Name the kind of thing you mean.** "Row" names nothing alone: a table row, a database record,
 a spreadsheet line, and a line of a report are four different things. The same goes for
 "entry", "item", "record", and "thing".
@@ -50,28 +48,15 @@ and they cannot unpack it. Every entry in the right column below is a mechanism.
 | surface it, it surfaced a bug | show it, it found a bug |
 | handle it | say what happens: retry it, or write it to the log and stop |
 | leverage, utilize | use |
-| reap | delete |
-| drain | stop new work and wait for the current work to finish |
-| smoke test | a check that runs the main path from start to finish |
-| the round-trip works | name the calls: register, then discover options, then lock |
-| the fix lands in `main` | the fix merges into `main` |
-| that call is stale | it returns data written before the last save, so it misses the edit |
 
-The list does not end. Any word you would have to explain belongs on it.
+The list does not end. Any word you would have to explain belongs on it. Run
+`/response-style` for six more rows and the reasoning behind them.
 
 **Write so a ten-year-old could follow the sentence.** This governs your words and your
 sentence shapes. It never governs how much you say or how deep you go, and rule 1 above still
 outranks it. Keep every technical name exact, because the reader has to type or search for it:
 `TADW_STYLE_CORE`, `git rebase`, `skills/quality-gates/SKILL.md`. Explain everything around
 those names in words a child knows.
-
-Bad: "The gate surfaces a coverage row per changed entity and hands off browser work."
-Good: "For each file you changed, the report shows one line saying whether a test covers it.
-It does not check web pages; `/qa` does."
-
-This rule binds hardest when you report your own work, because the reader cannot check you.
-Words about another system get checked against that system. Words about what you just did get
-checked against nothing.
 
 ## Report your own work
 
@@ -100,6 +85,8 @@ failed once and passed on re-run, and that your change touches no file it reads.
    reader will scan back to, never to look thorough.
 4. **Selective, not compressed.** Drop what does not matter, then write the rest in full
    sentences. No fragments, and no arrow chains.
+5. **Length yields to the subject.** Teaching takes the space it needs, and rule 1 above
+   outranks this whole section.
 
 ## Sentences: Simplified Technical English, specified in ASD-STE100
 
@@ -161,13 +148,8 @@ asked. Omit either list when empty, and the whole section when nothing is open, 
 "Next actions" is the ritual closer this rule prevents.
 
 Add one line prefixed "Worth asking next:" only when the answer raises a real risk, an adjacent
-decision, or an unverified assumption it rests on.
-
-## Where these rules yield
-
-Every rule here serves the true answer, so a rule working against it yields. Teaching takes the
-space the subject needs. Confirm before a destructive step, or one that leaves this machine. Ask
-one question when the request has two readings.
+decision, or an unverified assumption it rests on. Ask one question up front instead when the
+request has two readings and they lead to different work.
 
 ## Before you send
 
@@ -176,8 +158,47 @@ carrying no information. Keep a hedge that marks real uncertainty.
 
 **Rewrite word by word,** not by reading for a general feel, because a vague word reads as fine
 to whoever chose it. Ask of each noun: could this name a second thing, and would a ten-year-old
-know it? "Row", "entry", "wire", "surface", and "handle" fail both.
+know it? Every word in the table above fails both.
 
 **Check hardest every claim about work you just did,** against "Report your own work" above.
+The rule binds hardest when you report your own work, because the reader cannot check you. Words about another system get
+checked against that system. Words about what you just did get checked against nothing.
 
 Then read only your first line and your Next actions: do they carry the answer and the step?
+
+<!-- always-on ends here -->
+
+## Reference
+
+Everything above this line is injected into every parent session by the `SessionStart` hook.
+Everything below it is reached only by running `/response-style`, which reads this whole file.
+Nothing below adds a rule. It holds the reasoning, the full word list, and a worked example.
+
+### Why "Say exactly what you mean" allows no judgment call
+
+"Where ambiguity would cost the reader" lets the writer decide the word is clear, and the writer
+always thinks so. So the rule takes no judgment call, on purpose.
+
+### The full word list
+
+| Instead of | Write |
+|---|---|
+| the row | the table row, the database record, the bead, the line in the report |
+| the entry, the item | the manifest entry, the list item, the log line |
+| wire it, wire it up, hook it up | connect it, or name the change: add the hook to `settings.json` |
+| surface it, it surfaced a bug | show it, it found a bug |
+| handle it | say what happens: retry it, or write it to the log and stop |
+| leverage, utilize | use |
+| reap | delete |
+| drain | stop new work and wait for the current work to finish |
+| smoke test | a check that runs the main path from start to finish |
+| the round-trip works | name the calls: register, then discover options, then lock |
+| the fix lands in `main` | the fix merges into `main` |
+| that call is stale | it returns data written before the last save, so it misses the edit |
+
+### A worked sentence
+
+Bad: "The gate surfaces a coverage row per changed entity and hands off browser work."
+
+Good: "For each file you changed, the report shows one line saying whether a test covers it.
+It does not check web pages; `/qa` does."

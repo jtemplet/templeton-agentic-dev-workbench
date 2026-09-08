@@ -101,9 +101,19 @@ function getStyleCorePreamble() {
   return readOrFallback(STYLE_CORE_PATH, FALLBACK);
 }
 
+// Divides the skill's always-on rules from its on-demand Reference section; see
+// the two-tier section of docs/HOOKS.md for why.
+const ALWAYS_ON_END = '<!-- always-on ends here -->';
+
+// Returns the rules above ALWAYS_ON_END, frontmatter stripped. Truncating here and
+// not in the file keeps one source of truth: /response-style reads the whole thing.
+// A file with no marker returns whole, so losing the marker degrades to the old
+// behavior rather than blanking the injection.
 function getResponseStylePreamble() {
   const text = readOrFallback(RESPONSE_STYLE_PATH, RESPONSE_FALLBACK);
-  return text.replace(FRONTMATTER, '');
+  const body = text.replace(FRONTMATTER, '');
+  const markerIndex = body.indexOf(ALWAYS_ON_END);
+  return markerIndex === -1 ? body : `${body.slice(0, markerIndex).trimEnd()}\n`;
 }
 
 // Claude Code caps every hook output string at 10,000 characters, and the cap
@@ -191,6 +201,7 @@ function getSessionStartPayloads(maxChars = HOOK_OUTPUT_CAP) {
 }
 
 module.exports = {
+  ALWAYS_ON_END,
   getStyleCorePreamble,
   getResponseStylePreamble,
   getSessionStartPayloads,
