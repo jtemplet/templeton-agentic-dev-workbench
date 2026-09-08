@@ -53,7 +53,8 @@ The response-style evals are the wrong shape for a gate. They are graded against
 they are not deterministic. `plain-sentences` measures sentence length against a 35-word ceiling.
 Runs on 2026-08-22 and 2026-08-23 produced 40, 38, 37, 34, 26, and 22 words. A gate that fails at
 random teaches people to re-run it until it passes, and a gate like that means nothing. Each run
-also costs twelve real model calls and several minutes.
+also costs several minutes, and two real model calls for every case. Derive the case count with
+`ls -d evals/cases/*/ | wc -l`, then double it. That is 7 cases and 14 calls today.
 
 Run the evals deliberately, to measure whether the style rules still change the model's behavior.
 Read the delta between the two arms, not a pass or a fail.

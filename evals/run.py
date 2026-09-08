@@ -237,13 +237,21 @@ def ask(prompt: str, model: str, with_plugin: bool, timeout: int, cwd: Path) -> 
     test is always this working tree, and only the repository the model looks at
     changes.
 
+    `--add-dir` names that same directory, and a fixture case cannot load a skill
+    without it. Loading one makes the model read the skill's SKILL.md by absolute
+    path, which sits outside a fixture's working directory, so the permission
+    system holds the read back. Measured 2026-09-08 on `bead-refine-round`: the
+    model reported the read as a suspected prompt injection and judged no bead.
+    For a case with no fixture this adds the directory the model is already in,
+    so it changes nothing for the six response-style cases.
+
     The environment is built rather than inherited, so the account under
     measurement is the one the caller is logged into and not whichever one their
     shell was last switched to. REDIRECTING_VARS says what that removes and why.
     """
     command = ["claude", "-p", prompt, "--model", model]
     if with_plugin:
-        command += ["--plugin-dir", str(REPO_ROOT)]
+        command += ["--plugin-dir", str(REPO_ROOT), "--add-dir", str(REPO_ROOT)]
     completed = subprocess.run(
         command,
         capture_output=True,

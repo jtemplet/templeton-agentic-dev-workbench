@@ -203,6 +203,24 @@ baseline arm would measure nothing and would double the cost of every run. That 
 `docs/plans/quality-gates-hardening.md`. It is opt-in, so a case that omits it, or sets it
 to `false`, still runs both arms.
 
+**`bead-refine-round` omits `single_arm`, so it runs both arms.** Bead `tadw-3xh` asks for a
+grade on each arm. The baseline arm has no skill to follow, so it prints no six-column round,
+and the gap between the two arms is what this case measures.
+
+**A fixture case cannot run a shell command.** Print mode denies the Bash tool without approval,
+and `run.py` passes no flag that grants it. The model answers that the command needs approval,
+and runs nothing. Read, Glob, and Grep are allowed, so a fixture has to hand the
+model files rather than commands. `bead-refine-round` ships its tracker as
+`.beads/issues.jsonl`, which holds the same records `bd list --json` returns, and its prompt
+tells the model to read that file instead of running `bd`.
+
+**`--add-dir` is what lets a fixture case load a skill at all.** Loading one makes the model read
+that skill's `SKILL.md` by absolute path, and that path sits outside the fixture's working
+directory. On 2026-09-08, before `ask()` passed the flag, the model reported the read as a
+suspected prompt injection and judged no bead. `ask()` now passes `--add-dir` beside
+`--plugin-dir`, naming the same directory. A case with no fixture already runs in that
+directory, so the flag changes nothing for the six response-style cases.
+
 A misnamed fixture is caught when the cases load, before any model call, since a typo should
 cost an error rather than the price of a run against the wrong directory.
 

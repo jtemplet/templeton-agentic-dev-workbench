@@ -1,0 +1,55 @@
+{
+  "prompt": "Judge this backlog with /bead-refine, in map mode.\n\nTwo things are already settled, so ask me nothing and wait for nothing. The purpose is the one README.md states. The milestone table in docs/milestones.md is correct as written, so treat the milestone names as confirmed and set a real route on every bead.\n\nNo shell command runs here, so run none, and do not run bd. Read .beads/issues.jsonl instead. Each line of that file is one bead record, in the shape `bd list --json` returns. It holds every bead in the tracker and none of them is closed. To check whether a path exists, read it or list its directory, never with git ls-files or grep.\n\nThis backlog holds fewer than eight beads, so skip clustering and judge all of them as one theme named Uploads.\n\nPrint the Step 6 round for that theme, then stop. Apply no verdict and change no bead.",
+  "why": "The Step 6 round is what a product owner reads, and this is the only seam that sees what the skill prints. It grades four things: the table holds the six columns bead tadw-1zh cut it down to and nothing after them, every row carries the route Step 4 set, every Why cell stays at 15 words or fewer, and the moved fields land in the Detail list rather than in a seventh column. The header check ends at the pipe after Why, because a pattern left open there matches a seventh column appended to the row, which is the exact regrowth tadw-1zh was filed to stop. Four decisions have measurements behind them. The prompt forbids bd and every other shell command, because `claude -p` denies the Bash tool without approval, and the `--add-dir` the harness passes grants a directory rather than a tool; the fixture ships the tracker as .beads/issues.jsonl so the model reads the same records `bd list --json` would return. A `tadw-` id is forbidden because that same `--add-dir` puts this repository's own backlog within reach, and a round judging it would satisfy every shape check while judging no bead in the fixture. The case carries no `max_sentence_words`, because the harness splits sentences on `.`, `!`, and `?` alone: the round opens with a heading, a `Judged against:` line, and a `**Detail**` label, none of which end in a period, so they join the first bullet into one 49-word fragment. Measured 2026-09-08 on a correct round, whose longest real sentence was 18 words. The Why-cell width check replaces it, and it measures the rule the skill actually states. Both arms run: bead tadw-3xh asks for a grade on each, and the baseline arm has no skill to follow. Measured 2026-09-08, the baseline printed five columns in a different order, put a milestone name in the Route cell, and used two em-dashes. `acme-` is forbidden because those ids belong to the worked example inside the skill, and copying it would pass every shape check while judging no bead here.",
+  "fixture": "bead-refine-round",
+  "checks": {
+    "require_regex": [
+      {
+        "pattern": "\\|[ \\t]*#[ \\t]*\\|[ \\t]*ID[ \\t]*\\|[ \\t]*Title[ \\t]*\\|[ \\t]*Route[ \\t]*\\|[ \\t]*Verdict[ \\t]*\\|[ \\t]*Why[ \\t]*\\|[ \\t]*(?:\\n|$)",
+        "why": "the round table holds exactly these six columns, in this order, and nothing after Why: the row must end at that pipe, or a seventh column passes unnoticed"
+      },
+      {
+        "pattern": "\\|[ \\t]*(on route|detour|hardening)[ \\t]*\\|",
+        "why": "at least one Route cell holds a route Step 4 set, not a hyphen: both yardsticks were confirmed in the prompt"
+      },
+      {
+        "pattern": "\\bpxl-(1kd|3ws|7bq)\\b",
+        "why": "the round names a bead from this fixture, so it judged this backlog"
+      },
+      {
+        "pattern": "\\b\\d+d idle\\b",
+        "why": "idle days moved into the Detail list rather than being dropped with the seven cut columns"
+      }
+    ],
+    "forbid_regex": [
+      {
+        "pattern": "\\|[^|\\n]*\\|[^|\\n]*\\|[^|\\n]*\\|[^|\\n]*\\|[^|\\n]*\\|[ \\t]*(?:[^|\\n\\s]+[ \\t]+){15,}[^|\\n\\s]+[ \\t]*\\|",
+        "why": "a Why cell of 16 words or more; the skill caps that cell at 15 words, because the author reads it in a narrow column beside five others"
+      },
+      {
+        "pattern": "\\|[ \\t]*(Age|Idle|Blocks|Blocked by|Serves|Target)[ \\t]*\\|",
+        "why": "these are the columns tadw-1zh moved into the Detail list; a header cell holding one means the table grew back"
+      },
+      {
+        "pattern": "\\btadw-[0-9a-z]{3}\\b",
+        "why": "a bead id from the plugin's own tracker; `ask` passes --add-dir for the plugin, so the model can reach this repository and must not judge its backlog instead of the fixture's"
+      },
+      {
+        "pattern": "\\bacme-\\d",
+        "why": "these ids belong to the worked example in the skill; the round must judge this backlog, not copy that example"
+      },
+      {
+        "pattern": "—",
+        "why": "em-dash; the house style forbids it everywhere"
+      },
+      {
+        "pattern": "\\bsurfaced\\b",
+        "why": "inflated verb; write 'found'"
+      },
+      {
+        "pattern": "\\bleverag(e|es|ing)\\b",
+        "why": "inflated verb; write 'use'"
+      }
+    ]
+  }
+}

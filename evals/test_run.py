@@ -366,6 +366,9 @@ def case_model_call_happens_in_the_fixture() -> None:
     assert "tadw-eval-demo-" in where, f"the call must run inside the fixture: {where}"
     # The other half of ask()'s contract: the plugin still comes from this tree.
     assert f"--plugin-dir {harness.REPO_ROOT}" in argv, f"--plugin-dir must stay the repo: {argv}"
+    # Without this, loading a skill inside a fixture asks the model to read a
+    # SKILL.md outside its working directory, and the permission system stops it.
+    assert f"--add-dir {harness.REPO_ROOT}" in argv, f"--add-dir must name the repo: {argv}"
 
 
 def case_keep_fixtures_leaves_the_tree() -> None:
