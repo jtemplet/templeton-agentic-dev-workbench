@@ -36,14 +36,20 @@
 #           waits across as many Stop events as it takes, so such a run
 #           is abandoned at the TTL rather than labeled early.
 #
-#   inject  The label describes an outcome with no artifact.
-#           /verify-acceptance is report-only and its verdict exists
-#           solely in prose, so grepping for it would be string-matching
-#           against output formatting that can drift. PreToolUse emits
-#           an instruction naming the bead, the gate, and the command,
-#           and Claude applies the label at the end. Weaker than gate,
-#           and honest about being weaker: measured across this log,
-#           inject landed 12 of 31 labels and gate landed 2 of 2.
+#   inject  The label describes an outcome with no artifact. PreToolUse
+#           emits an instruction naming the bead, the gate, and the
+#           command, and Claude applies the label at the end. Weaker
+#           than gate, and honest about being weaker: measured across
+#           this log, inject landed 12 of 31 labels and gate landed
+#           2 of 2.
+#
+#           NO SKILL USES THIS MODE. /verify-acceptance was the last one
+#           and moved to gate on 2026-09-09, where it had landed 5 of 15.
+#           The code stays for one reason: markers written before that
+#           date carry "inject" on their fourth line, and handle_stop
+#           still has to resolve them. Do not add a new inject entry.
+#           A verdict that exists only in prose is a verdict the hook
+#           cannot check, so give the skill an artifact instead.
 #
 # Status is separate from labels, and only /build sets it. A label
 # records what a run DID and can need the run's verdict first; a status
@@ -502,9 +508,18 @@ classify_skill() {
     # which skill ran, and Stop picks the reader from that.
     qa|gstack:qa|quality-gates|tadw:quality-gates)
       LABEL="qa-d";       MODE="gate" ;;
+    # "accepted" is the verdict pipeline B ends on, and the acceptance-verifier
+    # agent that produces it is pinned to sonnet by ADR 0008 precisely because
+    # nobody downstream re-checks a grade. So the grade has to reach the bead.
+    #
+    # This was inject mode until 2026-09-09, and it landed on 5 of 15 decided
+    # runs. It failed the same way "implemented" did, for the same two reasons:
+    # Stop fires whenever Claude yields rather than at completion, and inject
+    # mode consumes its marker at that first yield. It waits for
+    # <git-dir>/acceptance-report.json, which the agent writes and
+    # acceptance_report_passes reads.
     verify-acceptance|tadw:verify-acceptance)
-      LABEL="accepted";   MODE="inject"
-      GATE="the final verdict is ACCEPTED, which means every criterion PASS and no gate FAIL (NOT ACCEPTED and INCONCLUSIVE both fail this gate)" ;;
+      LABEL="accepted";   MODE="gate" ;;
     *) return 1 ;;
   esac
   return 0
@@ -803,6 +818,107 @@ build_report_passes() {
   return 0
 }
 
+# /verify-acceptance writes one JSON verdict per clone or worktree at
+# <git-dir>/acceptance-report.json. Resolved with --git-dir for the same reason
+# the other two are: a worktree reads its own run and not a sibling's.
+#
+# A separate name from quality-gates-report.json on purpose. That file records a
+# full-sweep verdict, and this skill runs three gates of seven, so a partial
+# result written there would gate a push on a conclusion nobody drew.
+#
+# Like build-report.json, absence is the signal that the run did not finish. An
+# agent that exhausts its context mid-grading writes nothing.
+newest_acceptance_report_after() {
+  local marker="$1" report
+  report="$(git rev-parse --path-format=absolute --git-dir 2>/dev/null)/acceptance-report.json"
+  [[ -f "$report" && "$report" -nt "$marker" ]] && echo "$report"
+}
+
+# Fails closed, and derives the verdict rather than reading one.
+#
+# Deliberately ignores any `verdict` field. The agent is the authority on each
+# criterion, and this decides what its per-criterion counts add up to. A model
+# that writes "verdict": "ACCEPTED" beside a failing criterion would otherwise
+# label work it just graded as failed, which is the self-grading failure this
+# whole skill exists to prevent.
+#
+# The three criterion counts are all checked, not just passed == total. An
+# inconsistent report claiming 9 of 9 passed AND 2 failed is malformed, and a
+# malformed report must not earn a label.
+#
+# Every count must be present AND numeric, then forced to base 10. jq prints
+# "null" for an absent key, which is not a number. Bash reads a leading zero as
+# octal, and "08" makes (( )) abort with "value too great for base"; that abort
+# returns non-zero, every `if` reads it as false, and control falls through to
+# the final `return 0`. Both traps are the ones build_report_passes documents.
+acceptance_report_passes() {
+  local report="$1" total passed failed unverifiable gates gates_failed gates_blocked
+  local field value
+  for field in criteria_total criteria_passed criteria_failed criteria_unverifiable \
+               gates_total gates_failed gates_blocked; do
+    value="$(jq -r --arg f "$field" '.[$f] // empty' "$report" 2>/dev/null)"
+    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+      log "acceptance report $report has no numeric $field; not labeling"
+      return 1
+    fi
+    value=$((10#$value))
+    case "$field" in
+      criteria_total)        total="$value" ;;
+      criteria_passed)       passed="$value" ;;
+      criteria_failed)       failed="$value" ;;
+      criteria_unverifiable) unverifiable="$value" ;;
+      gates_total)           gates="$value" ;;
+      gates_failed)          gates_failed="$value" ;;
+      gates_blocked)         gates_blocked="$value" ;;
+    esac
+  done
+
+  # The skill's own Verdict Rules: "Zero criteria satisfy 'every criterion PASS'
+  # vacuously, and that is the reading this skill exists to refuse."
+  if (( total == 0 )); then
+    log "acceptance report $report grades no criteria; not labeling"
+    return 1
+  fi
+  if (( passed != total )); then
+    log "acceptance report $report passed $passed of $total criteria; not labeling"
+    return 1
+  fi
+  if (( failed != 0 )); then
+    log "acceptance report $report has $failed failing criterion(s); not labeling"
+    return 1
+  fi
+  # INCONCLUSIVE withholds the label just as NOT ACCEPTED does. An unverifiable
+  # criterion means nobody can say the work is done, which is not acceptance.
+  if (( unverifiable != 0 )); then
+    log "acceptance report $report has $unverifiable unverifiable criterion(s); not labeling"
+    return 1
+  fi
+
+  # The positive signal for the gate half. Without it a report naming zero gates
+  # would pass on two zeros that only mean the gate section was never filled in.
+  if (( gates == 0 )); then
+    log "acceptance report $report records no gates; not labeling"
+    return 1
+  fi
+  # There is deliberately no gates_passed check. The skill's Verdict Rules say a
+  # SKIPPED gate does not change the verdict, so a run whose gates all skipped
+  # can still be ACCEPTED, and requiring a passing gate would make this hook
+  # stricter than the skill it reads.
+  if (( gates_failed != 0 )); then
+    log "acceptance report $report has $gates_failed failing gate(s); not labeling"
+    return 1
+  fi
+  # BLOCKED does change the verdict: a check that could not run leaves the claim
+  # unproven, which the skill treats as NOT ACCEPTED.
+  if (( gates_blocked != 0 )); then
+    log "acceptance report $report has $gates_blocked blocked gate(s); not labeling"
+    return 1
+  fi
+
+  log "acceptance report passed ($passed/$total criteria, $gates gates, 0 failing, 0 blocked) via $report"
+  return 0
+}
+
 # The marker's third line names the skill, and the skill decides which
 # artifact to read. Anything unrecognized falls back to the /qa reader,
 # which is what every marker meant before the line was used.
@@ -811,6 +927,7 @@ report_after() {
   case "$skill" in
     quality-gates|tadw:quality-gates) newest_quality_gates_report_after "$marker" ;;
     feature-development|tadw:feature-development) newest_build_report_after "$marker" ;;
+    verify-acceptance|tadw:verify-acceptance) newest_acceptance_report_after "$marker" ;;
     *) newest_qa_report_after "$marker" ;;
   esac
 }
@@ -820,6 +937,7 @@ report_passes() {
   case "$skill" in
     quality-gates|tadw:quality-gates) quality_gates_report_passes "$report" ;;
     feature-development|tadw:feature-development) build_report_passes "$report" ;;
+    verify-acceptance|tadw:verify-acceptance) acceptance_report_passes "$report" ;;
     *) qa_report_passes "$report" ;;
   esac
 }

@@ -1,6 +1,6 @@
 ---
 name: verify-acceptance
-description: "Check a finished unit of work against its bead's acceptance criteria and the QA gates. Resolves the bead from bd, grades each criterion against evidence rather than against the diff, runs the QA gates, and reports one verdict table. It writes no file and closes no bead; on an ACCEPTED verdict it adds the `accepted` label to the bead, and that is the only thing it writes."
+description: "Check a finished unit of work against its bead's acceptance criteria and the QA gates. Resolves the bead from bd, grades each criterion against evidence rather than against the diff, runs the QA gates, and reports one verdict table. It edits no file in the working tree and closes no bead. It writes one artifact, `<git-dir>/acceptance-report.json`, carrying the per-criterion and per-gate counts; a Stop hook reads that file and applies the `accepted` label, so this skill runs no bd command of its own."
 ---
 
 # Verify Acceptance
@@ -99,26 +99,76 @@ Two of its rules carry into this report unchanged:
 - A configured gate that could not run is **BLOCKED**, never SKIP. A missing binary proves nothing about the code.
 - Record real numbers. "Tests: 218 passed, 0 failed" is a gate result. "Tests: green" is not, and neither is "QA passed."
 
-### Step 5: Label the Bead
+### Step 5: Write the Verdict Artifact
 
-**When, and only when, the verdict is ACCEPTED,** add the `accepted` label to the bead:
+**Write the counts you just graded, and run no `bd` command.** A `Stop` hook reads this file and
+applies the `accepted` label itself. Apply the Verdict Rules below first, then write what they
+produced:
 
 ```bash
-bd update <bead-id> --add-label accepted
+python3 - <<'PY'
+import json, subprocess
+git_dir = subprocess.run(
+    ["git", "rev-parse", "--path-format=absolute", "--git-dir"],
+    capture_output=True, text=True, check=True).stdout.strip()
+report = {
+    "bead": "<bead-id>",
+    "criteria_total": 0,
+    "criteria_passed": 0,
+    "criteria_failed": 0,
+    "criteria_unverifiable": 0,
+    "gates_total": 0,
+    "gates_failed": 0,
+    "gates_blocked": 0,
+}
+with open(f"{git_dir}/acceptance-report.json", "w", encoding="utf-8") as handle:
+    json.dump(report, handle, indent=2)
+    handle.write("\n")
+PY
 ```
 
-Apply the Verdict Rules below first, then read the verdict you reached. NOT ACCEPTED and
-INCONCLUSIVE both withhold the label. So does an unresolved unit of work, because there is no bead
-to label.
+The path comes from `git rev-parse --path-format=absolute --git-dir`, which resolves per worktree,
+so a linked worktree writes its own verdict rather than the main checkout's. That is the same
+resolution the reader uses.
 
-**When the verdict withholds the label, add none.** Name the verdict on the `Label:` line of the
-report instead. Never label a bead to record that you looked at it.
+Every field is required, and every count is a plain integer. The reader rejects an absent field, a
+non-numeric one, and a count written with a leading zero.
 
-This label is the only thing this skill writes anywhere. It does not close the bead and it does not
-change the bead's status. Closing is a separate decision, taken after this report. A `Stop` hook reads
-the bead after the run and writes `OWED accepted, the run never applied it` to
-`<git-common-dir>/bead-label.log` when the label is missing, so a skipped step leaves a record
-either way.
+| Field | What it counts |
+|---|---|
+| `bead` | The bead this run graded, for the log |
+| `criteria_total` | Every criterion in the bead's table, including the ones that failed |
+| `criteria_passed` | Rows marked PASS |
+| `criteria_failed` | Rows marked FAIL |
+| `criteria_unverifiable` | Rows marked UNVERIFIABLE |
+| `gates_total` | Gates you considered, which is three: tests, lint, type checking |
+| `gates_failed` | Gates marked FAIL |
+| `gates_blocked` | Gates marked BLOCKED |
+
+**Report the counts. Do not report the conclusion.** There is deliberately no `verdict` field, and
+the reader ignores one if you add it. You are the authority on each row; what the rows add up to is
+the hook's to decide. A run that wrote `"verdict": "ACCEPTED"` beside a failing criterion would be
+labeling work it had just graded as failed. That is the self-grading failure this skill exists to
+prevent.
+
+**Skipped gates have no field, because a SKIP does not change the verdict.** A BLOCKED gate does,
+and `gates_blocked` carries it.
+
+**Write nothing when Step 1 resolved no bead.** There is nothing to label, so an artifact would
+name a run that graded no unit of work.
+
+**This file is a completion token as much as a verdict.** A run that stops mid-grading writes
+nothing, and its absence is the only reliable signal that the grading did not finish. `Stop` fires
+whenever the model yields rather than when the work ends, so it cannot tell an interrupted run from
+a finished one any other way. The marker stays in place while the file is absent, and the run is
+abandoned after six hours rather than labeled early.
+
+**Do not run `bd update --add-label accepted` yourself.** The hook applies it from this file. A run
+that both writes the artifact and applies the label is doing the same job twice, and the second way
+is the one that was landing 5 verdicts in 15.
+
+**This skill still closes no bead and changes no bead status.** Closing is a separate decision,
+taken after this report.
 
 ### Step 6: Report
 
@@ -152,7 +202,9 @@ Output the report below, then stop.
 
 <One sentence naming what decided it.>
 
-**Label:** `accepted` applied to <bead-id> / withheld, the verdict is <verdict>
+**Label:** left to the `Stop` hook, which reads `acceptance-report.json`. Wrote 9 of 9 criteria PASS
+and 3 gates with 0 failing and 0 blocked, so the hook applies `accepted`. / Wrote 7 of 9 criteria
+PASS, so the hook withholds it; the verdict is <verdict>.
 
 ### What Is Left
 
@@ -179,11 +231,12 @@ A skipped gate does not change the verdict. A BLOCKED gate does, because a check
 - Put the evidence in the table, not a summary of the evidence
 - Run the QA gates and report their real counts
 - Report NOT ACCEPTED plainly when that is the answer
-- Apply the `accepted` label on an ACCEPTED verdict, and say on the `Label:` line what you did
+- Write the Step 5 artifact with counts that match the report's own table, and say on the `Label:` line which verdict the counts carry
 
 **Never:**
 
-- Edit code in the working tree, write the `quality-gates` JSON artifact, run `bd close`, or change a bead's status (this skill writes no file at all; the `accepted` label from Step 5 is the single exception to writing nothing, and an ACCEPTED verdict is the only thing that earns it)
+- Edit code in the working tree, write the `quality-gates` JSON artifact, run `bd close`, or change a bead's status. This skill writes exactly one file, `<git-dir>/acceptance-report.json` from Step 5, and `<git-dir>` is not the working tree, so the run still leaves the tree as clean as it found it
+- Run `bd update --add-label accepted`, or any other `bd` write. The `Stop` hook applies the label from the Step 5 artifact
 - Infer acceptance criteria when the bead has none
 - Grade a criterion from the diff alone
 - Call a criterion PASS because the code looks like it should satisfy it
@@ -200,5 +253,6 @@ Before reporting completion, verify:
 - [ ] Every UNVERIFIABLE says what would settle it and who does it
 - [ ] Every gate reports a real count, an explicit SKIP with a reason, or BLOCKED with what stopped it
 - [ ] The verdict follows the Verdict Rules mechanically
-- [ ] The `accepted` label is applied when the verdict is ACCEPTED, and withheld otherwise
-- [ ] No file in the working tree was edited, no artifact was written, and no bead was closed
+- [ ] Step 5 wrote `<git-dir>/acceptance-report.json` with all seven counts, and no `bd` command ran
+- [ ] The counts in that file match the report's own table, row for row
+- [ ] No file in the working tree was edited, `quality-gates-report.json` was not written, and no bead was closed

@@ -960,28 +960,266 @@ if case_start "label/stop: a build marker ignores a quality-gates report"; then
   [[ -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "kept the marker" || nope "kept the marker"
 fi
 
-if case_start "label/inject: every inject-mode skill names its own label command"; then
-  # Inject mode applies no label. It asks the RUN to label its own bead, and the
-  # request arrives at the START of a run that then works for twenty minutes. So
-  # the skill body has to carry the same instruction, or the request is the only
-  # copy and the run drops it. /verify-acceptance did drop it: tadw-7xq.1 and
-  # tadw-pdi went unlabeled, each logged as OWED.
-  #
-  # This case pins the two copies together. Rename a label in classify_skill and
-  # leave the skill body alone, and it fails here.
-  #
-  # feature-development left this case at tadw-8bp, when it moved to gate mode.
-  # The case below covers it instead.
-  SKILL_BODY="$SANDBOX/inject-skill.txt"
+if case_start "label/inject: no skill is left on inject mode"; then
+  # tadw-av7. verify-acceptance was the last one, at 5 of 15 decided runs, and
+  # it moved to gate here. The mode's code stays, because markers written before
+  # that change carry "inject" on their fourth line and Stop still resolves them,
+  # but nothing should classify INTO it again. A new inject entry would be a
+  # label the hook cannot check, which is what both conversions were undoing.
+  assert_no_match "$REPO_ROOT/scripts/label_bead_on_skill_invocation.sh" \
+    'MODE="inject"' "classify_skill puts no skill on inject mode"
+  # The machinery that reads an old marker must survive that.
+  assert_match "$REPO_ROOT/scripts/label_bead_on_skill_invocation.sh" \
+    "resolve_inject_marker" "the reader for pre-existing inject markers is still there"
+fi
 
+# /verify-acceptance writes <git-dir>/acceptance-report.json with its counts. tadw-av7.
+write_acceptance_report() {  # write_acceptance_report <repo> <passed> <total> <failed> <unverifiable> <gates> <g-failed> <g-blocked>
+  jq -n --argjson p "$2" --argjson t "$3" --argjson f "$4" --argjson u "$5" \
+        --argjson g "$6" --argjson gf "$7" --argjson gb "$8" \
+    '{bead:"tadw-alpha-one", criteria_total:$t, criteria_passed:$p,
+      criteria_failed:$f, criteria_unverifiable:$u,
+      gates_total:$g, gates_failed:$gf, gates_blocked:$gb}' \
+    > "$1/.git/acceptance-report.json"
+}
+
+acceptance_marker() {  # acceptance_marker <repo> <bead> [created-epoch]
+  local M; M="$(marker_dir "$1")"; mkdir -p "$M"
+  printf '%s\n%s\ntadw:verify-acceptance\ngate\n' "${3:-$(date +%s)}" "$2" \
+    > "$M/accepted__$2"
+}
+
+if case_start "label/pre: verify-acceptance drops a gate marker and injects nothing"; then
+  # Criterion 1's front half. The run must be asked for no bd command at all.
+  R="$(new_repo a1 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:verify-acceptance' 'tadw-alpha-one')"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label up front"
+  [[ ! -s "$R/.hookout" ]] && ok "injected nothing" || nope "injected nothing" "$(cat "$R/.hookout")"
+  M="$(marker_dir "$R")"
+  [[ -f "$M/accepted__tadw-alpha-one" ]] && ok "dropped the marker" || nope "dropped the marker"
+  assert_match_str "$(sed -n 3p "$M/accepted__tadw-alpha-one" 2>/dev/null)" "^tadw:verify-acceptance$" "the marker names the skill"
+  assert_match_str "$(sed -n 4p "$M/accepted__tadw-alpha-one" 2>/dev/null)" "^gate$" "the marker records gate mode"
+fi
+
+if case_start "label/stop: a clean acceptance report labels accepted"; then
+  # Criterion 1. Every criterion PASS, every gate clean, so the hook labels it
+  # and the model ran no bd command.
+  R="$(new_repo a2 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  sleep 1; write_acceptance_report "$R" 9 9 0 0 3 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label accepted" "labeled it accepted"
+  assert_match "$R/.hookerr" "9/9 criteria" "said why"
+  [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "cleared the marker" || nope "cleared the marker"
+fi
+
+if case_start "label/stop: any failing criterion or gate withholds accepted"; then
+  # Criterion 2. One case per condition, so a reader can see which one moved.
+  # UNVERIFIABLE is here because INCONCLUSIVE withholds exactly as NOT ACCEPTED
+  # does; a criterion nobody could check is not a criterion that passed.
+  set -- \
+    "8 9 1 0 3 0 0:a failing criterion" \
+    "8 9 0 1 3 0 0:an unverifiable criterion" \
+    "9 9 0 0 3 1 0:a failing gate" \
+    "9 9 0 0 3 0 1:a blocked gate"
+  for spec in "$@"; do
+    counts="${spec%%:*}"; why="${spec#*:}"
+    # shellcheck disable=SC2086
+    set -- $counts
+    R="$(new_repo "a3-$1$2$3$4$5$6$7" with-origin)"
+    acceptance_marker "$R" tadw-alpha-one
+    sleep 1; write_acceptance_report "$R" "$1" "$2" "$3" "$4" "$5" "$6" "$7"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+    run_hook "$LABEL" "$R" "$(payload Stop '')"
+    assert_no_match "$R/.bdcalls" "--add-label" "no label on $why"
+    assert_match "$R/.git/bead-label.log" "withheld accepted" "logged the condition for $why"
+    [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "cleared the marker on $why" || nope "cleared the marker on $why"
+    set -- \
+      "8 9 1 0 3 0 0:a failing criterion" \
+      "8 9 0 1 3 0 0:an unverifiable criterion" \
+      "9 9 0 0 3 1 0:a failing gate" \
+      "9 9 0 0 3 0 1:a blocked gate"
+  done
+fi
+
+if case_start "label/stop: an unverifiable criterion is caught even when the totals agree"; then
+  # Found by mutation testing: every other unverifiable case also has
+  # passed != total, so that check fired first and the unverifiable check never
+  # decided anything. Removing it broke no test.
+  #
+  # This is the shape that isolates it: 9 of 9 passed AND 1 unverifiable, which
+  # is an internally inconsistent report. A grader that miscounts must not be
+  # able to buy a label with the inconsistency.
+  R="$(new_repo a3u with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  sleep 1; write_acceptance_report "$R" 9 9 0 1 3 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "no label when the totals agree but a criterion is unverifiable"
+  assert_match "$R/.hookerr" "unverifiable criterion" "named the condition"
+fi
+
+if case_start "label/stop: a grading run that writes no report leaves the marker waiting"; then
+  # Criterion 3. An agent that exhausts its context mid-grading reaches Stop
+  # looking like a finished one. Only the absent artifact tells them apart.
+  R="$(new_repo a4 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "no label without a report"
+  [[ -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "kept the marker after one Stop" || nope "kept the marker after one Stop"
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "still no label after a second Stop"
+  [[ -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "kept the marker after a second Stop" || nope "kept the marker after a second Stop"
+fi
+
+if case_start "label/stop: an acceptance marker past its TTL is abandoned, never labeled"; then
+  # Criterion 3's other half: the waiting ends, and it ends without a label.
+  R="$(new_repo a5 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one "$(( $(date +%s) - 99999 ))"
+  sleep 1; write_acceptance_report "$R" 9 9 0 0 3 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "no label"
+  assert_match "$R/.hookerr" "abandoning stale marker" "said why"
+  [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "removed the marker" || nope "removed the marker"
+fi
+
+if case_start "label/stop: a bare ACCEPTED verdict string earns nothing on its own"; then
+  # Criterion 4, and the reason this reader derives rather than reads. A grader
+  # that wrote its own conclusion beside failing counts would be labeling work
+  # it had just graded as failed.
+  R="$(new_repo a6 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  sleep 1
+  jq -n '{bead:"tadw-alpha-one", verdict:"ACCEPTED"}' > "$R/.git/acceptance-report.json"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "a verdict field alone earns no label"
+
+  # And the counts decide even when a verdict field contradicts them.
+  R="$(new_repo a6b with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  sleep 1
+  jq -n '{bead:"tadw-alpha-one", verdict:"ACCEPTED", criteria_total:9, criteria_passed:7,
+          criteria_failed:2, criteria_unverifiable:0, gates_total:3, gates_failed:0,
+          gates_blocked:0}' > "$R/.git/acceptance-report.json"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "the counts outrank a contradicting verdict field"
+  assert_match "$R/.hookerr" "passed 7 of 9" "reported the counts, not the verdict"
+fi
+
+if case_start "label/stop: the acceptance reader fails closed on a malformed report"; then
+  # Criterion 5. Unparseable, missing a field, a non-numeric count, and a
+  # leading-zero count. That last one is why every value is forced to base 10:
+  # bash reads "08" as octal, (( )) aborts with "value too great for base", the
+  # abort reads as false in every `if`, and control falls through to return 0.
+  for shape in \
+    'not json at all' \
+    '{"criteria_total":9,"criteria_passed":9}' \
+    '{"criteria_total":"nine","criteria_passed":9,"criteria_failed":0,"criteria_unverifiable":0,"gates_total":3,"gates_failed":0,"gates_blocked":0}' \
+    '{"criteria_total":9,"criteria_passed":9,"criteria_failed":"08","criteria_unverifiable":0,"gates_total":3,"gates_failed":0,"gates_blocked":0}'
+  do
+    R="$(new_repo "a7-${#shape}" with-origin)"
+    acceptance_marker "$R" tadw-alpha-one
+    sleep 1; printf '%s' "$shape" > "$R/.git/acceptance-report.json"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+    run_hook "$LABEL" "$R" "$(payload Stop '')"
+    assert_no_match "$R/.bdcalls" "--add-label" "no label on: $shape"
+    assert_no_match "$R/.hookerr" "unbound variable" "did not die on: $shape"
+    assert_no_match "$R/.hookerr" "value too great for base" "did not abort on: $shape"
+  done
+fi
+
+if case_start "label/stop: a report grading nothing earns no label"; then
+  # Criterion 5's positive-signal half, and the skill's own Verdict Rules:
+  # "Zero criteria satisfy 'every criterion PASS' vacuously, and that is the
+  # reading this skill exists to refuse." Zero gates is the same hole one field
+  # over: two zeros that only mean the gate section was never filled in.
+  for spec in "0 0 0 0 3 0 0:zero criteria" "9 9 0 0 0 0 0:zero gates"; do
+    counts="${spec%%:*}"; why="${spec#*:}"
+    # shellcheck disable=SC2086
+    set -- $counts
+    R="$(new_repo "a8-${why// /-}" with-origin)"
+    acceptance_marker "$R" tadw-alpha-one
+    sleep 1; write_acceptance_report "$R" "$1" "$2" "$3" "$4" "$5" "$6" "$7"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+    run_hook "$LABEL" "$R" "$(payload Stop '')"
+    assert_no_match "$R/.bdcalls" "--add-label" "no label on $why"
+  done
+fi
+
+if case_start "label/stop: all gates skipped still earns the label"; then
+  # The deliberate asymmetry with build_report_passes, which requires a passing
+  # test. The skill's Verdict Rules say a SKIPPED gate does not change the
+  # verdict, so requiring a passing gate here would make the hook stricter than
+  # the skill it reads. Three gates considered, none failed, none blocked.
+  R="$(new_repo a9 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  sleep 1; write_acceptance_report "$R" 9 9 0 0 3 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label accepted" "labeled it with no gates_passed field present"
+fi
+
+if case_start "label/stop: grading leaves the working tree as clean as it found it"; then
+  # Criterion 6. The artifact lives under .git, so `git status --porcelain` must
+  # stay empty across the whole labeling flow.
+  R="$(new_repo a10 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  sleep 1; write_acceptance_report "$R" 9 9 0 0 3 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label accepted" "labeled it"
+  # Tracked files only. The fixture's own stub logs (.bdcalls, .gitlog) are
+  # untracked scaffolding this harness writes, not something the hook touched.
+  DIRTY="$(git -C "$R" status --porcelain --untracked-files=no 2>/dev/null)"
+  [[ -z "$DIRTY" ]] && ok "left the working tree clean" || nope "left the working tree clean" "$DIRTY"
+  [[ ! -e "$R/acceptance-report.json" ]] && ok "wrote the artifact outside the working tree" || nope "wrote the artifact outside the working tree"
+  [[ ! -e "$R/quality-gates-report.json" && ! -e "$R/.git/quality-gates-report.json" ]] \
+    && ok "wrote no quality-gates artifact" || nope "wrote no quality-gates artifact"
+fi
+
+if case_start "label/gate: verify-acceptance writes the artifact the hook reads"; then
+  # tadw-av7, and the same pinning the feature-development case below does. The
+  # hook reads <git-dir>/acceptance-report.json and seven counts out of it, so
+  # the skill body must name that path and every count. Rename one field in
+  # acceptance_report_passes and leave Step 5 alone, and the hook waits forever
+  # for a file the run never writes. This case fails first.
+  SKILL_BODY="$SANDBOX/accept-skill.txt"
   cat "$REPO_ROOT/skills/verify-acceptance/SKILL.md" > "$SKILL_BODY"
-  assert_match "$SKILL_BODY" "\-\-add-label accepted" "verify-acceptance names the exact bd command"
-  assert_match "$SKILL_BODY" "Step 5: Label the Bead" "verify-acceptance carries the labeling step"
-  assert_match "$SKILL_BODY" "INCONCLUSIVE both withhold the label" "verify-acceptance states the gate it withholds on"
-  # Its Critical Rules used to say the skill writes nothing at all. A rule that
-  # contradicts Step 5 is worse than no rule, because the run obeys one of them
-  # and there is no telling which.
-  assert_no_match "$SKILL_BODY" "report-only and writes no file at all" "verify-acceptance no longer claims it writes nothing"
+
+  assert_match "$SKILL_BODY" "acceptance-report.json" "names the artifact path"
+  assert_match "$SKILL_BODY" "git rev-parse --path-format=absolute --git-dir" "resolves it per worktree, as the reader does"
+  for field in criteria_total criteria_passed criteria_failed criteria_unverifiable \
+               gates_total gates_failed gates_blocked; do
+    assert_match "$SKILL_BODY" "$field" "names the $field field"
+  done
+
+  # The artifact must not be the quality-gates one. This skill runs three gates
+  # of seven, and a partial verdict recorded there would gate a push on a
+  # conclusion nobody drew.
+  assert_match "$SKILL_BODY" "quality-gates-report.json" "still forbids the quality-gates artifact by name"
+
+  # Two rules that decide whether the gate means anything. A body that let the
+  # run apply its own label would put the 5-of-15 failure straight back, and one
+  # that let it write a verdict would let it grade its own work.
+  assert_no_match "$SKILL_BODY" "^bd update <bead-id> --add-label accepted$" "no longer tells the run to label its own bead"
+  assert_match "$SKILL_BODY" "no .verdict. field" "forbids a self-graded verdict"
+  # Absence is the completion signal, so the body has to say when NOT to write.
+  assert_match "$SKILL_BODY" "Write nothing when Step 1 resolved no bead" "states when the run writes no file"
+
+  # The agent is what actually runs the steps, and its frontmatter used to say it
+  # writes no file at all. A rule that contradicts Step 5 is worse than no rule,
+  # because the run obeys one of them and there is no telling which.
+  AGENT_BODY="$SANDBOX/accept-agent.txt"
+  cat "$REPO_ROOT/agents/acceptance-verifier.md" > "$AGENT_BODY"
+  assert_match "$AGENT_BODY" "acceptance-report.json" "the agent names the artifact"
+  assert_no_match "$AGENT_BODY" "You must not write or edit anything" "the agent no longer claims it writes nothing"
+  assert_no_match "$AGENT_BODY" "Stop before Step 5" "the agent no longer skips the step that writes it"
 fi
 
 if case_start "label/gate: feature-development writes the artifact the hook reads"; then
@@ -1437,16 +1675,24 @@ fi
 # "accepted" label was applied. Nothing recorded that one had been owed.
 #
 # Stop still applies no inject label. It only says whether the run did.
+#
+# NO SKILL CLASSIFIES INTO INJECT MODE ANY MORE. verify-acceptance was the last
+# one and moved to gate at tadw-av7. Every case below hand-writes its marker,
+# which is exactly the state these cases still have to cover: markers written
+# before that change sit in real clones and Stop must still resolve them.
 # ---------------------------------------------------------------------------
 
-if case_start "label/inject: PreToolUse leaves a marker a gate marker can be told from"; then
+if case_start "label/inject: a hand-written inject marker is still told from a gate marker"; then
+  # No longer reachable through classify_skill. Written directly, the way a
+  # marker left on disk by a pre-tadw-av7 run reaches Stop.
   R="$(new_repo j1 with-origin)"
+  M="$(marker_dir "$R")"; mkdir -p "$M"
+  printf '%s\ntadw-alpha-one\ntadw:verify-acceptance\ninject\n' "$(date +%s)" \
+    > "$M/accepted__tadw-alpha-one"
+  assert_match_str "$(sed -n 4p "$M/accepted__tadw-alpha-one" 2>/dev/null)" "^inject\$" "its fourth line says inject"
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
-  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:verify-acceptance' 'tadw-alpha-one')"
-  M="$(marker_dir "$R")/accepted__tadw-alpha-one"
-  [[ -f "$M" ]] && ok "wrote a marker" || nope "wrote a marker"
-  assert_match_str "$(sed -n 4p "$M" 2>/dev/null)" "^inject\$" "its fourth line says inject"
-  assert_no_match "$R/.bdcalls" "--add-label" "and still applied no label itself"
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "Stop applied no label, which is not its call to make"
 fi
 
 if case_start "label/inject: Stop records a label the run was owed and never applied"; then
@@ -1904,15 +2150,22 @@ if case_start "label/export: a Stop-resolved gate label also leaves the tree cle
   assert_eq "$(sgit "$R" status --porcelain | grep -v '^?? \.' || true)" "" "left no tracked file modified"
 fi
 
-if case_start "label/bd: inject mode names bd and carries no database path"; then
-  R="$(new_repo "d3 with space" with-origin)"
-  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
-  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:verify-acceptance' 'tadw-alpha-one')"
-  jq -e . "$R/.hookout" >/dev/null 2>&1 && ok "the JSON parses" || nope "the JSON parses"
-  assert_match "$R/.hookout" "bd update tadw-alpha-one --add-label" "named bd"
-  # Inject mode has no artifact to check afterwards, so a malformed command
-  # would fail where it is pasted and nothing would report it.
-  assert_no_match "$R/.hookout" "[-][-]db" "carried no database path"
+if case_start "label/bd: inject mode's command template names bd and carries no database path"; then
+  # No skill classifies into inject mode since tadw-av7, so this can no longer
+  # be driven end to end. The template is asserted on the source instead, which
+  # keeps the property if inject is ever re-enabled. Inject mode has no artifact
+  # to check afterwards, so a malformed command would fail where it is pasted
+  # and nothing would report it.
+  INJECT_LINE="$(grep -n 'The command is: bd update' "$LABEL" | head -1)"
+  [[ -n "$INJECT_LINE" ]] && ok "found the template" || nope "found the template"
+  case "$INJECT_LINE" in
+    *"--add-label"*) ok "the injected command names bd and the label flag" ;;
+    *)               nope "the injected command names bd and the label flag" "$INJECT_LINE" ;;
+  esac
+  case "$INJECT_LINE" in
+    *--db*) nope "carried no database path" "$INJECT_LINE" ;;
+    *)      ok "carried no database path" ;;
+  esac
 fi
 
 # ---------------------------------------------------------------------------
