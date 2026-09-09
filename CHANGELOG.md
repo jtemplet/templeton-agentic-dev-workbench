@@ -1,5 +1,43 @@
 ## [Unreleased]
 
+## [4.3.0] - 2026-09-08
+
+### Changed
+
+- **The house response style now ships in two tiers, so it can grow again.** It had reached 9,713
+  characters against a 9,920-character budget, leaving 207 characters of headroom, which meant the
+  document could only be frozen. `SKILL.md` now carries an `<!-- always-on ends here -->` marker.
+  The `SessionStart` hook injects the rules above it; `/response-style` reads the whole file,
+  including the Reference section that holds the rationale, the full word table, and the worked
+  example. One file stays the single source of truth. `hooks/preamble.js` exports `ALWAYS_ON_END`
+  and truncates there, and a file with no marker returns whole, so losing the marker degrades to
+  the old behavior rather than blanking the injection. Check 19 in `node hooks/test-hooks.js` is
+  new and asserts that every section above the marker still reaches the session; the split shipped
+  a bug first, when the pre-send closer fell below the marker and stopped being injected. (#27)
+- **`docs/style-routing.md` now owns the extension-to-style-skill mapping.** The table lived in
+  three documents and had drifted: `code-simplify` named `style-fizzy` on the `.rb` row and carried
+  no `style-testing`, `feature-development` carried `style-testing` but dropped `style-fizzy`, and
+  only the `software-engineer` agent held the test-file glob list. Which rows an agent saw depended
+  on which entry point it came through. The new document takes the union of all three, and those
+  three point at it. `AGENTS.md` outranks it, says so, and links it. Also rewrites two skill
+  descriptions: `style-python` had no trigger clause at all, and `style-markdown` spent 848
+  characters listing 19 examples of about 3 branches. (#26)
+- **The bead skills read `docs/bead-body-contract.md` rather than keeping their own copy of the
+  bead body shape.** `bead-audit`, `bead-create`, `bead-refine`, and `plan-to-beads` each held a
+  version of the required-headings table, and two copies contradicted each other once. The contract
+  now owns every section name, its byte-exact heading, which type requires it, and which `bd` field
+  holds it. Where a skill and the contract disagree, the contract wins. (`tadw-vzw`)
+
+### Fixed
+
+- **`/publish-plugin` grades the bump and the changelog against the range it will actually push.**
+  Step 2 derived the bump from `$LAST_TAG..origin/main`, and Step 4 walked that same range, so
+  commits sitting unpushed on local main were published without ever being graded or recorded.
+  Step 1 now resolves a release tip with two `git merge-base --is-ancestor` tests, and Steps 2 and
+  4 both end their range there. Those tests are also the command behind the `main-diverged` stop,
+  which stated a condition and gave no way to check it. The tip is carried as a ref name rather
+  than a hash, so a branch landed in Step 3 still reaches the changelog. (`tadw-w87`)
+
 ## [4.2.1] - 2026-09-08
 
 ### Fixed
@@ -2493,7 +2531,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.2.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.3.0...HEAD
+[4.3.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.2.1...v4.3.0
 [4.2.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.2.0...v4.2.1
 [4.2.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.0.0...v4.1.0
