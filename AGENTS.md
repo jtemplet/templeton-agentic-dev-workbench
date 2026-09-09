@@ -204,7 +204,6 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Audit an App Store listing | `/aso-review` | `aso-review` |
 | Map product surfaces to docs | `/product-surface-docs` | `product-cartographer` agent |
 | Build a project dashboard | `/roadmap-dashboard` | `roadmap-dashboard` |
-| Keep a PR green | `/pr-maintain` | `pr-maintenance` |
 | Operate production | `/prod-ops` | `production-ops` |
 | Review a CLAUDE.md | `/review-claude-md` | `claude-md-reviewer` agent |
 
@@ -214,7 +213,7 @@ is the dispatch three documents execute (`code-simplify`, `feature-development`,
 for test files and project-local surfaces, and defines when a Markdown file is the deliverable.
 
 [docs/ROUTING.md](docs/ROUTING.md) expands the rows above into workflows, grouped by language
-and by task. It gives 19 of the 32 commands an entry of their own, not all of them: `/aso-review`,
+and by task. It gives 18 of the 31 commands an entry of their own, not all of them: `/aso-review`,
 `/bead-refine`, `/diagnose`, `/fresh-eyes-cr`, `/prod-ops`, `/product-surface-docs`,
 `/research-ingest`, `/research-synthesize`, `/response-style`, `/review-claude-md`, `/ux-review`,
 `/ux-review-ios`, and `/validate-plugin` have a one-line description in `README.md` and none there
@@ -307,14 +306,14 @@ sat at 2.10.1 while main ran 13 commits past its release commit, and `v2.10.0` a
 created locally and never pushed. Read the last tag with `git tag --list 'v*' --sort=-v:refname`,
 because lexical order puts `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
-**Registered Skills** (46). One-line descriptions live in the `README.md` skills
+**Registered Skills** (45). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
 `ab-test-design` `agentic-clean-code` `architecture-decision-record` `aso-review` `bead-audit`
 `bead-create` `bead-refine` `business-ideas` `code-simplify` `competitive-analysis`
 `feature-development` `grilling` `house-response-style` `idea-wizard` `plan-review`
-`plan-to-beads` `pr-maintenance`
+`plan-to-beads`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `publish-plugin` `quality-gates`
 `research-ingest` `research-synthesize` `review-fresh-eyes` `review-python` `review-rails`
@@ -330,12 +329,12 @@ each `agents/<name>.md` frontmatter.
 `product-cartographer` `product-manager` `project-manager` `quality-gates-orchestrator`
 `research-librarian` `software-engineer` `ux-product-designer` `ux-product-designer-ios`
 
-**Registered Commands** (32). Descriptions live in the `README.md` command tables
+**Registered Commands** (31). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
 `/adr` `/agentic-clean-code` `/aso-review` `/bead-audit-all` `/bead-refine` `/build` `/code-review` `/diagnose`
 `/fresh-eyes-cr` `/frontend-code-review` `/grill-me` `/plan-from-idea` `/plan-review` `/plan-to-beads`
-`/pr-maintain` `/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
+`/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
 `/quality-gates` `/rails-code-review` `/research-ingest` `/research-synthesize` `/response-style`
 `/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-review`
 `/ux-review-ios` `/validate-plugin` `/verify-acceptance`

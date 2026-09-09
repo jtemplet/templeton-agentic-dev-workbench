@@ -86,20 +86,6 @@ A bug does not arrive as a plan, so it needs its own route onto Pipeline B.
 | `/diagnose <bug>` | Investigate thoroughly before fixing, gather evidence, test hypotheses, present root cause |
 | `/bead-create` | Turn the confirmed root cause into one well-formed bead, with steps to reproduce and acceptance criteria |
 
-### PR Maintenance
-
-Keep a long-lived PR rebased on its parent branch and green on CI. Detects the PR's actual base from GitHub (so stacked PRs work), rebases with `--force-with-lease`, and applies minimal CI fixes scoped to files already in the PR diff.
-
-| Command | What it does |
-|---|---|
-| `/pr-maintain` | One maintenance iteration: detect base branch, rebase, resolve conflicts, push with lease, diagnose and fix failing required CI checks, report |
-
-Pair with `/loop` to run on a schedule:
-
-```text
-/loop 6h /pr-maintain
-```
-
 ### Pipeline C: Product Strategy
 
 `/competitive-analysis` → `/product-research` → `/product-roadmap` → `/product-brief <feature>` → `/ab-test-design <hypothesis>`
@@ -166,7 +152,6 @@ Pair with `/loop` to run on a schedule:
 | `/bead-refine [topic]` | Loads the `bead-refine` skill: cluster the backlog into themes, pick one, then keep, shrink, merge, defer, kill, done, or promote each bead. Answers "does this bead deserve to exist?", not "can it be built?" |
 | `/bead-audit-all [open\|all]` | Single-pass, report-only audit of the whole backlog: score and ground every bead once, ranked health table (worst first) |
 | `/product-surface-docs [dir]` | Build/refresh a MECE/Pyramid product doc tree by surface under docs/products/; surfaces bugs/gaps/debt into a findings ledger |
-| `/pr-maintain` | Keep the current branch's PR rebased on its parent and passing CI; safe to pair with `/loop` |
 | `/roadmap-dashboard [jsonl]` | Build a self-contained interactive HTML project dashboard at `docs/roadmap.html` from the codebase and the `beads` tracker |
 | `/validate-plugin` | Check plugin integrity and cross-references |
 
@@ -234,7 +219,6 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `product-roadmap` | Roadmap with themes, capacity modeling, bet classification, and Now/Next/Later sequencing | Start of a quarter, or stakeholders disagree on priorities |
 | `product-brief` | PM-to-engineering handoff: problem, metrics, scope, acceptance criteria, experiment tie-in | A prioritized feature needs scoping for engineering |
 | `agentic-clean-code` | Clean Code + POODR principles for agentic systems: tool design, prompt architecture, orchestration, naming, testability | Designing or reviewing tools, prompts, or agent orchestration |
-| `pr-maintenance` | Keep a single PR rebased on its actual parent branch and green on CI with minimal, in-scope edits; designed to run on a loop | A long-lived or stacked PR needs to stay current and green |
 | `roadmap-dashboard` | Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` collector and versions the output | Showing project maturity and remaining work to a stakeholder |
 | `production-ops` | Safely operate production Docker Compose apps on a single Hetzner VPS over SSH (two-hop `root` -> `su - deploy`); service ops and PostgreSQL data ops under strong guardrails: read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes / `prune` / `DROP` / `TRUNCATE` / `WHERE`-less writes | Checking, restarting, or changing data on the production VPS |
 | `write-plan` | Turn a design this conversation already settled into `docs/plans/feature-plan-<name>.md`: synthesize rather than interview, verify every path it names, pick and confirm the test seams, honor the ADRs, and write the canonical 11-section template that `/plan-review` grades. Owns that template | Right after `/grill-me` or `/grill-with-docs`, or any time a settled design needs to become a document |

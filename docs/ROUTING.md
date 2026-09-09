@@ -305,7 +305,7 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 
 **Land the accepted branch:** Use `/tadw:ship` (the `ship` skill directly; there is no command file)
 
-- The local counterpart of `/pr-maintain`: no pull request and no GitHub CI, so the repository's own
+- Lands entirely locally: no pull request and no GitHub CI, so the repository's own
   check suite, run locally on the rebased tip, is the entire gate
 - Refuses to start on the default branch, on a dirty tree, or with a rebase or merge already running
 - Resolves the bead from the argument or the `outrigger/<short-id>/<slug>` branch name, verifying
@@ -483,22 +483,3 @@ command file)
 - Cross-references code against beads to classify each subsystem as Built / Partial / Stubbed / Planned and compute a blended, defensible completion percentage
 - Renders zero-dependency pure HTML/CSS/vanilla-JS diagrams (architecture current-vs-target, data flow, DB relationships, dependency graph, milestone timeline + risk matrix), a Kanban board, collapsible deep-dives, a sticky TOC, and print CSS
 - Versions the output (`docs/roadmap-vX.Y.html`) instead of overwriting a prior report; marks inferences with `[Inference]` tags and confidence scores
-
-### PR Maintenance
-
-**Keep a PR Green:** Use `/pr-maintain` or the `pr-maintenance` skill directly
-
-- Detects the PR's actual base branch from GitHub (not hardcoded `origin/main`), so stacked PRs work
-- Rebases with `git push --force-with-lease` (never plain `--force`)
-- AI-assisted conflict resolution with hard-stops on migrations, lockfiles, and secrets
-- Fixes failing required CI checks with edits scoped to files already in the PR diff
-- Never modifies test assertions in files that were not already in the PR diff (prevents masking real failures)
-- Idempotent per iteration, safe to run on a loop
-
-**Running on a loop:**
-
-```text
-/loop 6h /pr-maintain
-```
-
-Each iteration reports rebase status, CI status, files touched, and any manual actions the user needs to take.

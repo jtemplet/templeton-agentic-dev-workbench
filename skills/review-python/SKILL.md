@@ -784,6 +784,7 @@ Rationale: the before version concatenates caller-controlled input directly into
 
 Apply this guidance throughout:
 
+- **Orient with `bulk-reader`, and read what you edit yourself.** When the review spans more files than you want to read, dispatch `tadw:bulk-reader` to find which ones matter, then read those here. It reads in its own context, so the files it opens never enter yours. `bulk-reader` orients, and never supplies the text an edit is based on. Its answer carries no reliable line numbers, so an edit built on it changes the wrong line.
 - **Pragmatic approach.** Focus on the changes being made, not rewriting the entire codebase. Suggest incremental improvements. Consider team capacity and priorities. Perfect is the enemy of good.
 - **Context matters.** Consider project conventions. Match surrounding code style when editing. Balance improvement with backwards compatibility. Know when rules have valid exceptions.
 - **Be constructive.** Explain *why* something matters, provide specific actionable recommendations, include code examples for fixes, and acknowledge good practices.
@@ -889,6 +890,7 @@ The one exception is a genuine security vulnerability or latent correctness bug 
 Before completing the review, verify:
 
 - [ ] Read the entire file (not just the diff) for purpose, structure, and surrounding conventions.
+- [ ] Read every file an edit touched, rather than relying on `bulk-reader`'s bullets for it.
 - [ ] Verified each claim (Python version, framework patterns, whether tests pass) before flagging it.
 - [ ] Reviewed security and correctness first, then quality, then maintainability, then style.
 - [ ] Applied the severity scale, including the rule that passing tests cap non-correctness/non-security issues at MEDIUM.

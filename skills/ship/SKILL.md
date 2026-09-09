@@ -9,9 +9,9 @@ Lands an accepted bead's feature branch on main and closes the bead. There is no
 GitHub CI. **The repository's own check suite, run on the exact tree that lands, is the whole gate.**
 
 Use it when a bead passed `/quality-gates` and `/verify-acceptance`, or when an orchestrator needs an
-unattended ship step. Do not use it when the repository merges through pull requests (use
-`/pr-maintain`), when the work is not graded yet, when you want a readiness report instead of an
-action, or when the branch carries two beads.
+unattended ship step. Do not use it when the repository merges through pull requests, when the
+work is not graded yet, when you want a readiness report instead of an action, or when the branch
+carries two beads.
 
 Four rules govern every step:
 

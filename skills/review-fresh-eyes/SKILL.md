@@ -63,12 +63,20 @@ If still empty, inform the user there are no changes to review.
 
 ### Step 2: Read Full Files
 
-For every changed file, read the **entire file**, not just the diff hunks. You need surrounding context to spot issues like:
+For every changed file, read the **entire file**, not just the diff hunks. The `bulk-reader` route below is the one exception: it narrows which files you read, and it never replaces a read of a file you edit. You need surrounding context to spot issues like:
 
 - Variables used before being defined
 - Functions called with wrong arguments
 - Missing imports or broken references
 - Logic that contradicts code elsewhere in the file
+
+**When the change touches more files than you want to read, dispatch `tadw:bulk-reader` first.**
+It reads many files in its own context and returns bullets, so those files never enter yours. Ask
+it which of the changed files carry the risky logic. Then read those files here, in full.
+
+**Read every file you are about to edit, yourself.** `bulk-reader` orients, and never supplies the
+text an edit is based on. Its answer carries no reliable line numbers, so an edit built on it
+changes the wrong line. Step 4 edits files, so read every file it touches.
 
 ### Step 3: Review for Issues
 
@@ -135,6 +143,7 @@ This skill fixes CRITICAL, HIGH, and MEDIUM bugs directly when the fix is unambi
 **Always:**
 
 - Read the full file, not just the diff
+- Read a file yourself before you edit it, even when `bulk-reader` already described it
 - Fix bugs directly via Edit, do not just report them
 - Explain every fix clearly
 - Be conservative, only fix clear problems
@@ -145,6 +154,7 @@ This skill fixes CRITICAL, HIGH, and MEDIUM bugs directly when the fix is unambi
 - Fix style or formatting (that is a different review)
 - Refactor working code (you are looking for bugs, not improvements)
 - Guess at fixes for ambiguous issues (flag those for the user)
+- Edit a file from `bulk-reader`'s bullets; that agent orients, and its line numbers go stale
 - Skip files because they look fine from the diff (read the whole thing)
 - Make changes that alter behavior beyond fixing the bug
 
@@ -152,7 +162,8 @@ This skill fixes CRITICAL, HIGH, and MEDIUM bugs directly when the fix is unambi
 
 Before reporting completion, verify:
 
-- [ ] All changed files were read in full (not just diffs)
+- [ ] Every file you reviewed or edited was read in full (not just its diff)
+- [ ] Every edited file was read here, not taken from `bulk-reader`'s bullets
 - [ ] Every fix is genuinely a bug, not a style preference
 - [ ] Every fix is explained with before/after reasoning
 - [ ] Every reported issue carries a severity label
