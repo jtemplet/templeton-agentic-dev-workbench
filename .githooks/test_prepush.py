@@ -244,6 +244,54 @@ BROKEN_LINK_MARKDOWN = "# A note\n\nSee [the plan](no-such-file.md) for the rest
 BREAKABLE_CHECK = "skills/quality-gates/scripts/test_check_doc_paths.py"
 FAILING_BODY = "raise SystemExit(1)\n"
 
+# A document whose only fault is one prose line past 100 columns. Real
+# sentences with spaces, not a single long token: MD013 does not flag a line
+# it cannot wrap at a word boundary, so a run of one repeated character proves
+# nothing here.
+MD013_DOC = "docs/OVERLONG.md"
+MD013_MARKDOWN = (
+    "# A note\n\n"
+    "This is a line that is intentionally written to be far longer than one "
+    "hundred characters so it trips MD013 for certain, no matter what.\n"
+)
+
+# A document whose only long lines sit in a table cell and a fenced code
+# block, both exempt by `.rumdl.toml`'s MD013 config. Proves the exemption
+# rather than the absence of a long line.
+MD013_EXEMPT_DOC = "docs/TABLE_AND_CODE.md"
+MD013_EXEMPT_MARKDOWN = (
+    "# A note\n\n"
+    "| Column |\n"
+    "| --- |\n"
+    "| this is a very long table cell that easily exceeds one hundred characters in its total "
+    "rendered width for sure |\n"
+    "\n"
+    "```text\n"
+    "this is a very long line inside a fenced code block that also exceeds one hundred "
+    "characters with room to spare\n"
+    "```\n"
+)
+
+# A document meant to sit in the tree BEFORE a push touches anything, never in
+# the changed set the push under test carries.
+MD013_UNTOUCHED_DOC = "docs/UNTOUCHED_LONG.md"
+MD013_UNTOUCHED_MARKDOWN = (
+    "# A note\n\n"
+    "This line already lived in the tree before this push touched anything, and "
+    "it is written to be well past the one hundred column wrap on purpose.\n"
+)
+
+
+def install_real_markdown_wrap(fixture: "Fixture") -> None:
+    """Restore the real check_markdown_wrap.py over hook_check_stubs()'s no-op.
+
+    Every `python3 <path>` check is stubbed by default, for speed; these MD013
+    cases need the real scoping logic, the same way the rumdl-based cases above
+    need real rumdl rather than a stub.
+    """
+    script = "skills/quality-gates/scripts/check_markdown_wrap.py"
+    fixture.write(script, (REPO / script).read_text(encoding="utf-8"))
+
 # The timestamp every planted verdict carries. A fixed value, because the FAIL
 # message has to name it and a generated one could not be asserted against.
 RECORDED_AT = "2026-08-11T04:12:07Z"
@@ -690,6 +738,97 @@ for name, fn in [
     ("two failures both appear in one report [criterion 4]", case_two_failures_both_reported),
     ("a broken relative link refuses the push", case_broken_relative_link_refuses_push),
     ("the report names the failing command", case_failure_report_names_the_command),
+]:
+    check(name, fn)
+
+
+print("\n  [MD013, scoped to the changed set, tadw-2l3]")
+
+
+def case_md013_flags_a_changed_overlong_line() -> None:
+    """tadw-2l3 criterion 1. A changed file's line past 100 columns refuses the
+    push, naming MD013, the file, and the line."""
+    if not shutil.which("rumdl"):
+        return
+    fixture = build()
+    install_real_markdown_wrap(fixture)
+    fixture.write(MD013_DOC, MD013_MARKDOWN)
+    fixture.commit_all("add an overlong line")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f"a changed overlong line must refuse the push: {output}"
+    assert "MD013" in output, f"the rule must be named: {output}"
+    assert MD013_DOC in output, f"the file must be named: {output}"
+    assert f"{MD013_DOC}:3:" in output, f"the line must be named: {output}"
+
+
+def case_md013_ignores_a_deleted_file() -> None:
+    """Regression: a deleted `.md` file in the changed set must not refuse the
+    push. `rumdl check` exits 2 on a path it cannot find, and changed_set.py
+    reports a deletion the same way it reports any other change.
+    """
+    if not shutil.which("rumdl"):
+        return
+    fixture = build()
+    fixture.write(MD013_UNTOUCHED_DOC, MD013_UNTOUCHED_MARKDOWN)
+    fixture.commit_all("add a document to delete later")
+    git(fixture.work, "push", "-q", "origin", "main")
+    git(fixture.work, "fetch", "-q", "origin")
+    install_real_markdown_wrap(fixture)
+    (fixture.work / MD013_UNTOUCHED_DOC).unlink()
+    fixture.commit_all("delete the document")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"a deleted markdown file must not refuse the push: {output}"
+
+
+def case_md013_ignores_an_untouched_file() -> None:
+    """tadw-2l3 criterion 2. A long line in a file the push does not touch must
+    not fail it.
+
+    Pushed for real onto origin/main first, WHILE check_markdown_wrap.py is
+    still stubbed, so that setup push cannot fail on a file this case means to
+    treat as pre-existing. The real script goes in only after, so the push
+    under test diffs against a base that already carries the document.
+    """
+    if not shutil.which("rumdl"):
+        return
+    fixture = build()
+    fixture.write(MD013_UNTOUCHED_DOC, MD013_UNTOUCHED_MARKDOWN)
+    fixture.commit_all("add a long-line document")
+    git(fixture.work, "push", "-q", "origin", "main")
+    git(fixture.work, "fetch", "-q", "origin")
+    install_real_markdown_wrap(fixture)
+    fixture.write("ANOTHER.txt", "an unrelated change to push\n")
+    fixture.commit_all("unrelated change")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, (
+        f"a long line in an untouched file must not refuse the push: {output}"
+    )
+
+
+def case_md013_ignores_table_and_code_block() -> None:
+    """tadw-2l3 criterion 3. A long table row or fenced code line never fails
+    the push."""
+    if not shutil.which("rumdl"):
+        return
+    fixture = build()
+    install_real_markdown_wrap(fixture)
+    fixture.write(MD013_EXEMPT_DOC, MD013_EXEMPT_MARKDOWN)
+    fixture.commit_all("add a long table row and code line")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, (
+        f"a long table row or code block line must not refuse the push: {output}"
+    )
+
+
+for name, fn in [
+    ("a changed overlong line refuses the push, named [tadw-2l3 criterion 1]", case_md013_flags_a_changed_overlong_line),
+    ("a deleted markdown file does not refuse the push", case_md013_ignores_a_deleted_file),
+    ("an untouched overlong file does not fail the push [tadw-2l3 criterion 2]", case_md013_ignores_an_untouched_file),
+    ("a long table row or code line never fails the push [tadw-2l3 criterion 3]", case_md013_ignores_table_and_code_block),
 ]:
     check(name, fn)
 

@@ -2,15 +2,19 @@
 
 # Global configuration options
 [global]
-# MD013 (line length) is disabled: skill files and example blocks routinely
-# exceed 100 chars and wrapping them would hurt readability.
-#
 # MD041 (first line must be an H1) is disabled: commands and agents must open
 # with YAML frontmatter (`---`), CLAUDE.md opens with an `@AGENTS.md` include,
 # and the bead-audit fixtures open with an HTML-comment Expected block, so a
 # leading H1 is structurally wrong for this repo. `rumdl fmt --check` (what CI
 # runs) never flagged these; this keeps `rumdl check` quiet too.
-disable = ["MD013", "MD041"]
+#
+# MD013 (line length) stays enabled here, at 100 columns. It is not run
+# whole-tree: `.githooks/pre-push` disables it for the whole-tree `rumdl
+# check .` and enables it again, scoped to the changed set alone, for a
+# second invocation. The 87 files that already exceed 100 columns reflow
+# opportunistically as they are touched, rather than in one 1,391-finding
+# pass. See tadw-2l3.
+disable = ["MD041"]
 
 # List of rules to enable exclusively (if provided, only these rules will run)
 # enable = ["MD001", "MD003", "MD004"]
@@ -52,6 +56,11 @@ respect-gitignore = true
 # flavor = "mkdocs"
 
 # Rule-specific configurations (uncomment and modify as needed)
+
+[MD013]
+line-length = 100
+code-blocks = false  # wrapping a fenced code block would change its meaning
+tables = false       # wrapping a table cell would break the table
 
 # [MD003]
 # style = "atx"  # Heading style (atx, atx_closed, setext)

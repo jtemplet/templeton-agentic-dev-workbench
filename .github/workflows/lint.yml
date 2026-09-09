@@ -47,9 +47,12 @@ jobs:
       # gate lives only in .githooks/pre-push. core.hooksPath is local config
       # and does not travel with a clone, so a hook-only gate protects only the
       # machines somebody wired by hand. MD057 needs v0.2.33, which is why
-      # RUMDL_VERSION was bumped.
+      # RUMDL_VERSION was bumped. MD013 is excluded here because a whole-tree
+      # run would fail on the 87 files not yet reflowed to 100 columns.
+      # .githooks/pre-push carries MD013 separately, scoped to the changed
+      # set, which CI does not run.
       - name: Lint Markdown
-        run: rumdl check .
+        run: rumdl check . --extend-disable MD013
 
   tests:
     name: Tests (hooks + skill checks)

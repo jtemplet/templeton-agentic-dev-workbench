@@ -14,14 +14,15 @@ Terraform.
 These checks run against this repository itself.
 
 CI (`.github/workflows/lint.yml`) runs seven of them on every push and pull request:
-`rumdl fmt --check .`, `rumdl check .`, `node hooks/test-hooks.js`, both framework-leak checks,
-and both refine-round format checks. It skips `bash hooks/test-claude-scripts.sh`, so only the local hook
-enforces that suite. `.githooks/pre-push` runs all of them except the last four. See "Git hooks"
-below.
+`rumdl fmt --check .`, `rumdl check . --extend-disable MD013`, `node hooks/test-hooks.js`, both
+framework-leak checks, and both refine-round format checks. It skips
+`bash hooks/test-claude-scripts.sh`, so only the local hook enforces that suite. `.githooks/pre-push`
+runs all of them except the last four. See "Git hooks" below.
 
 ```bash
 rumdl fmt --check .                                          # what CI runs; ./lint.sh formats in place
-rumdl check .                                                # the linter, not the formatter: a broken relative link fails here
+rumdl check . --extend-disable MD013                         # the linter, not the formatter: a broken relative link fails here
+python3 skills/quality-gates/scripts/check_markdown_wrap.py   # MD013 at 100 columns, scoped to the changed set
 node hooks/test-hooks.js                                      # hook suite, incl. the docs/HOOKS.md count assertion
 bash hooks/test-claude-scripts.sh                             # suite for the two .claude/scripts hooks
 python3 skills/style-testing/scripts/test_check_framework_leak.py   # regression suite for the leak checker
@@ -95,7 +96,7 @@ every case, which is too slow and too costly for a push. `python3 evals/test_run
 model and costs about 2 seconds, so cost is not why it left the hook. The evals are a measurement
 you run deliberately. Both stay in the list above, so the ship gate still runs the harness suite.
 
-That leaves 19 checks; derive the number with `grep -c '^check ' .githooks/pre-push`. They take
+That leaves 20 checks; derive the number with `grep -c '^check ' .githooks/pre-push`. They take
 tens of seconds, and the figure moves with the machine. It was
 46 seconds when first measured warm, and 68 seconds for a dry-run push on 2026-08-23. Six suites
 carry nearly all of it.
@@ -318,9 +319,9 @@ reads when deciding what to invoke.
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `publish-plugin` `quality-gates`
 `research-ingest` `research-synthesize` `review-fresh-eyes` `review-python` `review-rails`
-`roadmap-dashboard` `ship` `style-fizzy` `style-frontend` `style-go` `style-markdown` `style-python` `style-rails`
-`style-rspec` `style-swift` `style-testing` `terraform-iac-expert` `triage-beads` `ux-review`
-`ux-review-ios` `verify-acceptance` `write-plan`
+`roadmap-dashboard` `ship` `style-fizzy` `style-frontend` `style-go` `style-markdown`
+`style-python` `style-rails` `style-rspec` `style-swift` `style-testing` `terraform-iac-expert`
+`triage-beads` `ux-review` `ux-review-ios` `verify-acceptance` `write-plan`
 
 **Registered Agents** (15). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.
@@ -333,9 +334,9 @@ each `agents/<name>.md` frontmatter.
 **Registered Commands** (31). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
-`/adr` `/agentic-clean-code` `/aso-review` `/bead-audit-all` `/bead-refine` `/build` `/code-review` `/diagnose`
-`/fresh-eyes-cr` `/frontend-code-review` `/grill-me` `/plan-from-idea` `/plan-review` `/plan-to-beads`
-`/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
+`/adr` `/agentic-clean-code` `/aso-review` `/bead-audit-all` `/bead-refine` `/build` `/code-review`
+`/diagnose` `/fresh-eyes-cr` `/frontend-code-review` `/grill-me` `/plan-from-idea` `/plan-review`
+`/plan-to-beads` `/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
 `/quality-gates` `/rails-code-review` `/research-ingest` `/research-synthesize` `/response-style`
 `/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-review`
 `/ux-review-ios` `/validate-plugin` `/verify-acceptance`
@@ -432,10 +433,10 @@ An agent should:
 
 ### Architecture Decision Records
 
-`docs/adr/` holds them and `/adr` writes them. It was named docs/decisions until 2026-08-28, and that
-directory is gone. It moved so that `mattpocock-skills:domain-modeling`, which writes ADRs to `docs/adr/` and
-cannot be told otherwise, lands them where everything here reads. Three rules keep the directory
-from becoming write-only.
+`docs/adr/` holds them and `/adr` writes them. It was named docs/decisions until 2026-08-28, and
+that directory is gone. It moved so that `mattpocock-skills:domain-modeling`, which writes ADRs
+to `docs/adr/` and cannot be told otherwise, lands them where everything here reads. Three rules
+keep the directory from becoming write-only.
 
 **Two skills write into it, in two formats.** `/adr` writes the structured template in
 `skills/architecture-decision-record/SKILL.md`: Context, Options Considered with pros and cons,
@@ -482,9 +483,9 @@ The list was seven. Two left because `commands/bead-refine.md` now names `bead-c
 in favor of `mattpocock-skills:domain-modeling`; it stopped being an orphan by ceasing to exist.
 
 The check follows agent and command references alone, so it misses one live path: `publish-plugin`
-invokes `ship` to land a branch. It also matches on the skill's name, so `commands/adr.md` counts as a referrer of
-`architecture-decision-record` even though it writes the name without backticks. Read the orphan
-rule as a prompt to check that a skill is still reachable, not as a defect list.
+invokes `ship` to land a branch. It also matches on the skill's name, so `commands/adr.md` counts
+as a referrer of `architecture-decision-record` even though it writes the name without backticks.
+Read the orphan rule as a prompt to check that a skill is still reachable, not as a defect list.
 
 ## Issue Tracking (bd + bv)
 
@@ -604,6 +605,10 @@ overlaps, is in
 [docs/agents/skill-precedence.md](docs/agents/skill-precedence.md), and the reasoning is in
 [ADR 0007](docs/adr/0007-a-tadw-skill-wins-over-an-overlapping-external-skill.md).
 
+MD013 stays off for the block below. `bd` owns its content and verifies it against the `hash` in
+the opening comment, so a line inside it must never be hand-wrapped to satisfy the linter.
+
+<!-- rumdl-disable MD013 -->
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
 ## Beads Issue Tracker
 
@@ -662,3 +667,4 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 - Do not commit or push without clear authority from the active profile or the current user request.
 - If a required sync or push is blocked, stop and report the exact command and error.
 <!-- END BEADS INTEGRATION -->
+<!-- rumdl-enable MD013 -->
