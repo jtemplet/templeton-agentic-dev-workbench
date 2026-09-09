@@ -1,6 +1,6 @@
 ---
 name: feature-development
-description: "Implement a bead in the house style, invoked as /build. Takes a bead id (preferred) or a feature description, reads the bead from bd rather than re-interviewing you, learns the repo's language, framework, and local conventions before writing anything, loads the matching style skills, implements criterion by criterion with a test per criterion, then simplifies, lints, and labels the bead `implemented`. Stops at implemented; grading and closing belong to /quality-gates and /verify-acceptance."
+description: "Implement a bead in the house style, invoked as /build. Takes a bead id (preferred) or a feature description, reads the bead from bd rather than re-interviewing you, learns the repo's language, framework, and local conventions before writing anything, loads the matching style skills, implements criterion by criterion with a test per criterion, then simplifies, lints, and writes the counts a hook reads to label the bead `implemented`. Stops at implemented; grading and closing belong to /quality-gates and /verify-acceptance."
 ---
 
 # Feature Development
@@ -191,41 +191,72 @@ Two states end this phase without a clean run. Both are stops, and neither is a 
 
 Report what the auto-fixer changed, what you fixed by hand, and the count from the final run. Never report a violation as fixed when it was suppressed.
 
-## Phase 6: Label the bead
+## Phase 6: Report what you counted
 
-Add the `implemented` label to the bead as the final step, before you write the report below:
+Write the run's counts to `build-report.json` as the final step, before the report below:
 
 ```bash
-bd update <bead-id> --add-label implemented
+cat > "$(git rev-parse --git-dir)/build-report.json" <<'JSON'
+{
+  "bead": "<bead-id>",
+  "criteria_met": 4,
+  "criteria_total": 4,
+  "tests_passed": 14,
+  "tests_failed": 0,
+  "lint_ran": true,
+  "lint_violations": 0
+}
+JSON
 ```
 
-**Apply it only when all three are true:** every acceptance criterion is met, the tests pass, and
-the linter reports zero violations. A run that stopped in Phase 1 over a thin spec has not earned
-the label. Neither has a run that left a criterion unmet, a test failing, or a violation standing.
+Every field is required. A missing or non-numeric count withholds the label.
 
-**When the run misses that gate, add no label.** Name the failing condition on the `Label:` line of
-the report instead.
+**Do not add the label yourself, and do not write a verdict field.** The `Stop` hook reads this
+file and decides. It applies `implemented` only when `criteria_met` equals `criteria_total`,
+`tests_passed` is at least 1, `tests_failed` is 0, `lint_ran` is `true`, and `lint_violations` is
+0. It withholds the label on anything else. A verdict you write would be ignored, because a run
+that grades its own work is the failure `/verify-acceptance` exists to prevent.
 
-This label is the only thing the run writes to the bead. It does not close the bead, and it does
-not set the bead's status. The labeling hook sets the status, not this skill. It moves a bead from
-`open` to `in_progress` when the run starts, and it leaves a bead that already reads `in_progress`
-or `closed` alone. A `Stop` hook reads the bead after the run and writes
-`OWED implemented, the run never applied it` to `<git-common-dir>/bead-label.log` when the label is
-missing, so a skipped phase leaves a record either way.
+**`lint_ran` is `false` whenever the linter did not run**, including when it is not installed,
+which Phase 5 names as a stop. Zero violations from a linter that never ran is not a clean lint,
+and this flag is the only thing that separates the two. There is no matching `tests_ran`, because
+`tests_passed` already says whether the suite ran.
 
-Skip this phase when the work has no bead. A free-text description has nothing to label.
+**Report the real counts, including the ones that fail.** A run that reached this phase writes the
+file even when the numbers are bad: a criterion unmet, a test failing, a linter that would not
+start. The hook withholds the label and logs which condition failed. An honest record beats a
+missing one, and you do not have to decide what the numbers mean.
 
-**Output of the run**, written after Phase 6 applies or withholds the label:
+**Write no file at all when the run did not reach this phase.** A run that stopped in Phase 1 over
+a thin spec never gets here, and neither does one that abandoned Phase 3 part-way. Its absence is
+the signal, because `Stop` cannot otherwise tell an interrupted run from a finished one: both
+leave a branch and edited files behind. The hook waits across repeated `Stop` events for the file,
+then abandons the pending label after six hours and records that in
+`<git-common-dir>/bead-label.log`.
+
+The rule in one line: **reaching Phase 6 decides whether you write the file, and the counts decide
+what the hook does with it.**
+
+Both paths leave a record. There is no path where a finished run is silently unlabeled.
+
+This file and the bead's status are the only things the run writes outside the code. It does not
+close the bead. The labeling hook sets the status, moving a bead from `open` to `in_progress` when
+the run starts, and leaving one that already reads `in_progress` or `closed` alone.
+
+Skip this phase when the work has no bead. A free-text description has nothing to label, so write
+no file.
+
+**Output of the run**, written after Phase 6 writes or withholds the file:
 
 ```text
 ## Feature complete
 
-**Bead:** <id> (still open, and still yours to close)
+**Bead:** <id> (in_progress, and still yours to close)
 **Files delivered:** [paths]
 **Tests:** [command, and the real count: "14 passed, 0 failed"]
 **Linter:** [command, what it auto-fixed, what you fixed by hand, and the final count: "0 violations"]
 **Criteria met:** N of M [name any not met]
-**Label:** [`implemented` applied, or the condition that withheld it]
+**Report written:** [path to build-report.json, and the counts in it; or why none was written]
 
 **Next:** /quality-gates for the full sweep, then /verify-acceptance to grade this against the bead.
 ```
@@ -240,7 +271,7 @@ Track the six phases with TodoWrite, marking each `in_progress` on entry and `co
 3. Implement: code + a test per criterion
 4. Simplify: apply code-simplify, re-run tests
 5. Lint: run the project's linter, fix every violation, re-run it clean
-6. Label: add `implemented` to the bead, or say which condition withheld it
+6. Report: write build-report.json with the run's counts, so the hook can label
 ```
 
 ## Edge Cases

@@ -16,15 +16,17 @@ The skill will:
 3. **Implement** - Code criterion by criterion, each with a test named after the criterion it proves. Report any design decision that constrains work beyond this bead as an ADR candidate
 4. **Simplify** - Apply the `/simplify` command, then re-run the tests
 5. **Lint** - Run the project's own linter, or the language's standard one
-6. **Label** - Add the `implemented` label to the bead, but only when every criterion is met, the tests pass, and the linter is clean
+6. **Report** - Write the run's counts to `build-report.json`. A `Stop` hook reads that file and applies the `implemented` label itself, only when every criterion is met, at least one test passed with none failing, and the linter actually ran and was clean
 
 If no arguments are provided, the skill will ask for a bead id or a feature description.
 
-It stops at implemented. The `implemented` label is the only thing it writes to the
-bead: it does not close the bead, and it does not grade its own work. Run
-`/quality-gates` and then `/verify-acceptance` for that. When the bead reads `open`,
-the labeling hook moves it to `in_progress` as the run starts. The skill itself never
-changes the status.
+It stops at implemented, and it writes nothing to the bead itself: it does not close
+the bead, does not set its status, and does not apply its own label. Run
+`/quality-gates` and then `/verify-acceptance` for grading. The labeling hook owns both
+tracker writes. It moves an `open` bead to `in_progress` as the run starts, and after
+the run it reads `build-report.json` and applies `implemented` only if the counts clear
+the gate. A run that never writes that file is never labeled, which is what keeps an
+interrupted build from reading as a finished one.
 
 This workflow is language-agnostic: the skill picks the style guide, test runner,
 and linter from what the repository actually contains.

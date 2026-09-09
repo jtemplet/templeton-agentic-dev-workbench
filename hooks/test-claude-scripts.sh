@@ -719,17 +719,33 @@ if case_start "label/pre: apply mode labels the bead immediately"; then
   assert_no_match "$R/.gitlog" "^commit" "committed nothing"
 fi
 
-if case_start "label/pre: feature-development defers implemented to the run's end"; then
-  # "implemented" is an outcome. A /build run that stops at Ground must not
-  # carry it, so the hook injects the instruction and applies nothing itself.
+# /build writes <git-dir>/build-report.json with its counts. tadw-8bp.
+write_build_report() {  # write_build_report <repo> <met> <total> <failed> <violations>
+  jq -n --argjson m "$2" --argjson t "$3" --argjson f "$4" --argjson v "$5" \
+    '{bead:"tadw-alpha-one", criteria_met:$m, criteria_total:$t,
+      tests_passed:14, tests_failed:$f, lint_ran:true, lint_violations:$v}' \
+    > "$1/.git/build-report.json"
+}
+
+build_marker() {  # build_marker <repo> <bead> [created-epoch]
+  local M; M="$(marker_dir "$1")"; mkdir -p "$M"
+  printf '%s\n%s\ntadw:feature-development\ngate\n' "${3:-$(date +%s)}" "$2" \
+    > "$M/implemented__$2"
+}
+
+if case_start "label/pre: feature-development drops a gate marker and injects nothing"; then
+  # tadw-8bp. This was inject mode and landed 7 of 17 labels. A /build run that
+  # stops at Ground must not carry "implemented", and the run cannot be trusted
+  # to remember the command, so the label now waits for the report Phase 6 writes.
   R="$(new_repo b4i with-origin)"
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:feature-development' 'tadw-alpha-one')"
   assert_no_match "$R/.bdcalls" "--add-label" "applied no label up front"
-  jq -e . "$R/.hookout" >/dev/null 2>&1 && ok "the JSON parses" || nope "the JSON parses"
-  assert_match "$R/.hookout" "bd update tadw-alpha-one --add-label implemented" "named the command"
-  assert_match "$R/.hookout" "Feature complete" "gated on the run's own report"
-  assert_match "$R/.hookerr" "deferred implemented" "said so"
+  [[ ! -s "$R/.hookout" ]] && ok "injected nothing" || nope "injected nothing" "$(cat "$R/.hookout")"
+  M="$(marker_dir "$R")"
+  [[ -f "$M/implemented__tadw-alpha-one" ]] && ok "dropped the marker" || nope "dropped the marker"
+  assert_match_str "$(sed -n 3p "$M/implemented__tadw-alpha-one" 2>/dev/null)" "^tadw:feature-development$" "the marker names the skill"
+  assert_match_str "$(sed -n 4p "$M/implemented__tadw-alpha-one" 2>/dev/null)" "^gate$" "the marker records gate mode"
 fi
 
 if case_start "label/prompt: a typed /tadw:build resolves to feature-development"; then
@@ -737,30 +753,226 @@ if case_start "label/prompt: a typed /tadw:build resolves to feature-development
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(jq -n '{hook_event_name:"UserPromptSubmit", prompt:"/tadw:build tadw-alpha-one"}')"
   assert_no_match "$R/.bdcalls" "--add-label" "applied no label up front"
-  assert_match "$R/.hookout" "bd update tadw-alpha-one --add-label implemented" "named the command"
-  assert_match "$R/.hookout" '"hookEventName": *"UserPromptSubmit"' "labeled its output with the right event"
+  [[ -f "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "dropped the marker" || nope "dropped the marker"
+  assert_match "$R/.bdcalls" "update tadw-alpha-one --claim" "still claimed the bead"
+fi
+
+if case_start "label/stop: a clean build report labels implemented"; then
+  R="$(new_repo bg1 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  sleep 1; write_build_report "$R" 4 4 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label implemented" "labeled it implemented"
+  assert_match "$R/.hookerr" "4/4 criteria" "said why"
+  [[ ! -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "cleared the marker" || nope "cleared the marker"
+fi
+
+if case_start "label/stop: any failing count withholds implemented"; then
+  # One case per gate condition, so a reader can see which one moved.
+  # 3/4 criteria, a failing test, and a lint violation each stand alone.
+  set -- "3 4 0 0:an unmet criterion" "4 4 1 0:a failing test" "4 4 0 2:a lint violation"
+  for spec in "$@"; do
+    counts="${spec%%:*}"; why="${spec#*:}"
+    # shellcheck disable=SC2086
+    set -- $counts
+    R="$(new_repo "bg2-$1$2$3$4" with-origin)"
+    build_marker "$R" tadw-alpha-one
+    sleep 1; write_build_report "$R" "$1" "$2" "$3" "$4"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+    run_hook "$LABEL" "$R" "$(payload Stop '')"
+    assert_no_match "$R/.bdcalls" "--add-label" "no label on $why"
+    [[ ! -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "cleared the marker on $why" || nope "cleared the marker on $why"
+    set -- "3 4 0 0:an unmet criterion" "4 4 1 0:a failing test" "4 4 0 2:a lint violation"
+  done
+fi
+
+if case_start "label/stop: an interrupted run writes no report, so the marker waits"; then
+  # The case that killed the git-facts alternative. A run that exhausts its
+  # context mid-Implement leaves a branch and edited files behind and reaches
+  # Stop looking like a finished one. Only the absent report tells them apart,
+  # and the marker must survive repeated Stop events to see it.
+  R="$(new_repo bg3 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "no label without a report"
+  [[ -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "kept the marker after one Stop" || nope "kept the marker after one Stop"
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "still no label after a second Stop"
+  [[ -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "kept the marker after a second Stop" || nope "kept the marker after a second Stop"
+fi
+
+if case_start "label/stop: a build marker past its TTL is abandoned, never labeled"; then
+  R="$(new_repo bg4 with-origin)"
+  build_marker "$R" tadw-alpha-one "$(( $(date +%s) - 99999 ))"
+  sleep 1; write_build_report "$R" 4 4 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "no label"
+  assert_match "$R/.hookerr" "abandoning stale marker" "said why"
+  [[ ! -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "removed the marker" || nope "removed the marker"
+fi
+
+if case_start "label/stop: a build report older than the marker means the run is still going"; then
+  R="$(new_repo bg5 with-origin)"
+  write_build_report "$R" 4 4 0 0
+  sleep 1; build_marker "$R" tadw-alpha-one
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "no label from a stale report"
+  [[ -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "kept the marker" || nope "kept the marker"
+fi
+
+if case_start "label/stop: the build reader fails closed on a malformed report"; then
+  # Three shapes, all of which must withhold: unparseable, missing a count,
+  # and a count that is not a number. jq prints "null" for an absent key, so a
+  # truncated report would otherwise compare a string against zero.
+  for shape in 'not json at all' '{"criteria_met":4}' '{"criteria_met":"four","criteria_total":4,"tests_failed":0,"lint_violations":0}'; do
+    R="$(new_repo "bg6-${#shape}" with-origin)"
+    build_marker "$R" tadw-alpha-one
+    sleep 1; printf '%s' "$shape" > "$R/.git/build-report.json"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+    run_hook "$LABEL" "$R" "$(payload Stop '')"
+    assert_no_match "$R/.bdcalls" "--add-label" "no label on: $shape"
+    assert_no_match "$R/.hookerr" "unbound variable" "did not die on: $shape"
+  done
+fi
+
+if case_start "label/stop: a linter that never ran earns no label"; then
+  # Found by review. Phase 5 names "the linter is not installed" as a stop, and
+  # such a run reports lint_violations: 0 truthfully, because zero violations
+  # were found. Without lint_ran the gate read that as a clean lint and labeled
+  # work nothing had linted. false, absent and malformed all fail closed: jq's
+  # // treats false as absent, so all three reach the check as an empty string.
+  for shape in 'false' 'absent'; do
+    R="$(new_repo "bg11-$shape" with-origin)"
+    build_marker "$R" tadw-alpha-one
+    sleep 1
+    if [[ "$shape" == false ]]; then
+      jq -n '{bead:"tadw-alpha-one", criteria_met:4, criteria_total:4,
+              tests_passed:14, tests_failed:0, lint_ran:false, lint_violations:0}' \
+        > "$R/.git/build-report.json"
+    else
+      jq -n '{bead:"tadw-alpha-one", criteria_met:4, criteria_total:4,
+              tests_passed:14, tests_failed:0, lint_violations:0}' \
+        > "$R/.git/build-report.json"
+    fi
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+    run_hook "$LABEL" "$R" "$(payload Stop '')"
+    assert_no_match "$R/.bdcalls" "--add-label" "no label when lint_ran is $shape"
+    assert_match "$R/.hookerr" "does not record lint_ran" "said why for $shape"
+  done
+fi
+
+if case_start "label/stop: a run with no passing tests earns no label"; then
+  # The other half of the same hole. A suite that never ran reports
+  # tests_passed 0 AND tests_failed 0, so the failing-test check cannot catch
+  # it: there is nothing to count. Zero passing tests proves nothing.
+  R="$(new_repo bg12 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  sleep 1
+  jq -n '{bead:"tadw-alpha-one", criteria_met:4, criteria_total:4,
+          tests_passed:0, tests_failed:0, lint_ran:true, lint_violations:0}' \
+    > "$R/.git/build-report.json"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "no label without a passing test"
+  assert_match "$R/.hookerr" "records no passing tests" "said why"
+fi
+
+if case_start "label/stop: one passing test is enough, it is not compared to the criteria"; then
+  # Deliberately not tests_passed >= criteria_total. One test can cover two
+  # criteria, and an existing test can prove one, so the stricter rule would
+  # withhold the label from correct runs.
+  R="$(new_repo bg13 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  sleep 1
+  jq -n '{bead:"tadw-alpha-one", criteria_met:4, criteria_total:4,
+          tests_passed:1, tests_failed:0, lint_ran:true, lint_violations:0}' \
+    > "$R/.git/build-report.json"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label implemented" "labeled it on one passing test"
+fi
+
+if case_start "label/stop: a leading-zero count does not fall through to a label"; then
+  # Found by review, and it fired. Bash reads a leading zero as octal, so a
+  # count of "08" made (( )) abort with "value too great for base". The abort
+  # returns non-zero, every gate `if` read that as false, and control reached
+  # the final return 0. A report claiming eight failing tests was labeled.
+  #
+  # Counts arrive as JSON strings here, which is the only shape that reaches
+  # the arithmetic with a leading zero: JSON forbids 08 as a bare number.
+  R="$(new_repo bg9 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  sleep 1
+  jq -n '{bead:"tadw-alpha-one", criteria_met:"09", criteria_total:"09",
+          tests_passed:"14", tests_failed:"08", lint_ran:true, lint_violations:"0"}' \
+    > "$R/.git/build-report.json"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "withheld the label on 8 failing tests"
+  assert_match "$R/.hookerr" "has 8 failing test" "read 08 as eight, not as an error"
+  assert_no_match "$R/.hookerr" "value too great for base" "no arithmetic abort"
+fi
+
+if case_start "label/stop: a leading-zero count still passes when it is clean"; then
+  # The other half. "04" of "04" criteria is four of four, so base 10 has to
+  # make it pass rather than making every leading zero fail closed.
+  R="$(new_repo bg10 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  sleep 1
+  jq -n '{bead:"tadw-alpha-one", criteria_met:"04", criteria_total:"04",
+          tests_passed:"08", tests_failed:"00", lint_ran:true, lint_violations:"00"}' \
+    > "$R/.git/build-report.json"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label implemented" "labeled it"
+  assert_match "$R/.hookerr" "4/4 criteria" "counted in base 10"
+fi
+
+if case_start "label/stop: a verdict field in the build report is ignored"; then
+  # The whole point of gate mode here. A run that writes PASS beside a failing
+  # test would otherwise grade its own work, which is the self-grading failure
+  # /verify-acceptance exists to prevent. The counts decide, and only the counts.
+  R="$(new_repo bg7 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  sleep 1
+  jq -n '{bead:"tadw-alpha-one", verdict:"PASS", criteria_met:2, criteria_total:4,
+          tests_passed:9, tests_failed:3, lint_ran:true, lint_violations:0}' \
+    > "$R/.git/build-report.json"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "the verdict bought no label"
+  assert_match "$R/.hookerr" "met 2 of 4 criteria" "graded the counts instead"
+fi
+
+if case_start "label/stop: a build marker ignores a quality-gates report"; then
+  # The marker's skill picks the reader, and these two artifacts sit in the
+  # same directory. A concurrent /quality-gates PASS says nothing about /build.
+  R="$(new_repo bg8 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  sleep 1; write_qg_report "$R" PASS
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "no label from the wrong artifact"
+  [[ -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "kept the marker" || nope "kept the marker"
 fi
 
 if case_start "label/inject: every inject-mode skill names its own label command"; then
   # Inject mode applies no label. It asks the RUN to label its own bead, and the
   # request arrives at the START of a run that then works for twenty minutes. So
   # the skill body has to carry the same instruction, or the request is the only
-  # copy and the run drops it. Both inject-mode skills did drop it: /build left
-  # tadw-jfr, tadw-pm8 and tadw-7xq.2 unlabeled, and /verify-acceptance left
-  # tadw-7xq.1 and tadw-pdi unlabeled, each logged as OWED.
+  # copy and the run drops it. /verify-acceptance did drop it: tadw-7xq.1 and
+  # tadw-pdi went unlabeled, each logged as OWED.
   #
   # This case pins the two copies together. Rename a label in classify_skill and
   # leave the skill body alone, and it fails here.
+  #
+  # feature-development left this case at tadw-8bp, when it moved to gate mode.
+  # The case below covers it instead.
   SKILL_BODY="$SANDBOX/inject-skill.txt"
-
-  cat "$REPO_ROOT/skills/feature-development/SKILL.md" > "$SKILL_BODY"
-  assert_match "$SKILL_BODY" "\-\-add-label implemented" "feature-development names the exact bd command"
-  assert_match "$SKILL_BODY" "## Phase 6" "feature-development carries the labeling phase"
-  assert_match "$SKILL_BODY" "Track the six phases" "feature-development counts six phases"
-  # The label is an outcome, so each skill has to state the gate as well as the
-  # command. A body that says only "add the label" would label a run that stopped
-  # early, which is exactly what inject mode exists to prevent.
-  assert_match "$SKILL_BODY" "stopped in Phase 1" "feature-development states the gate it withholds on"
 
   cat "$REPO_ROOT/skills/verify-acceptance/SKILL.md" > "$SKILL_BODY"
   assert_match "$SKILL_BODY" "\-\-add-label accepted" "verify-acceptance names the exact bd command"
@@ -770,6 +982,36 @@ if case_start "label/inject: every inject-mode skill names its own label command
   # contradicts Step 5 is worse than no rule, because the run obeys one of them
   # and there is no telling which.
   assert_no_match "$SKILL_BODY" "report-only and writes no file at all" "verify-acceptance no longer claims it writes nothing"
+fi
+
+if case_start "label/gate: feature-development writes the artifact the hook reads"; then
+  # The gate-mode counterpart. The hook reads <git-dir>/build-report.json and
+  # four counts out of it, so the skill body must name that path and every
+  # count. Change one name in build_report_passes and leave Phase 6 alone, and
+  # the hook waits for a file the run never writes. This case fails first.
+  SKILL_BODY="$SANDBOX/gate-skill.txt"
+  cat "$REPO_ROOT/skills/feature-development/SKILL.md" > "$SKILL_BODY"
+
+  assert_match "$SKILL_BODY" "build-report.json" "names the artifact path"
+  assert_match "$SKILL_BODY" "git rev-parse --git-dir" "resolves it per worktree, as the reader does"
+  # Every field build_report_passes reads. A field the reader requires and the
+  # body never names is a gate that waits forever for a file nobody writes.
+  for field in criteria_met criteria_total tests_passed tests_failed lint_ran lint_violations; do
+    assert_match "$SKILL_BODY" "$field" "names the $field field"
+  done
+  # lint_ran only earns its place if the body says when it is false. "the
+  # linter is not installed" is the case that motivated it.
+  assert_match "$SKILL_BODY" "not installed" "says when lint_ran is false"
+  assert_match "$SKILL_BODY" "## Phase 6" "carries the reporting phase"
+  assert_match "$SKILL_BODY" "Track the six phases" "counts six phases"
+
+  # Two rules that decide whether the gate means anything. A body that let the
+  # run apply its own label would put the 41% failure straight back, and one
+  # that let it write a verdict would let it grade its own work.
+  assert_no_match "$SKILL_BODY" "\-\-add-label implemented" "no longer tells the run to label its own bead"
+  assert_match "$SKILL_BODY" "do not write a verdict field" "forbids a self-graded verdict"
+  # Absence is the completion signal, so the body has to say when NOT to write.
+  assert_match "$SKILL_BODY" "Write no file at all" "states that an unfinished run writes no file"
 fi
 
 if case_start "label/pre: an already-labeled bead is left alone"; then

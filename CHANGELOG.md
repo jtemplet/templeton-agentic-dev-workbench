@@ -1,5 +1,45 @@
 ## [Unreleased]
 
+### Fixed
+
+- **`/build` no longer asks the model to label its own bead, so `implemented` stops going missing.**
+  It landed on 7 of 17 runs. The hook used `inject` mode, which emits an instruction at the start of
+  a run and trusts the model to run `bd update --add-label` twenty minutes later. Two properties of
+  `Stop` made that unfixable in place: it fires whenever Claude yields rather than at completion,
+  measured at 1s, 35s and 8m from run start across three beads, and `inject` mode consumed its
+  marker at that first yield. `feature-development` moves to `gate` mode, which leaves the marker
+  alone while its artifact is absent and waits across as many `Stop` events as it takes.
+  `/build` Phase 6 now writes `<git-dir>/build-report.json` with its counts, and
+  `build_report_passes()` applies the label only when `criteria_met` equals `criteria_total`,
+  `tests_failed` is 0, and `lint_violations` is 0. The reader ignores any `verdict` field the
+  report carries, because a run that grades its own work is the failure `/verify-acceptance` exists
+  to prevent. The artifact is also a completion token: a run that exhausts its context mid-Implement
+  writes nothing, and its absence is the only signal that separates it from a finished run, since
+  both leave a branch and edited files behind. `hooks/test-claude-scripts.sh` covers the clean pass,
+  each failing count on its own, the interrupted run across two `Stop` events, the TTL abandon, a
+  stale report, three malformed shapes, and the ignored verdict. The suite runs 289 checks, up from
+  265. (`tadw-8bp`)
+- **The new build-report reader no longer fails open on a leading-zero count.** Found by
+  `/fresh-eyes-cr` reviewing the change above, and reproduced before it was fixed. Bash reads a
+  leading zero as octal, so a JSON string count of `"08"` made `(( ))` abort with
+  `value too great for base`. That abort returns non-zero, every gate condition read it as false,
+  and control fell through to the final `return 0`. A report claiming eight failing tests earned
+  `implemented`, which is the exact false positive gate mode exists to prevent. Each count is now
+  forced to base 10 with `10#`. Two cases pin both directions, and four of their five checks fail
+  against an unfixed copy. (`tadw-8bp`)
+- **A zero that means "nothing happened" no longer reads as "nothing wrong".** Two more fail-open
+  paths in the same reader, found by reviewing it a second time. `tests_passed` was written by
+  `/build` and never read, so a run whose suite never ran reported `tests_passed: 0` beside
+  `tests_failed: 0` and passed: the failing-test check had nothing to count. And
+  `lint_violations: 0` meant either a clean lint or a linter that never started, which Phase 5
+  names as a stop, with nothing to separate them. The reader now requires `tests_passed` to be at
+  least 1, and requires a new `lint_ran: true` field. It is deliberately not
+  `tests_passed >= criteria_total`, because one test can cover two criteria and an existing test
+  can prove one. There is deliberately no `tests_ran`, because `tests_passed` is already a positive
+  signal and lint's success state is zero. Against a copy with both checks removed, a report with
+  `lint_ran: false`, one with the field absent, and one with zero passing tests were all labeled
+  `implemented`. (`tadw-8bp`)
+
 ## [4.3.0] - 2026-09-08
 
 ### Changed

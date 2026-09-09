@@ -20,29 +20,36 @@
 #           immediately. /simplify, /code-review, /tadw:fresh-eyes-cr.
 #
 #   gate    The label describes an outcome that leaves a readable
-#           artifact. /qa writes .gstack/qa-reports/*.md, and
+#           artifact. /qa writes .gstack/qa-reports/*.md,
 #           /quality-gates writes <git-dir>/quality-gates-report.json
-#           carrying its verdict verbatim. PreToolUse drops a pending
-#           marker naming the skill; Stop reads that skill's report and
-#           applies the label only if the report is newer than the
-#           marker and clears the gate. Deterministic, no model
-#           involvement.
+#           carrying its verdict verbatim, and /build writes
+#           <git-dir>/build-report.json carrying its counts. PreToolUse
+#           drops a pending marker naming the skill; Stop reads that
+#           skill's report and applies the label only if the report is
+#           newer than the marker and clears the gate. Deterministic, no
+#           model involvement in the decision.
+#
+#           The artifact is also a COMPLETION TOKEN. Stop fires whenever
+#           Claude yields, not when the work finishes, so an interrupted
+#           run reaches Stop looking much like a finished one. Gate mode
+#           leaves its marker in place while the artifact is absent and
+#           waits across as many Stop events as it takes, so such a run
+#           is abandoned at the TTL rather than labeled early.
 #
 #   inject  The label describes an outcome with no artifact.
 #           /verify-acceptance is report-only and its verdict exists
 #           solely in prose, so grepping for it would be string-matching
-#           against output formatting that can drift. /build is the
-#           same: it ends in a "Feature complete" report, and a run that
-#           stops at Ground never earns "implemented". PreToolUse emits
+#           against output formatting that can drift. PreToolUse emits
 #           an instruction naming the bead, the gate, and the command,
 #           and Claude applies the label at the end. Weaker than gate,
-#           and honest about being weaker.
+#           and honest about being weaker: measured across this log,
+#           inject landed 12 of 31 labels and gate landed 2 of 2.
 #
 # Status is separate from labels, and only /build sets it. A label
 # records what a run DID and can need the run's verdict first; a status
 # records what is HAPPENING and is known at invocation. So /build moves
 # an open bead to in_progress immediately, and still defers
-# "implemented" to its own Feature complete report.
+# "implemented" to the report Phase 6 writes.
 #
 # Every failure path logs to stderr and exits 0, so a skill runs whether
 # or not the bead could be labeled. Only inject mode writes to stdout,
@@ -462,10 +469,18 @@ classify_skill() {
     #
     # "implemented" is an outcome, not an invocation: /build stops at Ground
     # when the spec is too thin, and a label applied up front would call that
-    # run implemented. So it waits for the run's own "Feature complete" report.
+    # run implemented. So it waits for <git-dir>/build-report.json, which
+    # Phase 6 writes and build_report_passes reads.
+    #
+    # This was inject mode until 2026-09-08, and it landed on 41% of runs
+    # (7 applied, 10 owed). Two properties of Stop made that unfixable in
+    # place: Stop fires whenever Claude yields rather than at completion
+    # (measured start-to-first-Stop gaps of 1s, 35s and 8m), and inject mode
+    # consumes its marker at that first Stop. Gate mode leaves the marker
+    # alone while its artifact is absent, so an interrupted run is abandoned
+    # at the TTL instead of being labeled early.
     feature-development|tadw:feature-development)
-      LABEL="implemented"; MODE="inject"; CLAIM=1
-      GATE="the run reached its Feature complete report with every acceptance criterion met and its tests passing (a run that stopped at Ground, reported a criterion not met, or ended with a failing test does not clear this gate)" ;;
+      LABEL="implemented"; MODE="gate"; CLAIM=1 ;;
     simplify|tadw:code-simplify)
       LABEL="simplified"; MODE="apply" ;;
     # Two entry points earn "reviewed", and only these two: /code-review and
@@ -691,6 +706,103 @@ quality_gates_report_passes() {
   return 0
 }
 
+# /build writes one JSON summary per clone or worktree at
+# <git-dir>/build-report.json. Resolved with --git-dir for the same reason
+# quality-gates is: a worktree reads its own run and not a sibling's.
+#
+# This file is a COMPLETION TOKEN as much as a verdict. A run that exhausts its
+# context mid-Implement writes nothing, so its absence is the only reliable
+# signal that the six phases did not finish. Stop cannot infer that from the
+# working tree, because such a run leaves a branch and partial edits behind and
+# looks exactly like a finished one.
+newest_build_report_after() {
+  local marker="$1" report
+  report="$(git rev-parse --path-format=absolute --git-dir 2>/dev/null)/build-report.json"
+  [[ -f "$report" && "$report" -nt "$marker" ]] && echo "$report"
+}
+
+# Fails closed, and derives the verdict rather than reading one.
+#
+# Deliberately ignores any `verdict` field the report carries. /build reports
+# what it counted; this decides what that means. A model that writes
+# "verdict": "PASS" beside a failing test would otherwise label its own work,
+# which is the self-grading failure verify-acceptance exists to prevent.
+#
+# Every count must be present AND numeric. jq prints "null" for an absent key,
+# which is not a number, so a truncated report fails here rather than comparing
+# a string to zero and passing.
+#
+# Each one is then forced to base 10. Bash reads a leading zero as octal, and a
+# JSON string like "08" makes (( )) abort with "value too great for base". That
+# abort returns non-zero, every `if` below reads it as false, and control falls
+# through to the `return 0` at the end. So a report claiming eight failing tests
+# earned the label. Measured on 2026-09-08, before this line existed.
+build_report_passes() {
+  local report="$1" met total passed failed violations lint_ran field value
+  for field in criteria_met criteria_total tests_passed tests_failed lint_violations; do
+    value="$(jq -r --arg f "$field" '.[$f] // empty' "$report" 2>/dev/null)"
+    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+      log "build report $report has no numeric $field; not labeling"
+      return 1
+    fi
+    value=$((10#$value))
+    case "$field" in
+      criteria_met)    met="$value" ;;
+      criteria_total)  total="$value" ;;
+      tests_passed)    passed="$value" ;;
+      tests_failed)    failed="$value" ;;
+      lint_violations) violations="$value" ;;
+    esac
+  done
+
+  # "lint_violations: 0" means two different things and only this flag tells
+  # them apart: the linter ran and found nothing, or it never ran at all.
+  # Phase 5 documents "the linter is not installed" as a stop, and such a run
+  # reports zero violations truthfully. Without this it earned the label.
+  #
+  # jq's // treats false as absent, so `false`, a missing key and a malformed
+  # file all land on the same empty string and all fail closed here.
+  #
+  # There is deliberately no matching tests_ran. Tests carry a positive signal
+  # of their own in tests_passed, checked below. Lint's success state is zero,
+  # so it has nothing to count and needs the flag instead.
+  lint_ran="$(jq -r '.lint_ran // empty' "$report" 2>/dev/null)"
+  if [[ "$lint_ran" != "true" ]]; then
+    log "build report $report does not record lint_ran: true; not labeling"
+    return 1
+  fi
+
+  # A report claiming zero criteria has graded nothing. Treating that as a pass
+  # would label any run that wrote an empty summary.
+  if (( total == 0 )); then
+    log "build report $report grades no criteria; not labeling"
+    return 1
+  fi
+  if (( met != total )); then
+    log "build report $report met $met of $total criteria; not labeling"
+    return 1
+  fi
+  # Zero passing tests means the suite never ran, or it is empty. Either way
+  # the run proved nothing, and tests_failed is then also zero, so the check
+  # below cannot catch it. Not `>= total`: one test can cover two criteria,
+  # and an existing test can prove one.
+  if (( passed == 0 )); then
+    log "build report $report records no passing tests; not labeling"
+    return 1
+  fi
+  if (( failed != 0 )); then
+    log "build report $report has $failed failing test(s); not labeling"
+    return 1
+  fi
+  if (( violations != 0 )); then
+    log "build report $report has $violations lint violation(s); not labeling"
+    return 1
+  fi
+
+  log "build report passed ($met/$total criteria, $passed tests, 0 failing, 0 violations) via $report"
+  return 0
+}
+
 # The marker's third line names the skill, and the skill decides which
 # artifact to read. Anything unrecognized falls back to the /qa reader,
 # which is what every marker meant before the line was used.
@@ -698,6 +810,7 @@ report_after() {
   local marker="$1" skill="$2"
   case "$skill" in
     quality-gates|tadw:quality-gates) newest_quality_gates_report_after "$marker" ;;
+    feature-development|tadw:feature-development) newest_build_report_after "$marker" ;;
     *) newest_qa_report_after "$marker" ;;
   esac
 }
@@ -706,6 +819,7 @@ report_passes() {
   local report="$1" skill="$2"
   case "$skill" in
     quality-gates|tadw:quality-gates) quality_gates_report_passes "$report" ;;
+    feature-development|tadw:feature-development) build_report_passes "$report" ;;
     *) qa_report_passes "$report" ;;
   esac
 }
