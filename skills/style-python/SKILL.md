@@ -7,12 +7,14 @@ description: Writes and reviews Python in the house style. Use when writing, edi
 
 This skill writes and reviews Python domain and application logic in the house style. It carries only the Python-specific deltas on top of the universal TRUE-code core that is injected separately into every session; it does not restate that core. Use it whenever Python style decisions are in play.
 
+It carries only what a linter cannot decide. Rules ruff enforces on every project live in the boreas baseline (`linting/python/ruff-boreas.toml`), not here: lazy logging, modern type-hint syntax, mutable default arguments, and bare or blind `except`. Prose that repeats an enforced rule is read by a human who was going to be told by the linter anyway, and it goes stale the moment the rule changes.
+
 ## When to Use / When NOT to Use
 
 Use this skill when:
 
 - Writing new Python modules, functions, or classes that should match the house style.
-- Reviewing Python code for style, structure, type hints, logging, and error handling.
+- Reviewing Python code for style, structure, type hints, and object-oriented design.
 - Refactoring or simplifying existing Python and you need the Python-specific deltas.
 
 Do NOT use this skill when:
@@ -85,33 +87,7 @@ These are the Python-specific deltas. Each pairs the rule with a concrete BAD ->
            self._store = store
    ```
 
-4. Use parameterized, lazy logging. Pass arguments to the logger; never build the message with an f-string.
-
-   ```python
-   # BAD: f-string is evaluated eagerly and collapses structure
-   logger.info(f"Processing order {order_id}")
-
-   # why: defeats lazy evaluation and loses structured logging fields.
-
-   # GOOD: parameterized, lazy
-   logger.info("Processing order %s", order_id)
-   ```
-
-5. Use modern type-hint syntax. Prefer built-in generics and the `|` union operator over `typing.Optional` / `typing.List`.
-
-   ```python
-   # BAD: legacy typing forms
-   def find(ids: List[int]) -> Optional[User]:
-       ...
-
-   # why: verbose, requires extra imports, not the current idiom.
-
-   # GOOD: modern syntax
-   def find(ids: list[int]) -> User | None:
-       ...
-   ```
-
-6. Prefer duck typing over isinstance checks. Care about what an object does, not what it is.
+4. Prefer duck typing over isinstance checks. Care about what an object does, not what it is.
 
    ```python
    # BAD: branching on concrete type
@@ -127,7 +103,7 @@ These are the Python-specific deltas. Each pairs the rule with a concrete BAD ->
        return ", ".join(items)
    ```
 
-7. Use context managers for resources. Acquire and release files, locks, and connections with `with`, never by hand.
+5. Use context managers for resources. Acquire and release files, locks, and connections with `with`, never by hand.
 
    ```python
    # BAD: manual open/close leaks on exceptions
@@ -142,49 +118,11 @@ These are the Python-specific deltas. Each pairs the rule with a concrete BAD ->
        data = f.read()
    ```
 
-8. Never use mutable default arguments. Default to `None` and create the container inside the function.
-
-   ```python
-   # BAD: the list is shared across all calls
-   def add_tag(tag, tags=[]):
-       tags.append(tag)
-       return tags
-
-   # why: the default list persists between calls and accumulates state.
-
-   # GOOD: sentinel default, fresh container per call
-   def add_tag(tag: str, tags: list[str] | None = None) -> list[str]:
-       tags = tags if tags is not None else []
-       tags.append(tag)
-       return tags
-   ```
-
-9. Catch specific exceptions, never bare except. Catch only what you can handle, and re-raise with context rather than swallowing.
-
-   ```python
-   # BAD: swallows everything, including KeyboardInterrupt and bugs
-   try:
-       result = parse(payload)
-   except:
-       result = None
-
-   # why: hides real failures and makes debugging impossible.
-
-   # GOOD: narrow except, fail loud or add context
-   try:
-       result = parse(payload)
-   except ValueError as exc:
-       raise InvalidPayloadError(f"could not parse payload {payload_id}") from exc
-   ```
-
 ## Anti-Patterns
 
-The top Python smells to flag in review, each as bad -> why -> fix:
+The top Python smells to flag in review, each as bad -> why -> fix. Ruff catches the rest.
 
-- Logging f-strings: `logger.info(f"x={x}")` -> eager evaluation, lost structure -> `logger.info("x=%s", x)`.
-- Mutable default args: `def f(items=[])` -> shared state across calls -> `def f(items=None)` then build inside.
 - Deep inheritance: 3+ level class trees -> fragile, hard to trace behavior -> compose or use a Protocol/mixin.
-- Broad except: `except:` or `except Exception: pass` -> swallows bugs -> catch the specific type, re-raise with `from exc`.
 - Premature abstraction: a base class or helper with one caller -> wrong abstraction is costlier than duplication -> wait for the third occurrence.
 
 ## Worked Examples
@@ -277,14 +215,14 @@ When writing Python:
 1. Start with a module of plain functions; introduce a class only when state, polymorphism, or lifecycle demands it.
 2. Bundle related parameters into a dataclass/TypedDict/NamedTuple once the group passes the simple-interface threshold.
 3. Express contracts with Protocols and type hints; inject concrete dependencies through `__init__` or parameters.
-4. Use lazy logging, context managers for resources, and specific exceptions from the first draft.
+4. Use context managers for every resource from the first draft.
 5. Order methods by the step-down rule so the unit reads top-down.
 
 When reviewing Python:
 
-1. Scan for the top anti-patterns: logging f-strings, mutable default args, broad except, deep inheritance, single-use abstractions.
+1. Scan for the top anti-patterns: deep inheritance and single-use abstractions.
 2. Flag deep attribute chaining (`a.b.c.d`) and suggest moving behavior to where the data lives.
-3. Check type hints for modern syntax (`str | None`, `list[int]`) and for Protocols over concrete coupling.
+3. Check that contracts use Protocols rather than coupling to a concrete class.
 4. Report each finding with a `file:line` reference, a before/after pair, and the principle it violates.
 5. When refactoring, state what flexibility is gained and what complexity (if any) is introduced.
 
@@ -293,8 +231,5 @@ When reviewing Python:
 - [ ] Class introduced only where state/polymorphism/lifecycle justifies it; otherwise a module of functions.
 - [ ] Complex parameter groups use a dataclass, TypedDict, or NamedTuple.
 - [ ] Contracts expressed via Protocols/type hints; dependencies injected, not hardcoded.
-- [ ] All logging is parameterized and lazy; no f-strings in logging calls.
-- [ ] Type hints use modern syntax (`str | None`, `list[int]`), not legacy `Optional`/`List`.
-- [ ] No mutable default arguments; resources managed with context managers.
-- [ ] Exceptions are specific; no bare `except`; errors re-raised with context.
+- [ ] Every resource is managed with a context manager.
 - [ ] Methods ordered by the step-down rule; each stays at one abstraction level.
