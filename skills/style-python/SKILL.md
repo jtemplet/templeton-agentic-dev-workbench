@@ -7,7 +7,7 @@ description: Writes and reviews Python in the house style. Use when writing, edi
 
 This skill writes and reviews Python domain and application logic in the house style. It carries only the Python-specific deltas on top of the universal TRUE-code core that is injected separately into every session; it does not restate that core. Use it whenever Python style decisions are in play.
 
-It carries only what a linter cannot decide. Rules ruff enforces on every project live in the boreas baseline (`linting/python/ruff-boreas.toml`), not here: lazy logging, modern type-hint syntax, mutable default arguments, and bare or blind `except`. Prose that repeats an enforced rule is read by a human who was going to be told by the linter anyway, and it goes stale the moment the rule changes.
+It carries only what a linter cannot decide. Rules ruff enforces on every project live in the boreas baseline (`linting/python/ruff.toml`), not here: lazy logging, modern type-hint syntax, mutable default arguments, and bare or blind `except`. Prose that repeats an enforced rule is read by a human who was going to be told by the linter anyway, and it goes stale the moment the rule changes.
 
 ## When to Use / When NOT to Use
 
