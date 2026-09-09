@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [4.4.1] - 2026-09-09
+
+### Changed
+
+- **Add the milestones file, and refine the style-markdown theme.** (`67729d8`, tadw-ee1)
+- **Add rumdl check . to the push gate.** (`af9b65e`, tadw-ynb)
+
 ## [4.4.0] - 2026-09-09
 
 ### Changed
@@ -2602,7 +2609,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.1...HEAD
+[4.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.0...v4.4.1
 [4.4.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.3.1...v4.4.0
 [4.3.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.3.0...v4.3.1
 [4.3.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.2.1...v4.3.0
