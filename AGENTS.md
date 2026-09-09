@@ -13,14 +13,15 @@ Terraform.
 
 These checks run against this repository itself.
 
-CI (`.github/workflows/lint.yml`) runs six of them on every push and pull request:
-`rumdl fmt --check .`, `node hooks/test-hooks.js`, both framework-leak checks, and both
-refine-round format checks. It skips `bash hooks/test-claude-scripts.sh`, so only the local hook
+CI (`.github/workflows/lint.yml`) runs seven of them on every push and pull request:
+`rumdl fmt --check .`, `rumdl check .`, `node hooks/test-hooks.js`, both framework-leak checks,
+and both refine-round format checks. It skips `bash hooks/test-claude-scripts.sh`, so only the local hook
 enforces that suite. `.githooks/pre-push` runs all of them except the last four. See "Git hooks"
 below.
 
 ```bash
 rumdl fmt --check .                                          # what CI runs; ./lint.sh formats in place
+rumdl check .                                                # the linter, not the formatter: a broken relative link fails here
 node hooks/test-hooks.js                                      # hook suite, incl. the docs/HOOKS.md count assertion
 bash hooks/test-claude-scripts.sh                             # suite for the two .claude/scripts hooks
 python3 skills/style-testing/scripts/test_check_framework_leak.py   # regression suite for the leak checker
@@ -94,7 +95,7 @@ every case, which is too slow and too costly for a push. `python3 evals/test_run
 model and costs about 2 seconds, so cost is not why it left the hook. The evals are a measurement
 you run deliberately. Both stay in the list above, so the ship gate still runs the harness suite.
 
-That leaves 18 checks; derive the number with `grep -c '^check ' .githooks/pre-push`. They take
+That leaves 19 checks; derive the number with `grep -c '^check ' .githooks/pre-push`. They take
 tens of seconds, and the figure moves with the machine. It was
 46 seconds when first measured warm, and 68 seconds for a dry-run push on 2026-08-23. Six suites
 carry nearly all of it.

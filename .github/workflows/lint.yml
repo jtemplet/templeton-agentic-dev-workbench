@@ -14,7 +14,7 @@ jobs:
     name: Markdown (rumdl)
     runs-on: ubuntu-latest
     env:
-      RUMDL_VERSION: v0.2.18
+      RUMDL_VERSION: v0.2.33
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,6 +41,15 @@ jobs:
 
       - name: Check Markdown formatting
         run: rumdl fmt --check .
+
+      # The linter, not the formatter. `rumdl fmt --check .` exits 0 on a
+      # relative link to a path that does not exist, so without this step the
+      # gate lives only in .githooks/pre-push. core.hooksPath is local config
+      # and does not travel with a clone, so a hook-only gate protects only the
+      # machines somebody wired by hand. MD057 needs v0.2.33, which is why
+      # RUMDL_VERSION was bumped.
+      - name: Lint Markdown
+        run: rumdl check .
 
   tests:
     name: Tests (hooks + skill checks)

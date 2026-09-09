@@ -46,6 +46,8 @@ RULE-TO-TEST MAPPING. A rule with no test here is a rule nothing holds.
     carrying both the count and the elapsed time
   One warning per missing tool, not per check    case_missing_python3_warns_once
   A run that checked nothing is not a pass      case_no_check_ran_is_not_a_pass
+  A broken relative link refuses the push,      case_broken_relative_link_refuses_push
+    which the formatter alone let through
   A push carrying code IS gated, even when it   case_mixed_delete_and_update_runs_checks
     also deletes a ref
   POSIX sh, executable                          case_hook_is_executable_posix_sh
@@ -223,8 +225,17 @@ GIT_FIXTURE_CANARY_PATH = "skills/quality-gates/scripts/test_changed_set.py"
 
 # A file the fixture breaks to make rumdl fail. Tracked markdown, so it is in the
 # tree rumdl walks, and named in the assertion so a reader can see what failed.
+# It fails BOTH rumdl checks, the formatter and the linter, so any case that
+# breaks it derives its failure count from `checks_running("rumdl")`.
 BREAKABLE_DOC = "README.md"
 BAD_MARKDOWN = "#  Badly   formatted   heading\n\n\n*   an   item\n"
+
+# A document whose ONLY fault is a relative link to a path that does not exist.
+# `rumdl fmt --check .` reports it and still exits 0; `rumdl check .` exits 1 and
+# names the line. That gap is the hole `check rumdl check .` closes, so the case
+# below asserts the gate refuses this push.
+BROKEN_LINK_DOC = "docs/BROKEN_LINK.md"
+BROKEN_LINK_MARKDOWN = "# A note\n\nSee [the plan](no-such-file.md) for the rest.\n"
 
 # The check to break when a case needs EXACTLY ONE failure. A test suite rather
 # than a checker: every checker in the list also has a suite that runs it, so
@@ -504,6 +515,16 @@ def commands_in_hook() -> list[str]:
     return commands
 
 
+def checks_running(tool: str) -> int:
+    """How many of the hook's checks invoke `tool`.
+
+    Derived rather than written as a literal. The hook runs `rumdl` twice, once
+    as the formatter and once as the linter, and a literal drifts the day a
+    third arrives. The same drift already broke three assertions once.
+    """
+    return sum(1 for command in commands_in_hook() if command.split()[0] == tool)
+
+
 def files_in_beads_hooks() -> list[Path]:
     """Every file under `.beads/hooks`, sorted so a failure names them in order.
 
@@ -609,7 +630,47 @@ def case_two_failures_both_reported() -> None:
     assert result.returncode != 0, f"two failures must refuse the push: {output}"
     assert BREAKABLE_DOC in output, f"the first failure must appear: {output}"
     assert "test_check_doc_paths.py" in output, f"the second failure must appear: {output}"
-    assert "2 of" in output, f"the summary must count both failures: {output}"
+    # Two things were broken, but the broken document fails every rumdl check,
+    # so the number is derived from the hook rather than written as a literal.
+    expected = checks_running("rumdl") + 1
+    assert f"{expected} of" in output, f"the summary must count every failure: {output}"
+
+
+def case_broken_relative_link_refuses_push() -> None:
+    """The linter check earns its own place beside the formatter.
+
+    Before `check rumdl check .` joined the hook, a relative link to a path that
+    does not exist was caught by nothing: `rumdl fmt --check .` exits 0 on it,
+    and `check_doc_paths.py` reads README, AGENTS, and CLAUDE only, and warns
+    rather than failing. So this case pins the gate, not the linter.
+    """
+    if not shutil.which("rumdl"):
+        return
+    fixture = build()
+    fixture.write(BROKEN_LINK_DOC, BROKEN_LINK_MARKDOWN)
+    fixture.commit_all("add a document with a broken relative link")
+
+    # The control: the formatter alone passes this document, which is why the
+    # linter had to be added rather than the existing check being enough. Scoped
+    # to the one document on purpose. Run over the whole fixture, an unrelated
+    # formatting fault anywhere in the tree would fail this line and blame the
+    # wrong thing.
+    formatter = subprocess.run(
+        ["rumdl", "fmt", "--check", BROKEN_LINK_DOC],
+        cwd=fixture.work,
+        capture_output=True,
+        text=True,
+    )
+    assert formatter.returncode == 0, (
+        f"the formatter must pass this document, or the case proves nothing: "
+        f"{formatter.stdout + formatter.stderr}"
+    )
+
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f"a broken relative link must refuse the push: {output}"
+    assert BROKEN_LINK_DOC in output, f"the output must name the document: {output}"
+    assert "MD057" in output, f"and the rule that caught it: {output}"
 
 
 def case_failure_report_names_the_command() -> None:
@@ -627,6 +688,7 @@ def case_failure_report_names_the_command() -> None:
 for name, fn in [
     ("broken markdown refuses the push and names the file [criterion 1]", case_broken_markdown_refuses_push),
     ("two failures both appear in one report [criterion 4]", case_two_failures_both_reported),
+    ("a broken relative link refuses the push", case_broken_relative_link_refuses_push),
     ("the report names the failing command", case_failure_report_names_the_command),
 ]:
     check(name, fn)
@@ -676,8 +738,9 @@ def case_missing_rumdl_warns_and_allows() -> None:
     assert "rumdl" in output, f"the skipped tool must be named: {output}"
     assert "WARNING" in output, f"the skip must be a warning, not silence: {output}"
     total = len(commands_in_hook())
-    assert f"{total - 1} of {total}" in output, (
-        f"every check but the rumdl one must still run: {output}"
+    expected = total - checks_running("rumdl")
+    assert f"{expected} of {total}" in output, (
+        f"every check but the rumdl ones must still run: {output}"
     )
 
 

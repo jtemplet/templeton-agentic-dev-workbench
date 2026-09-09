@@ -137,6 +137,7 @@ started=$(date +%s)
 # In the AGENTS.md order, so the two lists read as one list.
 # test_prepush.py asserts they stay that way.
 check rumdl fmt --check .
+check rumdl check .
 check node hooks/test-hooks.js
 check bash hooks/test-claude-scripts.sh
 check python3 skills/style-testing/scripts/test_check_framework_leak.py
