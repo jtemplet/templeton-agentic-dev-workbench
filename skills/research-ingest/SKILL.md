@@ -52,6 +52,31 @@ While reading, identify:
 
 Before discussing with the user, evaluate the methodological rigor and potential biases of the source. This assessment informs how much weight to give the findings.
 
+**First, name the genre.** Pick one genre from the table below, write it down, and ask only that
+genre's questions. A clinical-trial question asked of an essay returns "not applicable", and the
+question that would have caught a weak essay never gets asked.
+
+| Genre | `genre:` value | What it covers |
+|---|---|---|
+| Empirical study | `empirical-study` | A trial, cohort, survey, meta-analysis, or any paper reporting data it collected |
+| ML or CS paper | `ml-cs-paper` | A paper whose result is a model, an algorithm, or a benchmark score |
+| Journalism | `journalism` | A news article, an investigation, or a magazine feature by a reporter |
+| Essay or opinion | `essay-opinion` | A blog post, an editorial, a position paper, a manifesto |
+| Transcript or talk | `transcript-talk` | A conference talk, a podcast, an interview, a lecture |
+| Book chapter | `book-chapter` | A chapter or section of a published book |
+
+Two cases the table does not cover:
+
+- **The source mixes genres.** Run the rubric for the form you are reading. A reporter writing
+  about one study is journalism, because the reporting is what you have to judge.
+- **No genre fits.** Run the closest rubric, record `genre: other` on the page, and say in the
+  briefing which rubric you ran and why.
+
+Then run that genre's rubric below. Every genre ends at the same **Overall Validity Assessment**
+block, so pages stay comparable across genres.
+
+#### Rubric: Empirical study
+
 **Funding and Conflicts of Interest:**
 
 - Who funded the research? (government grant, industry sponsor, foundation, authors' institution)
@@ -91,7 +116,65 @@ Before discussing with the user, evaluate the methodological rigor and potential
 - Has it been replicated or contradicted by other studies?
 - Is this a preprint (not yet peer-reviewed)?
 
-**Overall Validity Assessment:**
+#### Rubric: ML or CS paper
+
+- What baselines does the paper compare against, and are they the strongest current methods or a
+  weak straw man?
+- What does the code release include: source code, model weights, training data, or none of them?
+- Do the benchmarks support the claim, and is the reported score measured on data the authors did
+  not tune on?
+- Does the paper report its compute cost, its hyperparameter search, and how many runs each number
+  came from?
+- Rate study design: **Strong** (strong baselines, full code release, held-out evaluation) |
+  **Moderate** | **Weak** (weak baselines, nothing released, tuned on the test set)
+
+#### Rubric: Journalism
+
+- Does the article rest on primary sources the reporter saw, or on secondary reporting of someone
+  else's work?
+- Are the sources named, and how many independent sources support the central claim?
+- What is the outlet's track record, and does it publish corrections when it gets something wrong?
+- Does the article separate what was observed from what the reporter concludes?
+- Rate study design: **Strong** (primary, named, multi-source) | **Moderate** | **Weak** (single
+  anonymous source, or rewritten from another outlet)
+
+#### Rubric: Essay or opinion
+
+- What does the author gain if the reader agrees? Name the incentive: a product, a job, a book, a
+  reputation.
+- Which claims carry evidence, and which rest on argument alone?
+- Does the essay answer the strongest version of the opposing case, or the weakest one?
+- Are the cited facts checkable, and do the citations say what the essay says they say?
+- Rate study design: **Strong** (evidence-backed, fair to opponents) | **Moderate** | **Weak**
+  (assertion only, or a straw man of the other side)
+
+#### Rubric: Transcript or talk
+
+- What is the speaker's expertise here, and what did they build or study themselves?
+- Which claims can be checked against a written source, and which exist only in this talk?
+- Was the talk prepared and reviewed, or spoken without notes?
+- Who hosted or paid for the talk, and is the speaker selling something?
+- Rate study design: **Strong** (practitioner, claims checkable elsewhere) | **Moderate** |
+  **Weak** (off-the-cuff claims that appear nowhere else)
+
+#### Rubric: Book chapter
+
+- Does the chapter cite its sources, and do those citations point to primary work?
+- How old is this edition, and has the field moved since it was published?
+- Did the publisher apply editorial or academic review?
+- Is the chapter reporting the author's own research, or summarizing other people's?
+- Rate study design: **Strong** (cited, current edition, reviewed) | **Moderate** | **Weak**
+  (uncited, dated, self-published)
+
+#### Overall Validity Assessment
+
+Every genre ends here, with the same fields, so two pages can be compared. Write `n/a` in any field
+the genre does not have. An essay has no sample and no blinding, and `n/a` answers those two fields
+instead of leaving them blank.
+
+This governs the verdict block below, not the page frontmatter. Each frontmatter field declares its
+own values, and two of them mean different things: `not-applicable` says the genre has no blinding
+to report, and `not-reported` says the source should have reported it and did not.
 
 Produce a short verdict using this format:
 
@@ -123,6 +206,8 @@ Present a structured briefing:
 3. ...
 
 ### Study Quality Assessment
+
+**Genre:** [empirical-study | ml-cs-paper | journalism | essay-opinion | transcript-talk | book-chapter | other]
 
 **Validity:** [High / Moderate / Low / Unclear]
 
@@ -174,6 +259,7 @@ type: research-source
 status: processed
 created_at: <today>
 source_type: <paper|article|report|book-chapter|transcript|other>
+genre: <empirical-study|ml-cs-paper|journalism|essay-opinion|transcript-talk|book-chapter|other>
 authors: [<author names>]
 year: <publication year>
 url: <if available>
@@ -191,7 +277,7 @@ related_notes: []
 
 Include sections: Key Takeaways, Study Quality Assessment, Summary, Methodology, Key Findings, Relevance, Quotes, Questions.
 
-The **Study Quality Assessment** section must include the full validity verdict from Step 2b: study design, sample size, blinding, funding source and bias risk, and key caveats. This section should always be visible so future readers calibrate their trust in the findings appropriately.
+The **Study Quality Assessment** section must include the genre and the full validity verdict from Step 2b: study design, sample size, blinding, funding source and bias risk, and key caveats. Carry `n/a` through from the verdict into this section, not into the frontmatter; a blank field reads as an oversight, and `n/a` reads as an answer. This section should always be visible so future readers calibrate their trust in the findings appropriately.
 
 Incorporate the user's emphasis guidance from Step 3.
 
@@ -287,7 +373,7 @@ When new information contradicts existing wiki content:
 **Always:**
 
 - Read the entire source document before summarizing
-- Assess study quality (funding, design, sample, blinding) before discussing with the user
+- Name the source's genre, then assess study quality with that genre's rubric, before discussing with the user
 - Include the validity assessment in the briefing AND the source summary page
 - Discuss key points with the user before writing wiki pages
 - Wait for user input after the briefing, do not skip the discussion
@@ -311,9 +397,9 @@ When new information contradicts existing wiki content:
 Before reporting completion, verify:
 
 - [ ] Source was read in full
-- [ ] Study quality assessed: funding source, study design, sample size, blinding
+- [ ] Genre named, and study quality assessed with that genre's rubric
 - [ ] Validity verdict included in briefing AND source summary page
-- [ ] Source summary frontmatter includes validity metadata fields
+- [ ] Source summary frontmatter includes the genre and the validity metadata fields
 - [ ] Key points were discussed with the user and their guidance incorporated
 - [ ] Source summary page created with complete frontmatter and all sections
 - [ ] All significant entities and concepts have wiki pages (created or updated)
