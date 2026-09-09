@@ -1,7 +1,31 @@
 ## [Unreleased]
 
+## [4.3.1] - 2026-09-09
+
+### Changed
+
+- **`style-python` no longer restates the four rules `ruff` already enforces.** Lazy logging,
+  modern type-hint syntax, mutable default arguments, and bare or blind `except` were each a
+  principle in the skill and a rule in the boreas `ruff` baseline at the same time, so the prose
+  told a reader what the linter was about to tell them anyway, and it would go stale the moment a
+  rule changed. Removed from every place they appeared: the numbered list, the Anti-Patterns
+  bullets, the Review and Apply workflow, and the Quality Checklist. What remains is what a linter
+  cannot decide: modules before classes, dataclasses for parameter groups, Protocols for
+  contracts, and duck typing.
+
 ### Fixed
 
+- **`/verify-acceptance` no longer asks the model to apply its own `accepted` label, so the label
+  stops going missing.** It was the last skill on `inject` mode and landed on 5 of 15 decided
+  runs, the same failure `tadw-8bp` fixed for `implemented` below. The `acceptance-verifier` agent
+  now writes `<git-dir>/acceptance-report.json` with seven counts, and a `Stop` hook derives the
+  outcome from them rather than asking the model to run `bd update` at the end. The artifact sits
+  outside the working tree, so the run still leaves the tree exactly as clean as it found it, and
+  it is deliberately not `quality-gates-report.json`, because this skill runs three gates of
+  seven. The reader ignores any `verdict` field the report carries: the agent is the authority on
+  each row, and what the rows add up to is the hook's to decide. Every check in
+  `acceptance_report_passes` was mutation-tested; each one, removed, fails at least one case.
+  (`tadw-av7`)
 - **`/build` no longer asks the model to label its own bead, so `implemented` stops going missing.**
   It landed on 7 of 17 runs. The hook used `inject` mode, which emits an instruction at the start of
   a run and trusts the model to run `bd update --add-label` twenty minutes later. Two properties of
@@ -2571,7 +2595,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.3.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.3.1...HEAD
+[4.3.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.3.0...v4.3.1
 [4.3.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.2.1...v4.3.0
 [4.2.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.2.0...v4.2.1
 [4.2.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.1.0...v4.2.0
