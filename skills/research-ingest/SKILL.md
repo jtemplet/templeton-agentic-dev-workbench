@@ -5,9 +5,14 @@ description: Ingest a new source document into the Research wiki. Reads the sour
 
 # Research Ingest
 
-A systematic technique for adding a new source to a Research wiki. Reads the source, evaluates methodological rigor, discusses with the user, creates structured wiki pages with calibrated validity context, cross-references aggressively, and updates the index and log.
+A systematic technique for adding a new source to a Research wiki. Reads the source, evaluates
+methodological rigor, discusses with the user, creates structured wiki pages with calibrated
+validity context, cross-references aggressively, and updates the index and log.
 
-Follows the [Karpathy LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): the human curates sources and directs analysis; the skill does the summarizing, cross-referencing, filing, and bookkeeping.
+Follows the
+[Karpathy LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f):
+the human curates sources and directs analysis; the skill does the summarizing,
+cross-referencing, filing, and bookkeeping.
 
 ## When to Use
 
@@ -31,13 +36,15 @@ Check `$ARGUMENTS` for a specific source file path. If none provided, scan for u
 ls Research/sources/
 ```
 
-Then read `Research/log.md` to determine which sources have already been ingested. Any file in `Research/sources/` not mentioned in the log is a candidate.
+Then read `Research/log.md` to determine which sources have already been ingested. Any file in
+`Research/sources/` not mentioned in the log is a candidate.
 
 If no new sources are found, inform the user and stop.
 
 ### Step 2: Read the Source
 
-Read the source document fully using the Read tool. For PDFs, use the `pages` parameter to read in chunks if needed (max 20 pages per request); read the entire document across multiple calls.
+Read the source document fully using the Read tool. For PDFs, use the `pages` parameter to read
+in chunks if needed (max 20 pages per request); read the entire document across multiple calls.
 
 While reading, identify:
 
@@ -50,7 +57,8 @@ While reading, identify:
 
 ### Step 2b: Assess Study Quality
 
-Before discussing with the user, evaluate the methodological rigor and potential biases of the source. This assessment informs how much weight to give the findings.
+Before discussing with the user, evaluate the methodological rigor and potential biases of the
+source. This assessment informs how much weight to give the findings.
 
 **First, name the genre.** Pick one genre from the table below, write it down, and ask only that
 genre's questions. A clinical-trial question asked of an essay returns "not applicable", and the
@@ -82,25 +90,31 @@ block, so pages stay comparable across genres.
 - Who funded the research? (government grant, industry sponsor, foundation, authors' institution)
 - Do the authors disclose any conflicts of interest?
 - Is the funder's interest aligned with a particular outcome?
-- Rate funding bias risk: **Low** (independent/government) | **Medium** (mixed/unclear) | **High** (industry-funded with aligned interests)
+- Rate funding bias risk: **Low** (independent/government) | **Medium** (mixed/unclear) |
+  **High** (industry-funded with aligned interests)
 
 **Study Design:**
 
-- What type of study is this? (RCT, cohort, case-control, cross-sectional, meta-analysis, systematic review, case study, opinion/commentary)
+- What type of study is this? (RCT, cohort, case-control, cross-sectional, meta-analysis,
+  systematic review, case study, opinion/commentary)
 - Is it experimental or observational?
 - Is there a control group? If not, why not, and how does this affect interpretation?
-- Is blinding used? (single-blind, double-blind, triple-blind, open-label) - note that double-blind is the gold standard for eliminating bias
+- Is blinding used? (single-blind, double-blind, triple-blind, open-label) - note that
+  double-blind is the gold standard for eliminating bias
 - Is randomization used? If so, how was it implemented?
-- Rate study design: **Strong** | **Moderate** | **Weak**, based on position in the evidence hierarchy (meta-analysis > RCT > cohort > case-control > case series > opinion)
+- Rate study design: **Strong** | **Moderate** | **Weak**, based on position in the evidence
+  hierarchy (meta-analysis > RCT > cohort > case-control > case series > opinion)
 
 **Sample:**
 
 - What is the sample size (n)?
 - Is the sample size justified with a power calculation?
-- How was the sample recruited? Is it representative of the population the findings are generalized to?
+- How was the sample recruited? Is it representative of the population the findings are
+  generalized to?
 - Are there important demographic limitations (age, sex, geography, socioeconomic status)?
 - What is the response/dropout rate, and could attrition bias the results?
-- Rate sample quality: **Strong** (n >= 1000, representative, low attrition) | **Moderate** | **Weak** (small n, convenience sample, high dropout)
+- Rate sample quality: **Strong** (n >= 1000, representative, low attrition) | **Moderate** |
+  **Weak** (small n, convenience sample, high dropout)
 
 **Statistical and Methodological Rigor:**
 
@@ -187,7 +201,9 @@ Validity: [High / Moderate / Low / Unclear]
 - Key caveats: [1 to 3 bullet points on the most important limitations]
 ```
 
-This validity assessment is NOT a reason to dismiss the source; it is context for interpreting the findings. A small, industry-funded study may still surface a real signal; a large RCT may have design flaws. The goal is calibrated skepticism.
+This validity assessment is NOT a reason to dismiss the source; it is context for interpreting
+the findings. A small, industry-funded study may still surface a real signal; a large RCT may
+have design flaws. The goal is calibrated skepticism.
 
 ### Step 3: Discuss Key Points with the User
 
@@ -257,6 +273,7 @@ tags:
   - source
 type: research-source
 status: processed
+aliases: [<short title>, <citation key such as "Smith 2024">]
 created_at: <today>
 source_type: <paper|article|report|book-chapter|transcript|other>
 genre: <empirical-study|ml-cs-paper|journalism|essay-opinion|transcript-talk|book-chapter|other>
@@ -275,9 +292,14 @@ related_notes: []
 ---
 ```
 
-Include sections: Key Takeaways, Study Quality Assessment, Summary, Methodology, Key Findings, Relevance, Quotes, Questions.
+Include sections: Key Takeaways, Study Quality Assessment, Summary, Methodology, Key Findings,
+Relevance, Quotes, Questions.
 
-The **Study Quality Assessment** section must include the genre and the full validity verdict from Step 2b: study design, sample size, blinding, funding source and bias risk, and key caveats. Carry `n/a` through from the verdict into this section, not into the frontmatter; a blank field reads as an oversight, and `n/a` reads as an answer. This section should always be visible so future readers calibrate their trust in the findings appropriately.
+The **Study Quality Assessment** section must include the genre and the full validity verdict
+from Step 2b: study design, sample size, blinding, funding source and bias risk, and key
+caveats. Carry `n/a` through from the verdict into this section, not into the frontmatter; a
+blank field reads as an oversight, and `n/a` reads as an answer. This section should always be
+visible so future readers calibrate their trust in the findings appropriately.
 
 Incorporate the user's emphasis guidance from Step 3.
 
@@ -285,9 +307,32 @@ Incorporate the user's emphasis guidance from Step 3.
 
 For each significant entity or concept identified:
 
-1. **Check if a wiki page already exists**, use Grep/Glob to search `Research/wiki/`
-2. **If it exists**, read the page, update it with information from the new source, increment `source_count`, update `last_updated`, and add the new source to its Sources section
-3. **If it doesn't exist**, create a new page at `Research/wiki/<Entity-or-Concept>.md` using this structure:
+1. **Search for a page under any of the name's forms.** Search the page titles and the `aliases`
+   lines, and search nothing else:
+
+   ```bash
+   ls Research/wiki/ | grep -i "<name>"                 # the title
+   grep -ril "^aliases:.*<name>" Research/wiki/          # the aliases
+   ```
+
+   Run both once per form: the acronym, the spelled-out form, the singular, and the plural. A
+   page titled `Large Language Models` must be found by the name `LLM` when it lists `LLM` as an
+   alias.
+
+   Never search the page bodies for this. A body search matches every page that mentions the
+   term, which in a wiki of any size returns most of the wiki and answers nothing.
+
+   A title search matches a substring, so it can return a source summary whose title contains
+   the name. Read the `type:` field of each hit. Only `type: research-wiki` is an entity or
+   concept page; `type: research-source` is a summary of one source and is never the page to
+   update here.
+2. **If the search finds a page under the name or under one of its aliases**, read the page,
+   update it with information from the new source, increment `source_count`, update
+   `last_updated`, add the new source to its Sources section, and add any new synonym this
+   source used to its `aliases`. Never create a second page for a name an existing page already
+   lists as an alias.
+3. **If no page carries the name or an alias of it**, create a new page at
+   `Research/wiki/<Entity-or-Concept>.md` using this structure:
 
 ```yaml
 ---
@@ -295,8 +340,10 @@ tags:
   - research
   - wiki
   - <entity|concept>
+  - <theme, as a lower-case hyphenated tag such as exercise-physiology>
 type: research-wiki
 status: in-progress
+aliases: [<synonym>, <acronym>, <plural or spelled-out form>]
 created_at: <today>
 last_updated: <today>
 source_count: 1
@@ -306,7 +353,59 @@ related_notes: []
 
 Include sections: Overview, Key Points, Sources, Connections, Open Questions.
 
-**Cross-reference aggressively.** Every wiki page should link to related pages using `[[wikilinks]]`. Also link to relevant notes elsewhere in the vault when connections exist.
+**Give every page a theme tag, and reuse the tags already in the wiki.** A theme tag names the
+subject the page belongs to, such as `exercise-physiology` or `ai-coding-agents`. It is the
+fourth tag, after the three that describe the page's shape rather than its subject: `research`,
+`wiki`, and `entity` or `concept`. Read the theme tags already in use with
+`grep -rh "^  - " Research/wiki/ | sort -u`, and reuse a matching one rather than coining a
+second name for the same subject. The Map of Content rule below counts pages by this tag, so a
+page without one joins no theme and appears in no hub page.
+
+**Fill `aliases` when you create the page, not later.** List every other name a writer might use
+for this page: the acronym, the spelled-out form, the plural, and any synonym the source used.
+Obsidian resolves a `[[wikilink]]` written with any listed alias to this page, so an alias is what
+stops a second page for the same idea. Leave the list empty only when the name has exactly one
+form, and say so in the page's Overview section.
+
+**Cross-reference aggressively.** Every wiki page should link to related pages using
+`[[wikilinks]]`. Also link to relevant notes elsewhere in the vault when connections exist.
+
+**Create a Map of Content page once a theme reaches eight pages.** A Map of Content page, written
+MOC, is a hub page that lists every page on one theme, so the reader has one place to start
+instead of a search. A theme is the subject that a group of pages share, and a page declares its
+theme through the topic tags in its frontmatter.
+
+Do this for each theme the current ingest touched:
+
+1. Count the pages in `Research/wiki/` carrying that theme's tag, with
+   `grep -rl "^  - <theme-tag>$" Research/wiki/ | wc -l`. Count a theme tag only. Never count
+   `research`, `wiki`, `entity`, or `concept`: those name a page's shape, not its subject, and
+   counting one of them groups the whole wiki into a single hub page.
+2. When the count is under eight, do nothing. Seven pages are still readable as a list in the
+   index.
+3. When the count is eight or more and no `Research/wiki/MOC-<Theme>.md` exists, create it with
+   the frontmatter below. Do not reuse the entity and concept schema above: a hub page summarizes
+   no source, so `source_count` does not apply to it.
+
+   ```yaml
+   ---
+   tags:
+     - research
+     - moc
+     - <theme>
+   type: research-moc
+   status: in-progress
+   aliases: [<other names for the theme>]
+   created_at: <today>
+   last_updated: <today>
+   ---
+   ```
+
+   Below the frontmatter write a one-line statement of what the theme covers. Then list every
+   page in the count as a `[[wikilink]]`. **Give each link a one-line summary of that page.** A
+   list of bare links is the search result the hub page exists to replace.
+4. When the count is eight or more and the MOC page exists, add the pages this ingest created to
+   it, each with its one-line summary, and update its `last_updated`.
 
 ### Step 6: Update the Index
 
@@ -315,9 +414,17 @@ Read `Research/index.md` and update it:
 1. Add the new source summary to the **Sources** section
 2. Add any new entity pages to the **Entities** section
 3. Add any new concept pages to the **Concepts** section
-4. Update the **Stats** at the bottom (source count, wiki page count, last updated date)
+4. Add any new Map of Content page to the **Entities** or **Concepts** section, whichever its
+   theme belongs to
 
 Each entry format: `- [[Page Title]], one-line summary`
+
+**Write no count into the index.** Do not add a Stats block, a source total, a page total, or a
+last-updated date to `Research/index.md`. Delete any Stats block you find there. The index
+carries the page lists alone.
+
+Every ingest changes those numbers. This skill cannot recount them on every run, and a stale
+count looks exactly like a fresh one.
 
 ### Step 7: Update the Log
 
@@ -373,13 +480,15 @@ When new information contradicts existing wiki content:
 **Always:**
 
 - Read the entire source document before summarizing
-- Name the source's genre, then assess study quality with that genre's rubric, before discussing with the user
+- Name the source's genre, then assess study quality with that genre's rubric, before discussing
+  with the user
 - Include the validity assessment in the briefing AND the source summary page
 - Discuss key points with the user before writing wiki pages
 - Wait for user input after the briefing, do not skip the discussion
 - Use `[[wikilinks]]` for all internal references
-- Update the index and log on every ingest
-- Check for existing wiki pages before creating duplicates
+- Update the index and log on every ingest, with page lists and no count
+- Search the name and every alias of it before creating a page, so a synonym updates the
+  existing page instead of creating a second one
 - Flag contradictions explicitly with callout blocks
 - Increment `source_count` and update `last_updated` on existing pages
 
@@ -403,8 +512,14 @@ Before reporting completion, verify:
 - [ ] Key points were discussed with the user and their guidance incorporated
 - [ ] Source summary page created with complete frontmatter and all sections
 - [ ] All significant entities and concepts have wiki pages (created or updated)
+- [ ] Every page created carries an `aliases` list, or states in its Overview that its name has
+      one form
+- [ ] The name and every alias of it was searched before each page was created, and no page
+      duplicates a name an existing page lists as an alias
+- [ ] Every theme this ingest touched that holds eight or more pages has a Map of Content page,
+      created or updated
 - [ ] Cross-references link new pages to existing wiki pages
-- [ ] `Research/index.md` updated with all new/changed pages
+- [ ] `Research/index.md` updated with all new/changed pages, and carries no count
 - [ ] `Research/log.md` has an entry for this ingest
 - [ ] No files in `Research/sources/` were modified
 - [ ] Any contradictions are flagged with callout blocks on both pages
