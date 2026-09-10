@@ -5,9 +5,11 @@ description: "Run the project's QA gates against the change: tests, change cover
 
 # Quality Gates
 
-Runs the checks that decide whether a change is fit to commit, then reports one table with the exact command and the real numbers behind every row. It does not fix anything it finds.
+Runs the checks that decide whether a change is fit to commit, then reports one table with the exact
+command and the real numbers behind every row. It does not fix anything it finds.
 
-The subject is **the change**, not the repository. A repository-wide sweep that says nothing about whether the new code is exercised has answered the wrong question.
+The subject is **the change**, not the repository. A repository-wide sweep that says nothing about
+whether the new code is exercised has answered the wrong question.
 
 ## When to Use / When NOT to Use
 
@@ -29,18 +31,31 @@ Do NOT use when:
   browser and fixes what it finds, or `/qa-only` for a report. Step 3 below detects browser UI from
   the diff and hands it off, so running this first still tells you that `/qa` is the tool.
 - Looking for bugs in changed code (use `review-fresh-eyes`)
-- Grading work against its acceptance criteria (use `verify-acceptance`, which runs a subset of these gates as part of its own report)
+- Grading work against its acceptance criteria (use `verify-acceptance`, which runs a subset of
+  these gates as part of its own report)
 - Reviewing style or design (use the matching `review-*` or `style-*` skill)
 
 ## The Four Rules That Make This Worth Running
 
-**1. The gate list comes from the project, not from the file extensions.** Guessing gates from language defaults finds `pytest` and `eslint` and misses everything a project actually runs. A repository with no `package.json` and no `pyproject.toml` is not a repository with no checks. Step 1 reads what the project declares before it guesses, and the report names the source it used.
+**1. The gate list comes from the project, not from the file extensions.** Guessing gates from
+language defaults finds `pytest` and `eslint` and misses everything a project actually runs. A
+repository with no `package.json` and no `pyproject.toml` is not a repository with no checks. Step 1
+reads what the project declares before it guesses, and the report names the source it used.
 
-**2. A green suite is not a tested change.** A suite passes whether or not anything touches the new code. Gate 2 asks the separate question: is every case this change introduces exercised, at both the unit level and the end-to-end level the project's shape demands, and do those tests span the case rather than hitting one point in it. That gate is the reason to run this skill rather than the test command by hand.
+**2. A green suite is not a tested change.** A suite passes whether or not anything touches the new
+code. Gate 2 asks the separate question: is every case this change introduces exercised, at both the
+unit level and the end-to-end level the project's shape demands, and do those tests span the case
+rather than hitting one point in it. That gate is the reason to run this skill rather than the test
+command by hand.
 
-Its counterweight is in the same gate. Spanning a case means covering each class of input, state, and outcome once, not their cross-product. A gate that asks for exhaustive tests, or for defensive code around failures that cannot happen, costs more than the bugs it prevents.
+Its counterweight is in the same gate. Spanning a case means covering each class of input, state,
+and outcome once, not their cross-product. A gate that asks for exhaustive tests, or for defensive
+code around failures that cannot happen, costs more than the bugs it prevents.
 
-**3. A gate that could not run is not a gate that passed.** "No linter is configured" and "the linter is configured but not installed" are different facts, and only the first is a skip. Collapsing them means a broken toolchain reports a clean bill of health. The second is BLOCKED, and BLOCKED fails the run.
+**3. A gate that could not run is not a gate that passed.** "No linter is configured" and "the
+linter is configured but not installed" are different facts, and only the first is a skip.
+Collapsing them means a broken toolchain reports a clean bill of health. The second is BLOCKED, and
+BLOCKED fails the run.
 
 **4. The QA method comes from the diff, not from what is convenient to run.** Counting tests is
 cheap and it answers a different question than driving the endpoint does. A change that adds a
@@ -80,26 +95,42 @@ Never record BLOCKED or HANDOFF as SKIP to keep a report tidy. Those distinction
 
 Search these sources in order and stop at the first that yields commands. Record which one you used.
 
-1. **`AGENTS.md` or `CLAUDE.md`**, for a section naming the project's own checks. This is the most reliable source, because a human wrote it for this purpose.
-2. **CI config**, usually `.github/workflows/*.yml`. What CI runs is the authoritative definition of the gates, so prefer it over any inference.
+1. **`AGENTS.md` or `CLAUDE.md`**, for a section naming the project's own checks. This is the most
+   reliable source, because a human wrote it for this purpose.
+2. **CI config**, usually `.github/workflows/*.yml`. What CI runs is the authoritative definition of
+   the gates, so prefer it over any inference.
 3. **A task runner**: `Makefile` targets, `package.json` scripts, `justfile`, `Taskfile.yml`.
-4. **Language auto-detect**, as the fallback. Detect by config file, not by binary: `pyproject.toml` or `setup.cfg` for Python, `Gemfile` for Ruby, `package.json` for Node, `go.mod` for Go, `Package.swift` for Swift.
+4. **Language auto-detect**, as the fallback. Detect by config file, not by binary: `pyproject.toml`
+   or `setup.cfg` for Python, `Gemfile` for Ruby, `package.json` for Node, `go.mod` for Go,
+   `Package.swift` for Swift.
 
-A project command found in sources 1 to 3 **replaces** the auto-detected equivalent; it does not run beside it. If `AGENTS.md` names `rumdl fmt --check .` as the format check, that is the lint gate. Do not also run a linter the project never mentions.
+A project command found in sources 1 to 3 **replaces** the auto-detected equivalent; it does not run
+beside it. If `AGENTS.md` names `rumdl fmt --check .` as the format check, that is the lint gate. Do
+not also run a linter the project never mentions.
 
-Map every discovered command onto the gate it serves. A command that fits no gate below still runs, under a **Project checks** row.
+Map every discovered command onto the gate it serves. A command that fits no gate below still runs,
+under a **Project checks** row.
 
 ### Step 2: Set the Scope
 
-**`--changed` is the default.** Run `--all` only when the caller asks for it, or when the base will not resolve.
+**`--changed` is the default.** Run `--all` only when the caller asks for it, or when the base will
+not resolve.
 
 Run the bundled script. Do not hand-roll the base resolution or the file list.
 
+<!-- plugin-root-fallback -->
+**Every command below finds its plugin script when `CLAUDE_PLUGIN_ROOT` is unset.** The `find`
+fallback searches the installed plugin cache. Claude Code uses the loaded plugin root first.
+
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/changed_set.py" --repo-root .
+python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
+  -path '*/skills/quality-gates/scripts/changed_set.py' -print -quit 2>/dev/null)" --repo-root .
 ```
 
-It prints one changed path per line on stdout, so a caller can pipe stdout without filtering it. The base goes to stderr, as `base: <sha> (merge-base of HEAD and <ref>)`. **Keep that SHA. Gate 6 takes its `--base` from it**, and re-deriving it with `git merge-base` is the hand-rolling this script exists to replace.
+It prints one changed path per line on stdout, so a caller can pipe stdout without filtering it. The
+base goes to stderr, as `base: <sha> (merge-base of HEAD and <ref>)`. **Keep that SHA. Gate 6 takes
+its `--base` from it**, and re-deriving it with `git merge-base` is the hand-rolling this script
+exists to replace.
 
 | Exit | Status |
 |---|---|
@@ -107,9 +138,17 @@ It prints one changed path per line on stdout, so a caller can pipe stdout witho
 | 2 | BLOCKED. The operator gave it a root that is not a git repository, or git will not run |
 | 3 | The base will not resolve. Run at `--all`, and say so in the report |
 
-**Exit 3 and an empty exit 0 are different answers.** A repository with no remote, a shallow clone, or a first commit produces exit 3. An unresolvable base is not an empty diff, and treating it as one narrows every gate to nothing while the report still reads confidently.
+**Exit 3 and an empty exit 0 are different answers.** A repository with no remote, a shallow clone,
+or a first commit produces exit 3. An unresolvable base is not an empty diff, and treating it as one
+narrows every gate to nothing while the report still reads confidently.
 
-**Why a script and not two git commands.** The script diffs the base against the working tree: `git diff "$BASE"`, with no `...HEAD`. Committed, staged, and unstaged changes all land in the set. This skill runs before a commit more often than after one, so `git diff "$BASE"...HEAD` is the wrong basis: it stops at the last commit and misses the very work being checked. It unions in `git ls-files --others --exclude-standard` as well, because `git diff` never sees an untracked file. Retyping those two commands and the base fallback on every run is how a scoped report comes to cover nothing.
+**Why a script and not two git commands.** The script diffs the base against the working tree:
+`git diff "$BASE"`, with no `...HEAD`. Committed, staged, and unstaged changes all land in the set.
+This skill runs before a commit more often than after one, so `git diff "$BASE"...HEAD` is the wrong
+basis: it stops at the last commit and misses the very work being checked. It unions in
+`git ls-files --others --exclude-standard` as well, because `git diff` never sees an untracked file.
+Retyping those two commands and the base fallback on every run is how a scoped report comes to cover
+nothing.
 
 | Gate | At `--changed` (default) | At `--all` |
 |---|---|---|
@@ -121,20 +160,26 @@ It prints one changed path per line on stdout, so a caller can pipe stdout witho
 
 Two rows need their reasoning stated, because getting them wrong produces a confident wrong answer:
 
-- **Type checking always analyzes the whole project.** A type error usually surfaces in the file that consumes the changed one. Checking a subset of files reports clean while the project does not compile. Narrow the report, never the analysis.
+- **Type checking always analyzes the whole project.** A type error usually surfaces in the file
+  that consumes the changed one. Checking a subset of files reports clean while the project does not
+  compile. Narrow the report, never the analysis.
 - **The live probe narrows hard, and it is the one gate where `--all` costs real time.** Every probe
   is a round trip against a running server. Probing every route a touched controller defines turns a
   two-line change into thirty requests, most of them about code nobody edited.
 
 **Select the covering tests like this**, and keep what the selection tells you:
 
-1. Map each changed source file to its test file by the project's convention: `foo.py` to `test_foo.py` or `foo_test.py`, `foo.rb` to `foo_spec.rb`, `Foo.ts` to `Foo.test.ts`.
+1. Map each changed source file to its test file by the project's convention: `foo.py` to
+   `test_foo.py` or `foo_test.py`, `foo.rb` to `foo_spec.rb`, `Foo.ts` to `Foo.test.ts`.
 2. Grep the test tree for the symbols the diff added or changed, to catch tests that live elsewhere.
 3. Run that set by path or by name.
 
-A changed source file that maps to no test and appears in no test is not a selection problem. It is a Gate 2 finding, and it carries into that gate.
+A changed source file that maps to no test and appears in no test is not a selection problem. It is
+a Gate 2 finding, and it carries into that gate.
 
-**Say plainly in the report that the full suite did not run.** A scoped run is the right default and a partial answer, and a reader who takes it for a full one has been misled by the report, not by the scope.
+**Say plainly in the report that the full suite did not run.** A scoped run is the right default and
+a partial answer, and a reader who takes it for a full one has been misled by the report, not by the
+scope.
 
 ### Step 3: Route the QA Method
 
@@ -142,8 +187,10 @@ Rule 4 lives here. Run the bundled script against the changed set from Step 2. D
 diff by eye.
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/changed_set.py" --repo-root . |
-  python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/route_qa.py" \
+python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
+  -path '*/skills/quality-gates/scripts/changed_set.py' -print -quit 2>/dev/null)" --repo-root . |
+  python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
+    -path '*/skills/quality-gates/scripts/route_qa.py' -print -quit 2>/dev/null)" \
     --repo-root . --paths-from - --base "$BASE"
 ```
 
@@ -193,9 +240,12 @@ failing API when the truth is a bad spec.
 
 ### Step 4: Run Each Gate
 
-Run them in order and keep going after a failure; a FAIL in gate 1 does not excuse skipping gate 6. Give every command a bounded timeout, 600 seconds unless the project says otherwise. On timeout, record BLOCKED with the elapsed time rather than waiting.
+Run them in order and keep going after a failure; a FAIL in gate 1 does not excuse skipping gate 6.
+Give every command a bounded timeout, 600 seconds unless the project says otherwise. On timeout,
+record BLOCKED with the elapsed time rather than waiting.
 
-Capture, for every gate: the exact command, the exit code, and the counts. You need all three for the report.
+Capture, for every gate: the exact command, the exit code, and the counts. You need all three for
+the report.
 
 #### Who Runs Each Gate
 
@@ -250,10 +300,11 @@ finding reports a clean sweep from a lane that never ran, which is the silent de
 six-status model exists to prevent.
 
 **Hold every lane's result before aggregating.** Issue every dispatch the table calls for in one
-message, so the lanes overlap, then wait for all of them. Dispatch is asynchronous by default. A caller that ends
-its turn before the lanes return loses every row they produced and errors on nothing, so the failure
-reads as a short report rather than as a bug. `tadw:quality-gates-orchestrator` owns the mechanism
-that enforces this; naming a harness parameter here would date this file to one harness release.
+message, so the lanes overlap, then wait for all of them. Dispatch is asynchronous by default. A
+caller that ends its turn before the lanes return loses every row they produced and errors on
+nothing, so the failure reads as a short report rather than as a bug.
+`tadw:quality-gates-orchestrator` owns the mechanism that enforces this; naming a harness parameter
+here would date this file to one harness release.
 
 **A lane never renders the report and never decides the verdict.** It returns its rows, each row's
 `detail` string, its failing command's real output, its Step 5 attribution, and any evidence table
@@ -295,17 +346,21 @@ Verdict Rule 2 still sees it.
 
 #### Gate 1: Tests
 
-Run the selected tests from Step 2. Record passed, failed, skipped, and errored counts, and name the selection.
+Run the selected tests from Step 2. Record passed, failed, skipped, and errored counts, and name the
+selection.
 
 **Every discovered suite gets its own row.** The report requires the exact command and real counts
 in each row, so merging two suites into one discards a command and a count. One suite means one row.
 Which lane owns which suite is in Step 4's ownership table.
 
-An exit code of 127, a missing runner, or a collection error is BLOCKED, not FAIL. Zero tests collected in a project that has a test directory is BLOCKED too, because the runner found nothing to check.
+An exit code of 127, a missing runner, or a collection error is BLOCKED, not FAIL. Zero tests
+collected in a project that has a test directory is BLOCKED too, because the runner found nothing to
+check.
 
 #### Gate 2: Change Coverage
 
-The gate that answers rule 2. A passing suite says the old code still works. This says the new code is exercised.
+The gate that answers rule 2. A passing suite says the old code still works. This says the new code
+is exercised.
 
 **A. Take the shape from Step 3.** The surfaces the router found are the shapes this gate grades,
 and what "end to end" means depends on which:
@@ -324,9 +379,12 @@ A change can touch two surfaces. Grade each, and take the worst result. When two
 a row for this gate, they reduce per field, under "Reducing Two Change Coverage Rows" above. One row
 survives, and every case table both lanes produced is carried into it.
 
-The prompt-assets row is here because the table did not have it on first use, and this repository is one. A surface with no row does not mean the gate does not apply. It means the row is missing, so say so and grade what you can.
+The prompt-assets row is here because the table did not have it on first use, and this repository is
+one. A surface with no row does not mean the gate does not apply. It means the row is missing, so
+say so and grade what you can.
 
-**B. Enumerate the cases the change introduces.** Number them, because a case you did not list cannot be graded:
+**B. Enumerate the cases the change introduces.** Number them, because a case you did not list
+cannot be graded:
 
 - Each new or changed function, and each branch inside it
 - Each new CLI flag, subcommand, or positional argument
@@ -336,9 +394,12 @@ The prompt-assets row is here because the table did not have it on first use, an
 **C. Find what exercises each case.** Two rules, both required for CLI and API shapes:
 
 - **Unit.** Every case has a test that exercises it. Find it by symbol, run it by name, keep the output.
-- **End to end.** Every surface the change touches has at least one test that drives it through the real entry point. A test that imports the handler and calls it directly is a unit test wherever it lives, and does not satisfy this.
+- **End to end.** Every surface the change touches has at least one test that drives it through the
+  real entry point. A test that imports the handler and calls it directly is a unit test wherever it
+  lives, and does not satisfy this.
 
-Read each test you count. A test that runs the case without asserting anything about it does not cover it.
+Read each test you count. A test that runs the case without asserting anything about it does not
+cover it.
 
 **Cite what you read, at both levels.** Reading a test leaves no trace. So a table built by reading
 and a table built by guessing from test names look identical to whoever acts on it. The citation is
@@ -371,7 +432,9 @@ Cite the probe as evidence that the endpoint works, and say the regression test 
 across contexts that cannot see each other, the citation either duplicates the probe or loses the
 distinction this table draws. Losing it is how a green probe comes to read as an end-to-end test.
 
-**D. Check the span, not just the presence.** A case has a span: the distinct classes of input, state, and outcome it can take. One test proves one point in that span. Ask which classes exist, then which are hit:
+**D. Check the span, not just the presence.** A case has a span: the distinct classes of input,
+state, and outcome it can take. One test proves one point in that span. Ask which classes exist,
+then which are hit:
 
 | Dimension | Classes worth naming |
 |---|---|
@@ -380,17 +443,24 @@ distinction this table draws. Losing it is how a green probe comes to read as an
 | State | First run against repeat, present against absent, permitted against refused |
 | Outcome | Success, and each distinct failure the case can produce |
 
-Report the span as classes covered out of classes identified, and name the ones with nothing on them. Five tests of the same class cover one point, not five, and a coverage percentage will not tell you that.
+Report the span as classes covered out of classes identified, and name the ones with nothing on
+them. Five tests of the same class cover one point, not five, and a coverage percentage will not
+tell you that.
 
-**E. Stay proportionate.** The span is a map of what matters, not a demand for the cross-product. This gate fails work that is untested, not work that is tested less than exhaustively.
+**E. Stay proportionate.** The span is a map of what matters, not a demand for the cross-product.
+This gate fails work that is untested, not work that is tested less than exhaustively.
 
 - Cover each class once. Do not ask for combinations of classes without a reason to expect they interact.
 - Do not ask for a test of a branch unreachable through the public interface.
 - Do not ask for tests of code this change did not touch.
-- Do not ask for a case that an existing test already covers at another level. Say which test, and move on.
-- Do not ask for defensive code: a nil check the type already guarantees, a `try` around code that cannot raise, a re-validation the caller performed. This gate must not create pressure to add them.
+- Do not ask for a case that an existing test already covers at another level. Say which test, and
+  move on.
+- Do not ask for defensive code: a nil check the type already guarantees, a `try` around code that
+  cannot raise, a re-validation the caller performed. This gate must not create pressure to add
+  them.
 
-When you are unsure whether a class is worth a test, ask what a real failure there would cost. Cheap and recoverable is a WARN at most.
+When you are unsure whether a class is worth a test, ask what a real failure there would cost. Cheap
+and recoverable is a WARN at most.
 
 **F. Grade.**
 
@@ -402,29 +472,43 @@ When you are unsure whether a class is worth a test, ask what a real failure the
 | **HANDOFF** | Step 3 routed *every* surface to `handoff`, so nothing is left here to grade. The orchestrator emits this row, since no single lane sees the union of surfaces. When only some surfaces routed to a handoff, grade the rest and let each handoff surface carry its own row, defined below |
 | **SKIP** | Step 3 routed every surface to `none`: documentation, comments, or formatting only |
 
-Report the cases as a table: number, case, unit test, end-to-end test, span covered. An empty cell is the finding.
+Report the cases as a table: number, case, unit test, end-to-end test, span covered. An empty cell
+is the finding.
 
 #### Gate 3: Lint and Format
 
-Run the project's linter and formatter check. Record error and warning counts separately, because most linters fail on the first and not the second.
+Run the project's linter and formatter check. Record error and warning counts separately, because
+most linters fail on the first and not the second.
 
 #### Gate 4: Type Checking
 
-Run the project's type checker over the whole project, then report the errors in changed files. Record both numbers when they differ, so a pre-existing backlog does not read as new breakage. SKIP only when no type checker is configured; a configured checker that will not start is BLOCKED.
+Run the project's type checker over the whole project, then report the errors in changed files.
+Record both numbers when they differ, so a pre-existing backlog does not read as new breakage. SKIP
+only when no type checker is configured; a configured checker that will not start is BLOCKED.
 
 #### Gate 5: Documentation Freshness
 
 Run the bundled script. Do not hand-roll this check.
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py" --repo-root .
+python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
+  -path '*/skills/quality-gates/scripts/check_doc_paths.py' -print -quit 2>/dev/null)" --repo-root .
 ```
 
-Pass document paths as arguments to narrow it under `--changed`. With none, it checks `README.md`, `AGENTS.md`, `CLAUDE.md`, every markdown file under `docs/`, and every prompt asset: `skills/*/SKILL.md`, `commands/*.md`, and `agents/*.md`.
+Pass document paths as arguments to narrow it under `--changed`. With none, it checks `README.md`,
+`AGENTS.md`, `CLAUDE.md`, every markdown file under `docs/`, and every prompt asset:
+`skills/*/SKILL.md`, `commands/*.md`, and `agents/*.md`.
 
-The prompt assets are in that list because each command reads its skill through a delegation path. A typo in one breaks that command and prints no error, so the paths that fail most quietly were the ones the gate never opened. A `references/` file under a skill stays out: it is prose the skill quotes, not a path a command depends on.
+The prompt assets are in that list because each command reads its skill through a delegation path. A
+typo in one breaks that command and prints no error, so the paths that fail most quietly were the
+ones the gate never opened. A `references/` file under a skill stays out: it is prose the skill
+quotes, not a path a command depends on.
 
-**Why a script and not a method.** This gate was three prose steps until it met a real repository. Told to extract "tokens that look like a path", the first run reported **194 missing paths, none of them real**: slash commands, `<name>` placeholders, and a worked example in this file's own text. A gate that cries wolf gets ignored, and the real miss gets ignored with it. The script encodes the three rules that cut those 194 to zero, and `test_check_doc_paths.py` pins each one.
+**Why a script and not a method.** This gate was three prose steps until it met a real repository.
+Told to extract "tokens that look like a path", the first run reported **194 missing paths, none of
+them real**: slash commands, `<name>` placeholders, and a worked example in this file's own text. A
+gate that cries wolf gets ignored, and the real miss gets ignored with it. The script encodes the
+three rules that cut those 194 to zero, and `test_check_doc_paths.py` pins each one.
 
 Map its exit status like this, and note that it differs from every other gate:
 
@@ -434,19 +518,25 @@ Map its exit status like this, and note that it differs from every other gate:
 | 1 | **WARN**, with the reported misses. A doc naming a path that does not exist is worth reporting and is not a reason to block a commit |
 | 2 | BLOCKED. The operator gave it a document or a root that does not exist |
 
-A path that a documented tool creates at runtime is not a broken reference. `docs/roadmap.html` does not exist until someone runs the dashboard. Those belong in `.docpaths-ignore` at the repository root, with a `doc:` prefix to skip a whole document, and the entry needs a reason beside it.
+A path that a documented tool creates at runtime is not a broken reference. `docs/roadmap.html` does
+not exist until someone runs the dashboard. Those belong in `.docpaths-ignore` at the repository
+root, with a `doc:` prefix to skip a whole document, and the entry needs a reason beside it.
 
-**Do not judge whether the prose still describes the behavior.** That is not checkable from here, and an invented answer is worse than an honest skip. If the project has its own doc-consistency check, Step 1 will have found it, and this gate defers to it.
+**Do not judge whether the prose still describes the behavior.** That is not checkable from here,
+and an invented answer is worse than an honest skip. If the project has its own doc-consistency
+check, Step 1 will have found it, and this gate defers to it.
 
 #### Gate 6: Hygiene
 
 Run the bundled script. Do not hand-roll this check.
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_hygiene.py" --base "$BASE"
+python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
+  -path '*/skills/quality-gates/scripts/check_hygiene.py' -print -quit 2>/dev/null)" --base "$BASE"
 ```
 
-`$BASE` is the SHA Step 2's script printed. The script counts the `TODO`, `FIXME`, `HACK`, and `XXX` markers the diff adds, and reports each with its `file:line`.
+`$BASE` is the SHA Step 2's script printed. The script counts the `TODO`, `FIXME`, `HACK`, and `XXX`
+markers the diff adds, and reports each with its `file:line`.
 
 **Under a fan-out, re-deriving that SHA here costs more than the hand-rolling Step 2 forbids.** Two
 resolutions against a moving working tree can disagree. The report's **Scope** line would then name
@@ -458,13 +548,21 @@ one base while this gate counted markers against another, and the report would s
 | 1 | **WARN**, with the reported markers |
 | 2 | BLOCKED. A missing, empty, or unresolvable `--base`, a root that is not a git repository, or a diff it could not parse |
 
-**Exit 0 at zero markers is the rule the script exists to hold.** The recipe it replaces piped `git diff` into `grep -c`, which exits 1 when it counts zero. That line needed a `|| true` to stop the cleanest possible result from reading as BLOCKED, and retyping it without one reports a broken toolchain where the truth was good news.
+**Exit 0 at zero markers is the rule the script exists to hold.** The recipe it replaces piped
+`git diff` into `grep -c`, which exits 1 when it counts zero. That line needed a `|| true` to stop
+the cleanest possible result from reading as BLOCKED, and retyping it without one reports a broken
+toolchain where the truth was good news.
 
-`git diff` never sees an untracked file, so a new file's markers stay invisible here until it is added. Say so rather than reporting zero as clean when Step 2's changed set holds untracked files.
+`git diff` never sees an untracked file, so a new file's markers stay invisible here until it is
+added. Say so rather than reporting zero as clean when Step 2's changed set holds untracked files.
 
-**Do not run it with no base.** Step 2 exits 3 on a repository with no remote, a shallow clone, or a first commit, and that run has no base, so a count of added markers does not exist. Record SKIP with that reason. Passing an empty `--base` exits 2, and BLOCKED fails the whole run, so mapping it that way would fail a push over a missing remote.
+**Do not run it with no base.** Step 2 exits 3 on a repository with no remote, a shallow clone, or a
+first commit, and that run has no base, so a count of added markers does not exist. Record SKIP with
+that reason. Passing an empty `--base` exits 2, and BLOCKED fails the whole run, so mapping it that
+way would fail a push over a missing remote.
 
-Under `--all` you may report the repository total instead, labeled as context rather than as a finding. A count of markers someone else added years ago changes nothing the reader can act on.
+Under `--all` you may report the repository total instead, labeled as context rather than as a
+finding. A count of markers someone else added years ago changes nothing the reader can act on.
 
 #### Gate 7: Live API Probe
 
@@ -506,8 +604,9 @@ Four rules for writing it:
 - **Probe the cases, not the endpoints.** A route with a 201, a 422, and a 401 is three probes.
   One probe per route proves the happy path and nothing else, which is the shape of test suite this
   skill exists to refuse.
-- **Never put a credential in the probe spec.** Write `${API_TOKEN}` and let the script expand it from the
-  environment. A literal token gets redacted in the output, and the run says to fix the probe spec.
+- **Never put a credential in the probe spec.** Write `${API_TOKEN}` and let the script expand it
+  from the environment. A literal token gets redacted in the output, and the run says to fix the
+  probe spec.
 - **Order a write flow so it cleans up after itself.** Create, read, then delete. Nothing enforces
   this, and a dev database full of probe rows is the cost of skipping it.
 - **`capture` chains one probe into the next.** `{"id": "data.id"}` reads a dot path out of the JSON
@@ -529,7 +628,8 @@ or starts a second copy on a port the first one holds, and the failure looks lik
 **C. Run it.**
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/probe_api.py" \
+python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
+  -path '*/skills/quality-gates/scripts/probe_api.py' -print -quit 2>/dev/null)" \
   --spec "$(git rev-parse --git-dir)/quality-gates-probe.json" --repo-root .
 ```
 
@@ -539,13 +639,13 @@ python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/probe_api.py" \
 | 1 | **FAIL**, with each mismatch. This is the finding the gate exists to produce |
 | 2 | **BLOCKED**. The gate could not run as specified |
 
-Exit 2 covers a missing or unparseable probe spec, a probe spec with no probes, a scheme curl cannot speak, an
-unset `${VAR}`, a server that never became healthy, an absent curl, a refused connection, and a
-`{capture}` nothing captured. **A refused connection is BLOCKED, not FAIL**: no endpoint answered, so
-telling the author their route is broken points at the wrong file.
+Exit 2 covers a missing or unparseable probe spec, a probe spec with no probes, a scheme curl cannot
+speak, an unset `${VAR}`, a server that never became healthy, an absent curl, a refused connection,
+and a `{capture}` nothing captured. **A refused connection is BLOCKED, not FAIL**: no endpoint
+answered, so telling the author their route is broken points at the wrong file.
 
-`--base-url URL` overrides the probe spec's `base_url`, so one probe spec can be pointed somewhere else without
-editing it.
+`--base-url URL` overrides the probe spec's `base_url`, so one probe spec can be pointed somewhere
+else without editing it.
 
 When the script starts a server it prints `server log: <path>` on stderr. Read that file when the
 server never became healthy; the reason is almost always the last few lines of it, and the script
@@ -589,19 +689,25 @@ orchestrator owns it. Omit the row only when Step 1 discovered no such command.
 
 ### Step 5: Attribute Every Failure
 
-For each FAIL, say whether it looks new. A failing test in a file the diff does not touch, exercising code the diff does not touch, is probably pre-existing, and the report should say so as evidence rather than as a verdict.
+For each FAIL, say whether it looks new. A failing test in a file the diff does not touch,
+exercising code the diff does not touch, is probably pre-existing, and the report should say so as
+evidence rather than as a verdict.
 
-Write the evidence: "3 failures, all in `tests/legacy/`, which this diff does not touch." Do not write "pre-existing" alone.
+Write the evidence: "3 failures, all in `tests/legacy/`, which this diff does not touch." Do not
+write "pre-existing" alone.
 
 **The lane that produced a failure writes its attribution**, because attribution needs the failing
 command's real output and only that lane holds it. The orchestrator renders the sentence beside the
 failure; it never re-derives the evidence.
 
-Establish this by reading, never by rewriting the working tree. Do not stash, check out the base, or reset to get a baseline. If the caller needs certainty, say that re-running on the base commit would settle it.
+Establish this by reading, never by rewriting the working tree. Do not stash, check out the base, or
+reset to get a baseline. If the caller needs certainty, say that re-running on the base commit would
+settle it.
 
 ### Step 6: Report
 
-Produce two things: the markdown report below, and a JSON artifact carrying the same result so a tool can act on the verdict the prose states.
+Produce two things: the markdown report below, and a JSON artifact carrying the same result so a
+tool can act on the verdict the prose states.
 
 **The orchestrator renders all of it.** A lane returns only what Step 4's contract lists. It never
 renders a section, never writes the artifact, and never decides the verdict.
@@ -610,7 +716,8 @@ Aggregation is mechanical. Concatenate the rows in report order. Reduce two Chan
 under Step 4's per-field rule. Leave every handoff row standing alone. Apply the Verdict Rules to
 the union.
 
-**Write the JSON first, then emit the report.** The report's **Artifact** line records what that write did, including a refusal, so emitting the report first would mean predicting it.
+**Write the JSON first, then emit the report.** The report's **Artifact** line records what that
+write did, including a refusal, so emitting the report first would mean predicting it.
 
 #### The JSON Artifact
 
@@ -620,11 +727,16 @@ Resolve the git directory first:
 git rev-parse --git-dir
 ```
 
-If that command fails, the tree is not a git repository. Skip the write, say so on the report's **Artifact** line, and leave the rest of the report unchanged. A missing artifact is not a finding about the code.
+If that command fails, the tree is not a git repository. Skip the write, say so on the report's
+**Artifact** line, and leave the rest of the report unchanged. A missing artifact is not a finding
+about the code.
 
-Write `<git-dir>/quality-gates-report.json`. It lives inside the git directory on purpose: it is per-clone, it is never committed, it needs no `.gitignore` entry, and it survives until the push it exists to inform.
+Write `<git-dir>/quality-gates-report.json`. It lives inside the git directory on purpose: it is
+per-clone, it is never committed, it needs no `.gitignore` entry, and it survives until the push it
+exists to inform.
 
-**Resolve the path with that command. Never hardcode `.git/`, and never use `--git-common-dir`.** The three forms differ exactly where it matters:
+**Resolve the path with that command. Never hardcode `.git/`, and never use `--git-common-dir`.**
+The three forms differ exactly where it matters:
 
 | Form | In an ordinary clone | In a linked worktree |
 |---|---|---|
@@ -632,7 +744,10 @@ Write `<git-dir>/quality-gates-report.json`. It lives inside the git directory o
 | A literal `.git/` | correct | `.git` is a file, not a directory, so the write fails with "not a directory" |
 | `git rev-parse --git-common-dir` | `.git` | the shared `.git`, so every worktree overwrites the others |
 
-Two worktrees checking out two branches produce two verdicts about two different trees. `--git-dir` gives each its own file, and a `pre-push` hook run from a worktree resolves the same path and reads that worktree's own report. `--git-common-dir` would let the last run to finish decide every worktree's push.
+Two worktrees checking out two branches produce two verdicts about two different trees. `--git-dir`
+gives each its own file, and a `pre-push` hook run from a worktree resolves the same path and reads
+that worktree's own report. `--git-common-dir` would let the last run to finish decide every
+worktree's push.
 
 Collect the three facts the markdown report does not already carry:
 
@@ -642,9 +757,14 @@ git status --porcelain              # dirty: true when this prints anything
 date -u +%Y-%m-%dT%H:%M:%SZ         # timestamp
 ```
 
-Then build the object in `python3` and `json.dump` it. Do not hand-assemble JSON text: one stray quote in a command string or a gate detail produces a file no reader can parse, and the pre-push consumer cannot tell an unparseable report from a missing one. It warns that no verdict was recorded, which reads as "you forgot to run the gates" rather than "your gate is broken", so the author fixes the wrong thing or nothing.
+Then build the object in `python3` and `json.dump` it. Do not hand-assemble JSON text: one stray
+quote in a command string or a gate detail produces a file no reader can parse, and the pre-push
+consumer cannot tell an unparseable report from a missing one. It warns that no verdict was
+recorded, which reads as "you forgot to run the gates" rather than "your gate is broken", so the
+author fixes the wrong thing or nothing.
 
-This example is the run the Output Format section below reports, so the two can be compared line for line:
+This example is the run the Output Format section below reports, so the two can be compared line for
+line:
 
 ```json
 {
@@ -675,16 +795,25 @@ This example is the run the Output Format section below reports, so the two can 
 
 Five rules the consumer depends on:
 
-- **`verdict` is one of `PASS`, `FAIL`, `INCOMPLETE`, or `NO GATES RAN`,** verbatim from the Verdict Rules. No other string, no lowercase, no added punctuation.
-- **`gates` carries one entry per row of the report table,** in the same order, with the same `status`. A SKIP, BLOCKED, or HANDOFF row gets its entry too. Count the array against the table before you write it: ten rows means ten entries. A short array contradicts a run the reader can see.
-- **`command` is `null` unless the cell holds a command someone can re-run.** Change coverage describes a method rather than naming a command, so its `command` is `null` and the description moves into `detail`. A gate that never ran is `null` too. An invented command is worse than an absent one.
+- **`verdict` is one of `PASS`, `FAIL`, `INCOMPLETE`, or `NO GATES RAN`,** verbatim from the Verdict
+  Rules. No other string, no lowercase, no added punctuation.
+- **`gates` carries one entry per row of the report table,** in the same order, with the same
+  `status`. A SKIP, BLOCKED, or HANDOFF row gets its entry too. Count the array against the table
+  before you write it: ten rows means ten entries. A short array contradicts a run the reader can
+  see.
+- **`command` is `null` unless the cell holds a command someone can re-run.** Change coverage
+  describes a method rather than naming a command, so its `command` is `null` and the description
+  moves into `detail`. A gate that never ran is `null` too. An invented command is worse than an
+  absent one.
 - **`scope` is `changed` or `all`,** matching what Step 2 set.
 - **`routing` carries one key per surface Step 3 found,** with the method and owner verbatim from the
   router's output. A consumer reads it to know whether a live check happened at all, which `verdict`
   alone does not say: a PASS over a diff whose only surface was a handoff means much less than a PASS
   over a probed one. Write `{}` when the changed set had no surface.
 
-`dirty` is for a human reader, and nothing automated reads it. It records that this skill runs before the commit most of the time, so `head` is usually the commit *before* the one that gets pushed. Nearly every honest report is dirty, and a gate blocking on that would block constantly.
+`dirty` is for a human reader, and nothing automated reads it. It records that this skill runs
+before the commit most of the time, so `head` is usually the commit *before* the one that gets
+pushed. Nearly every honest report is dirty, and a gate blocking on that would block constantly.
 
 ## Output Format
 

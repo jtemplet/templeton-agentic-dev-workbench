@@ -151,6 +151,8 @@ check python3 skills/quality-gates/scripts/test_route_qa.py
 check python3 skills/quality-gates/scripts/test_probe_api.py
 check python3 skills/quality-gates/scripts/test_check_documented_bd_commands.py
 check python3 skills/quality-gates/scripts/check_documented_bd_commands.py
+check python3 skills/quality-gates/scripts/test_check_documented_paths.py
+check python3 skills/quality-gates/scripts/check_documented_paths.py
 check python3 skills/product-surface-docs/scripts/test_check_drive_blocks.py
 check python3 skills/product-surface-docs/scripts/check_drive_blocks.py
 check python3 skills/bead-refine/scripts/test_check_round_format.py

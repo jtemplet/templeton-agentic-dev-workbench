@@ -35,6 +35,8 @@ python3 skills/quality-gates/scripts/test_route_qa.py                # regressio
 python3 skills/quality-gates/scripts/test_probe_api.py               # regression suite for the live API probe
 python3 skills/quality-gates/scripts/test_check_documented_bd_commands.py   # regression suite for the bd-command checker
 python3 skills/quality-gates/scripts/check_documented_bd_commands.py        # assert every fenced bd command runs
+python3 skills/quality-gates/scripts/test_check_documented_paths.py         # regression suite for the documented-path checker
+python3 skills/quality-gates/scripts/check_documented_paths.py              # assert every documented plugin-script path resolves and runs
 python3 skills/product-surface-docs/scripts/test_check_drive_blocks.py      # regression suite for the drive-block checker
 python3 skills/product-surface-docs/scripts/check_drive_blocks.py           # assert every leaf document carries a drive block
 python3 skills/bead-refine/scripts/test_check_round_format.py               # regression suite for the refine-round format checker
@@ -96,7 +98,7 @@ every case, which is too slow and too costly for a push. `python3 evals/test_run
 model and costs about 2 seconds, so cost is not why it left the hook. The evals are a measurement
 you run deliberately. Both stay in the list above, so the ship gate still runs the harness suite.
 
-That leaves 20 checks; derive the number with `grep -c '^check ' .githooks/pre-push`. They take
+That leaves 22 checks; derive the number with `grep -c '^check ' .githooks/pre-push`. They take
 tens of seconds, and the figure moves with the machine. It was
 46 seconds when first measured warm, and 68 seconds for a dry-run push on 2026-08-23. Six suites
 carry nearly all of it.

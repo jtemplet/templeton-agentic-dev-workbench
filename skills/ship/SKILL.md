@@ -54,8 +54,8 @@ Resolve the **default branch** in this order: `git symbolic-ref refs/remotes/ori
 run; this file writes `main` for readability only.
 
 Five conditions stop the run with `git-state`. Check them in this order, and name the one you found:
-no repository at all, HEAD already on the default branch, detached HEAD, a changed tracked file, or a
-rebase, merge, or cherry-pick already in progress.
+no repository at all, HEAD already on the default branch, detached HEAD, a changed tracked file, or
+a rebase, merge, or cherry-pick already in progress.
 
 **An untracked file does not stop the run. A changed tracked file does.** `git rebase` refuses to
 start with a modified tracked file, so that condition is a real stop. An untracked file is usually
@@ -83,10 +83,10 @@ every candidate with `bd show <candidate> --json`, longest first, and never trus
 | `status` is already `closed` | Stop with `tracker`. Something landed this work already. |
 | The branch name yields no candidate, or there is no tracker | **Ship bead-free.** Not every unit of work has a bead, and a missing one is no reason to strand a reviewed commit. |
 
-**A bead-free ship changes four things and nothing else:** no `bd close`, no `bd dolt push`, no bead id
-in the commit subject, and no `Closes` line in its body. Every gate, guard, and cleanup step still
-runs. Say "bead-free" in the report header and again in the summary, and name which of the two causes
-applied.
+**A bead-free ship changes four things and nothing else:** no `bd close`, no `bd dolt push`, no bead
+id in the commit subject, and no `Closes` line in its body. Every gate, guard, and cleanup step
+still runs. Say "bead-free" in the report header and again in the summary, and name which of the two
+causes applied.
 
 **In a linked worktree, confirm the database.** `bd` finds one database per repository through the git
 common directory, so a worktree shares the main checkout's. If `bd where` names a database under the
@@ -107,11 +107,11 @@ That intersects the files this branch touched with the files that still differ f
 Step 5, and emit `SHIP_DONE` with the hash on main that carries the work. Run no gate and attempt no
 merge.
 
-**Do not rewrite this as a shell variable holding the file list.** A newline-separated list expands to
-one pathspec wherever `IFS` excludes newline, that pathspec matches no file, and `git diff` then prints
-nothing and exits 0. The check reads that as "already landed" and the run deletes a branch it never
-merged. Measured on 2026-08-24: `set -- $FILES` reported `args=1` for a four-file branch, and the
-documented diff printed 0 lines where listing the four paths printed 918.
+**Do not rewrite this as a shell variable holding the file list.** A newline-separated list expands
+to one pathspec wherever `IFS` excludes newline, that pathspec matches no file, and `git diff` then
+prints nothing and exits 0. The check reads that as "already landed" and the run deletes a branch it
+never merged. Measured on 2026-08-24: `set -- $FILES` reported `args=1` for a four-file branch, and
+the documented diff printed 0 lines where listing the four paths printed 918.
 
 **Run this check BEFORE the rebase.** A squash-merge gives the landed commit a new patch id, so the
 rebase conflicts on every touched file instead of going empty. Rebase first and a shipped bead reports
@@ -386,9 +386,14 @@ here.
 **When a worktree holds the branch, remove the worktree first**, because `git branch -D` refuses while
 one does:
 
+<!-- plugin-root-fallback -->
+**The command below finds its plugin script when `CLAUDE_PLUGIN_ROOT` is unset.** The `find`
+fallback searches the installed plugin cache. Claude Code uses the loaded plugin root first.
+
 ```bash
 git worktree list --porcelain                       # find the worktree holding <branch>
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/ship/scripts/check_worktree_occupants.py" \
+python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
+  -path '*/skills/ship/scripts/check_worktree_occupants.py' -print -quit 2>/dev/null)" \
   --worktree <worktree-path>                        # who is still standing in it
 cd <main-checkout>                                  # LEAVE the worktree before removing it
 git -C <main-checkout> worktree remove <worktree-path>
@@ -490,8 +495,8 @@ Every report names the gate source, command, exit code, and counts. Every stop n
 exact condition it found, the state on disk, and the human's next action. The slug is a category, so
 the prose carries what actually happened.
 
-Both forms end with exactly one machine line, as the last line of the output: no summary, no offer, no
-prose after it. A wrapper reads the last line, and `SHIP_DONE` carries the landing commit's hash,
+Both forms end with exactly one machine line, as the last line of the output: no summary, no offer,
+no prose after it. A wrapper reads the last line, and `SHIP_DONE` carries the landing commit's hash,
 which is what an orchestrator checks against main.
 
 | Slug | Means |
