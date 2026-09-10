@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [4.4.3] - 2026-09-10
+
+### Added
+
+- **Wire Codex hooks to update and label beads.** (`6031ef2`, tadw-5z5)
+
+### Changed
+
+- **Enforce the 100-column wrap on the changed set.** (`ae35bd3`, tadw-2l3)
+- **Merge branch 'bugfix/tadw-1rm/plugin-root-fallback' into main.** (`834e557`)
+- **Add the bead body check script and its test.** (`47d994f`, tadw-vio)
+- **Merge branch 'feature/tadw-x8b.4/obsidian-native-output' into main.** (`e5b6902`)
+
 ## [4.4.1] - 2026-09-09
 
 ### Changed
@@ -2609,7 +2622,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.3...HEAD
+[4.4.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.1...v4.4.3
 [4.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.0...v4.4.1
 [4.4.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.3.1...v4.4.0
 [4.3.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.3.0...v4.3.1
