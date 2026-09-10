@@ -385,9 +385,10 @@ for each. They are not wired here, and `plugin.json` does not reference them.
   is wired to `PreToolUse` (matcher `Skill`), `UserPromptSubmit`, and `Stop`. **This is the copy
   of record**, and deployed copies are downstream of it.
 - `scripts/install_label_bead_on_skill_invocation.sh` installs it into whatever repository you
-  run it from. Re-running it is safe. `--dest-dir` moves the destination.
-- `... --check` reports whether the installed copy matches the source, and whether all three
-  events reference it. It changes nothing, and exits 1 when either is out of step.
+  run it from, together with `scripts/run_codex_bead_hooks.sh`, which resolves it as a sibling.
+  Re-running it is safe. `--dest-dir` moves the destination.
+- `... --check` reports whether each installed copy matches its source, and whether all three
+  events reference the label script. It changes nothing, and exits 1 when any is out of step.
 
 Two properties matter to the target repository:
 

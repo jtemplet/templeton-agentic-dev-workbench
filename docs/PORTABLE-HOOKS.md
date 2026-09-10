@@ -21,20 +21,91 @@ hook dropped at the `bd` cutover.
 ## The installer
 
 `scripts/install_label_bead_on_skill_invocation.sh` installs the hook into whatever repository
-you run it from. It copies the hook to `.claude/scripts/`, backs up `.claude/settings.json`, and
-wires the three events. Re-running it is safe. It repairs wiring that names an older path
-instead of adding a second entry. `--dest-dir` moves the destination.
+you run it from. It copies the hook and its Codex runner to `.claude/scripts/`, backs up
+`.claude/settings.json`, and wires the three events. Re-running it is safe. It repairs wiring
+that names an older path instead of adding a second entry. `--dest-dir` moves the destination.
+
+Only the label script is wired here. The runner is inert until somebody adds it to
+`.codex/hooks.json`, so a repository that never runs Codex carries one unused file and loses
+nothing. See "Codex" below.
 
 A run that overwrites an existing copy first reports how the two differ, in line counts and
 hashes. After the copy, that evidence is gone.
 
-`--check` answers the same questions and changes nothing. It reports whether the installed copy
-matches the source, and whether all three events reference it. It exits 1 if either is out of
-step.
+`--check` answers the same questions and changes nothing. It reports whether each installed copy
+matches its source, and whether all three events reference the label script. It exits 1 if any of
+those is out of step.
 
 The two kinds of drift fail independently. The second is the one that is easy to miss: a current
 script reached by only two events labels nothing on the third. `tadw-j80` covers wiring `--check`
 into `.githooks/pre-push`.
+
+## Codex
+
+Codex reads project hooks from `.codex/hooks.json` when `[features].hooks` is `true` in
+`.codex/config.toml`. Wire `run_codex_bead_hooks.sh` to `UserPromptSubmit` and `Stop`. That one
+script runs the context refresh and the label behavior, because Codex runs one command per event
+group and both behaviors need the prompt.
+
+The dispatcher sends the same prompt payload to `bd codex-hook UserPromptSubmit` and the portable
+label script.
+
+### Where the two scripts live
+
+`scripts/install_label_bead_on_skill_invocation.sh` copies **both** scripts into
+`.claude/scripts/` of the target repository. Codex reads no file from that directory, so the name
+is only where the pair happens to live; the installer puts them together on purpose. The runner
+looks for the label script as a sibling first, then under `.claude/scripts/` of the main checkout,
+resolved through the git common dir. Either layout works, and a linked worktree finds the main
+checkout's copy.
+
+The two used to be separable, and the failure was silent. The installer wrote the label script to
+`.claude/scripts/` while the runner looked only for a sibling, so a repository set up the
+documented way had working Claude labeling and Codex labeling that never ran. A runner that cannot
+find its label script now writes one line to `<git-common-dir>/bead-label.log` before it returns,
+so a split pair is visible rather than indistinguishable from a working one.
+
+### The event comes from the wiring, not the payload
+
+Each entry passes its event name as an argument, `... run_codex_bead_hooks.sh UserPromptSubmit`.
+The script parses `hook_event_name` out of the payload only when no argument is given.
+
+The order matters because of `jq`. Parsing the payload first put `jq` in charge of whether the
+context refresh ran at all: with no `jq` on the hook's `PATH`, the event resolved empty, no branch
+was taken, and the script exited 0. The refresh had needed only `bd` before that, so one missing
+tool would have taken down a behavior it never touched.
+
+### The command resolves its own path
+
+Each entry is a short shell expression that resolves the repository root with
+`git rev-parse --show-toplevel` and runs the script by absolute path. Codex's hook configuration
+has no `cwd` field, and which directory it runs a project command from is not something the
+configuration states, so a bare relative path would make the hook depend on where you started
+`codex`. Every other entry in the file is a `bd` subcommand found on `PATH`, which has never had
+that problem.
+
+### Its stdout belongs to the context refresh
+
+Codex validates a `UserPromptSubmit` hook's stdout against a schema that accepts no unknown keys.
+The context refresh writes the one document that schema expects. The label script's stdout is sent
+to `/dev/null`, because its `inject` mode emits Claude Code's own JSON shape, which Codex would
+reject as a second document and would not act on anyway. No label mode is `inject` today; two were
+until 2026-09-09.
+
+### Prompt forms
+
+Codex skill prompts start with `$`, such as `$verify-acceptance tadw-123`. The portable script
+accepts that form and the Claude `/verify-acceptance tadw-123` form. Both forms use the same label
+map and artifact gates.
+
+A backslash used to open a third form by accident. The pattern was written inline as `[/\$]`, and
+POSIX gives a backslash no special meaning inside a bracket expression, so the set was `/`, `\`,
+and `$`. A pasted `\build tadw-1` claimed the bead and dropped a gate marker for a run that never
+happened. The pattern is now held in a shell variable, where `$` needs no escape.
+
+The Codex prompt hook sees only explicit skill names at the start of a prompt. Codex does not call
+a `Skill` tool when it selects a skill from ordinary prose. That implicit selection cannot create
+the pending label marker, so include the `$skill` name when automatic labeling matters.
 
 ## The working tree stays clean
 

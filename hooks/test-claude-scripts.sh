@@ -61,6 +61,11 @@ FILTER="${1:-}"
 
 CLOSE="$SCRIPTS_DIR/close_bead_on_pr_merge.sh"
 LABEL="$SCRIPTS_DIR/label_bead_on_skill_invocation.sh"
+# From the override directory when it holds one, so the revert discipline in
+# the header applies to this script too. It is not a .claude/scripts hook, so
+# the default is its own home.
+CODEX_RUNNER="$SCRIPTS_DIR/run_codex_bead_hooks.sh"
+[[ -f "$CODEX_RUNNER" ]] || CODEX_RUNNER="$REPO_ROOT/scripts/run_codex_bead_hooks.sh"
 
 REAL_GIT="$(command -v git)"
 # Resolved with pwd -P. On macOS mktemp hands back /var/..., which is a symlink
@@ -347,9 +352,12 @@ payload() {  # payload <event> <command> [stderr] [skill] [args]
       tool_response:{stderr:$err}}'
 }
 
-# run_hook <script> <repo> <payload>; sets HOOK_CODE and writes .hookout/.hookerr
+# run_hook <script> <repo> <payload> [argv...]; sets HOOK_CODE, writes
+# .hookout/.hookerr. Anything after the payload reaches the script as argv,
+# which is how the Codex runner is told its event.
 run_hook() {
   local script="$1" repo="$2" body="$3"
+  shift 3
   sandbox_path "$repo"
   : > "$repo/.bdlog"; : > "$repo/.bdcalls"; : > "$repo/.gitlog"; : > "$repo/.ghlog"
   ( cd "$repo" \
@@ -358,7 +366,7 @@ run_hook() {
        BD_REPO="$repo" BD_LOG="$repo/.bdlog" BD_CALLS="$repo/.bdcalls" \
        GIT_LOG="$repo/.gitlog" \
        GH_LOG="$repo/.ghlog" BD_SHOW_COUNT_FILE="$repo/.bdshows" \
-       bash "$script" > "$repo/.hookout" 2> "$repo/.hookerr" )
+       bash "$script" "$@" > "$repo/.hookout" 2> "$repo/.hookerr" )
   HOOK_CODE=$?
 }
 
@@ -755,6 +763,38 @@ if case_start "label/prompt: a typed /tadw:build resolves to feature-development
   assert_no_match "$R/.bdcalls" "--add-label" "applied no label up front"
   [[ -f "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "dropped the marker" || nope "dropped the marker"
   assert_match "$R/.bdcalls" "update tadw-alpha-one --claim" "still claimed the bead"
+fi
+
+if case_start "label/prompt: a Codex \$tadw:build resolves to feature-development"; then
+  R="$(new_repo b4c with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(jq -n '{hook_event_name:"UserPromptSubmit", prompt:"$tadw:build tadw-alpha-one"}')"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label up front"
+  [[ -f "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "dropped the marker" || nope "dropped the marker"
+  assert_match "$R/.bdcalls" "update tadw-alpha-one --claim" "claimed the bead"
+fi
+
+if case_start "label/prompt: a Codex \$verify-acceptance starts the accepted gate"; then
+  R="$(new_repo avc with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(jq -n '{hook_event_name:"UserPromptSubmit", prompt:"$verify-acceptance tadw-alpha-one"}')"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label before the verdict"
+  [[ -f "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "dropped the accepted marker" || nope "dropped the accepted marker"
+fi
+
+if case_start "label/prompt: a backslash-escaped word is not a command"; then
+  # The pattern was written inline as [/\$], and POSIX gives a backslash no
+  # special meaning inside a bracket expression, so the set was {/, \, $}. A
+  # pasted "\build tadw-1" claimed the bead and dropped a gate marker for a run
+  # that never happened; the next Stop then applied `implemented` off whatever
+  # build-report.json the FOLLOWING real run wrote.
+  R="$(new_repo bsl with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(jq -n '{hook_event_name:"UserPromptSubmit", prompt:"\\build tadw-alpha-one"}')"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  assert_no_match "$R/.bdcalls" "--claim" "claimed nothing"
+  [[ ! -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] \
+    && ok "dropped no marker" || nope "dropped no marker"
 fi
 
 if case_start "label/stop: a clean build report labels implemented"; then
@@ -1776,7 +1816,8 @@ fi
 INSTALLER_SRC="$SANDBOX/installer-src"
 mkdir -p "$INSTALLER_SRC"
 cp "$REPO_ROOT/scripts/install_label_bead_on_skill_invocation.sh" \
-   "$REPO_ROOT/scripts/label_bead_on_skill_invocation.sh" "$INSTALLER_SRC/"
+   "$REPO_ROOT/scripts/label_bead_on_skill_invocation.sh" \
+   "$REPO_ROOT/scripts/run_codex_bead_hooks.sh" "$INSTALLER_SRC/"
 INSTALLER="$INSTALLER_SRC/install_label_bead_on_skill_invocation.sh"
 
 run_installer() {  # run_installer <repo> [args...]; sets INSTALL_CODE, writes .instout
@@ -1855,6 +1896,31 @@ if case_start "install/check: an uninstalled repository reports that, rather tha
   assert_eq "$INSTALL_CODE" 1 "exits non-zero"
   assert_match "$R/.instout" "script:   NOT INSTALLED" "said it is not installed"
   [[ ! -e "$(installed_hook "$R")" ]] && ok "installed nothing" || nope "installed nothing"
+fi
+
+if case_start "install: the Codex runner lands beside the label script"; then
+  # The runner resolves the label script as a SIBLING first. Installing one
+  # without the other gave a repository working Claude labeling and Codex
+  # labeling that never ran, with nothing to see either way.
+  R="$(new_repo i7)"
+  run_installer "$R"
+  assert_eq "$INSTALL_CODE" 0 "the run succeeds"
+  assert_match "$R/.instout" "codex runner: installed" "reported the runner"
+  [[ -x "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] \
+    && ok "left the runner executable" || nope "left the runner executable"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 0 "--check passes on a complete install"
+  assert_match "$R/.instout" "codex:    current" "--check reports the runner"
+fi
+
+if case_start "install/check: a missing Codex runner fails, even with the label script current"; then
+  R="$(new_repo i8)"
+  run_installer "$R"
+  rm -f "$R/.claude/scripts/run_codex_bead_hooks.sh"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 1 "exits non-zero"
+  assert_match "$R/.instout" "script:   current" "the label script is still current"
+  assert_match "$R/.instout" "codex:    NOT INSTALLED" "named the missing runner"
 fi
 
 # ---------------------------------------------------------------------------
@@ -2011,6 +2077,127 @@ if case_start "install/wiring: an empty project dir resolves nothing, not the cw
   run_wired "$R" "" "$(payload Stop '')"
   assert_eq "$WIRED_CODE" 0 "exits 0"
   assert_no_match "$R/.bdcalls" "add-label" "labeled nothing from an unnamed project"
+fi
+
+# ---------------------------------------------------------------------------
+# Codex project wiring
+# ---------------------------------------------------------------------------
+
+if case_start "codex/runner: one prompt updates context and starts the label flow"; then
+  R="$(new_repo cx1 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$CODEX_RUNNER" "$R" "$(jq -n '{hook_event_name:"UserPromptSubmit", prompt:"$feature-development tadw-alpha-one"}')"
+  assert_match "$R/.bdcalls" "^codex-hook UserPromptSubmit" "refreshed Beads context"
+  assert_match "$R/.bdcalls" "update tadw-alpha-one --claim" "claimed the bead"
+  [[ -f "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "dropped the marker" || nope "dropped the marker"
+fi
+
+if case_start "codex/runner: Stop applies an artifact-gated label"; then
+  R="$(new_repo cx2 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  sleep 1; write_build_report "$R" 1 1 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$CODEX_RUNNER" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label implemented" "applied the implemented label"
+  [[ ! -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "removed the marker" || nope "removed the marker"
+fi
+
+if case_start "codex/runner: the event comes from argv, and a broken jq does not stop the refresh"; then
+  # The regression this pins: the event used to be read out of the payload with
+  # jq, so a machine without jq resolved an empty event, took no branch, and
+  # exited 0. That silently ended the `bd codex-hook` context refresh, which
+  # had never needed jq. A jq that fails stands in for one that is absent; the
+  # label flow needs jq for its own parsing and is expected to give up here.
+  R="$(new_repo cx3 with-origin)"
+  BROKEN="$SANDBOX/broken-bin"
+  mkdir -p "$BROKEN"
+  printf '#!/usr/bin/env bash\nexit 1\n' > "$BROKEN/jq"
+  chmod +x "$BROKEN/jq"
+  sandbox_path "$R"
+  : > "$R/.bdcalls"
+  ( cd "$R" \
+    && printf '%s' '{"hook_event_name":"UserPromptSubmit","prompt":"$feature-development tadw-alpha-one"}' \
+     | PATH="$BROKEN:$BINDIR:$PATH" BD_REPO="$R" BD_CALLS="$R/.bdcalls" BD_LOG="$R/.bdlog" \
+       bash "$CODEX_RUNNER" UserPromptSubmit > "$R/.hookout" 2> "$R/.hookerr" )
+  assert_eq "$?" 0 "exits 0"
+  assert_match "$R/.bdcalls" "^codex-hook UserPromptSubmit" "refreshed Beads context anyway"
+fi
+
+if case_start "codex/runner: a runner with no label script beside it says so in the log"; then
+  # Returning in silence here is the failure the label script's own header
+  # records hiding two outages: a split pair looks exactly like a working one.
+  R="$(new_repo cx4 with-origin)"
+  mkdir -p "$R/lonely"
+  cp "$CODEX_RUNNER" "$R/lonely/run_codex_bead_hooks.sh"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$R/lonely/run_codex_bead_hooks.sh" "$R" "$(payload Stop '')" Stop
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  assert_match "$R/.git/bead-label.log" "no-label-script" "logged the miss"
+  assert_match "$R/.git/bead-label.log" "script=codex-runner" "named itself as the writer"
+fi
+
+if case_start "codex/runner: a runner with no sibling finds the installed label script"; then
+  # The layout the installer produces once somebody moves the runner elsewhere:
+  # no sibling, and the label script under .claude/scripts of the main checkout.
+  R="$(new_repo cx5 with-origin)"
+  mkdir -p "$R/lonely" "$R/.claude/scripts"
+  cp "$CODEX_RUNNER" "$R/lonely/run_codex_bead_hooks.sh"
+  cp "$REPO_ROOT/scripts/label_bead_on_skill_invocation.sh" "$R/.claude/scripts/"
+  chmod +x "$R/.claude/scripts/label_bead_on_skill_invocation.sh"
+  build_marker "$R" tadw-alpha-one
+  sleep 1; write_build_report "$R" 1 1 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$R/lonely/run_codex_bead_hooks.sh" "$R" "$(payload Stop '')" Stop
+  assert_match "$R/.bdcalls" "--add-label implemented" "applied the implemented label"
+  assert_no_match "$R/.git/bead-label.log" "no-label-script" "logged no miss"
+fi
+
+if case_start "codex/wiring: prompt and stop events run the composite hook"; then
+  CODEX_HOOKS="$REPO_ROOT/.codex/hooks.json"
+  for event in UserPromptSubmit Stop; do
+    count="$(jq -r --arg event "$event" '
+      [.hooks[$event][] | (.hooks // [])[]
+       | select((.command? // "") | contains("run_codex_bead_hooks.sh"))]
+      | length
+    ' "$CODEX_HOOKS")"
+    assert_eq "$count" 1 "$event runs the composite hook once"
+  done
+
+  count="$(jq -r '
+    [.hooks.UserPromptSubmit[]
+     | select(any((.hooks // [])[];
+         (.command? // "") | contains("run_codex_bead_hooks.sh")))
+     | (.hooks | length)]
+    | if length == 1 then .[0] else 0 end
+  ' "$CODEX_HOOKS")"
+  assert_eq "$count" 1 "uses one command in the matching group"
+
+  # Each entry names its own event, so the runner never has to parse the
+  # payload to learn which branch to take.
+  for event in UserPromptSubmit Stop; do
+    count="$(jq -r --arg event "$event" '
+      [.hooks[$event][] | (.hooks // [])[]
+       | select((.command? // "") | endswith(" " + $event))]
+      | length
+    ' "$CODEX_HOOKS")"
+    assert_eq "$count" 1 "$event passes its own name as an argument"
+  done
+
+  # Codex's hook configuration has no cwd field, so a bare relative path would
+  # tie the hook to whichever directory somebody started codex from. Every
+  # other entry in this file is a bd subcommand found on PATH.
+  count="$(jq -r '
+    [.hooks.UserPromptSubmit[], .hooks.Stop[] | (.hooks // [])[]
+     | select((.command? // "") | contains("run_codex_bead_hooks.sh"))
+     | select((.command | contains("git rev-parse --show-toplevel"))
+              and ((.command | test("^bash [^/]")) | not))]
+    | length
+  ' "$CODEX_HOOKS")"
+  assert_eq "$count" 2 "resolves the script path itself rather than trusting the cwd"
+
+  assert_match "$CODEX_RUNNER" "bd codex-hook UserPromptSubmit" "the composite hook refreshes context"
+  assert_match "$CODEX_RUNNER" "label_bead_on_skill_invocation.sh" "the composite hook runs labeling"
+  [[ -x "$CODEX_RUNNER" ]] && ok "the runner is executable" || nope "the runner is executable"
 fi
 
 # ---------------------------------------------------------------------------

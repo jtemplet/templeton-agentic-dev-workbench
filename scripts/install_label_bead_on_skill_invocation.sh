@@ -9,12 +9,18 @@
 #
 #   1. Copies label_bead_on_skill_invocation.sh, the copy sitting beside this
 #      installer, into <repo>/.claude/scripts/ and marks it executable.
+#      run_codex_bead_hooks.sh rides along into the same directory, because
+#      that script resolves the label script as a SIBLING first. Copying one
+#      without the other is how Codex labeling becomes a permanent no-op in a
+#      repository whose Claude labeling works. It is inert until somebody
+#      adds it to .codex/hooks.json, so a repository that never runs Codex
+#      carries one unused file and loses nothing.
 #   2. Wires that path into <repo>/.claude/settings.json for the three events
 #      the hook dispatches on: PreToolUse (matcher Skill), UserPromptSubmit,
 #      and Stop. Everything else in settings.json is left byte-identical.
 #
 # --check answers the same two questions and changes nothing: it reports how
-# the installed copy differs from the source and which of the three events are
+# each installed copy differs from the source and which of the three events are
 # wired, then exits non-zero if either is out of step. That is the form a
 # pre-push hook can use, and it is also the honest way to look at a repository
 # whose copy somebody may have edited on purpose.
@@ -37,6 +43,7 @@
 set -euo pipefail
 
 HOOK_SCRIPT="label_bead_on_skill_invocation.sh"
+CODEX_SCRIPT="run_codex_bead_hooks.sh"
 DEST_DIR=".claude/scripts"
 CHECK_ONLY=false
 
@@ -56,10 +63,10 @@ Installs the bead-labeling hook into the git repository containing the current
 directory, and wires it into that repository's .claude/settings.json.
 
 Options:
-  --check          Report how the installed copy and its wiring differ from the
-                   source, then exit: 0 when both are current, 1 otherwise.
+  --check          Report how the installed copies and the wiring differ from
+                   the source, then exit: 0 when all are current, 1 otherwise.
                    Copies nothing and touches settings.json not at all.
-  --dest-dir DIR   Where to put the hook script, relative to the repository
+  --dest-dir DIR   Where to put both hook scripts, relative to the repository
                    root. Default: .claude/scripts
   -h, --help       Print this and exit.
 
@@ -98,11 +105,14 @@ command -v jq >/dev/null 2>&1 || die "jq is not on PATH; it patches settings.jso
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE="$SOURCE_DIR/$HOOK_SCRIPT"
 [[ -f "$SOURCE" ]] || die "$HOOK_SCRIPT is not beside this installer (looked in $SOURCE_DIR)"
+CODEX_SOURCE="$SOURCE_DIR/$CODEX_SCRIPT"
+[[ -f "$CODEX_SOURCE" ]] || die "$CODEX_SCRIPT is not beside this installer (looked in $SOURCE_DIR)"
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" ||
   die "not inside a git repository; run this from the repository you want the hook installed in"
 
 DEST="$REPO_ROOT/$DEST_DIR/$HOOK_SCRIPT"
+CODEX_DEST="$REPO_ROOT/$DEST_DIR/$CODEX_SCRIPT"
 [[ "$SOURCE" != "$DEST" ]] ||
   die "source and destination are the same file; run this from the target repository, not from its own source repository"
 
@@ -123,13 +133,32 @@ hash_of() {
 # a diff: the useful distinction is "one generation behind the source" from
 # "somebody edited this in place", and `diff` itself is right there for the
 # rest.
+# describe_drift <source> <installed>
 describe_drift() {
-  local missing extra
-  missing="$(diff "$SOURCE" "$DEST" | grep -c '^<' || true)"
-  extra="$(diff "$SOURCE" "$DEST" | grep -c '^>' || true)"
+  local source="$1" dest="$2" missing extra
+  missing="$(diff "$source" "$dest" | grep -c '^<' || true)"
+  extra="$(diff "$source" "$dest" | grep -c '^>' || true)"
   echo "  differs: the installed copy is missing $missing line(s) the source has,"
   echo "           and carries $extra line(s) the source does not"
-  echo "  hashes:  source $(hash_of "$SOURCE"), installed $(hash_of "$DEST")"
+  echo "  hashes:  source $(hash_of "$source"), installed $(hash_of "$dest")"
+}
+
+# The same three states for either script, so the companion is reported as
+# loudly as the one people remember to look at.
+# report_script_state <label> <source> <installed> <relative-path>
+report_script_state() {
+  local label="$1" source="$2" dest="$3" rel="$4"
+  if [[ ! -f "$dest" ]]; then
+    echo "$label NOT INSTALLED at $rel"
+    return 1
+  elif cmp -s "$source" "$dest"; then
+    echo "$label current at $rel ($(hash_of "$source"))"
+    return 0
+  else
+    echo "$label DRIFTED at $rel"
+    describe_drift "$source" "$dest"
+    return 1
+  fi
 }
 
 # Which of the three events name this hook. Wiring drift is its own failure:
@@ -151,16 +180,10 @@ wired_events() {
 if [[ "$CHECK_ONLY" == true ]]; then
   check_failed=false
 
-  if [[ ! -f "$DEST" ]]; then
-    echo "script:   NOT INSTALLED at $DEST_DIR/$HOOK_SCRIPT"
+  report_script_state "script:  " "$SOURCE" "$DEST" "$DEST_DIR/$HOOK_SCRIPT" ||
     check_failed=true
-  elif cmp -s "$SOURCE" "$DEST"; then
-    echo "script:   current at $DEST_DIR/$HOOK_SCRIPT ($(hash_of "$SOURCE"))"
-  else
-    echo "script:   DRIFTED at $DEST_DIR/$HOOK_SCRIPT"
-    describe_drift
+  report_script_state "codex:   " "$CODEX_SOURCE" "$CODEX_DEST" "$DEST_DIR/$CODEX_SCRIPT" ||
     check_failed=true
-  fi
 
   found="$(wired_events | tr '\n' ' ')"
   missing_events=""
@@ -204,12 +227,22 @@ fi
 # patched copy is the case this exists for: the run still overwrites, and now
 # the report says what it overwrote.
 if [[ "$script_result" == "updated" ]]; then
-  describe_drift
+  describe_drift "$SOURCE" "$DEST"
+fi
+
+if [[ -f "$CODEX_DEST" ]] && cmp -s "$CODEX_SOURCE" "$CODEX_DEST"; then
+  codex_result="already current"
+elif [[ -f "$CODEX_DEST" ]]; then
+  codex_result="updated"
+else
+  codex_result="installed"
 fi
 
 mkdir -p "$REPO_ROOT/$DEST_DIR"
 cp "$SOURCE" "$DEST"
 chmod +x "$DEST"
+cp "$CODEX_SOURCE" "$CODEX_DEST"
+chmod +x "$CODEX_DEST"
 
 # ---------------------------------------------------------------------
 # Step 2: the wiring
@@ -354,6 +387,7 @@ fi
 
 echo "repository:  $REPO_ROOT"
 echo "hook script: $script_result at $DEST_DIR/$HOOK_SCRIPT ($(hash_of "$DEST"))"
+echo "codex runner: $codex_result at $DEST_DIR/$CODEX_SCRIPT ($(hash_of "$CODEX_DEST"))"
 echo "settings:    $settings_result in .claude/settings.json"
 echo "backup:      $backup_result"
 
@@ -374,4 +408,6 @@ jq -r --arg name "$HOOK_SCRIPT" '
 ' "$SETTINGS"
 
 echo
-echo "Commit .claude/settings.json and $DEST_DIR/$HOOK_SCRIPT to share this with the repo."
+echo "Commit .claude/settings.json, $DEST_DIR/$HOOK_SCRIPT and $DEST_DIR/$CODEX_SCRIPT"
+echo "to share this with the repo. The Codex runner needs its own entries in"
+echo ".codex/hooks.json; docs/PORTABLE-HOOKS.md has them."

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Claude Code hook: label the bead a skill invocation acts on.
+# Claude Code and Codex hook: label the bead a skill invocation acts on.
 #
 # Wired to three events and dispatches on hook_event_name:
 #
 #   PreToolUse (matcher Skill)  Claude invoked the Skill tool.
-#   UserPromptSubmit            A person typed the slash command, which
-#                               calls no tool, so PreToolUse never sees
-#                               it. Same flow, keyed on the command name.
+#   UserPromptSubmit            A person typed a Claude slash command or
+#                               a Codex dollar-prefixed skill name. Same
+#                               flow, keyed on the command or skill name.
 #   Stop                        Resolves labels that needed an outcome.
 #
 # Both entry points converge on run_label_flow, so a skill labels the same
@@ -609,8 +609,8 @@ handle_pre() {
 # UserPromptSubmit
 # ---------------------------------------------------------------------
 
-# Maps a slash-command name to the skill it invokes, printing the skill
-# name. Returns 1 when the command is not one we label.
+# Maps a command or explicit Codex skill name to the skill it invokes,
+# printing the skill name. Returns 1 when the name is not one we label.
 #
 # This map exists because PreToolUse cannot see a typed slash command. It
 # fires on the Skill TOOL, and typing /foo calls no tool, so without this
@@ -651,14 +651,24 @@ skill_for_command() {
 }
 
 handle_prompt() {
-  local payload="$1" prompt command skill args
+  local payload="$1" prompt command skill args prompt_re
 
   prompt="$(echo "$payload" | jq -r '.prompt // empty' 2>/dev/null || true)"
   [[ -z "$prompt" ]] && quiet_exit
 
-  # Only a prompt that STARTS with the command counts. A prompt merely
-  # mentioning /qa is talking about it, not running it.
-  [[ "$prompt" =~ ^[[:space:]]*/([A-Za-z0-9_:-]+)[[:space:]]*(.*)$ ]] || quiet_exit
+  # Only a prompt that STARTS with the command or skill name counts. A
+  # prompt merely mentioning /qa or $qa is talking about it, not running it.
+  #
+  # The pattern is held in a variable rather than written inline, and that is
+  # not a style choice. Inline, the `$` has to be escaped from bash, and
+  # `[/\$]` inside a bracket expression is the THREE-character set {/, \, $},
+  # because POSIX gives a backslash no special meaning in there. A prompt
+  # opening with a backslash-escaped word, which a paste of escaped shell text
+  # produces, matched: `\build tadw-1` resolved to tadw:feature-development,
+  # claimed the bead, and dropped a gate marker for a run that never happened.
+  # In a variable the `$` needs no escape, so the class says what it means.
+  prompt_re='^[[:space:]]*[/$]([A-Za-z0-9_:-]+)[[:space:]]*(.*)$'
+  [[ "$prompt" =~ $prompt_re ]] || quiet_exit
   command="${BASH_REMATCH[1]}"
   args="${BASH_REMATCH[2]}"
 
