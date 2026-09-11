@@ -87,9 +87,9 @@ costs no concurrency, because starts issued together in one message still run at
 generic dispatch, because this file never names a `subagent_type`, so no frontmatter can carry the
 model. The model reaches a lane on the `Agent` call or not at all.
 
-Use `sonnet` rather than a cheaper model, because a lane judges as well as runs. It grades Gate 2 change
-coverage, and it writes the Step 5 sentence saying whether a failure looks new. You trust a lane's
-rows as returned and cannot detect a mis-graded one, so that judgment has to survive.
+Use `sonnet` rather than a cheaper model, because a lane judges as well as runs. It grades Gate 2
+change coverage, and it writes the Step 5 sentence saying whether a failure looks new. You trust a
+lane's rows as returned and cannot detect a mis-graded one, so that judgment has to survive.
 
 Hand each lane the four inputs from Step 1, the path to `skills/quality-gates/SKILL.md`, and the
 rows it owns. Tell each lane to read that file for the technique.
@@ -134,7 +134,7 @@ reaches the report with no attribution, while every lane's FAIL carries one.
 You also own five report rows that no single lane can produce, because no lane sees the union of
 routed surfaces:
 
-- the `Handoff: mobile-ui` row, naming `/ios-qa`
+- the `Handoff: mobile-ui` row, naming `agent-device`
 - the **Project checks** row, when Step 1 found a command that maps to no gate
 - Gate 2's own HANDOFF status, when every routed surface is a handoff
 - Gate 2's SKIP row, carrying the router's reason, when every routed surface is `docs`
@@ -214,14 +214,16 @@ its rows myself. frontend and integration are SKIP below, carrying the router's 
 
 - Read `skills/quality-gates/SKILL.md` for every gate's technique
 - Run `changed_set.py` exactly once, and number the cases once, before any lane starts
-- Count the lanes that would start before you start any, and skip the split when fewer than two would
+- Count the lanes that would start before you start any, and skip the split when fewer than two
+  would
 - Run a lone lane's rows yourself, and grade them by the same Step 4 of the skill
 - Start two or more lanes in one message, then wait for all of them
 - Pass `model: "sonnet"` on every lane start, so no lane runs on the model you run on
 - Block until every lane you started has returned, by the harness's blocking parameter when it has
   one and by the completion notification when it does not
 - Give every gate the skill defines a row, including the gates that did not run
-- Emit SKIP only for a lane the router sent no work; grade a lone lane's rows normally, because they ran
+- Emit SKIP only for a lane the router sent no work; grade a lone lane's rows normally, because they
+  ran
 - Record a lane that returned nothing as BLOCKED on every gate it owned
 - Merge two Gate 2 rows field by field, never on the status alone
 - Write the Step 5 attribution for every FAIL in a gate you ran yourself

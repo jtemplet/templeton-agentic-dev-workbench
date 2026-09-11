@@ -1,6 +1,6 @@
 ---
 name: quality-gates
-description: "Run the project's QA gates against the change: tests, change coverage, live API probe, lint, type check, doc freshness, hygiene. Scoped to what changed by default. Reads the diff to pick the QA method the change actually needs: real curl requests against a local server for a REST change, a handoff to /qa for browser UI, or a test-coverage review for everything else. Takes the gate list from what the project declares, not from guesswork. Report-only, and it never addresses a host other than this machine."
+description: "Run the project's QA gates against the change: tests, change coverage, live API probe, lint, type check, doc freshness, hygiene. Scoped to what changed by default. Reads the diff to pick the QA method the change actually needs: real curl requests against a local server for a REST change, a handoff to agent-browser for browser UI, or a test-coverage review for everything else. Takes the gate list from what the project declares, not from guesswork. Report-only, and it never addresses a host other than this machine."
 ---
 
 # Quality Gates
@@ -28,8 +28,8 @@ report rather than re-deriving it.
 Do NOT use when:
 
 - The change is browser UI and you want it fixed, not reported. Use `/qa`, which drives a real
-  browser and fixes what it finds, or `/qa-only` for a report. Step 3 below detects browser UI from
-  the diff and hands it off, so running this first still tells you that `/qa` is the tool.
+  browser and fixes what it finds. Step 3 below detects browser UI from the diff and hands it to
+  the `agent-browser` skill, so this skill reports that change and does not fix it.
 - Looking for bugs in changed code (use `review-fresh-eyes`)
 - Grading work against its acceptance criteria (use `verify-acceptance`, which runs a subset of
   these gates as part of its own report)
@@ -61,9 +61,9 @@ BLOCKED fails the run.
 cheap and it answers a different question than driving the endpoint does. A change that adds a
 `POST /exports` route can have a unit test per branch and still 401 on every real request, because
 nothing sent one. So Step 3 reads the changed files and picks the method the change earns: real
-curl requests for a REST surface, a handoff to `/qa` for a browser surface, and a coverage review
-alone for a library or a CLI. The report names the method and the evidence for it, so a reader can
-see the routing was a decision rather than a default.
+curl requests for a REST surface, a handoff to `agent-browser` for a browser surface, and a
+coverage review alone for a library or a CLI. The report names the method and the evidence for it,
+so a reader can see the routing was a decision rather than a default.
 
 Its counterweight: the probe addresses **this machine unless the caller names somewhere else**. With
 no URL given it probes `http://127.0.0.1:3000`, and it never infers a host from a config file, an
@@ -206,8 +206,8 @@ operator error, which is BLOCKED.
 | Surface in the diff | Method | What it means here |
 |---|---|---|
 | **http-api** | `curl` | Gate 7 drives the endpoints through a real server on this machine |
-| **browser-ui** | `handoff` to `/qa` | This skill cannot settle it. HANDOFF, and the run is INCOMPLETE |
-| **mobile-ui** | `handoff` to `/ios-qa` | Same. HANDOFF |
+| **browser-ui** | `handoff` to `agent-browser` | This skill cannot settle it. HANDOFF, and the run is INCOMPLETE |
+| **mobile-ui** | `handoff` to `agent-device` | Same. HANDOFF |
 | **cli** | `coverage` | Gate 2 alone, and its end-to-end rule means the real argv and the real exit code |
 | **library** | `coverage` | Gate 2 alone. The public API is the surface, so there is no separate live level |
 | **prompt-assets** | `coverage` | Gate 2 alone, on the structural invariants: it parses, it is registered, its embedded commands are valid |
@@ -216,7 +216,7 @@ operator error, which is BLOCKED.
 | **docs** | `none` | No behavior changed, so Gate 2 is SKIP |
 
 **A change can route to several methods at once, and then it gets all of them.** A full-stack diff
-is a `curl` gate and a `/qa` handoff, not a choice between them.
+is a `curl` gate and an `agent-browser` handoff, not a choice between them.
 
 **Each `handoff` surface gets its own row in the gate table**, named for the surface and carrying
 the owning tool. That is not cosmetic. A diff that adds a REST route and a React component produces
@@ -274,8 +274,8 @@ silently never appears. Every row the report can contain has an owner here.
 | Gate 2 as SKIP, carrying the router's reason | Orchestrator | Every surface Step 3 routed was `docs`, so nothing changed behavior |
 | Gate 2 as HANDOFF, in place of a graded row | Orchestrator | Every surface Step 3 routed was a handoff |
 | Gate 7, the live API probe | `integration` | Step 3 routed a surface to `curl` |
-| `Handoff: browser-ui`, naming `/qa` | `frontend` | Step 3 routed `browser-ui` |
-| `Handoff: mobile-ui`, naming `/ios-qa` | Orchestrator | Step 3 routed `mobile-ui` |
+| `Handoff: browser-ui`, naming `agent-browser` | `frontend` | Step 3 routed `browser-ui` |
+| `Handoff: mobile-ui`, naming `agent-device` | Orchestrator | Step 3 routed `mobile-ui` |
 | Gates 3, 4, 5, and 6 | Orchestrator | Always |
 | **Project checks** | Orchestrator | Step 1 discovered a command that maps to no gate |
 | Any surface `route_qa.py` defines that no row above names | Orchestrator | Always, until a lane claims it |
@@ -567,7 +567,8 @@ finding. A count of markers someone else added years ago changes nothing the rea
 #### Gate 7: Live API Probe
 
 **Runs only when Step 3 routed a surface to `curl`.** Otherwise it is SKIP, with the routed method
-as the reason: "SKIP, Step 3 routed browser-ui to /qa and cli to coverage; no HTTP surface changed".
+as the reason: "SKIP, Step 3 routed browser-ui to agent-browser and cli to coverage; no HTTP
+surface changed".
 
 This is the gate that sends real requests. Every other gate reads code or counts things.
 
@@ -669,9 +670,10 @@ change with a green probe and no committed request-level test is still a Gate 2 
 
 #### Handoff Rows
 
-Step 3 routes `browser-ui` to `/qa` and `mobile-ui` to `/ios-qa`. Each routed handoff surface gets
-its own row here, named `Handoff: <surface>`, carrying the owning tool and a **null command**,
-because no command was run. One HANDOFF row drives the whole run to INCOMPLETE by Verdict Rule 2.
+Step 3 routes `browser-ui` to `agent-browser` and `mobile-ui` to `agent-device`. Each routed
+handoff surface gets its own row here, named `Handoff: <surface>`, carrying the owning tool and a
+**null command**, because no command was run. One HANDOFF row drives the whole run to INCOMPLETE
+by Verdict Rule 2.
 
 | Row | Owner | What the lane does instead |
 |---|---|---|
@@ -776,14 +778,14 @@ line:
   "gate_source": "AGENTS.md",
   "routing": {
     "http-api": {"method": "curl", "owner": null, "files": 2, "endpoints": 3},
-    "browser-ui": {"method": "handoff", "owner": "/qa", "files": 1, "endpoints": 0}
+    "browser-ui": {"method": "handoff", "owner": "agent-browser", "files": 1, "endpoints": 0}
   },
   "verdict": "FAIL",
   "gates": [
     {"name": "Tests", "status": "PASS", "command": "pytest tests/test_exports.py -q", "detail": "14 passed, 0 failed (selected, not the full suite)"},
     {"name": "Change coverage", "status": "FAIL", "command": null, "detail": "case review over 6 cases: 5 of 6 have unit tests, 0 request-level, span 7 of 11"},
     {"name": "Live API probe", "status": "FAIL", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/probe_api.py\" --spec .git/quality-gates-probe.json --repo-root .", "detail": "5 probes: 4 passed, 1 failed, 0 blocked"},
-    {"name": "Handoff: browser-ui", "status": "HANDOFF", "command": null, "detail": "1 component changed; /qa owns it"},
+    {"name": "Handoff: browser-ui", "status": "HANDOFF", "command": null, "detail": "1 component changed; agent-browser owns it"},
     {"name": "Lint", "status": "FAIL", "command": "ruff check src/api/exports.py", "detail": "2 errors, 11 warnings"},
     {"name": "Type checking", "status": "BLOCKED", "command": "mypy .", "detail": "exit 127, mypy not installed"},
     {"name": "Doc freshness", "status": "WARN", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py\" --repo-root .", "detail": "3 docs checked, 1 missing path"},
@@ -822,14 +824,14 @@ pushed. Nearly every honest report is dirty, and a gate blocking on that would b
 
 **Gate source:** AGENTS.md "Commands for This Repo" | .github/workflows/lint.yml | auto-detected
 **Scope:** changed (9 files vs `abc1234`). The full suite did not run.
-**QA method:** curl for http-api (2 files, 3 endpoints); handoff to `/qa` for browser-ui (1 file)
+**QA method:** curl for http-api (2 files, 3 endpoints); handoff to `agent-browser` for browser-ui (1 file)
 
 | Gate | Status | Command | Result |
 |---|---|---|---|
 | Tests | PASS | `pytest tests/test_exports.py -q` | 14 passed, 0 failed (selected, not the full suite) |
 | Change coverage | FAIL | case review over 6 cases | 5 of 6 have unit tests, 1 request-level, span 7 of 11 |
 | Live API probe | FAIL | `python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/probe_api.py" --spec .git/quality-gates-probe.json --repo-root .` | 5 probes: 4 passed, 1 failed, 0 blocked |
-| Handoff: browser-ui | HANDOFF | - | 1 component changed; `/qa` owns it |
+| Handoff: browser-ui | HANDOFF | - | 1 component changed; `agent-browser` owns it |
 | Lint | FAIL | `ruff check src/api/exports.py` | 2 errors, 11 warnings |
 | Type checking | BLOCKED | `mypy .` | exit 127, mypy not installed |
 | Doc freshness | WARN | `python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py" --repo-root .` | 3 docs checked, 1 missing path |
@@ -906,7 +908,7 @@ not a skip. Install it or remove the configuration.
 3. Add a test for the missing-export 404 (case 3)
 4. Fix the two ruff errors in `src/api/exports.py`
 5. Install mypy, then re-run the type gate
-6. Run `/qa` for the changed component; this run did not check it
+6. Check the changed component with the `agent-browser` skill; this run did not check it
 
 **Artifact:** `.git/quality-gates-report.json`, verdict FAIL
 
@@ -972,7 +974,7 @@ The order is load-bearing. An all-BLOCKED run is a FAIL by rule 1 and never reac
 - Ask for the cross-product of span classes, for a branch unreachable through the public interface, or for a test of code this change did not touch
 - Ask for defensive code: a nil check the type guarantees, a `try` around code that cannot raise, or a re-validation the caller already performed
 - Downgrade BLOCKED or HANDOFF to SKIP, or let an all-SKIP run report PASS
-- Pass a browser UI change silently; hand it to `/qa` on its own row
+- Pass a browser UI change silently; hand it to `agent-browser` on its own row
 - Fold a handoff surface and a graded surface into one status
 - Let a lane render a report section, write the artifact, or decide the verdict
 - Re-derive the base SHA, the changed set, the gate set, or the numbered case list once the orchestrator has resolved it

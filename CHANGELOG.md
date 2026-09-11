@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Changed
+
+- **The quality-gates UI handoffs name `agent-browser` and `agent-device`.** A `browser-ui` change
+  now hands off to `agent-browser` instead of `/qa`, and a `mobile-ui` change to `agent-device`
+  instead of `/ios-qa`. (tadw-b2j)
+
 ## [4.4.3] - 2026-09-10
 
 ### Added

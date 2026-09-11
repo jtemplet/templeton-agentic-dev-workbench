@@ -6,7 +6,8 @@ three methods, and this script is what makes that choice from the diff instead o
 from a guess:
 
     curl      a live HTTP probe through the real server (Gate 7)
-    handoff   a tool this skill cannot be: /qa for browser UI, /ios-qa for mobile
+    handoff   a tool this skill cannot be: agent-browser for browser UI,
+              agent-device for mobile
     coverage  a test-coverage review and nothing live (Gate 2 alone)
 
 It exists as a script for the reason Gate 5's checker does. Told in prose to
@@ -18,7 +19,8 @@ report says HANDOFF either way. The stakeholder is whoever trusts that line.
 THE FALSE-POSITIVE TRAP, which is the whole reason for the specificity model
 below. Every surface has a cheap path signal and an expensive content signal.
 `app/views/exports/index.json.jbuilder` sits under a template directory, so a
-path-only rule calls it browser UI and hands a JSON API view to /qa. A Next.js
+path-only rule calls it browser UI and hands a JSON API view to agent-browser. A
+Next.js
 `app/api/exports/route.ts` ends in `.ts`, so an extension-only rule calls it a
 library and probes nothing. Content beats path, and the specific path beats the
 generic one, so the strongest evidence about a file decides its surface.
@@ -82,8 +84,8 @@ PROSE_NAMES = ("LICENSE", "CHANGELOG", "NOTICE")
 # alters no behavior, which is Gate 2's SKIP.
 SURFACE_ROUTES: dict[str, tuple[str, str | None]] = {
     "http-api": ("curl", None),
-    "browser-ui": ("handoff", "/qa"),
-    "mobile-ui": ("handoff", "/ios-qa"),
+    "browser-ui": ("handoff", "agent-browser"),
+    "mobile-ui": ("handoff", "agent-device"),
     "cli": ("coverage", None),
     "library": ("coverage", None),
     "prompt-assets": ("coverage", None),
@@ -446,7 +448,7 @@ def read_content(root: Path, path: str) -> str | None:
 # extractor entirely. `api.get('/api/v1/exports')` is the most common way an axios
 # or fetch wrapper is called from a component, and reading it as a route
 # definition scored the component http-api at specificity 3. That outranked its
-# own `.tsx` rule, so a React-only change routed to curl and its `/qa` handoff
+# own `.tsx` rule, so a React-only change routed to curl and its browser-ui handoff
 # disappeared: the exact misroute this router exists to prevent, pointing the
 # other way.
 EXPRESS_RE = re.compile(

@@ -1,6 +1,8 @@
 # tadw (Templeton Agentic Dev Workbench)
 
-Personal Claude Code plugin: an agentic development workbench with custom agents, skills, and commands for Python, Ruby/Rails, JavaScript/TypeScript/React/Vue, Swift/iOS, and Terraform development.
+Personal Claude Code plugin: an agentic development workbench with custom agents, skills, and
+commands for Python, Ruby/Rails, JavaScript/TypeScript/React/Vue, Swift/iOS, and Terraform
+development.
 
 ## Installation
 
@@ -28,7 +30,8 @@ published state you have; `/publish-plugin` is what creates them.
 
 ### Pipeline A: Business Planning
 
-`/business-ideas` → `/grill-me` → `/write-plan` → `/plan-review` → `/plan-to-beads` → `/bead-audit-all`
+`/business-ideas` → `/grill-me` → `/write-plan` → `/plan-review` → `/plan-to-beads` →
+`/bead-audit-all`
 
 | Command | What it does |
 |---|---|
@@ -52,13 +55,14 @@ thinking, so clearing or compacting before the audit throws away the reasoning t
 
 ### Pipeline B: Code Quality
 
-`/build <bead-id>` → `/fresh-eyes-cr` → `/quality-gates` → `/verify-acceptance` → `/tadw:ship` → `/publish-plugin`
+`/build <bead-id>` → `/fresh-eyes-cr` → `/quality-gates` → `/verify-acceptance` → `/tadw:ship` →
+`/publish-plugin`
 
 | Command | What it does |
 |---|---|
 | `/build <bead-id>` | Implement the bead: read it from `bd`, learn the repo's conventions and its ADRs, code criterion by criterion with a test each, simplify, lint, then label the bead `implemented` |
 | `/fresh-eyes-cr` | Review changed code with fresh eyes, find and fix bugs directly |
-| `/quality-gates` | QA the change, not the repository: runs the project's own checks, reads the diff to pick the QA method it earns (real curl requests against a local server for REST, a handoff to `/qa` for browser UI, a coverage review for the rest), and proves every case is exercised at the unit and end-to-end level across its input/state/outcome classes |
+| `/quality-gates` | QA the change, not the repository: runs the project's own checks, reads the diff to pick the QA method it earns (real curl requests against a local server for REST, a handoff to `agent-browser` for browser UI, a coverage review for the rest), and proves every case is exercised at the unit and end-to-end level across its input/state/outcome classes |
 | `/verify-acceptance` | Grade the work against its bead's acceptance criteria and the QA gates; one verdict, and the `accepted` label when the verdict is ACCEPTED |
 | `/tadw:ship` | Land the accepted branch on main locally: rebase, run the repo's own checks as the gate, squash-merge, close the bead, push, delete the branch, name the next bead to pick up; ends with `SHIP_DONE`/`SHIP_BLOCKED` |
 | `/publish-plugin` | Turn what landed into a release: derive the semver bump from the diff, write the changelog section, bump the manifest, commit `chore(release): X.Y.Z`, tag `vX.Y.Z`, push main and the tag; ends with `PUBLISH_DONE`/`PUBLISH_BLOCKED` |
@@ -88,7 +92,8 @@ A bug does not arrive as a plan, so it needs its own route onto Pipeline B.
 
 ### Pipeline C: Product Strategy
 
-`/competitive-analysis` → `/product-research` → `/product-roadmap` → `/product-brief <feature>` → `/ab-test-design <hypothesis>`
+`/competitive-analysis` → `/product-research` → `/product-roadmap` → `/product-brief <feature>` →
+`/ab-test-design <hypothesis>`
 
 | Command | What it does |
 |---|---|
@@ -201,7 +206,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill | After a feature lands, as the refinement pass before committing |
 | `review-fresh-eyes` | Bug-and-correctness pass over recently changed code, fixes issues directly | After implementing or refactoring, before committing |
 | `verify-acceptance` | Grade a finished unit of work against its bead's `acceptance_criteria` and the QA gates; every criterion graded against a named test, a command's output, or a `file:line`, never the diff; reports ACCEPTED / NOT ACCEPTED / INCONCLUSIVE and writes nothing but the `accepted` label, which only an ACCEPTED verdict earns | Deciding whether work is done, before `bd close` or a PR |
-| `quality-gates` | QA the change rather than the repository: scoped to the diff by default, takes the gate list from `AGENTS.md`/CI/a task runner before guessing, and **routes the change to the QA method it earns** by classifying the changed files, so a REST surface gets real curl requests through a running server, browser UI gets a HANDOFF row naming `/qa`, and a CLI or library gets a coverage review; the change-coverage gate enumerates the cases the diff introduces, requires a unit test for each plus an end-to-end test through the real entry point, and grades the span (input, boundary, state, outcome classes) while refusing cross-products and defensive code; the live probe defaults to `http://127.0.0.1:3000` and never infers a host from the repository, uses a URL the caller supplies (marking a non-loopback host in its summary so a remote probe cannot go unmentioned), starts a server only when the project declares one and always stops it, and treats a refused connection as BLOCKED rather than a failing endpoint; needs no bead or acceptance criteria; report-only | Ending a session, before a PR, or before closing the work |
+| `quality-gates` | QA the change rather than the repository: scoped to the diff by default, takes the gate list from `AGENTS.md`/CI/a task runner before guessing, and **routes the change to the QA method it earns** by classifying the changed files, so a REST surface gets real curl requests through a running server, browser UI gets a HANDOFF row naming `agent-browser`, and a CLI or library gets a coverage review; the change-coverage gate enumerates the cases the diff introduces, requires a unit test for each plus an end-to-end test through the real entry point, and grades the span (input, boundary, state, outcome classes) while refusing cross-products and defensive code; the live probe defaults to `http://127.0.0.1:3000` and never infers a host from the repository, uses a URL the caller supplies (marking a non-loopback host in its summary so a remote probe cannot go unmentioned), starts a server only when the project declares one and always stops it, and treats a refused connection as BLOCKED rather than a failing endpoint; needs no bead or acceptance criteria; report-only | Ending a session, before a PR, or before closing the work |
 | `feature-development` | Implement a bead in 5 phases (ground, orient, implement, simplify, lint): reads the bead from `bd` instead of re-interviewing, reads the repo's conventions before writing, one test per acceptance criterion; leaves the bead open | Building a bead that is ready to implement |
 | `ship` | Land an accepted bead's feature branch on main locally, with no PR and no GitHub CI: rebases onto the base, resolves a `.beads/issues.jsonl` conflict by re-exporting from the database with `bd export` and no other conflict at all, runs the repository's own check suite on the rebased tip as the only gate, squash-merges as `<type>: <title> (<bead-id>)`, closes the bead and folds the export into the landing commit, pushes main without ever forcing, and deletes the branch after proving the content landed, then names which bead to pick up next from the ones the close unblocked, or from the top of `bd ready`; unattended (it reports instead of asking) and ends with one `SHIP_DONE <hash>` / `SHIP_BLOCKED <slug>` line | Landing a bead that passed `/quality-gates` and `/verify-acceptance` |
 | `publish-plugin` | Cut and publish a release: derives the semver bump from the diff since the last tag against a stated rubric (a renamed or removed component is MAJOR, a new component or a newly-failable check is MINOR, a fix or doc edit is PATCH), writes the Keep a Changelog section and its compare link from the log rather than trusting `Unreleased`, bumps `.claude-plugin/plugin.json` through a JSON round-trip and proves the diff is one line, delegates any branch land to `ship`, runs the repo's own gate on the tree about to be tagged, commits `chore(release): X.Y.Z` touching exactly two files, then tags and pushes main before the tag; treats the `reference-transaction` validation refusal as a stop and ends with one `PUBLISH_DONE` / `PUBLISH_BLOCKED` line | Turning what landed on main into a numbered, tagged release |
@@ -261,10 +266,10 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 
 ## Architecture Decision Records
 
-`/adr` writes them to `docs/adr/`. The point of the directory is that other components read
-it, not that it exists. It was named docs/decisions until 2026-08-28, and that directory is gone. It moved so that
-`mattpocock-skills:domain-modeling`, which writes to `docs/adr/` and cannot be redirected, lands
-its ADRs where everything here reads.
+`/adr` writes them to `docs/adr/`. The point of the directory is that other components read it, not
+that it exists. It was named docs/decisions until 2026-08-28, and that directory is gone. It moved
+so that `mattpocock-skills:domain-modeling`, which writes to `docs/adr/` and cannot be redirected,
+lands its ADRs where everything here reads.
 
 **`/build` reads it before the first edit.** Phase 2 opens the records whose subject the change
 touches and reports which ones bind it. An ADR that contradicts the plan outranks the plan.
@@ -294,21 +299,19 @@ messages), except when quoting a name you do not own. Injected text opens with a
 `<!-- house-style-core: loaded -->` marker so you can see it is active.
 
 `SessionStart` additionally injects a response style (`<!-- house-response-style: loaded -->`
-marker): respond concisely, write in Simplified Technical English, the controlled-English
-standard specified in ASD-STE100 (its writing rules only, never its licensed dictionary: one
-word one meaning, active voice, no jargon or borrowed metaphor, sentences capped at twenty-five
-words for an explanation and twenty for an instruction, with technical names like files and
-settings kept verbatim), report your own work in a fixed shape
-and never let a label like "green" or "a flake" stand without the facts it
-stands for, put choices that trade off on more than
-one factor into a decision matrix with a bold recommendation, suggest a follow-up question
-only when the answer genuinely raises one, and end any response that leaves work open with a
-"Next actions" section split into "Me (Claude)" and "You". Parent sessions only; subagents get the coding-style core
-alone, since their output goes to the orchestrator, not a human. The rules live in one
-place, `skills/house-response-style/SKILL.md`: the hook reads that file (stripping its
-frontmatter) so the always-on injection can never drift from the on-demand `/response-style`
-command, which loads the same skill to re-assert the style after a compaction or inside a
-subagent.
+marker): respond concisely, write in Simplified Technical English, the controlled-English standard
+specified in ASD-STE100 (its writing rules only, never its licensed dictionary: one word one
+meaning, active voice, no jargon or borrowed metaphor, sentences capped at twenty-five words for an
+explanation and twenty for an instruction, with technical names like files and settings kept
+verbatim), report your own work in a fixed shape and never let a label like "green" or "a flake"
+stand without the facts it stands for, put choices that trade off on more than one factor into a
+decision matrix with a bold recommendation, suggest a follow-up question only when the answer
+genuinely raises one, and end any response that leaves work open with a "Next actions" section split
+into "Me (Claude)" and "You". Parent sessions only; subagents get the coding-style core alone, since
+their output goes to the orchestrator, not a human. The rules live in one place,
+`skills/house-response-style/SKILL.md`: the hook reads that file (stripping its frontmatter) so the
+always-on injection can never drift from the on-demand `/response-style` command, which loads the
+same skill to re-assert the style after a compaction or inside a subagent.
 
 **Behavior change on upgrade.** Installing this version makes the style core fire in **every
 session for every project** the plugin is loaded for, including non-coding ones (product,

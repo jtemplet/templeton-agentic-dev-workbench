@@ -130,7 +130,7 @@ def case_swiftui_screen_is_mobile_not_library() -> None:
     root = build({"Sources/App/HomeView.swift": "import SwiftUI\nstruct HomeView {}\n"})
     decision = run(root, "Sources/App/HomeView.swift")
     assert route_of(decision, "mobile-ui") == "handoff"
-    assert surfaces(decision)["mobile-ui"]["owner"] == "/ios-qa"
+    assert surfaces(decision)["mobile-ui"]["owner"] == "agent-device"
 
 
 def case_plain_swift_is_a_library() -> None:
@@ -147,9 +147,9 @@ def case_argparse_module_is_cli() -> None:
 
 
 for name, fn in [
-    ("a .json.jbuilder view routes to curl, not /qa", case_jbuilder_is_api_not_browser),
+    ("a .json.jbuilder view routes to curl, not agent-browser", case_jbuilder_is_api_not_browser),
     ("a Next.js route handler routes to curl", case_next_route_handler_is_api),
-    ("a SwiftUI screen hands off to /ios-qa", case_swiftui_screen_is_mobile_not_library),
+    ("a SwiftUI screen hands off to agent-device", case_swiftui_screen_is_mobile_not_library),
     ("a Swift file with no UI import is a library", case_plain_swift_is_a_library),
     ("a module importing argparse is a CLI", case_argparse_module_is_cli),
 ]:
@@ -206,7 +206,7 @@ def case_client_call_in_jsx_is_not_a_route() -> None:
     `api.get('/x')` is how an axios or fetch wrapper is CALLED from a component.
     Reading it as a route definition scored the component http-api at specificity
     3, which outranked its own `.tsx` rule, so a React-only change routed to curl
-    and lost its `/qa` handoff entirely.
+    and lost its browser-ui handoff entirely.
     """
     body = (
         "import { api } from './client'\n"
@@ -398,7 +398,7 @@ def case_browser_change_routes_to_qa() -> None:
     root = build({"app/javascript/ExportTable.tsx": "export const T = () => <div/>\n"})
     decision = run(root, "app/javascript/ExportTable.tsx")
     assert route_of(decision, "browser-ui") == "handoff"
-    assert surfaces(decision)["browser-ui"]["owner"] == "/qa"
+    assert surfaces(decision)["browser-ui"]["owner"] == "agent-browser"
 
 
 def case_library_change_routes_to_coverage() -> None:
@@ -427,7 +427,7 @@ def case_two_surfaces_both_reported() -> None:
 
 for name, fn in [
     ("a REST route change routes to curl", case_rest_change_routes_to_curl),
-    ("a React component change hands off to /qa", case_browser_change_routes_to_qa),
+    ("a React component change hands off to agent-browser", case_browser_change_routes_to_qa),
     ("a library change routes to a coverage review", case_library_change_routes_to_coverage),
     ("a docs-only change routes to none", case_docs_only_change_routes_to_none),
     ("a change touching two surfaces reports both", case_two_surfaces_both_reported),

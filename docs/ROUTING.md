@@ -15,7 +15,8 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 - Checks PEP 8 and Google Python Style Guide compliance
 - Reviews security, performance, and maintainability
 
-**Feature Development:** Use `/build <bead-id>` or the `software-engineer` agent + `feature-development` skill
+**Feature Development:** Use `/build <bead-id>` or the `software-engineer` agent +
+`feature-development` skill
 
 - 5-phase workflow: ground the bead, orient in the repo, implement, simplify, lint
 - Reads the bead from `bd show <id> --json` rather than interviewing about what the bead records
@@ -37,7 +38,8 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 - Security-first approach with pragmatic severity assessment
 - Understands `where.missing`, `broadcast_refresh_to`, Solid Stack patterns
 
-**Testing:** Use the `style-testing` skill (language-agnostic), plus `style-rspec` if the project uses RSpec
+**Testing:** Use the `style-testing` skill (language-agnostic), plus `style-rspec` if the project
+uses RSpec
 
 - `style-testing` owns the principles: one behavior per test, hoisted declarative setup,
   deterministic clocks and identification, scenario-named groups, what not to test
@@ -80,13 +82,17 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 
 **Style Guide:** Use the `style-go` skill
 
-- Accept interfaces, return structs: interfaces declared at the consumer, narrow (one or two methods)
-- Wrap errors with the failing operation (`fmt.Errorf("read %s: %w", ...)`); sentinels and error types only where a caller branches
+- Accept interfaces, return structs: interfaces declared at the consumer, narrow (one or two
+  methods)
+- Wrap errors with the failing operation (`fmt.Errorf("read %s: %w", ...)`); sentinels and error
+  types only where a caller branches
 - Make the zero value useful, so `var x T` works without a constructor
 - `context.Context` first parameter of anything that blocks, never stored in a struct
 - Every goroutine has a defined exit; the owner decides when it stops
-- Exported identifiers carry a doc comment starting with their own name, since that is what `go doc` renders
-- Table-driven tests on the standard library alone, comparing errors with `errors.Is`; load `style-testing` alongside
+- Exported identifiers carry a doc comment starting with their own name, since that is what `go doc`
+  renders
+- Table-driven tests on the standard library alone, comparing errors with `errors.Is`; load
+  `style-testing` alongside
 - Tooling in order: `gofmt -l -w .`, `go vet ./...`, `staticcheck ./...`, then `go test -race ./...`
 
 ### Markdown and Documentation
@@ -118,9 +124,11 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 - Clean Code (Uncle Bob) and POODR (Sandi Metz) principles transposed to the agentic context
 - Covers tool design (SRP, explicit contracts, idempotency, no surprise side effects)
 - Covers prompt architecture (small prompts, no implicit state, context objects)
-- Covers orchestration (separation of planning from execution, explicit agent boundaries, fail-loud error policies)
+- Covers orchestration (separation of planning from execution, explicit agent boundaries, fail-loud
+  error policies)
 - Includes a smell checklist for reviewing agents, tools, and prompts before ship
-- Invoke with `/agentic-clean-code [target]`, or let it auto-detect the agent/skill/tool files changed on the branch
+- Invoke with `/agentic-clean-code [target]`, or let it auto-detect the agent/skill/tool files
+  changed on the branch
 
 ### Product Management
 
@@ -213,8 +221,8 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 **Shared Language:** Use `mattpocock-skills:domain-modeling`
 
 - **This plugin no longer ships a `domain-modeling` skill.** It shipped a fork until 2026-08-28,
-  which existed only to send ADRs to the old docs/decisions directory. Moving this repository's ADRs to
-  `docs/adr/` removed that reason, so the fork went and the upstream skill is used as it ships
+  which existed only to send ADRs to the old docs/decisions directory. Moving this repository's ADRs
+  to `docs/adr/` removed that reason, so the fork went and the upstream skill is used as it ships
 - Builds and sharpens the project's glossary in `CONTEXT.md`: one word per concept, with the
   rejected synonyms listed so the choice is visible
 - Challenges a term that conflicts with the glossary, sharpens an overloaded word, stress-tests
@@ -257,12 +265,13 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 - Discovers the gate set from `AGENTS.md`, then CI config, then a task runner, and falls back to
   language auto-detect only when none of those names a check; the report says which source it used
 - **Picks the QA method from the diff, not from what is cheap to run.** A bundled router classifies
-  every changed file into a surface and routes each one: `http-api` to a live curl probe, `browser-ui`
-  to `/qa`, `mobile-ui` to `/ios-qa`, and `cli`/`library`/`prompt-assets`/`infra` to a coverage review
-  alone. A full-stack diff gets several methods at once, and each handoff surface takes its own row in
-  the report so a FAIL and a HANDOFF never collapse into one status
-- **Drives the endpoints for real when the change is REST.** It sends actual curl requests, one probe
-  per case rather than per route, and grades status, headers, and body. It probes
+  every changed file into a surface and routes each one: `http-api` to a live curl probe,
+  `browser-ui` to `agent-browser`, `mobile-ui` to `agent-device`, and
+  `cli`/`library`/`prompt-assets`/`infra` to a coverage review alone. A full-stack diff gets several
+  methods at once, and each handoff surface takes its own row in the report so a FAIL and a HANDOFF
+  never collapse into one status
+- **Drives the endpoints for real when the change is REST.** It sends actual curl requests, one
+  probe per case rather than per route, and grades status, headers, and body. It probes
   `http://127.0.0.1:3000` unless the caller names another URL, and never infers a host from a config
   file or a URL found in the repository, because it sends POST, PUT, PATCH, and DELETE. A supplied
   remote host is used as given and marked `(NOT this machine)` in the summary the report copies. It
@@ -277,8 +286,8 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
   classes nothing covers, weighing each by what a failure there would cost
 - Stays proportionate on purpose: one test per span class, never the cross-product, never a test
   for an unreachable branch, and never defensive code around a failure that cannot happen
-- Hands a browser or mobile UI change to `/qa` (or `/qa-only` for a report) as HANDOFF, which makes
-  the overall verdict INCOMPLETE rather than PASS
+- Hands a browser UI change to `agent-browser` and a mobile UI change to `agent-device` as HANDOFF,
+  which makes the overall verdict INCOMPLETE rather than PASS
 - Needs no issue tracker: its whole input is the diff, so no bead and no written acceptance criteria
   are involved. `/verify-acceptance` is the skill that grades against criteria, and it cites this
   report rather than re-deriving it
@@ -321,8 +330,8 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 - Detects the gate from `TADW_SHIP_CHECK`, then what `AGENTS.md`/`CLAUDE.md` declares, then a task
   runner `check` target, then the stack's conventional runner; an undetected gate is a stop, not a
   skip, and a non-zero exit stops the run before any merge
-- Squash-merges as `<type>: <title> (<bead-id>)` with a `Closes <bead-id>` body, closes the bead, and
-  folds the tracker export into the landing commit
+- Squash-merges as `<type>: <title> (<bead-id>)` with a `Closes <bead-id>` body, closes the bead,
+  and folds the tracker export into the landing commit
 - Lists every commit already sitting unpushed on the default branch before it merges, and names each
   one in the report, because the push publishes those commits too
 - Pushes main without ever forcing; a rejected push refetches, re-rebases, and re-gates once, and it
@@ -353,8 +362,8 @@ command file)
 - Writes the `Unreleased` section into a dated version section, adds any entry the log holds and the
   section missed, and appends the compare link with the owner and repository read from `origin`
 - Bumps `.claude-plugin/plugin.json` through a JSON round-trip and proves the diff is one line
-- Delegates a branch land to the `ship` skill and passes its `SHIP_BLOCKED` reason through unchanged,
-  rather than carrying a second copy of the rebase, gate, and worktree rules
+- Delegates a branch land to the `ship` skill and passes its `SHIP_BLOCKED` reason through
+  unchanged, rather than carrying a second copy of the rebase, gate, and worktree rules
 - Runs the repository's declared gate on the tree that will be tagged, after the bump, and stops
   before the commit on any non-zero exit
 - Commits `chore(release): X.Y.Z` touching exactly `CHANGELOG.md` and `.claude-plugin/plugin.json`,
@@ -369,7 +378,8 @@ command file)
 
 ### Bead Authoring
 
-**Decompose a plan into beads:** Use `/plan-to-beads` or the `project-manager` agent + `plan-to-beads` skill
+**Decompose a plan into beads:** Use `/plan-to-beads` or the `project-manager` agent +
+`plan-to-beads` skill
 
 - Reads a written plan (the path given as an argument, or the most recent file in `docs/plans/`) and
   splits it into self-contained work units of one to three days each
@@ -380,67 +390,71 @@ command file)
 - Traces each plan-level acceptance criterion to the bead that proves it, and names both failure
   modes: a criterion no bead proves (a decomposition gap) and a bead proving no criterion (scope the
   plan never asked for)
-- Sizes every bead against the diff-size window (Target is 1 to 5 files and 20 to 300 LOC, Stretch up
-  to 10 files and 600 LOC), splits anything above it, and demotes Trivial size-band units to direct commits
-- Presents the full list, including each bead's Why, How, Done when, type-specific sections, and size
-  estimate, and waits for confirmation before the first `bd create`
+- Sizes every bead against the diff-size window (Target is 1 to 5 files and 20 to 300 LOC, Stretch
+  up to 10 files and 600 LOC), splits anything above it, and demotes Trivial size-band units to
+  direct commits
+- Presents the full list, including each bead's Why, How, Done when, type-specific sections, and
+  size estimate, and waits for confirmation before the first `bd create`
 - Writes each section to its canonical destination per ADR 0001
   (`docs/adr/0001-native-tracker-fields-are-canonical.md`): `--design`, `--notes`, and
   `--acceptance`, with the description body carrying only what has no native field
 - Classifies a partial failure into fully written, created-but-unpopulated, and never attempted, and
   asks which recovery path to take rather than retrying blindly; it never re-runs `bd create` for a
   bead that already exists
-- Wires dependencies with `bd dep add`, keeps the graph acyclic and shallow (longest chain at most 3),
-  and prefers parallel tracks over deep chains
+- Wires dependencies with `bd dep add`, keeps the graph acyclic and shallow (longest chain at most
+  3), and prefers parallel tracks over deep chains
 
 **File one bead:** Use `/bead-create` (the `bead-create` skill directly; there is no command file)
 
 - The single-bead counterpart to `plan-to-beads`: it files one bead from a request, a bug report, a
   review finding, or a session-close follow-up, when no plan document exists to decompose
-- Reads the rubric from `skills/bead-audit/SKILL.md` rather than restating it, so the bead is drafted
-  against the same standard that will later grade it
+- Reads the rubric from `skills/bead-audit/SKILL.md` rather than restating it, so the bead is
+  drafted against the same standard that will later grade it
 - Infers what the code, the commits, and the failing test can answer, and batches what only a person
-  can answer into one exchange; it never invents a stakeholder, an approach, or an acceptance criterion
+  can answer into one exchange; it never invents a stakeholder, an approach, or an acceptance
+  criterion
 - Searches the tracker for a duplicate before drafting, and hands a near-match back to the author to
   resolve instead of deciding alone
-- Grounds every current-state claim against `origin/main` (never the working tree, which on a feature
-  branch already contains the change), cites `path:line`, and records the sha; a claim that is already
-  satisfied means the work is done and no bead is filed
-- Estimates the size band, splits anything above Stretch, and refuses the trivial bead by offering to
-  make the change instead
-- Self-audits the draft against the `bead-audit` dimensions and rewrites until it passes, then presents
-  the bead and waits for confirmation; a draft still carrying an `[AUTHOR TO COMPLETE]` placeholder is
-  never filed
-- Creates it in one `bd create` call with `--design`, `--notes`, and `--acceptance` populated, labels it
-  with a category, wires parent and dependency edges, reads it back with `bd show` to
+- Grounds every current-state claim against `origin/main` (never the working tree, which on a
+  feature branch already contains the change), cites `path:line`, and records the sha; a claim that
+  is already satisfied means the work is done and no bead is filed
+- Estimates the size band, splits anything above Stretch, and refuses the trivial bead by offering
+  to make the change instead
+- Self-audits the draft against the `bead-audit` dimensions and rewrites until it passes, then
+  presents the bead and waits for confirmation; a draft still carrying an `[AUTHOR TO COMPLETE]`
+  placeholder is never filed
+- Creates it in one `bd create` call with `--design`, `--notes`, and `--acceptance` populated,
+  labels it with a category, wires parent and dependency edges, reads it back with `bd show` to
   prove the native fields landed, and exports the tracker silently
 
-**Grade and repair beads that already exist:** Use `/bead-audit` (the `bead-audit` skill directly; there is no command file), or `/bead-audit-all` to sweep the whole backlog
+**Grade and repair beads that already exist:** Use `/bead-audit` (the `bead-audit` skill directly;
+there is no command file), or `/bead-audit-all` to sweep the whole backlog
 
-- Audits the text of a bead body, so it works on `bd show` output, a file, or a pasted blob; the other
-  two skills in this section write beads, this one grades them
-- Separates three independent verdicts: content (is the substance there?), structure (is it under the
-  byte-exact canonical heading, or in the native field?), and grounding (is it still true of the code
-  on main?), so a substantively complete bead in the wrong format is an auto-fixable REFORMAT rather
-  than a failure
-- Treats `bd`'s native `design`, `notes`, and `acceptance_criteria` fields as canonical structure per
-  ADR 0001, and drafts a fix into the field rather than embedding a heading in the description
-- Runs the same Marr, size, and type-specific section audits as `plan-to-beads`, then adds a grounding
-  audit that reads `origin/main` with `git show` and `git grep` and records the sha every claim was
-  checked against
-- Never marks a bead drifted because its acceptance criteria do not hold yet, since unmet criteria are
-  the bead's reason to exist; it runs those sections the other way instead and reports `satisfied` when
-  main already meets them, which is the cheapest finding in a backlog to resolve
+- Audits the text of a bead body, so it works on `bd show` output, a file, or a pasted blob; the
+  other two skills in this section write beads, this one grades them
+- Separates three independent verdicts: content (is the substance there?), structure (is it under
+  the byte-exact canonical heading, or in the native field?), and grounding (is it still true of the
+  code on main?), so a substantively complete bead in the wrong format is an auto-fixable REFORMAT
+  rather than a failure
+- Treats `bd`'s native `design`, `notes`, and `acceptance_criteria` fields as canonical structure
+  per ADR 0001, and drafts a fix into the field rather than embedding a heading in the description
+- Runs the same Marr, size, and type-specific section audits as `plan-to-beads`, then adds a
+  grounding audit that reads `origin/main` with `git show` and `git grep` and records the sha every
+  claim was checked against
+- Never marks a bead drifted because its acceptance criteria do not hold yet, since unmet criteria
+  are the bead's reason to exist; it runs those sections the other way instead and reports
+  `satisfied` when main already meets them, which is the cheapest finding in a backlog to resolve
 - Produces an optional 0 to 100 scorecard, banded Poor to Excellent, derived from the verdicts and
   capped so a quality band can never outrank the pass/fail verdict or the grounding verdict
-- Drafts corrected bodies, self-verifies each by re-auditing its own draft, and gates write-back behind
-  an `applyable` flag: a placeholder-bearing draft, a drifted bead, or a satisfied bead goes to a person
-  instead of the tracker
+- Drafts corrected bodies, self-verifies each by re-auditing its own draft, and gates write-back
+  behind an `applyable` flag: a placeholder-bearing draft, a drifted bead, or a satisfied bead goes
+  to a person instead of the tracker
 - `--json` mode emits per-bead verdicts, scores, corrected fields, and the `applyable` flag, so a
   grooming loop can apply the safe fixes and route the rest
-- `/bead-audit-all` enumerates the backlog in one unlimited page (`bd list --status open --limit 0 --json`),
-  resolves the grounding baseline once for every bead, and reports a health table ranked worst quality band
-  first; it is report-only and does not write back
+- `/bead-audit-all` enumerates the backlog in one unlimited page
+  (`bd list --status open --limit 0 --json`), resolves the grounding baseline once for every bead,
+  and reports a health table ranked worst quality band first; it is report-only and does not write
+  back
 
 ### Backlog Triage
 
@@ -478,8 +492,15 @@ command file)
 
 **Roadmap Dashboard:** Use `/roadmap-dashboard` or the `roadmap-dashboard` skill directly
 
-- Synthesizes the codebase and the `beads` tracker into a single self-contained interactive HTML dashboard at `docs/roadmap.html`
-- Collects tracker data with a bundled `collect_beads.py` script (refreshes JSONL, normalizes priorities, filters dependency edges to the blocking types, and annotates ready/blocked/blocked_by; always exits 0, emitting an empty shape when no tracker exists)
-- Cross-references code against beads to classify each subsystem as Built / Partial / Stubbed / Planned and compute a blended, defensible completion percentage
-- Renders zero-dependency pure HTML/CSS/vanilla-JS diagrams (architecture current-vs-target, data flow, DB relationships, dependency graph, milestone timeline + risk matrix), a Kanban board, collapsible deep-dives, a sticky TOC, and print CSS
-- Versions the output (`docs/roadmap-vX.Y.html`) instead of overwriting a prior report; marks inferences with `[Inference]` tags and confidence scores
+- Synthesizes the codebase and the `beads` tracker into a single self-contained interactive HTML
+  dashboard at `docs/roadmap.html`
+- Collects tracker data with a bundled `collect_beads.py` script (refreshes JSONL, normalizes
+  priorities, filters dependency edges to the blocking types, and annotates
+  ready/blocked/blocked_by; always exits 0, emitting an empty shape when no tracker exists)
+- Cross-references code against beads to classify each subsystem as Built / Partial / Stubbed /
+  Planned and compute a blended, defensible completion percentage
+- Renders zero-dependency pure HTML/CSS/vanilla-JS diagrams (architecture current-vs-target, data
+  flow, DB relationships, dependency graph, milestone timeline + risk matrix), a Kanban board,
+  collapsible deep-dives, a sticky TOC, and print CSS
+- Versions the output (`docs/roadmap-vX.Y.html`) instead of overwriting a prior report; marks
+  inferences with `[Inference]` tags and confidence scores

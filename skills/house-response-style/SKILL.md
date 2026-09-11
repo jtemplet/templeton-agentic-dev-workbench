@@ -160,9 +160,10 @@ carrying no information. Keep a hedge that marks real uncertainty.
 to whoever chose it. Ask of each noun: could this name a second thing, and would a ten-year-old
 know it? Every word in the table above fails both.
 
-**Check hardest every claim about work you just did,** against "Report your own work" above.
-The rule binds hardest when you report your own work, because the reader cannot check you. Words about another system get
-checked against that system. Words about what you just did get checked against nothing.
+**Check hardest every claim about work you just did,** against "Report your own work" above. The
+rule binds hardest when you report your own work, because the reader cannot check you. Words about
+another system get checked against that system. Words about what you just did get checked against
+nothing.
 
 Then read only your first line and your Next actions: do they carry the answer and the step?
 
@@ -201,4 +202,4 @@ always thinks so. So the rule takes no judgment call, on purpose.
 Bad: "The gate surfaces a coverage row per changed entity and hands off browser work."
 
 Good: "For each file you changed, the report shows one line saying whether a test covers it.
-It does not check web pages; `/qa` does."
+It does not check web pages; the `agent-browser` skill does."
