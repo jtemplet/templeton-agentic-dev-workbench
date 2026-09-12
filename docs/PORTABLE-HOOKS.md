@@ -1,8 +1,7 @@
 # Portable Hooks
 
-The long form of the "Portable hooks for other repositories" section in `AGENTS.md`. That
-section says what the hooks do. This one says why each decision was made, and what went wrong
-before it was.
+The long form of [scripts/AGENTS.md](../scripts/AGENTS.md), which says what the hooks do. This
+one says why each decision was made, and what went wrong before it was.
 
 `scripts/` holds hooks that belong to a **project** rather than to this plugin. They are not
 wired here, and `.claude-plugin/plugin.json` does not reference them.

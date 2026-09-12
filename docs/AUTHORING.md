@@ -31,7 +31,7 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 Agents are structured workflow definitions located in `agents/`. Each agent:
 
 - Defines a specific role or expertise area
-- References skills via the Skill tool
+- References skills via the Skill tool, rather than duplicating what a skill already knows
 - Specifies required workflow steps
 - Defines output format and quality checklist
 - Includes integration points with other tools

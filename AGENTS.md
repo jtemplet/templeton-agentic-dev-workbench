@@ -54,11 +54,9 @@ Run `/validate-plugin` after you add, rename, or remove a component.
 this block.
 
 The response-style evals are the wrong shape for a gate. They are graded against model prose, so
-they are not deterministic. `plain-sentences` measures sentence length against a 35-word ceiling.
-Runs on 2026-08-22 and 2026-08-23 produced 40, 38, 37, 34, 26, and 22 words. A gate that fails at
-random teaches people to re-run it until it passes, and a gate like that means nothing. Each run
-also costs several minutes, and two real model calls for every case. Derive the case count with
-`ls -d evals/cases/*/ | wc -l`, then double it. That is 7 cases and 14 calls today.
+they are not deterministic. `plain-sentences` measures sentence length against a 35-word ceiling,
+and the model lands on both sides of it. Derive the case count with `ls -d evals/cases/*/ | wc -l`,
+then double it for the number of model calls a run makes.
 
 Run the evals deliberately, to measure whether the style rules still change the model's behavior.
 Read the delta between the two arms, not a pass or a fail.
@@ -74,85 +72,24 @@ git config core.hooksPath .githooks
 bd hooks list                      # five hooks, each "installed"
 ```
 
-One command serves them all. Two carry this repository's own gates (`pre-push` and
-`reference-transaction`); four are beads shims that call `bd hooks run <hook>`: `pre-commit`,
-`post-merge`, `post-checkout`, and `prepare-commit-msg`. Those four did not exist before, so
-beads did no flushing, no importing after a pull, and added no identity trailers; the shims
-beads had written sat in `.beads/hooks`, which git never reads while `core.hooksPath` names
-this directory.
+One command serves them all. `pre-push` and `reference-transaction` carry this repository's own
+gates; the other four are beads shims that call `bd hooks run <hook>`.
 
-**`pre-push` is deliberately not a beads shim.** It exports the tracker and commits `.beads/`
-itself, on the terms recorded at the end of that file, and calling `bd hooks run pre-push` there
-would export twice. `bd hooks list` therefore reports it with an empty version; that is expected.
+**`pre-push` runs the check list above, minus the last four.** Every check runs even after one
+fails, and all failures report together. A missing tool warns by name and allows the push.
 
-**`pre-push` runs the check list above, minus the last four.** Each exclusion has its own reason:
+**`pre-push` then refuses the push only when `/quality-gates` recorded a `FAIL` verdict.** A
+missing report, or a verdict recorded for some other head, warns and allows.
+[ADR 0004](docs/adr/0004-the-pre-push-hook-forgives-by-design.md) records why the hook forgives
+rather than failing closed.
 
-- `claude plugin validate .`: `reference-transaction` already gates it at the tag, and spawning
-  the CLI is the slowest check.
-- `python3 .githooks/test_prepush.py`: it pushes inside a fixture wired to this hook, so running
-  it here would recurse.
-- Both eval commands: see the next paragraph.
+**`TADW_PREPUSH=off` skips the hook.** It is documented here so that nobody invents a workaround
+under deadline. The value is exact: any other value, empty included, leaves the hook on.
 
-**No git hook runs anything under `evals/`.** `python3 evals/run.py` makes a real model call for
-every case, which is too slow and too costly for a push. `python3 evals/test_run.py` calls no
-model and costs about 2 seconds, so cost is not why it left the hook. The evals are a measurement
-you run deliberately. Both stay in the list above, so the ship gate still runs the harness suite.
+The per-hook mechanism is in [.githooks/AGENTS.md](.githooks/AGENTS.md), which loads when you
+work under `.githooks/`.
 
-That leaves 22 checks; derive the number with `grep -c '^check ' .githooks/pre-push`. They take
-tens of seconds, and the figure moves with the machine. It was
-46 seconds when first measured warm, and 68 seconds for a dry-run push on 2026-08-23. Six suites
-carry nearly all of it.
-
-`test_probe_api.py` takes about 11 of those seconds, and it cannot be made much faster. It starts
-real servers and waits on real sockets. That is the only way to check which host it addresses,
-and that it leaks no process.
-
-Three behaviors are deliberate:
-
-- **Every check runs, even after one fails**, and all failures report together. A hook that
-  stopped at the first would make you push, fail, fix, and fail again on the next one.
-- **A missing tool warns by name and allows the push.** Neither `rumdl` nor `node` is universally
-  installed, and an unpushable clone is worse than an unchecked push. If every tool is missing,
-  the push still proceeds. The hook then reports that it verified nothing, because a run that
-  checked nothing has not earned the word "passed".
-- **`TADW_PREPUSH=off` skips the hook.** It is documented here so that nobody invents a
-  workaround under deadline.
-  [ADR 0004](docs/adr/0004-the-pre-push-hook-forgives-by-design.md) records why the hook forgives
-  rather than failing closed. The value is exact: any other value, empty included, leaves the
-  hook on.
-
-A push that only deletes a remote ref carries no code, so the hook runs nothing. A push that
-deletes one ref and updates another does carry code, so the hook checks it.
-
-When the checks pass, this stage prints one line carrying how many ran and how long they took.
-`.githooks/test_prepush.py` pins all of it against real `git push --dry-run` runs in a throwaway
-fixture.
-
-**`pre-push` has a second stage: the verdict `/quality-gates` recorded.** Git calls exactly one
-pre-push hook, so both stages share the file. Each stage reports under its own message, so one
-push answers both questions.
-
-The stage reads `quality-gates-report.json` from the directory `git rev-parse --git-dir`
-resolves. That directory is per worktree, so a linked worktree reads its own verdict rather than
-the main checkout's.
-
-This stage forgives by design:
-
-- **Only a recorded verdict of `FAIL` refuses the push.** The message names the verdict, the head
-  it was recorded for, and the time. It names both exits too: re-run `/quality-gates`, or set
-  `TADW_PREPUSH=off`.
-- **A missing or unreadable report warns and allows.** Absence is not evidence of a problem.
-  Blocking there would refuse every documentation push from a fresh clone, and would teach people
-  to turn the hook off.
-- **A verdict recorded off the line you are pushing warns as stale, and allows.** It describes
-  some other tree. A `FAIL` still refuses in that state, because one command refreshes it.
-
-**`reference-transaction` refuses to create a `v*` tag when `claude plugin validate` fails.** Git
-has no pre-tag hook, so this is the only hook that sees a tag being created and can still stop
-it. It gates tags alone, and leaves commits, branches, and non-`v` tags untouched. A missing
-`claude` on PATH warns and allows, because an untaggable repository is worse than an unchecked
-tag.
-
+**`reference-transaction` refuses to create a `v*` tag when `claude plugin validate` fails.**
 `/publish-plugin` is what creates those tags, so that skill treats this refusal as a stop rather
 than something to route around. See "Releasing" below.
 
@@ -217,15 +154,7 @@ is the dispatch three documents execute (`code-simplify`, `feature-development`,
 for test files and project-local surfaces, and defines when a Markdown file is the deliverable.
 
 [docs/ROUTING.md](docs/ROUTING.md) expands the rows above into workflows, grouped by language
-and by task. It gives 18 of the 31 commands an entry of their own, not all of them: `/aso-review`,
-`/bead-refine`, `/diagnose`, `/fresh-eyes-cr`, `/prod-ops`, `/product-surface-docs`,
-`/research-ingest`, `/research-synthesize`, `/response-style`, `/review-claude-md`, `/ux-review`,
-`/ux-review-ios`, and `/validate-plugin` have a one-line description in `README.md` and none there
-yet.
-`tadw-routing-gaps-9wq` covers closing that.
-
-Count entries, not mentions. `/response-style` appears in one line of the Markdown workflow and
-still has no entry, which is why it stays on the list above.
+and by task. Not every command has an entry there yet; `tadw-routing-gaps-9wq` tracks the gaps.
 
 **Pipelines.** Each step feeds the next. The per-step detail is in `README.md`.
 
@@ -305,10 +234,8 @@ not gate distribution; they are how a person tells which published state they ar
 two files, then tags and pushes main before the tag. Its bump rubric and stop conditions are in
 `skills/publish-plugin/SKILL.md`, and `docs/ROUTING.md` summarizes them.
 
-Doing it by hand is how the state drifted twice, and neither failure announced itself: `plugin.json`
-sat at 2.10.1 while main ran 13 commits past its release commit, and `v2.10.0` and `v2.10.1` were
-created locally and never pushed. Read the last tag with `git tag --list 'v*' --sort=-v:refname`,
-because lexical order puts `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
+Read the last tag with `git tag --list 'v*' --sort=-v:refname`, because lexical order puts
+`v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
 **Registered Skills** (45). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
@@ -354,20 +281,13 @@ and takes a single manifest path. Design notes, rationale, and the test strategy
 opens with a marker line, so you can see in any session whether it loaded. Off-switch:
 `TADW_STYLE_CORE=off`, or a flag file at `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`.
 
-The payload exceeds the 10,000-character cap Claude Code puts on each hook output. So
-`SessionStart` ships as several manifest entries that differ only in a payload index, two of
-them today. `docs/HOOKS.md` tabulates the exact sizes, and `node hooks/test-hooks.js` asserts
-them.
-
-Do not collapse those entries into one. The tail is then discarded in silence, and the marker
-that says the core loaded survives inside the surviving preview.
-[ADR 0006](docs/adr/0006-the-style-core-ships-as-several-hook-entries.md) records the incident and
-the options that lost.
-
-**Read the count from the manifest, never from memory.** It was three until the response style
-was cut to 9,713 characters on 2026-08-26, which brought that document back inside one payload.
-`getSessionStartPayloads()` decides the split at run time, and the suite fails when the manifest
-disagrees with it.
+The payload exceeds the 10,000-character cap Claude Code puts on each hook output, so
+`SessionStart` ships as several manifest entries. **Do not collapse those entries into one.** The
+tail is then discarded in silence, and the marker that says the core loaded survives inside the
+surviving preview.
+[ADR 0006](docs/adr/0006-the-style-core-ships-as-several-hook-entries.md) records the incident.
+Read the entry count from the manifest, never from memory; `docs/HOOKS.md` tabulates the sizes,
+and `node hooks/test-hooks.js` fails when the manifest disagrees with the run-time split.
 
 Both style hooks run through `hooks/run-hook.sh`, which needs `node` on the non-interactive
 shell's PATH. Without `node`, the wrapper emits
@@ -380,31 +300,11 @@ These hooks fire in **every project** the plugin is loaded for, non-coding sessi
 
 `scripts/` holds hooks that belong to a **project** rather than to this plugin, with an installer
 for each. They are not wired here, and `plugin.json` does not reference them.
+`scripts/label_bead_on_skill_invocation.sh` is **the copy of record**: change it there, never in
+a deployed copy.
 
-- `scripts/label_bead_on_skill_invocation.sh` labels the bead that a skill invocation acts on. It
-  is wired to `PreToolUse` (matcher `Skill`), `UserPromptSubmit`, and `Stop`. **This is the copy
-  of record**, and deployed copies are downstream of it.
-- `scripts/install_label_bead_on_skill_invocation.sh` installs it into whatever repository you
-  run it from, together with `scripts/run_codex_bead_hooks.sh`, which resolves it as a sibling.
-  Re-running it is safe. `--dest-dir` moves the destination.
-- `... --check` reports whether each installed copy matches its source, and whether all three
-  events reference the label script. It changes nothing, and exits 1 when any is out of step.
-
-Two properties matter to the target repository:
-
-- **Labeling leaves the working tree as clean as it found it.** It writes to the `bd` database,
-  and commits and pushes nothing. Refreshing `.beads/issues.jsonl` is conditional: it happens
-  when the export is already modified, or when `TADW_BEAD_LABEL_EXPORT=1` is set.
-- **Every failure path exits 0**, so a skill runs whether or not its bead could be labeled. Two
-  records make an outage visible: the log at `<git-common-dir>/bead-label.log`, and `--doctor`,
-  which resolves the current branch and prints what each labeled command would do.
-
-**A session can outlive the directory it was started in.** Landing a bead removes its worktree.
-Each wired command guards on `test -x <path>`, so a missing script is a silent no-op rather than
-a `Stop hook error` every turn. That guard only stops the noise. Such a session labels nothing,
-so end it and start a new one in a directory that exists.
-
-Rationale, incident history, and the candidate-narrowing filters live in
+The operating detail is in [scripts/AGENTS.md](scripts/AGENTS.md), which loads when you work
+under `scripts/`. Rationale and incident history live in
 [docs/PORTABLE-HOOKS.md](docs/PORTABLE-HOOKS.md).
 
 ## Key Design Principles
@@ -424,15 +324,6 @@ Before you call code problematic:
 
 Working non-standard code beats non-working standard code. Understand a framework's conventions
 before you suggest a change.
-
-### Agent Integration
-
-An agent should:
-
-- Reference an existing skill rather than duplicate its knowledge.
-- Give concrete output formats, with examples.
-- Carry a quality checklist, for consistency.
-- Name its integration points with other tools.
 
 ### Architecture Decision Records
 
@@ -480,10 +371,6 @@ fixes: rename the command, delete it so the skill takes the slash name, or have 
 **Four skills are accepted orphans.** `/validate-plugin` reports `business-ideas`,
 `idea-wizard`, `publish-plugin`, and `ship` as orphans, because no agent and no command references
 them. You invoke all four directly as `/<name>`, so a referrer would add nothing.
-
-The list was seven. Two left because `commands/bead-refine.md` now names `bead-create` and
-`triage-beads`, so the check finds them. The seventh, `domain-modeling`, was deleted on 2026-08-28
-in favor of `mattpocock-skills:domain-modeling`; it stopped being an orphan by ceasing to exist.
 
 The check follows agent and command references alone, so it misses one live path: `publish-plugin`
 invokes `ship` to land a branch. It also matches on the skill's name, so `commands/adr.md` counts
