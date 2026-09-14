@@ -1,0 +1,78 @@
+# The Python linting baseline for every Boreas project.
+#
+# Boreas owns this file. `linting/python/install.py` copies it to
+# .boreas/ruff.toml inside a project, and that project's pyproject.toml
+# extends the copy:
+#
+#     [tool.ruff]
+#     extend = ".boreas/ruff.toml"
+#
+# The copy is overwritten on every install, so nothing here may be edited
+# inside a project. Rules belonging to one project only, such as an ignore for
+# a directory only it has, go in that [tool.ruff] table under the extend line.
+# The one per-file-ignore below is here because it holds everywhere.
+#
+# The copy sits in .boreas/ rather than at the project root because ruff reads
+# a root ruff.toml as the whole configuration and then ignores the
+# pyproject.toml beside it, which would discard the extend line and every rule
+# the project added for itself.
+#
+# No target-version is set. Ruff reads each project's own requires-python, and
+# the Python floor differs from one project to the next. A project that
+# declares no requires-python gets ruff's own default, which is older than any
+# of ours, and ruff then misjudges which imports are standard library and which
+# rewrites pyupgrade may make. install.py reports that rather than let it pass
+# unnoticed.
+
+line-length = 100
+fix = true
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "A",   # flake8-builtins
+    "SIM", # flake8-simplify
+    "PTH", # flake8-use-pathlib
+    "S",   # flake8-bandit (security)
+    "G",   # flake8-logging-format: no f-string built into a logging call
+    "BLE", # flake8-blind-except: no `except Exception` that swallows the error
+    # Size and shape limits (Sandi Metz style). The thresholds live in
+    # [lint.mccabe] and [lint.pylint] below.
+    "C901",    # mccabe: cyclomatic complexity
+    "PLR0913", # too many arguments
+    "PLR0915", # too many statements (stands in for method length)
+]
+
+[lint.per-file-ignores]
+# The only rule a test file is exempt from, and the only one it should be.
+# S101 exists because Python drops `assert` under -O, so validation written
+# that way disappears in production. In a test, `assert` is the whole point.
+#
+# Nothing else is exempt here, deliberately. A test that trips C901, PLR0913,
+# or PLR0915 is reporting that the code it exercises is hard to set up or hard
+# to drive, which is worth hearing rather than silencing.
+"**/test_*.py" = ["S101"]
+"**/*_test.py" = ["S101"]
+"**/tests/**" = ["S101"]
+"**/conftest.py" = ["S101"]
+
+[lint.mccabe]
+max-complexity = 8
+
+[lint.pylint]
+max-args = 4
+# Ruff has no line-based function-length rule; statements are the nearest
+# proxy. A multi-line dict literal counts as one statement, so this is looser
+# than "8 lines" in one direction and stricter in the other.
+max-statements = 8
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
