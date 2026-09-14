@@ -110,25 +110,22 @@ def case_missing_path_fails_naming_it() -> None:
     root = tree({"doc.md": "Read `${CLAUDE_PLUGIN_ROOT}/skills/gone/SKILL.md` now.\n"})
     result = run(root)
     assert result.returncode == 1, f"a missing path must exit 1: {result.stdout}"
-    assert "doc.md:1" in result.stdout, (
-        f"the document and line must be named: {result.stdout}"
-    )
-    assert "/skills/gone/SKILL.md" in result.stdout, (
-        f"the path must be named: {result.stdout}"
-    )
+    assert "doc.md:1" in result.stdout, f"the document and line must be named: {result.stdout}"
+    assert "/skills/gone/SKILL.md" in result.stdout, f"the path must be named: {result.stdout}"
 
 
 def case_resolving_path_passes() -> None:
     root = tree({"doc.md": "Read `${CLAUDE_PLUGIN_ROOT}/skills/real/SKILL.md` now.\n"})
     result = run(root)
     assert result.returncode == 0, f"a resolving path must exit 0: {result.stdout}"
-    assert "1 documented" in result.stdout, (
-        f"and be counted as checked: {result.stdout}"
-    )
+    assert "1 documented" in result.stdout, f"and be counted as checked: {result.stdout}"
 
 
 for name, fn in [
-    ("a path that does not resolve exits 1, naming document and line [criterion 3]", case_missing_path_fails_naming_it),
+    (
+        "a path that does not resolve exits 1, naming document and line [criterion 3]",
+        case_missing_path_fails_naming_it,
+    ),
     ("a path that resolves exits 0 and is counted", case_resolving_path_passes),
 ]:
     check(name, fn)
@@ -151,9 +148,7 @@ def case_fenced_command_without_fallback_fails() -> None:
     )
     result = run(root)
     assert result.returncode == 1, f"a command without a fallback must exit 1: {result.stdout}"
-    assert "doc.md:4" in result.stdout, (
-        f"the document and line must be named: {result.stdout}"
-    )
+    assert "doc.md:4" in result.stdout, f"the document and line must be named: {result.stdout}"
     assert MARKER in result.stdout, f"the marker must be named: {result.stdout}"
 
 
@@ -168,9 +163,7 @@ def case_fenced_command_with_fallback_passes() -> None:
         }
     )
     result = run(root)
-    assert result.returncode == 0, (
-        f"the marker and default must satisfy the rule: {result.stdout}"
-    )
+    assert result.returncode == 0, f"the marker and default must satisfy the rule: {result.stdout}"
 
 
 def case_prose_reference_needs_no_marker() -> None:
@@ -183,7 +176,10 @@ def case_prose_reference_needs_no_marker() -> None:
 
 
 for name, fn in [
-    ("a fenced command without a default exits 1 [criterion 1]", case_fenced_command_without_fallback_fails),
+    (
+        "a fenced command without a default exits 1 [criterion 1]",
+        case_fenced_command_without_fallback_fails,
+    ),
     ("the marker and default satisfy the rule", case_fenced_command_with_fallback_passes),
     ("a prose reference needs no marker", case_prose_reference_needs_no_marker),
 ]:
@@ -228,9 +224,7 @@ def case_skipped_references_are_named() -> None:
     assert "skipped doc.md:1" in result.stdout, (
         f"the skipped reference must be named, not just counted: {result.stdout}"
     )
-    assert "placeholder" in result.stdout, (
-        f"and the reason it was skipped: {result.stdout}"
-    )
+    assert "placeholder" in result.stdout, f"and the reason it was skipped: {result.stdout}"
 
 
 for name, fn in [
@@ -248,7 +242,9 @@ print("\n  [every shape a reference is written in]")
 
 def case_inline_backtick_prose_is_checked() -> None:
     """The commands/ and agents/ shape: prose, inline backticks, no fence."""
-    root = tree({"doc.md": "**Read** `${CLAUDE_PLUGIN_ROOT}/skills/gone/SKILL.md` and follow it.\n"})
+    root = tree(
+        {"doc.md": "**Read** `${CLAUDE_PLUGIN_ROOT}/skills/gone/SKILL.md` and follow it.\n"}
+    )
     result = run(root)
     assert result.returncode == 1, (
         f"prose with inline backticks must be checked, not skipped: {result.stdout}"
@@ -281,9 +277,7 @@ def case_bracket_closes_the_path() -> None:
 def case_unbraced_variable_is_checked() -> None:
     root = tree({"doc.md": "Read $CLAUDE_PLUGIN_ROOT/skills/gone/SKILL.md now.\n"})
     result = run(root)
-    assert result.returncode == 1, (
-        f"the unbraced form is the same reference: {result.stdout}"
-    )
+    assert result.returncode == 1, f"the unbraced form is the same reference: {result.stdout}"
 
 
 def case_trailing_period_is_stripped() -> None:
@@ -350,9 +344,7 @@ def case_out_of_tree_document_does_not_crash() -> None:
     is not under the root."""
     root = tree({"doc.md": "nothing here\n"})
     outside = Path(tempfile.mkdtemp(prefix="tadw-docpaths-outside-")) / "outside.md"
-    outside.write_text(
-        "Read `${CLAUDE_PLUGIN_ROOT}/skills/gone/SKILL.md`.\n", encoding="utf-8"
-    )
+    outside.write_text("Read `${CLAUDE_PLUGIN_ROOT}/skills/gone/SKILL.md`.\n", encoding="utf-8")
     result = run(root, str(outside))
     assert "Traceback" not in result.stderr, (
         f"a document outside the root must not raise: {result.stderr}"
@@ -360,9 +352,7 @@ def case_out_of_tree_document_does_not_crash() -> None:
     assert result.returncode == 1, (
         f"it must report the miss, not crash: {result.stdout} {result.stderr}"
     )
-    assert "outside.md" in result.stdout, (
-        f"and label it by its full path: {result.stdout}"
-    )
+    assert "outside.md" in result.stdout, f"and label it by its full path: {result.stdout}"
 
 
 def case_missing_repo_root_exits_2() -> None:
@@ -378,7 +368,10 @@ def case_named_document_missing_exits_2() -> None:
 
 for name, fn in [
     ("a symlinked document is read once, not twice", case_symlinked_document_is_read_once),
-    ("a document outside the root is labelled, not a crash", case_out_of_tree_document_does_not_crash),
+    (
+        "a document outside the root is labelled, not a crash",
+        case_out_of_tree_document_does_not_crash,
+    ),
     ("a repo root that does not exist exits 2", case_missing_repo_root_exits_2),
     ("a named document that does not exist exits 2", case_named_document_missing_exits_2),
 ]:
@@ -410,23 +403,20 @@ def case_no_third_party_imports() -> None:
     }
     for path in (SCRIPT, Path(__file__).resolve()):
         source = path.read_text(encoding="utf-8")
-        imported = set(
-            re.findall(r"^(?:from|import)\s+([A-Za-z_][\w.]*)", source, re.M)
-        )
+        imported = set(re.findall(r"^(?:from|import)\s+([A-Za-z_][\w.]*)", source, re.M))
         outside = {m for m in imported if m.split(".")[0] not in stdlib}
         assert not outside, f"{path.name} imports outside the stdlib: {outside}"
 
 
 for name, fn in [
-    ("this repository's own documented references all hold [criterion 4]", case_this_repository_passes),
+    (
+        "this repository's own documented references all hold [criterion 4]",
+        case_this_repository_passes,
+    ),
     ("neither file imports outside the standard library", case_no_third_party_imports),
 ]:
     check(name, fn)
 
 
-print(
-    f"\nAll {passed} checks passed."
-    if not failed
-    else f"\n{failed} FAILED, {passed} passed."
-)
+print(f"\nAll {passed} checks passed." if not failed else f"\n{failed} FAILED, {passed} passed.")
 sys.exit(1 if failed else 0)

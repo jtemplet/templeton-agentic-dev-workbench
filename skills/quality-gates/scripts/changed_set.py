@@ -90,9 +90,7 @@ def git_paths(root: Path, *args: str) -> list[str]:
     """
     result = git(root, *args, "-z")
     if result.returncode != 0:
-        raise GitUnavailable(
-            f"git {args[0]} failed ({result.returncode}): {result.stderr.strip()}"
-        )
+        raise GitUnavailable(f"git {args[0]} failed ({result.returncode}): {result.stderr.strip()}")
     return [entry for entry in result.stdout.split("\0") if entry]
 
 

@@ -179,8 +179,12 @@ def evaluate_doc(repo_root, doc_path):
 
     baseline = fm.get("last_reviewed") or doc_commit_baseline(repo_root, doc_path)
     if not baseline:
-        return {"status": "unverifiable", "changed": [], "baseline": None,
-                "note": "no last_reviewed and no commit history"}
+        return {
+            "status": "unverifiable",
+            "changed": [],
+            "baseline": None,
+            "note": "no last_reviewed and no commit history",
+        }
 
     changed = []
     external_unverifiable = []
@@ -225,8 +229,9 @@ def main(argv):
     if docs_dir.is_file():
         docs = [docs_dir]
     else:
-        docs = [d for d in sorted(docs_dir.rglob("*.md"))
-                if not d.name.startswith("_")]  # skip ledger / coverage artifacts
+        docs = [
+            d for d in sorted(docs_dir.rglob("*.md")) if not d.name.startswith("_")
+        ]  # skip ledger / coverage artifacts
 
     results = []
     for doc in docs:
@@ -260,8 +265,10 @@ def main(argv):
                 print(f"      unverifiable external: {u}")
     total = len(results)
     stale_n = len(by_status["stale"]) + len(by_status["unverifiable"])
-    print(f"\n{stale_n} of {total} docs need attention "
-          f"({len(by_status['stub'])} stubs, {len(by_status['current'])} current).")
+    print(
+        f"\n{stale_n} of {total} docs need attention "
+        f"({len(by_status['stub'])} stubs, {len(by_status['current'])} current)."
+    )
     return 0
 
 

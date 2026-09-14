@@ -311,7 +311,9 @@ CASES = (
     (
         "detail list",
         "a Detail label with no numbered bullet fails",
-        document(rounds=round_region(detail="**Detail**\n\n- nothing numbered") + "\n\n" + round_region()),
+        document(
+            rounds=round_region(detail="**Detail**\n\n- nothing numbered") + "\n\n" + round_region()
+        ),
         FAIL,
     ),
     (
@@ -442,7 +444,11 @@ CASES = (
     (
         "parser independence",
         "a `## ` heading inside a round region does not move the region",
-        document(rounds=round_region(header=f"## Theme: Weekly email\n\n{HEADER}") + "\n\n" + round_region()),
+        document(
+            rounds=round_region(header=f"## Theme: Weekly email\n\n{HEADER}")
+            + "\n\n"
+            + round_region()
+        ),
         PASS,
     ),
     (

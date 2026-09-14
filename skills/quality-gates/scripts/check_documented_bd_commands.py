@@ -158,9 +158,7 @@ def extract(root: Path, docs: list[Path]) -> tuple[list[Candidate], int]:
                 skipped += 1
                 continue
             by_argv.setdefault(argv, []).append(f"{label}:{lineno}")
-    candidates = [
-        Candidate(argv, tuple(locations)) for argv, locations in by_argv.items()
-    ]
+    candidates = [Candidate(argv, tuple(locations)) for argv, locations in by_argv.items()]
     return candidates, skipped
 
 
@@ -192,9 +190,7 @@ def run_all(root: Path, candidates: list[Candidate]) -> list[Failure]:
             continue
         if result.returncode != 0:
             error = first_error_line(result)
-            failures.extend(
-                Failure(loc, command, error) for loc in candidate.locations
-            )
+            failures.extend(Failure(loc, command, error) for loc in candidate.locations)
     return failures
 
 
@@ -240,7 +236,9 @@ def main() -> int:
 
     total = len(candidates)
     if failures:
-        print(f"\n{len(failures)} documented bd commands fail ({total} unique commands ran, {skipped} lines skipped)")
+        print(
+            f"\n{len(failures)} documented bd commands fail ({total} unique commands ran, {skipped} lines skipped)"
+        )
         return 1
     print(f"OK: {total} unique documented bd commands all exit 0 ({skipped} lines skipped)")
     return 0

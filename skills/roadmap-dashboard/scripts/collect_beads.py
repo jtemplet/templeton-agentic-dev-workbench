@@ -140,8 +140,8 @@ def normalize(record: dict) -> dict:
         "assignee": record.get("assignee"),
         "estimated_minutes": est_minutes,
         "labels": record.get("labels") or [],
-        "dependencies": all_deps,          # every edge, for the full graph
-        "blocking_deps": blocking_deps,     # only readiness-gating edges
+        "dependencies": all_deps,  # every edge, for the full graph
+        "blocking_deps": blocking_deps,  # only readiness-gating edges
         "acceptance_criteria": record.get("acceptance_criteria"),
         "design": record.get("design"),
         "description": record.get("description"),
@@ -206,14 +206,22 @@ def summarize(issues: list[dict]) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dir", type=Path, default=Path.cwd(),
-                        help="Directory to start the .beads/ search from (default: cwd)")
-    parser.add_argument("--jsonl", type=Path, default=None,
-                        help="Explicit path to a beads issues.jsonl (skips auto-discovery)")
-    parser.add_argument("--out", type=Path, default=None,
-                        help="Write JSON here instead of stdout")
-    parser.add_argument("--no-refresh", action="store_true",
-                        help="Do not run `bd export` before reading the JSONL")
+    parser.add_argument(
+        "--dir",
+        type=Path,
+        default=Path.cwd(),
+        help="Directory to start the .beads/ search from (default: cwd)",
+    )
+    parser.add_argument(
+        "--jsonl",
+        type=Path,
+        default=None,
+        help="Explicit path to a beads issues.jsonl (skips auto-discovery)",
+    )
+    parser.add_argument("--out", type=Path, default=None, help="Write JSON here instead of stdout")
+    parser.add_argument(
+        "--no-refresh", action="store_true", help="Do not run `bd export` before reading the JSONL"
+    )
     args = parser.parse_args()
 
     if args.jsonl is not None:
@@ -223,8 +231,7 @@ def main() -> int:
         if beads_dir is None:
             # No tracker in this repo. Emit the empty shape (exit 0) so the dashboard's
             # documented "no beads data" fallback path works instead of aborting.
-            print("warning: no .beads/ workspace found; emitting empty result",
-                  file=sys.stderr)
+            print("warning: no .beads/ workspace found; emitting empty result", file=sys.stderr)
             jsonl_path = None
         else:
             if not args.no_refresh:

@@ -243,7 +243,10 @@ def case_the_router_does_not_misclassify_itself() -> None:
 
 
 for name, fn in [
-    ("markdown quoting an Express route is not an API", case_markdown_quoting_express_is_not_an_api),
+    (
+        "markdown quoting an Express route is not an API",
+        case_markdown_quoting_express_is_not_an_api,
+    ),
     ("a SKILL.md is a prompt asset, not a document", case_skill_md_is_a_prompt_asset),
     ("Python quoting an Express route is not an API", case_python_quoting_express_is_not_an_api),
     ("a Swift import inside Python is not mobile UI", case_swift_import_in_python_is_not_mobile),
@@ -330,7 +333,7 @@ def case_spring_mapping_annotations() -> None:
     """An empty `@PostMapping("")` is the class's own root path, not no path."""
     body = (
         "@RestController\n"
-        'public class ExportController {\n'
+        "public class ExportController {\n"
         '  @GetMapping("/api/v1/exports")\n'
         "  public List<Export> list() { return null; }\n"
         '  @PostMapping("")\n'
@@ -340,7 +343,9 @@ def case_spring_mapping_annotations() -> None:
     root = build({"src/main/java/ExportController.java": body})
     decision = run(root, "src/main/java/ExportController.java")
     assert route_of(decision, "http-api") == "curl"
-    assert endpoints_of(decision) == [("GET", "/api/v1/exports"), ("POST", "/")], endpoints_of(decision)
+    assert endpoints_of(decision) == [("GET", "/api/v1/exports"), ("POST", "/")], endpoints_of(
+        decision
+    )
 
 
 def case_go_chi_router() -> None:
@@ -363,7 +368,9 @@ def case_go_chi_router() -> None:
 
 def case_go_handlefunc_has_no_method() -> None:
     """`HandleFunc` registers every method, so the extractor claims none."""
-    body = 'package api\n\nfunc Serve(mux *http.ServeMux) {\n\tmux.HandleFunc("/health", health)\n}\n'
+    body = (
+        'package api\n\nfunc Serve(mux *http.ServeMux) {\n\tmux.HandleFunc("/health", health)\n}\n'
+    )
     root = build({"internal/api/serve.go": body})
     decision = run(root, "internal/api/serve.go")
     assert endpoints_of(decision) == [(None, "/health")], endpoints_of(decision)
@@ -373,8 +380,14 @@ def case_go_handlefunc_has_no_method() -> None:
 for name, fn in [
     ("a FastAPI @router decorator yields its endpoints", case_fastapi_router_decorator),
     ("a Flask @app.route with no methods= is a GET", case_flask_route_defaults_to_get),
-    ("a Flask route with two methods yields two endpoints", case_flask_explicit_methods_become_one_endpoint_each),
-    ("Django path() yields a null method, include() is unresolved", case_django_urls_and_unresolved_include),
+    (
+        "a Flask route with two methods yields two endpoints",
+        case_flask_explicit_methods_become_one_endpoint_each,
+    ),
+    (
+        "Django path() yields a null method, include() is unresolved",
+        case_django_urls_and_unresolved_include,
+    ),
     ("Spring @Get/@PostMapping yield their endpoints", case_spring_mapping_annotations),
     ("a Go chi router yields its endpoints", case_go_chi_router),
     ("Go HandleFunc yields a null method", case_go_handlefunc_has_no_method),
@@ -386,7 +399,9 @@ print("\n  [the three routes, one per method]")
 
 
 def case_rest_change_routes_to_curl() -> None:
-    routes = 'Rails.application.routes.draw do\n  post "/api/v1/exports", to: "exports#create"\nend\n'
+    routes = (
+        'Rails.application.routes.draw do\n  post "/api/v1/exports", to: "exports#create"\nend\n'
+    )
     root = build({"config/routes.rb": routes})
     decision = run(root, "config/routes.rb")
     assert decision["methods"] == ["curl"], f"one surface, one method: {decision['methods']}"
@@ -465,7 +480,10 @@ def case_unknown_extension_is_named_not_dropped() -> None:
 for name, fn in [
     ("a test file is evidence, never a surface", case_test_files_are_evidence),
     ("a lockfile is ignored and named", case_lockfile_is_ignored),
-    ("an unmatched file becomes `unknown`, not `docs`", case_unknown_extension_is_named_not_dropped),
+    (
+        "an unmatched file becomes `unknown`, not `docs`",
+        case_unknown_extension_is_named_not_dropped,
+    ),
 ]:
     check(name, fn)
 
@@ -551,7 +569,9 @@ def case_base_survives_a_mnemonic_prefix_config() -> None:
 
 
 def case_rails_resources_is_unresolved_not_guessed() -> None:
-    root = build({"config/routes.rb": "Rails.application.routes.draw do\n  resources :exports\nend\n"})
+    root = build(
+        {"config/routes.rb": "Rails.application.routes.draw do\n  resources :exports\nend\n"}
+    )
     decision = run(root, "config/routes.rb")
     entry = surfaces(decision)["http-api"]
     assert not entry["endpoints"], f"the seven routes are not guessed: {entry['endpoints']}"
@@ -563,7 +583,10 @@ for name, fn in [
     ("with no --base, `changed` is absent rather than guessed", case_no_base_leaves_changed_absent),
     ("a base that will not resolve exits 2", case_bad_base_exits_2),
     ("diff.mnemonicPrefix does not blank every flag", case_base_survives_a_mnemonic_prefix_config),
-    ("`resources :x` is reported unresolved, not expanded", case_rails_resources_is_unresolved_not_guessed),
+    (
+        "`resources :x` is reported unresolved, not expanded",
+        case_rails_resources_is_unresolved_not_guessed,
+    ),
 ]:
     check(name, fn)
 
@@ -655,7 +678,10 @@ def case_deleted_path_routes_by_path() -> None:
 for name, fn in [
     ("--paths-from - reads the changed set from stdin", case_paths_from_stdin),
     ("--paths-from FILE reads the changed set from a file", case_paths_from_a_file),
-    ("an undecodable or oversized file is named unread", case_unreadable_content_routes_by_path_and_warns),
+    (
+        "an undecodable or oversized file is named unread",
+        case_unreadable_content_routes_by_path_and_warns,
+    ),
     ("prose is unread by design, with no warning", case_prose_is_unread_without_a_warning),
     ("an empty changed set routes to nothing, exit 0", case_empty_changed_set_is_not_an_error),
     ("a repo root that does not exist exits 2", case_bad_root_exits_2),

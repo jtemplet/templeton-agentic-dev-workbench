@@ -111,11 +111,16 @@ def case_rejected_command_fails() -> None:
     r = run(root, env)
     assert r.returncode == 1, f"a rejected command must exit 1, got {r.returncode}: {r.stdout}"
     assert "README.md:4" in r.stdout, f"the failure must name file and line: {r.stdout}"
-    assert "bd blocked --json --limit 0" in r.stdout, f"the failure must show the command: {r.stdout}"
+    assert "bd blocked --json --limit 0" in r.stdout, (
+        f"the failure must show the command: {r.stdout}"
+    )
     assert "unknown flag: --limit" in r.stdout, f"the failure must carry bd's own error: {r.stdout}"
 
 
-check("a fenced command bd rejects exits 1 with file, line, and bd's error", case_rejected_command_fails)
+check(
+    "a fenced command bd rejects exits 1 with file, line, and bd's error",
+    case_rejected_command_fails,
+)
 
 
 print("\n  [criterion 2: prose is not a command]")
@@ -171,7 +176,10 @@ def case_unbalanced_quote_is_skipped() -> None:
 
 for name, fn in [
     ("a placeholder write is skipped and counted [criterion 3]", case_placeholder_write_is_skipped),
-    ("a placeholder skips even a safelisted verb", case_safelisted_verb_with_placeholder_is_skipped),
+    (
+        "a placeholder skips even a safelisted verb",
+        case_safelisted_verb_with_placeholder_is_skipped,
+    ),
     ("a verb off the safelist never runs", case_write_verb_without_placeholder_is_skipped),
     ("a piped command never runs", case_pipe_is_skipped),
     ("an unbalanced quote is skipped, never a crash", case_unbalanced_quote_is_skipped),
@@ -201,7 +209,9 @@ def case_prompt_prefix_and_comment() -> None:
 
 
 def case_duplicate_command_runs_once_reports_each() -> None:
-    body = fenced("bd blocked --json --limit 0") + "\nMore.\n" + fenced("bd blocked --json --limit 0")
+    body = (
+        fenced("bd blocked --json --limit 0") + "\nMore.\n" + fenced("bd blocked --json --limit 0")
+    )
     root, env = build(body, REJECTING_BD)
     r = run(root, env)
     lines = [ln for ln in r.stdout.splitlines() if ln.startswith("README.md:")]
@@ -212,7 +222,10 @@ def case_duplicate_command_runs_once_reports_each() -> None:
 for name, fn in [
     ("a safelisted fenced command runs verbatim", case_safelisted_command_runs),
     ("a $-prompt prefix and a trailing comment are stripped", case_prompt_prefix_and_comment),
-    ("a command documented twice runs once and is reported at each line", case_duplicate_command_runs_once_reports_each),
+    (
+        "a command documented twice runs once and is reported at each line",
+        case_duplicate_command_runs_once_reports_each,
+    ),
 ]:
     check(name, fn)
 
@@ -298,7 +311,10 @@ def case_registered_in_gate_and_hook() -> None:
 for name, fn in [
     ("a symlinked document runs its block once", case_symlinked_doc_counts_once),
     ("this repository's own documented bd commands all pass [criterion 4]", case_real_repo),
-    ("CLAUDE.md and .githooks/pre-push both register the check [criterion 7]", case_registered_in_gate_and_hook),
+    (
+        "CLAUDE.md and .githooks/pre-push both register the check [criterion 7]",
+        case_registered_in_gate_and_hook,
+    ),
 ]:
     check(name, fn)
 

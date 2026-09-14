@@ -198,7 +198,10 @@ def case_no_duplicate_lines() -> None:
 
 
 for name, fn in [
-    ("committed, staged, unstaged, and untracked all appear [criterion 1]", case_all_four_kinds_appear),
+    (
+        "committed, staged, unstaged, and untracked all appear [criterion 1]",
+        case_all_four_kinds_appear,
+    ),
     ("an unchanged file does not appear", case_unchanged_file_absent),
     ("a deleted file appears", case_deleted_file_appears),
     ("a clean clone exits 0 and prints nothing", case_clean_clone_prints_nothing),
@@ -286,7 +289,10 @@ for name, fn in [
     ("unrelated history exits 3", case_unrelated_history_exits_3),
     ("an unborn HEAD exits 3", case_unborn_head_exits_3),
     ("a missing origin/HEAD falls back to origin/main", case_origin_head_missing_falls_back),
-    ("a non-main default branch resolves through origin/HEAD", case_non_main_default_branch_resolves),
+    (
+        "a non-main default branch resolves through origin/HEAD",
+        case_non_main_default_branch_resolves,
+    ),
 ]:
     check(name, fn)
 
@@ -447,7 +453,13 @@ def case_real_repo_stdout_is_clean() -> None:
 
 def case_no_third_party_imports() -> None:
     stdlib = {
-        "__future__", "argparse", "re", "subprocess", "sys", "tempfile", "pathlib",
+        "__future__",
+        "argparse",
+        "re",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "pathlib",
     }
     for path in (SCRIPT, Path(__file__).resolve()):
         source = path.read_text(encoding="utf-8")

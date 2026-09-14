@@ -34,8 +34,7 @@ START = "<!-- leak-check:appendix-start -->"
 END = "<!-- leak-check:appendix-end -->"
 
 FRONTMATTER = (
-    "---\nname: style-testing\n"
-    "description: mentions pytest and Vitest for keyword matching\n---\n"
+    "---\nname: style-testing\ndescription: mentions pytest and Vitest for keyword matching\n---\n"
 )
 SECTIONS = "\n".join(
     f"## {section}"
@@ -73,7 +72,13 @@ def run_checker(content: str, dirname: str = "style-testing") -> int:
 # (group, name, content, expected exit, skill directory name)
 CASES: tuple[tuple[str, str, str, int, str], ...] = (
     # --- MARKER CONTRACT ---------------------------------------------------
-    ("marker", "well-formed markers pass", FRONTMATTER + SECTIONS + APPENDIX, PASS, "style-testing"),
+    (
+        "marker",
+        "well-formed markers pass",
+        FRONTMATTER + SECTIONS + APPENDIX,
+        PASS,
+        "style-testing",
+    ),
     (
         "marker",
         "missing start marker fails",
@@ -98,7 +103,9 @@ CASES: tuple[tuple[str, str, str, int, str], ...] = (
     (
         "marker",
         "end marker before start marker fails",
-        FRONTMATTER + SECTIONS + f"\n{END}\n## Appendix\npytest | vitest | xctest | minitest\n{START}\n",
+        FRONTMATTER
+        + SECTIONS
+        + f"\n{END}\n## Appendix\npytest | vitest | xctest | minitest\n{START}\n",
         FAIL,
         "style-testing",
     ),
@@ -171,10 +178,7 @@ CASES: tuple[tuple[str, str, str, int, str], ...] = (
     (
         "parser",
         "a `## Appendix` heading inside a code fence cannot move the exempt region",
-        FRONTMATTER
-        + SECTIONS
-        + "\n```\n## Appendix\n```\nuse pytest here\n"
-        + APPENDIX,
+        FRONTMATTER + SECTIONS + "\n```\n## Appendix\n```\nuse pytest here\n" + APPENDIX,
         FAIL,
         "style-testing",
     ),
@@ -191,10 +195,7 @@ CASES: tuple[tuple[str, str, str, int, str], ...] = (
     (
         "parser",
         "a closing fence carrying an info string cannot move the exempt region",
-        FRONTMATTER
-        + SECTIONS
-        + "\n```\n```python\n## Appendix\n```\nuse pytest here\n"
-        + APPENDIX,
+        FRONTMATTER + SECTIONS + "\n```\n```python\n## Appendix\n```\nuse pytest here\n" + APPENDIX,
         FAIL,
         "style-testing",
     ),

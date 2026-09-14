@@ -247,7 +247,10 @@ for name, fn in [
     ("a clean diff exits 0 and reports 0 [criterion 4]", case_clean_diff),
     ("a removed marker exits 0 and reports 0 [criterion 3]", case_removed_marker),
     ("an untouched marker does not count", case_untouched_marker_absent),
-    ("an untracked file's marker is invisible until it is added", case_untracked_marker_is_invisible),
+    (
+        "an untracked file's marker is invisible until it is added",
+        case_untracked_marker_is_invisible,
+    ),
 ]:
     check(name, fn)
 
@@ -322,9 +325,15 @@ def case_quoted_diff_content_counts() -> None:
 
 for name, fn in [
     ("a marker in a `+++ b/TODO.md` header does not count [criterion 2]", case_header_path_marker),
-    ("a header path is skipped while the file's own marker counts", case_header_path_marker_with_real_content_marker),
+    (
+        "a header path is skipped while the file's own marker counts",
+        case_header_path_marker_with_real_content_marker,
+    ),
     ("a `rename to TODO.md` path does not count", case_rename_to_marker_path),
-    ("an added line that begins with `+++` is content, and counts", case_quoted_diff_content_counts),
+    (
+        "an added line that begins with `+++` is content, and counts",
+        case_quoted_diff_content_counts,
+    ),
 ]:
     check(name, fn)
 
@@ -520,8 +529,14 @@ def case_real_repo_runs_clean() -> None:
 
 def case_no_third_party_imports() -> None:
     stdlib = {
-        "__future__", "argparse", "dataclasses", "re", "subprocess", "sys",
-        "tempfile", "pathlib",
+        "__future__",
+        "argparse",
+        "dataclasses",
+        "re",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "pathlib",
     }
     for path in (SCRIPT, Path(__file__).resolve()):
         source = path.read_text(encoding="utf-8")

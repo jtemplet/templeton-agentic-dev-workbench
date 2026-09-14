@@ -74,11 +74,7 @@ NEVER_A_LEAF = ("product_overview.md", "_findings.md")
 
 def collect_docs(docs_dir):
     """Every markdown document in the tree, sorted, minus the two that are never leaves."""
-    return [
-        path
-        for path in sorted(docs_dir.rglob("*.md"))
-        if path.name not in NEVER_A_LEAF
-    ]
+    return [path for path in sorted(docs_dir.rglob("*.md")) if path.name not in NEVER_A_LEAF]
 
 
 def domain_of(doc):

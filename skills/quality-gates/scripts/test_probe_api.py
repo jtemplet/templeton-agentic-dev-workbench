@@ -45,7 +45,7 @@ failed = 0
 #   DELETE /items/7     204, so a write method is proven to arrive
 #   GET  /whoami        200, echoing whether an Authorization header arrived
 #   GET  /text          200 with a text/plain body, for the not-JSON cases
-SERVER_SOURCE = '''\
+SERVER_SOURCE = """\
 import json, os, sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -95,7 +95,7 @@ port = int(sys.argv[1])
 if len(sys.argv) > 2:
     open(sys.argv[2], "w").write(str(os.getpid()))
 HTTPServer(("127.0.0.1", port), H).serve_forever()
-'''
+"""
 
 
 def check(name: str, fn) -> None:
@@ -255,7 +255,10 @@ def case_localhost_summary_is_unmarked() -> None:
 def case_cli_base_url_beats_the_spec() -> None:
     server = shared()
     result = run(
-        {"base_url": "http://127.0.0.1:1", "probes": [{"path": "/items", "expect": {"status": 200}}]},
+        {
+            "base_url": "http://127.0.0.1:1",
+            "probes": [{"path": "/items", "expect": {"status": 200}}],
+        },
         None,
         "--base-url",
         server.base,
@@ -285,7 +288,9 @@ def case_loopback_range_is_unwarned() -> None:
     `--timeout 2` because macOS neither refuses nor answers on 127.0.0.2, so the
     default 10-second budget would be spent waiting on a case about the host.
     """
-    result = run({"base_url": "http://127.0.0.2:9", "probes": [{"path": "/"}]}, None, "--timeout", "2")
+    result = run(
+        {"base_url": "http://127.0.0.2:9", "probes": [{"path": "/"}]}, None, "--timeout", "2"
+    )
     assert "NOT this machine" not in result.stderr, f"127.0.0.2 is loopback: {result.stderr}"
     assert result.returncode == 2, result.returncode
     assert "1 blocked" in result.stdout, f"an unreachable port is BLOCKED: {result.stdout}"
@@ -344,7 +349,10 @@ for name, fn in [
     ("a non-http scheme is still an error", case_non_http_scheme_is_still_an_error),
     ("127.0.0.2 is this machine, so it is unwarned", case_loopback_range_is_unwarned),
     ("a remote host plus a start command warns", case_remote_host_with_a_start_command_warns_twice),
-    ("0.0.0.0 plus a start command does not claim a miss", case_bind_address_with_a_start_command_does_not_claim_a_miss),
+    (
+        "0.0.0.0 plus a start command does not claim a miss",
+        case_bind_address_with_a_start_command_does_not_claim_a_miss,
+    ),
 ]:
     check(name, fn)
 
@@ -563,7 +571,10 @@ print("\n  [could not run is BLOCKED, never a failing endpoint]")
 def case_connection_refused_is_blocked() -> None:
     port = free_port()  # nothing is listening on it
     result = run(
-        {"base_url": f"http://127.0.0.1:{port}", "probes": [{"path": "/", "expect": {"status": 200}}]}
+        {
+            "base_url": f"http://127.0.0.1:{port}",
+            "probes": [{"path": "/", "expect": {"status": 200}}],
+        }
     )
     assert result.returncode == 2, (
         f"a refused connection reached no endpoint, so it cannot be FAIL: {result.returncode}"
@@ -822,9 +833,7 @@ def case_capture_from_a_non_json_body_is_blocked() -> None:
     result = run(
         {
             "base_url": server.base,
-            "probes": [
-                {"path": "/text", "expect": {"status": 200}, "capture": {"x": "id"}}
-            ],
+            "probes": [{"path": "/text", "expect": {"status": 200}, "capture": {"x": "id"}}],
         }
     )
     assert result.returncode == 2, result.returncode
@@ -876,9 +885,7 @@ def case_server_that_never_answers_is_blocked_and_killed() -> None:
     holder = Path(tempfile.mkdtemp()) / "sleeper.py"
     pidfile = holder.parent / "sleeper.pid"
     holder.write_text(
-        "import os, sys, time\n"
-        "open(sys.argv[1], 'w').write(str(os.getpid()))\n"
-        "time.sleep(120)\n",
+        "import os, sys, time\nopen(sys.argv[1], 'w').write(str(os.getpid()))\ntime.sleep(120)\n",
         encoding="utf-8",
     )
     result = run(
@@ -930,9 +937,18 @@ def case_empty_start_command_is_blocked() -> None:
 
 
 for name, fn in [
-    ("a declared server is started, probed, and stopped", case_declared_server_is_started_and_stopped),
-    ("a server that never answers is BLOCKED and killed", case_server_that_never_answers_is_blocked_and_killed),
-    ("a server that exits at once names its exit code", case_server_that_exits_immediately_names_its_code),
+    (
+        "a declared server is started, probed, and stopped",
+        case_declared_server_is_started_and_stopped,
+    ),
+    (
+        "a server that never answers is BLOCKED and killed",
+        case_server_that_never_answers_is_blocked_and_killed,
+    ),
+    (
+        "a server that exits at once names its exit code",
+        case_server_that_exits_immediately_names_its_code,
+    ),
     ("an empty server.start exits 2", case_empty_start_command_is_blocked),
 ]:
     check(name, fn)

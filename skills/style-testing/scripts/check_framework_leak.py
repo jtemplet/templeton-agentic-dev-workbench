@@ -58,11 +58,30 @@ H2_HEADING = re.compile(r"^##\s+(.+?)\s*$")
 # Substrings that must not appear in the body. Matched case-insensitively.
 BANNED_TOKENS = (
     # Framework names
-    "rspec", "pytest", "jest", "vitest", "minitest", "unittest", "xctest", "junit",
+    "rspec",
+    "pytest",
+    "jest",
+    "vitest",
+    "minitest",
+    "unittest",
+    "xctest",
+    "junit",
     # Framework-specific constructs
-    "let!", "subject {", "it_behaves_like", "describe(", "beforeeach", "aftereach",
-    "conftest", "xctassert", "@test", "@fixture", "expect(", "factorybot",
-    "build_stubbed", "assert_equal", "@pytest",
+    "let!",
+    "subject {",
+    "it_behaves_like",
+    "describe(",
+    "beforeeach",
+    "aftereach",
+    "conftest",
+    "xctassert",
+    "@test",
+    "@fixture",
+    "expect(",
+    "factorybot",
+    "build_stubbed",
+    "assert_equal",
+    "@pytest",
 )
 
 # These must appear as `## ` headings OUTSIDE the exempt region. Requiring that
@@ -118,9 +137,7 @@ def locate_appendix(lines: list[str], start_index: int) -> tuple[int | None, int
             f"appendix: expected exactly 1 `{APPENDIX_START}` marker, found {len(starts)}"
         )
     if len(ends) != 1:
-        problems.append(
-            f"appendix: expected exactly 1 `{APPENDIX_END}` marker, found {len(ends)}"
-        )
+        problems.append(f"appendix: expected exactly 1 `{APPENDIX_END}` marker, found {len(ends)}")
     if not problems and ends[0] < starts[0]:
         problems.append(
             f"appendix: end marker (line {ends[0] + 1}) precedes start marker (line {starts[0] + 1})"
@@ -175,6 +192,7 @@ def check_sections(lines: list[str], start: int | None, end: int | None) -> list
     heading still existed. Anchoring the sections outside the region makes that
     edit fail instead of silently disabling the check.
     """
+
     def outside(index: int) -> bool:
         return start is None or end is None or not start <= index <= end
 
@@ -226,11 +244,7 @@ def main() -> int:
         body = [(n + 1, lines[n]) for n in range(body_start, len(lines))]
         appendix: list[str] = []
     else:
-        body = [
-            (n + 1, lines[n])
-            for n in range(body_start, len(lines))
-            if not start <= n <= end
-        ]
+        body = [(n + 1, lines[n]) for n in range(body_start, len(lines)) if not start <= n <= end]
         appendix = lines[start + 1 : end]
 
     problems = [

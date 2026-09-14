@@ -169,9 +169,7 @@ def case_ignore_flag() -> None:
 
 def case_ignore_file() -> None:
     root = build("Writes `docs/roadmap-v2.1.html`.", ("docs/",))
-    (root / ".docpaths-ignore").write_text(
-        "# outputs\ndocs/roadmap-v*.html\n", encoding="utf-8"
-    )
+    (root / ".docpaths-ignore").write_text("# outputs\ndocs/roadmap-v*.html\n", encoding="utf-8")
     r = run(root)
     assert not misses(r), f".docpaths-ignore globs must apply: {r.stdout}"
 
@@ -344,7 +342,9 @@ def case_command_delegation_path_checked() -> None:
 
 def case_skill_and_agent_checked() -> None:
     for name in ("skills/one/SKILL.md", "agents/one.md"):
-        root = build_assets({name: "See `commands/gone.md` for the rest.\n", "commands/x.md": "x\n"})
+        root = build_assets(
+            {name: "See `commands/gone.md` for the rest.\n", "commands/x.md": "x\n"}
+        )
         r = run(root)
         assert r.returncode == 1, f"{name}: a dead path must exit 1: {r.returncode}"
         assert any("commands/gone.md" in m for m in misses(r)), f"{name}: {r.stdout}"
@@ -385,7 +385,9 @@ def case_references_file_not_checked() -> None:
 
 check("a command's dead delegation path is a miss", case_command_delegation_path_checked)
 check("a skill and an agent are both scanned", case_skill_and_agent_checked)
-check("${CLAUDE_PLUGIN_ROOT} is still stripped in a command", case_plugin_root_variable_still_stripped)
+check(
+    "${CLAUDE_PLUGIN_ROOT} is still stripped in a command", case_plugin_root_variable_still_stripped
+)
 check("a skill-relative script path still resolves", case_skill_relative_path_still_resolves)
 check("a references file under a skill is not scanned", case_references_file_not_checked)
 

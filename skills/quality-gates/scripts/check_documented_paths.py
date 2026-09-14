@@ -139,10 +139,7 @@ def is_excluded(root: Path, doc: Path) -> bool:
     posix = label_for(root, doc)
     if EXCLUDED_DIRS & set(Path(posix).parts):
         return True
-    return any(
-        posix == excluded or posix.startswith(f"{excluded}/")
-        for excluded in EXCLUDED_PATHS
-    )
+    return any(posix == excluded or posix.startswith(f"{excluded}/") for excluded in EXCLUDED_PATHS)
 
 
 def markdown_files(root: Path) -> list[Path]:
@@ -181,9 +178,7 @@ def referenced_path(match: re.Match[str]) -> tuple[str | None, str]:
     return path, ""
 
 
-def scan(
-    root: Path, docs: list[Path]
-) -> tuple[list[Miss], list[Unstated], list[Skipped], int]:
+def scan(root: Path, docs: list[Path]) -> tuple[list[Miss], list[Unstated], list[Skipped], int]:
     """(misses, unstated documents, skipped references, checked count)."""
     misses: list[Miss] = []
     unstated: list[Unstated] = []
@@ -201,11 +196,7 @@ def scan(
             if FENCE.match(line):
                 fenced = not fenced
                 continue
-            if (
-                fenced
-                and RUNNABLE_COMMAND.match(line)
-                and "CLAUDE_PLUGIN_ROOT" in line
-            ):
+            if fenced and RUNNABLE_COMMAND.match(line) and "CLAUDE_PLUGIN_ROOT" in line:
                 if FALLBACK_EXPRESSION in line:
                     if not first_fallback_command:
                         first_fallback_command = f"{label}:{lineno}"
@@ -220,9 +211,7 @@ def scan(
                 if not (root / path.lstrip("/")).exists():
                     misses.append(Miss(f"{label}:{lineno}", path))
 
-        if first_unresolved_command or (
-            first_fallback_command and FALLBACK_MARKER not in text
-        ):
+        if first_unresolved_command or (first_fallback_command and FALLBACK_MARKER not in text):
             unstated.append(Unstated(first_unresolved_command or first_fallback_command))
 
     return misses, unstated, skipped, checked

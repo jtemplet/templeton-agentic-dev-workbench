@@ -269,9 +269,7 @@ def expand_captures(value: str, captured: dict[str, str], where: str) -> str:
     def replace(match: re.Match[str]) -> str:
         name = match.group(1)
         if name not in captured:
-            raise ProbeBlocked(
-                f"{where} references {{{name}}}, which no earlier probe captured"
-            )
+            raise ProbeBlocked(f"{where} references {{{name}}}, which no earlier probe captured")
         return captured[name]
 
     return CAPTURE_RE.sub(replace, value)
@@ -324,9 +322,7 @@ class Request:
     literal_secrets: list[str]
 
 
-def build_request(
-    probe: dict[str, object], base_url: str, captured: dict[str, str]
-) -> Request:
+def build_request(probe: dict[str, object], base_url: str, captured: dict[str, str]) -> Request:
     name = str(probe.get("name") or probe.get("path") or "unnamed probe")
     method = str(probe.get("method", "GET")).upper()
     raw_path = probe.get("path")
@@ -434,8 +430,7 @@ def send(request: Request, timeout: int, insecure_tls: bool) -> Response:
         reason = CURL_UNREACHED.get(completed.returncode, "curl failed")
         detail = completed.stderr.decode("utf-8", errors="replace").strip().splitlines()
         raise ProbeBlocked(
-            f"{reason} (curl exit {completed.returncode})"
-            + (f": {detail[-1]}" if detail else "")
+            f"{reason} (curl exit {completed.returncode})" + (f": {detail[-1]}" if detail else "")
         )
     return parse_response(completed.stdout.decode("utf-8", errors="replace"))
 
@@ -623,9 +618,14 @@ class Server:
                 )
             probe = subprocess.run(
                 [
-                    "curl", "--silent", "--output", os.devnull,
-                    "--max-time", "3",
-                    "--write-out", "%{http_code}",
+                    "curl",
+                    "--silent",
+                    "--output",
+                    os.devnull,
+                    "--max-time",
+                    "3",
+                    "--write-out",
+                    "%{http_code}",
                     self.health_url,
                 ],
                 capture_output=True,
@@ -744,7 +744,9 @@ def report(results: list[Result], base_url: str) -> int:
     # skill copies into its report. A stderr-only warning about a remote host is
     # one a report can omit without looking incomplete.
     where = f"{base_url} (NOT this machine)" if addresses_another_machine(base_url) else base_url
-    print(f"\n{len(results)} probes against {where}: {passed} passed, {failed} failed, {blocked} blocked")
+    print(
+        f"\n{len(results)} probes against {where}: {passed} passed, {failed} failed, {blocked} blocked"
+    )
     if blocked:
         # BLOCKED outranks FAIL for the exit status, because "the gate could not
         # run as specified" is the more urgent fact and both fail the run anyway.

@@ -118,7 +118,9 @@ def check(name: str, fn) -> None:
 
 
 @contextlib.contextmanager
-def fixture_named(name: str, base: dict[str, str], plant: dict[str, str] | None = None) -> Iterator[None]:
+def fixture_named(
+    name: str, base: dict[str, str], plant: dict[str, str] | None = None
+) -> Iterator[None]:
     """Write a fixture, and point the harness at it for the duration of the block.
 
     Nothing here reads `evals/fixtures/`, so a fixture a later bead adds cannot
@@ -168,7 +170,9 @@ def worktree_status(repo: Path) -> dict[str, str]:
     """
     completed = subprocess.run(
         ["git", "-C", str(repo), "status", "--porcelain"],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return {line[3:]: line[:2] for line in completed.stdout.splitlines() if line}
 
@@ -236,11 +240,15 @@ def case_fixture_plant_is_left_uncommitted() -> None:
     repo = build_fixture(
         "demo",
         {"src/app.py": "def hello():\n    return 1\n"},
-        {"src/app.py": "def hello():\n    return 1\n\n\ndef added():\n    return 2\n",
-         "src/new.py": "def fresh():\n    return 3\n"},
+        {
+            "src/app.py": "def hello():\n    return 1\n\n\ndef added():\n    return 2\n",
+            "src/new.py": "def fresh():\n    return 3\n",
+        },
     )
     dirty = worktree_status(repo)
-    assert dirty.get("src/app.py") == " M", f"the overwritten file must be modified, unstaged: {dirty}"
+    assert dirty.get("src/app.py") == " M", (
+        f"the overwritten file must be modified, unstaged: {dirty}"
+    )
     assert dirty.get("src/new.py") == "??", f"the added file must be untracked: {dirty}"
     committed = git_out(repo, "show", "HEAD:src/app.py")
     assert "def added" not in committed, "the plant leaked into the initial commit"
@@ -258,14 +266,16 @@ def case_fixture_origin_resolves_a_base() -> None:
     # would raise CalledProcessError and describe a crash instead of this rule.
     resolved = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "--verify", "origin/main"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert resolved.returncode == 0, "origin/main must resolve, or every gate widens to --all"
 
     script = harness.REPO_ROOT / "skills/quality-gates/scripts/changed_set.py"
     result = subprocess.run(
         [sys.executable, str(script), "--repo-root", str(repo)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, f"the base must resolve: {result.returncode}, {result.stderr!r}"
     listed = result.stdout.split()
@@ -309,10 +319,12 @@ def case_readme_documents_both_keys() -> None:
     for key in ("`fixture`", "`single_arm`"):
         assert key in text, f"README.md must document {key}"
     assert "baseline" in text.lower(), "README.md must name the arm a fixture case skips"
-    assert re.search(r"does not exist without the plugin", text, re.I), \
+    assert re.search(r"does not exist without the plugin", text, re.I), (
         "README.md must give the reason fixture cases skip the baseline arm"
-    assert "base/" in text and "plant/" in text, \
+    )
+    assert "base/" in text and "plant/" in text, (
         "README.md must document the base/ and plant/ layout"
+    )
 
 
 def case_missing_fixture_fails_fast() -> None:
@@ -402,7 +414,7 @@ def case_header_counts_single_arm_and_fixture_cases() -> None:
     )
 
 
-print("\n  [the account under measurement is the caller\'s, not the shell\'s]")
+print("\n  [the account under measurement is the caller's, not the shell's]")
 
 
 def spawned_env(exported: dict) -> dict:
@@ -519,12 +531,30 @@ def case_readme_states_the_behavior_not_a_workaround() -> None:
 
 
 for name, fn in [
-    ("an API key never reaches the model call [criterion 1]", case_an_api_key_never_reaches_the_model_call),
-    ("Bedrock routing never reaches the model call [criterion 2]", case_bedrock_routing_never_reaches_the_model_call),
-    ("an env model override never reaches the model call", case_a_model_override_never_reaches_the_model_call),
-    ("the rest of the environment is passed through [criterion 3]", case_the_rest_of_the_environment_is_passed_through),
-    ("every stripped variable has a case [criterion 4]", case_every_redirecting_var_is_covered_by_a_case),
-    ("README states the behavior, not the workaround [criterion 5]", case_readme_states_the_behavior_not_a_workaround),
+    (
+        "an API key never reaches the model call [criterion 1]",
+        case_an_api_key_never_reaches_the_model_call,
+    ),
+    (
+        "Bedrock routing never reaches the model call [criterion 2]",
+        case_bedrock_routing_never_reaches_the_model_call,
+    ),
+    (
+        "an env model override never reaches the model call",
+        case_a_model_override_never_reaches_the_model_call,
+    ),
+    (
+        "the rest of the environment is passed through [criterion 3]",
+        case_the_rest_of_the_environment_is_passed_through,
+    ),
+    (
+        "every stripped variable has a case [criterion 4]",
+        case_every_redirecting_var_is_covered_by_a_case,
+    ),
+    (
+        "README states the behavior, not the workaround [criterion 5]",
+        case_readme_states_the_behavior_not_a_workaround,
+    ),
 ]:
     check(name, fn)
 
@@ -622,10 +652,16 @@ def case_the_case_is_no_longer_marked_known_failing() -> None:
 
 for name, fn in [
     ("the real captured answer passes [criterion 1]", case_the_real_captured_answer_passes),
-    ("an answer that builds to its conclusion fails [criterion 2]", case_an_answer_that_builds_to_its_conclusion_fails),
+    (
+        "an answer that builds to its conclusion fails [criterion 2]",
+        case_an_answer_that_builds_to_its_conclusion_fails,
+    ),
     ("a preamble before the answer fails [criterion 3]", case_a_preamble_before_the_answer_fails),
     ("bold and heading leads still pass", case_bold_and_heading_leads_still_pass),
-    ("the case is no longer marked known_failing [criterion 4]", case_the_case_is_no_longer_marked_known_failing),
+    (
+        "the case is no longer marked known_failing [criterion 4]",
+        case_the_case_is_no_longer_marked_known_failing,
+    ),
 ]:
     check(name, fn)
 
@@ -666,8 +702,14 @@ def case_the_evals_command_is_still_documented() -> None:
 
 
 for name, fn in [
-    ("AGENTS.md takes the evals out of the ship gate [criterion 1]", case_agents_md_takes_the_evals_out_of_the_ship_gate),
-    ("the evals command is still in the command block [criterion 2]", case_the_evals_command_is_still_documented),
+    (
+        "AGENTS.md takes the evals out of the ship gate [criterion 1]",
+        case_agents_md_takes_the_evals_out_of_the_ship_gate,
+    ),
+    (
+        "the evals command is still in the command block [criterion 2]",
+        case_the_evals_command_is_still_documented,
+    ),
 ]:
     check(name, fn)
 
@@ -678,7 +720,9 @@ print("\n  [the CLI, through its real entry point]")
 def case_cli_help_exits_zero() -> None:
     result = subprocess.run(
         [sys.executable, str(EVALS / "run.py"), "--help"],
-        capture_output=True, text=True, cwd=str(harness.REPO_ROOT),
+        capture_output=True,
+        text=True,
+        cwd=str(harness.REPO_ROOT),
     )
     assert result.returncode == 0, f"--help must exit 0: {result.returncode}, {result.stderr[:200]}"
     for flag in ("--keep-fixtures", "--no-baseline", "--runs"):
@@ -691,7 +735,9 @@ def case_cli_unknown_case_exits_one() -> None:
     """The load-time failure path, through argv, with no model call behind it."""
     result = subprocess.run(
         [sys.executable, str(EVALS / "run.py"), "--case", "no-such-case"],
-        capture_output=True, text=True, cwd=str(harness.REPO_ROOT),
+        capture_output=True,
+        text=True,
+        cwd=str(harness.REPO_ROOT),
     )
     assert result.returncode == 1, f"an unknown case must exit 1: {result.returncode}"
     assert "no cases found" in result.stderr, f"and say so: {result.stderr[:200]!r}"
@@ -700,7 +746,9 @@ def case_cli_unknown_case_exits_one() -> None:
     # rather than merely printing something like it. A renamed flag exits 2 here.
     with_flag = subprocess.run(
         [sys.executable, str(EVALS / "run.py"), "--keep-fixtures", "--case", "no-such-case"],
-        capture_output=True, text=True, cwd=str(harness.REPO_ROOT),
+        capture_output=True,
+        text=True,
+        cwd=str(harness.REPO_ROOT),
     )
     assert with_flag.returncode == 1, (
         f"--keep-fixtures must be a real flag, not an argparse error: "
@@ -710,9 +758,21 @@ def case_cli_unknown_case_exits_one() -> None:
 
 def case_no_third_party_imports() -> None:
     stdlib = {
-        "__future__", "argparse", "contextlib", "collections", "dataclasses", "json",
-        "pathlib", "re", "shutil", "subprocess", "sys", "tempfile", "atexit",
-        "argparse", "io", "os",
+        "__future__",
+        "argparse",
+        "contextlib",
+        "collections",
+        "dataclasses",
+        "json",
+        "pathlib",
+        "re",
+        "shutil",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "atexit",
+        "io",
+        "os",
     }
     # Not stdlib: the harness under test, imported by path above.
     stdlib = stdlib | {"run"}
@@ -725,20 +785,47 @@ def case_no_third_party_imports() -> None:
 
 for name, fn in [
     ("the six shipped cases carry neither new key [criterion 1]", case_shipped_cases_are_untouched),
-    ("a case with no fixture runs in the repository root [criterion 1]", case_case_without_fixture_runs_in_repo_root),
-    ("a case with no single_arm runs both arms [criterion 1]", case_case_without_single_arm_runs_both_arms),
-    ("--no-baseline still drops the baseline arm [criterion 1]", case_no_baseline_flag_still_drops_the_baseline),
-    ("a fixture is a temp git repository, not this one [criterion 2]", case_fixture_is_a_temp_repo_not_the_root),
+    (
+        "a case with no fixture runs in the repository root [criterion 1]",
+        case_case_without_fixture_runs_in_repo_root,
+    ),
+    (
+        "a case with no single_arm runs both arms [criterion 1]",
+        case_case_without_single_arm_runs_both_arms,
+    ),
+    (
+        "--no-baseline still drops the baseline arm [criterion 1]",
+        case_no_baseline_flag_still_drops_the_baseline,
+    ),
+    (
+        "a fixture is a temp git repository, not this one [criterion 2]",
+        case_fixture_is_a_temp_repo_not_the_root,
+    ),
     ("base/ becomes the one initial commit [criterion 2]", case_fixture_base_is_committed),
-    ("plant/ is left uncommitted, as the change [criterion 2]", case_fixture_plant_is_left_uncommitted),
-    ("origin/main resolves, so a scoped run sees the plant [criterion 2]", case_fixture_origin_resolves_a_base),
+    (
+        "plant/ is left uncommitted, as the change [criterion 2]",
+        case_fixture_plant_is_left_uncommitted,
+    ),
+    (
+        "origin/main resolves, so a scoped run sees the plant [criterion 2]",
+        case_fixture_origin_resolves_a_base,
+    ),
     ("each run gets its own tree, and it is cleaned up", case_two_runs_get_independent_trees),
     ("single_arm runs the with-plugin arm alone [criterion 3]", case_single_arm_runs_one_arm),
-    ("single_arm false behaves like an absent key [criterion 3]", case_single_arm_false_keeps_both_arms),
+    (
+        "single_arm false behaves like an absent key [criterion 3]",
+        case_single_arm_false_keeps_both_arms,
+    ),
     ("README.md documents both keys and the layout [criterion 4]", case_readme_documents_both_keys),
-    ("the model call is made inside the fixture [criterion 2]", case_model_call_happens_in_the_fixture),
+    (
+        "the model call is made inside the fixture [criterion 2]",
+        case_model_call_happens_in_the_fixture,
+    ),
     ("--keep-fixtures leaves the tree and names it", case_keep_fixtures_leaves_the_tree),
-    ("the header states a skipped arm and a fixture run", case_header_counts_single_arm_and_fixture_cases),
+    (
+        "the header states a skipped arm and a fixture run",
+        case_header_counts_single_arm_and_fixture_cases,
+    ),
     ("run.py --help exits 0 through real argv", case_cli_help_exits_zero),
     ("run.py --case no-such-case exits 1 through real argv", case_cli_unknown_case_exits_one),
     ("a misnamed fixture fails before any model call", case_missing_fixture_fails_fast),

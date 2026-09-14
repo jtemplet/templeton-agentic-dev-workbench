@@ -205,9 +205,7 @@ def check_top_level(report: dict[str, Any]) -> None:
     for name in COUNT_FIELDS:
         require(report, name, is_count)
     if (report["base"] is None) != (report["changed_files"] is None):
-        raise UnreadableReport(
-            "`base` and `changed_files` must both be null, or neither."
-        )
+        raise UnreadableReport("`base` and `changed_files` must both be null, or neither.")
 
 
 def check_criterion(criterion: dict[str, Any]) -> None:
@@ -237,9 +235,7 @@ def check_counts_match_rows(report: dict[str, Any]) -> None:
     }
     for name, tally in tallies.items():
         if report[name] != tally:
-            raise UnreadableReport(
-                f"`{name}` is {report[name]}, and the rows count {tally}."
-            )
+            raise UnreadableReport(f"`{name}` is {report[name]}, and the rows count {tally}.")
 
 
 def is_accepted(report: dict[str, Any]) -> bool:
@@ -267,9 +263,7 @@ def scope_findings(report: dict[str, Any], dirty_paths: frozenset[str]) -> Outco
 
     if gates_with(report, BLOCKED):
         return Blocked(NEEDS_ENVIRONMENT, "Nothing is in scope, and a gate is BLOCKED.")
-    return Blocked(
-        NEEDS_HUMAN_CHECK, "Nothing is in scope, and the report is not ACCEPTED."
-    )
+    return Blocked(NEEDS_HUMAN_CHECK, "Nothing is in scope, and the report is not ACCEPTED.")
 
 
 def criterion_entry(criterion: dict[str, Any]) -> dict[str, Any]:
@@ -315,9 +309,7 @@ def require(entry: dict[str, Any], name: str, is_valid: Callable[[Any], bool]) -
     if name not in entry:
         raise UnreadableReport(f"The report lacks the version 2 field `{name}`.")
     if not is_valid(entry[name]):
-        raise UnreadableReport(
-            f"The field `{name}` holds {entry[name]!r}, which is not valid."
-        )
+        raise UnreadableReport(f"The field `{name}` holds {entry[name]!r}, which is not valid.")
 
 
 def is_text(value: Any) -> bool:
@@ -337,22 +329,16 @@ def is_object_list(value: Any) -> bool:
 
 
 def is_optional_text_list(value: Any) -> bool:
-    return value is None or (
-        isinstance(value, list) and all(isinstance(v, str) for v in value)
-    )
+    return value is None or (isinstance(value, list) and all(isinstance(v, str) for v in value))
 
 
 def is_optional_base(value: Any) -> bool:
     return value is None or (
-        isinstance(value, dict)
-        and is_text(value.get("ref"))
-        and is_text(value.get("sha"))
+        isinstance(value, dict) and is_text(value.get("ref")) and is_text(value.get("sha"))
     )
 
 
-def main(
-    argv: list[str] | None = None, out: TextIO = sys.stdout, err: TextIO = sys.stderr
-) -> int:
+def main(argv: list[str] | None = None, out: TextIO = sys.stdout, err: TextIO = sys.stderr) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--report", required=True, metavar="PATH")
     parser.add_argument("--head", required=True, metavar="SHA")
@@ -398,9 +384,7 @@ def read_report(path: str) -> str | None:
     except FileNotFoundError:
         return None
     except (OSError, UnicodeDecodeError) as exc:
-        raise UnreadableReport(
-            f"The report at {path} could not be read: {exc}"
-        ) from exc
+        raise UnreadableReport(f"The report at {path} could not be read: {exc}") from exc
 
 
 def parse_porcelain_z(raw: str) -> frozenset[str]:

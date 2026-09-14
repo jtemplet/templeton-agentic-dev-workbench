@@ -194,9 +194,7 @@ def reachable(root: Path, doc: Path, resolved: str, kind: str) -> bool:
     return (root / resolved).exists()
 
 
-def check(
-    root: Path, docs: list[Path], patterns: list[str], skip_docs: list[str]
-) -> list[Miss]:
+def check(root: Path, docs: list[Path], patterns: list[str], skip_docs: list[str]) -> list[Miss]:
     anchors = top_level_dirs(root)
     misses: list[Miss] = []
     for doc in docs:

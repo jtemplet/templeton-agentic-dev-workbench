@@ -165,8 +165,7 @@ def scan(diff: str) -> list[Marker]:
                 path = header_path(raw[4:])
         elif raw.startswith("+"):
             markers.extend(
-                Marker(path, line, match.group(1))
-                for match in MARKER_RE.finditer(raw[1:])
+                Marker(path, line, match.group(1)) for match in MARKER_RE.finditer(raw[1:])
             )
             line += 1
         elif raw.startswith(" "):

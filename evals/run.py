@@ -74,9 +74,12 @@ PLANT_DIR = "plant"
 # off because a machine that signs by default would block on a passphrase prompt
 # inside a subprocess with no terminal.
 GIT_IDENTITY = (
-    "-c", "user.name=tadw evals",
-    "-c", "user.email=evals@example.invalid",
-    "-c", "commit.gpgsign=false",
+    "-c",
+    "user.name=tadw evals",
+    "-c",
+    "user.email=evals@example.invalid",
+    "-c",
+    "commit.gpgsign=false",
 )
 
 FENCED_CODE = re.compile(r"```.*?```", re.S)
@@ -283,11 +286,13 @@ def grade(output: str, checks: dict) -> list[CheckResult]:
 
     for rule in checks.get("forbid_regex", []):
         hit = re.search(rule["pattern"], output, re.I)
-        results.append(CheckResult(
-            name=f"forbid /{rule['pattern']}/",
-            passed=hit is None,
-            detail="absent" if hit is None else f"found {hit.group(0)!r} ({rule['why']})",
-        ))
+        results.append(
+            CheckResult(
+                name=f"forbid /{rule['pattern']}/",
+                passed=hit is None,
+                detail="absent" if hit is None else f"found {hit.group(0)!r} ({rule['why']})",
+            )
+        )
 
     # A label is allowed only when the facts it stands for are present. The word
     # alone is the failure, not the word. Fails when the pattern appears and any
@@ -295,39 +300,49 @@ def grade(output: str, checks: dict) -> list[CheckResult]:
     for rule in checks.get("forbid_label_alone", []):
         hit = re.search(rule["pattern"], output, re.I)
         missing = [p for p in rule["unless_all"] if not re.search(p, output, re.I)]
-        results.append(CheckResult(
-            name=f"label /{rule['pattern']}/ only beside its facts",
-            passed=hit is None or not missing,
-            detail=(
-                "label absent" if hit is None
-                else "label present, and every supporting fact is there" if not missing
-                else f"found {hit.group(0)!r} without {missing} ({rule['why']})"
-            ),
-        ))
+        results.append(
+            CheckResult(
+                name=f"label /{rule['pattern']}/ only beside its facts",
+                passed=hit is None or not missing,
+                detail=(
+                    "label absent"
+                    if hit is None
+                    else "label present, and every supporting fact is there"
+                    if not missing
+                    else f"found {hit.group(0)!r} without {missing} ({rule['why']})"
+                ),
+            )
+        )
 
     for rule in checks.get("require_regex", []):
         hit = re.search(rule["pattern"], output, re.I)
-        results.append(CheckResult(
-            name=f"require /{rule['pattern']}/",
-            passed=hit is not None,
-            detail=f"found {hit.group(0)!r}" if hit else f"missing ({rule['why']})",
-        ))
+        results.append(
+            CheckResult(
+                name=f"require /{rule['pattern']}/",
+                passed=hit is not None,
+                detail=f"found {hit.group(0)!r}" if hit else f"missing ({rule['why']})",
+            )
+        )
 
     if checks.get("require_markdown_table"):
         present = has_markdown_table(output)
-        results.append(CheckResult(
-            name="require markdown table",
-            passed=present,
-            detail="table present" if present else "no table; the matrix rule did not fire",
-        ))
+        results.append(
+            CheckResult(
+                name="require markdown table",
+                passed=present,
+                detail="table present" if present else "no table; the matrix rule did not fire",
+            )
+        )
 
     if checks.get("forbid_markdown_table"):
         present = has_markdown_table(output)
-        results.append(CheckResult(
-            name="forbid markdown table",
-            passed=not present,
-            detail="no table, correct" if not present else "table drawn for an obvious call",
-        ))
+        results.append(
+            CheckResult(
+                name="forbid markdown table",
+                passed=not present,
+                detail="no table, correct" if not present else "table drawn for an obvious call",
+            )
+        )
 
     limit = checks.get("max_sentence_words")
     if limit:
@@ -336,11 +351,14 @@ def grade(output: str, checks: dict) -> list[CheckResult]:
             count = len(sentence.split())
             if count > worst:
                 worst, worst_text = count, sentence.strip()
-        results.append(CheckResult(
-            name=f"max sentence <= {limit} words",
-            passed=worst <= limit,
-            detail=f"longest was {worst}" + ("" if worst <= limit else f": {worst_text[:90]!r}"),
-        ))
+        results.append(
+            CheckResult(
+                name=f"max sentence <= {limit} words",
+                passed=worst <= limit,
+                detail=f"longest was {worst}"
+                + ("" if worst <= limit else f": {worst_text[:90]!r}"),
+            )
+        )
 
     return results
 
@@ -373,20 +391,32 @@ def run_case(name: str, case: dict, args) -> list[RunResult]:
                 with case_cwd(case, args.keep_fixtures) as cwd:
                     output = ask(case["prompt"], args.model, with_plugin, args.timeout, cwd)
             except (RuntimeError, subprocess.TimeoutExpired, OSError) as error:
-                results.append(RunResult(arm, "", [CheckResult("invocation", False, str(error)[:200])]))
+                results.append(
+                    RunResult(arm, "", [CheckResult("invocation", False, str(error)[:200])])
+                )
                 continue
             results.append(RunResult(arm, output, grade(output, case.get("checks", {}))))
     return results
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--case", help="run only this case directory name")
     parser.add_argument("--model", default="sonnet", help="model for the answer (default: sonnet)")
-    parser.add_argument("--runs", type=int, default=1, help="runs per arm (default: 1; use 3 before trusting a result)")
+    parser.add_argument(
+        "--runs",
+        type=int,
+        default=1,
+        help="runs per arm (default: 1; use 3 before trusting a result)",
+    )
     parser.add_argument("--no-baseline", action="store_true", help="skip the no-plugin arm")
-    parser.add_argument("--keep-fixtures", action="store_true",
-                        help="leave each fixture repository on disk, and print where")
+    parser.add_argument(
+        "--keep-fixtures",
+        action="store_true",
+        help="leave each fixture repository on disk, and print where",
+    )
     parser.add_argument("--timeout", type=int, default=300, help="per-call timeout in seconds")
     parser.add_argument("--show-output", action="store_true", help="print each full answer")
     parser.add_argument("--json", metavar="PATH", help="write full results to this JSON file")
@@ -410,12 +440,17 @@ def main() -> int:
             if args.show_output and result.output:
                 body = "\n".join("        | " + line for line in result.output.splitlines())
                 print(body)
-            report[name]["runs"].append({
-                "arm": result.arm,
-                "passed": result.passed,
-                "output": result.output,
-                "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in result.checks],
-            })
+            report[name]["runs"].append(
+                {
+                    "arm": result.arm,
+                    "passed": result.passed,
+                    "output": result.output,
+                    "checks": [
+                        {"name": c.name, "passed": c.passed, "detail": c.detail}
+                        for c in result.checks
+                    ],
+                }
+            )
             bucket = tally.setdefault(result.arm, [0, 0])
             bucket[1] += 1
             if result.passed:
@@ -430,7 +465,9 @@ def main() -> int:
         base_rate = tally["baseline"][0] / tally["baseline"][1]
         print(f"  delta        {with_rate - base_rate:+.0%} (with-plugin minus baseline)")
         if with_rate == base_rate:
-            print("  note: no gap. The model already behaved this way; these rules changed nothing here.")
+            print(
+                "  note: no gap. The model already behaved this way; these rules changed nothing here."
+            )
 
     if args.json:
         Path(args.json).write_text(json.dumps(report, indent=2))

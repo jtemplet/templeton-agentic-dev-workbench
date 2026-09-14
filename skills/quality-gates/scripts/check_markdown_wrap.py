@@ -54,9 +54,7 @@ def changed_markdown_files() -> list[str]:
     if result.returncode != 0:
         return []
     return [
-        line
-        for line in result.stdout.splitlines()
-        if line.endswith(".md") and Path(line).is_file()
+        line for line in result.stdout.splitlines() if line.endswith(".md") and Path(line).is_file()
     ]
 
 

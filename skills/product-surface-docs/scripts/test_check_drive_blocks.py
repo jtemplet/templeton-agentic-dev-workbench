@@ -121,9 +121,7 @@ def assert_absent(docs: dict[str, str], name: str) -> None:
 
 def assert_outcome(docs: dict[str, str], name: str, expected: str) -> None:
     outcomes = graded(run(build(docs), "--json"))
-    assert outcomes.get(name) == expected, (
-        f"expected {name} to grade {expected}, got {outcomes}"
-    )
+    assert outcomes.get(name) == expected, f"expected {name} to grade {expected}, got {outcomes}"
 
 
 def assert_missing_line(body: str, expected: str) -> None:
@@ -139,9 +137,7 @@ def assert_in_stdout(docs: dict[str, str], needle: str) -> None:
 
 def assert_json_exit(docs: dict[str, str], expected: int) -> None:
     result = run(build(docs), "--json")
-    assert result.returncode == expected, (
-        f"expected exit {expected}, got {result.returncode}"
-    )
+    assert result.returncode == expected, f"expected exit {expected}, got {result.returncode}"
     json.loads(result.stdout)
 
 
@@ -227,9 +223,7 @@ check(
 )
 check(
     "_findings.md is never a leaf",
-    lambda: assert_absent(
-        {"_findings.md": NO_BLOCK, "web/web.md": FULL_BLOCK}, "_findings.md"
-    ),
+    lambda: assert_absent({"_findings.md": NO_BLOCK, "web/web.md": FULL_BLOCK}, "_findings.md"),
 )
 
 print("\n  what counts as a usable block")
@@ -302,9 +296,7 @@ check(
 )
 check(
     "the count reads as a plural when the tree holds more than one leaf",
-    lambda: assert_in_stdout(
-        {"web/web.md": FULL_BLOCK, "ios/ios.md": FULL_BLOCK}, "2 leaves,"
-    ),
+    lambda: assert_in_stdout({"web/web.md": FULL_BLOCK, "ios/ios.md": FULL_BLOCK}, "2 leaves,"),
 )
 check(
     "one failing leaf reads as a singular",

@@ -312,7 +312,7 @@ MD013_UNTOUCHED_MARKDOWN = (
 )
 
 
-def install_real_markdown_wrap(fixture: "Fixture") -> None:
+def install_real_markdown_wrap(fixture: Fixture) -> None:
     """Restore the real check_markdown_wrap.py over hook_check_stubs()'s no-op.
 
     Every `python3 <path>` check is stubbed by default, for speed; these MD013
@@ -321,6 +321,7 @@ def install_real_markdown_wrap(fixture: "Fixture") -> None:
     """
     script = "skills/quality-gates/scripts/check_markdown_wrap.py"
     fixture.write(script, (REPO / script).read_text(encoding="utf-8"))
+
 
 # The timestamp every planted verdict carries. A fixed value, because the FAIL
 # message has to name it and a generated one could not be asserted against.
@@ -345,11 +346,7 @@ CHANGED_BD_STUB = (
     'echo \'{"id": "stub-export"}\' > .beads/issues.jsonl\n'
     "exit 0\n"
 )
-FAILING_BD_STUB = (
-    "#!/usr/bin/env sh\n"
-    "echo 'no beads database found' >&2\n"
-    "exit 1\n"
-)
+FAILING_BD_STUB = "#!/usr/bin/env sh\necho 'no beads database found' >&2\nexit 1\n"
 
 GIT = shutil.which("git") or "git"
 
@@ -377,8 +374,18 @@ def git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     reveals the gap.
     """
     return subprocess.run(
-        [GIT, "-c", "core.excludesFile=/dev/null", "-c", "user.email=t@t",
-         "-c", "user.name=t", "-C", str(root), *args],
+        [
+            GIT,
+            "-c",
+            "core.excludesFile=/dev/null",
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "-C",
+            str(root),
+            *args,
+        ],
         capture_output=True,
         text=True,
         check=True,
@@ -426,8 +433,19 @@ class Fixture:
         if bd_stub:
             environment["PATH"] = f"{self.bd_stub_dir}{os.pathsep}{environment.get('PATH', '')}"
         return subprocess.run(
-            [GIT, "-c", "user.email=t@t", "-c", "user.name=t", "-C", str(self.work),
-             "push", "--dry-run", "origin", *(args or ("main",))],
+            [
+                GIT,
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                "-C",
+                str(self.work),
+                "push",
+                "--dry-run",
+                "origin",
+                *(args or ("main",)),
+            ],
             capture_output=True,
             text=True,
             env=environment,
@@ -550,8 +568,21 @@ def record_verdict(root: Path, verdict: str, *, head: str | None = None) -> Path
 # shells out to, and `sh` for its own `#!/usr/bin/env sh` line. `sysctl` is the
 # fallback when `getconf` cannot count the processors.
 HOOK_TOOLS = (
-    "sh", "bash", "date", "mkdir", "cat", "rm", "git", "node", "python3", "rumdl", "bd",
-    "sleep", "ps", "getconf", "sysctl",
+    "sh",
+    "bash",
+    "date",
+    "mkdir",
+    "cat",
+    "rm",
+    "git",
+    "node",
+    "python3",
+    "rumdl",
+    "bd",
+    "sleep",
+    "ps",
+    "getconf",
+    "sysctl",
 )
 
 
@@ -593,7 +624,7 @@ def commands_in_hook() -> list[str]:
     commands = []
     for line in HOOK.read_text(encoding="utf-8").splitlines():
         if line.startswith("check "):
-            commands.append(line[len("check "):].strip())
+            commands.append(line[len("check ") :].strip())
     return commands
 
 
@@ -768,7 +799,10 @@ def case_failure_report_names_the_command() -> None:
 
 
 for name, fn in [
-    ("broken markdown refuses the push and names the file [criterion 1]", case_broken_markdown_refuses_push),
+    (
+        "broken markdown refuses the push and names the file [criterion 1]",
+        case_broken_markdown_refuses_push,
+    ),
     ("two failures both appear in one report [criterion 4]", case_two_failures_both_reported),
     ("a broken relative link refuses the push", case_broken_relative_link_refuses_push),
     ("the report names the failing command", case_failure_report_names_the_command),
@@ -859,10 +893,19 @@ def case_md013_ignores_table_and_code_block() -> None:
 
 
 for name, fn in [
-    ("a changed overlong line refuses the push, named [tadw-2l3 criterion 1]", case_md013_flags_a_changed_overlong_line),
+    (
+        "a changed overlong line refuses the push, named [tadw-2l3 criterion 1]",
+        case_md013_flags_a_changed_overlong_line,
+    ),
     ("a deleted markdown file does not refuse the push", case_md013_ignores_a_deleted_file),
-    ("an untouched overlong file does not fail the push [tadw-2l3 criterion 2]", case_md013_ignores_an_untouched_file),
-    ("a long table row or code line never fails the push [tadw-2l3 criterion 3]", case_md013_ignores_table_and_code_block),
+    (
+        "an untouched overlong file does not fail the push [tadw-2l3 criterion 2]",
+        case_md013_ignores_an_untouched_file,
+    ),
+    (
+        "a long table row or code line never fails the push [tadw-2l3 criterion 3]",
+        case_md013_ignores_table_and_code_block,
+    ),
 ]:
     check(name, fn)
 
@@ -952,14 +995,15 @@ def case_no_check_ran_is_not_a_pass() -> None:
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a toolless clone must still push: {output}"
     assert "passed" not in output, f"nothing ran, so nothing passed: {output!r}"
-    assert f"0 of {len(commands_in_hook())}" in output, (
-        f"it must say how little ran: {output!r}"
-    )
+    assert f"0 of {len(commands_in_hook())}" in output, f"it must say how little ran: {output!r}"
     assert "nothing was verified" in output, f"and say what that means: {output!r}"
 
 
 for name, fn in [
-    ("TADW_PREPUSH=off allows a push that would fail [criterion 2]", case_off_switch_allows_a_failing_push),
+    (
+        "TADW_PREPUSH=off allows a push that would fail [criterion 2]",
+        case_off_switch_allows_a_failing_push,
+    ),
     ("only the documented off value disables the hook", case_off_switch_is_exact),
     ("a missing rumdl warns by name and allows [criterion 3]", case_missing_rumdl_warns_and_allows),
     ("a missing python3 warns once, not six times", case_missing_python3_warns_once),
@@ -1076,8 +1120,19 @@ def case_push_from_a_linked_worktree_spares_the_main_repository() -> None:
     config = fixture.work / ".git" / "config"
     before = config.read_text(encoding="utf-8")
     result = subprocess.run(
-        [GIT, "-c", "user.email=t@t", "-c", "user.name=t", "-C", str(linked),
-         "push", "--dry-run", "origin", "linked-work"],
+        [
+            GIT,
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "-C",
+            str(linked),
+            "push",
+            "--dry-run",
+            "origin",
+            "linked-work",
+        ],
         capture_output=True,
         text=True,
     )
@@ -1093,9 +1148,18 @@ def case_push_from_a_linked_worktree_spares_the_main_repository() -> None:
 
 for name, fn in [
     ("a delete-only push runs no checks [criterion 6]", case_delete_only_push_runs_nothing),
-    ("a mixed delete-and-update push does run the checks", case_mixed_delete_and_update_runs_checks),
-    ("the hook modifies nothing, including the CI workflow [criterion 5]", case_hook_leaves_the_tree_alone),
-    ("a push from a linked worktree spares the main repository", case_push_from_a_linked_worktree_spares_the_main_repository),
+    (
+        "a mixed delete-and-update push does run the checks",
+        case_mixed_delete_and_update_runs_checks,
+    ),
+    (
+        "the hook modifies nothing, including the CI workflow [criterion 5]",
+        case_hook_leaves_the_tree_alone,
+    ),
+    (
+        "a push from a linked worktree spares the main repository",
+        case_push_from_a_linked_worktree_spares_the_main_repository,
+    ),
     ("a clean push prints one summary line", case_clean_push_is_quiet),
 ]:
     check(name, fn)
@@ -1145,7 +1209,7 @@ def paired_checks() -> tuple[str, str]:
     marker = lines.index("after_previous=yes")
     above = next(line for line in reversed(lines[:marker]) if line.startswith("check "))
     below = next(line for line in lines[marker:] if line.startswith("check "))
-    return above[len("check "):].strip(), below[len("check "):].strip()
+    return above[len("check ") :].strip(), below[len("check ") :].strip()
 
 
 def script_of(command: str) -> str:
@@ -1174,7 +1238,9 @@ def start_hook_directly(fixture: Fixture, path_prefix: str = "") -> subprocess.P
     """
     environment = dict(os.environ)
     environment["PATH"] = os.pathsep.join(
-        part for part in (path_prefix, str(fixture.bd_stub_dir), environment.get("PATH", "")) if part
+        part
+        for part in (path_prefix, str(fixture.bd_stub_dir), environment.get("PATH", ""))
+        if part
     )
     hook = subprocess.Popen(
         ["sh", str(fixture.work / ".githooks" / "pre-push"), "origin", "/dev/null"],
@@ -1330,7 +1396,9 @@ def case_paired_check_runs_in_the_job_of_the_one_above() -> None:
     fixture.commit_all("a pair that fails unless it shares a job")
     result = fixture.push()
     output = result.stdout + result.stderr
-    assert result.returncode == 0, f"the second check must run after the first, in its job: {output}"
+    assert result.returncode == 0, (
+        f"the second check must run after the first, in its job: {output}"
+    )
 
 
 def case_after_previous_does_not_outlive_a_skipped_check() -> None:
@@ -1364,7 +1432,9 @@ def case_after_previous_does_not_outlive_a_skipped_check() -> None:
     fixture.commit_all("a flag above a skipped check")
     result = fixture.push()
     output = result.stdout + result.stderr
-    assert "tadw-no-such-tool" in output, f"the control: the inserted check must be skipped: {output}"
+    assert "tadw-no-such-tool" in output, (
+        f"the control: the inserted check must be skipped: {output}"
+    )
     assert result.returncode == 0, f"the check below must get a job of its own: {output}"
 
 
@@ -1484,16 +1554,40 @@ def case_a_signal_during_the_tracker_export_commits_nothing() -> None:
 
 
 for name, fn in [
-    ("SIGINT refuses the push, lets a check clean up, and stops it", interrupted_hook_case(signal.SIGINT, 130)),
-    ("SIGHUP refuses the push, lets a check clean up, and stops it", interrupted_hook_case(signal.SIGHUP, 129)),
-    ("SIGTERM refuses the push, lets a check clean up, and stops it", interrupted_hook_case(signal.SIGTERM, 143)),
-    ("a process started during the interrupt is stopped too", case_a_process_started_during_the_interrupt_is_stopped),
-    ("the paired check runs in the job of the check above it", case_paired_check_runs_in_the_job_of_the_one_above),
-    ("after_previous does not outlive a skipped check", case_after_previous_does_not_outlive_a_skipped_check),
+    (
+        "SIGINT refuses the push, lets a check clean up, and stops it",
+        interrupted_hook_case(signal.SIGINT, 130),
+    ),
+    (
+        "SIGHUP refuses the push, lets a check clean up, and stops it",
+        interrupted_hook_case(signal.SIGHUP, 129),
+    ),
+    (
+        "SIGTERM refuses the push, lets a check clean up, and stops it",
+        interrupted_hook_case(signal.SIGTERM, 143),
+    ),
+    (
+        "a process started during the interrupt is stopped too",
+        case_a_process_started_during_the_interrupt_is_stopped,
+    ),
+    (
+        "the paired check runs in the job of the check above it",
+        case_paired_check_runs_in_the_job_of_the_one_above,
+    ),
+    (
+        "after_previous does not outlive a skipped check",
+        case_after_previous_does_not_outlive_a_skipped_check,
+    ),
     ("jobs never exceed the processor count", case_jobs_never_exceed_the_processor_count),
-    ("a check killed before its status counts as failed", case_check_killed_before_its_status_counts_as_failed),
+    (
+        "a check killed before its status counts as failed",
+        case_check_killed_before_its_status_counts_as_failed,
+    ),
     ("a check ended by a signal ends its job", case_a_check_ended_by_a_signal_ends_its_job),
-    ("a signal during the tracker export commits nothing", case_a_signal_during_the_tracker_export_commits_nothing),
+    (
+        "a signal during the tracker export commits nothing",
+        case_a_signal_during_the_tracker_export_commits_nothing,
+    ),
 ]:
     check(name, fn)
 
@@ -1730,8 +1824,19 @@ def case_verdict_is_read_from_the_git_dir() -> None:
 
     def push_from_linked() -> str:
         result = subprocess.run(
-            [GIT, "-c", "user.email=t@t", "-c", "user.name=t", "-C", str(linked),
-             "push", "--dry-run", "origin", "linked-work"],
+            [
+                GIT,
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                "-C",
+                str(linked),
+                "push",
+                "--dry-run",
+                "origin",
+                "linked-work",
+            ],
             capture_output=True,
             text=True,
         )
@@ -1766,16 +1871,34 @@ def case_delete_only_push_ignores_a_fail_verdict() -> None:
 
 
 for name, fn in [
-    ("a recorded FAIL refuses the push, naming verdict, head and time [criterion 1]", case_fail_verdict_refuses_the_push),
-    ("no recorded verdict is one warning and a push [criterion 2]", case_no_report_warns_once_and_allows),
-    ("a verdict for a commit off the pushed line warns as stale [criterion 3]", case_verdict_off_the_pushed_line_warns),
-    ("a verdict for a head this clone has never seen warns as stale", case_verdict_for_an_unknown_head_warns),
+    (
+        "a recorded FAIL refuses the push, naming verdict, head and time [criterion 1]",
+        case_fail_verdict_refuses_the_push,
+    ),
+    (
+        "no recorded verdict is one warning and a push [criterion 2]",
+        case_no_report_warns_once_and_allows,
+    ),
+    (
+        "a verdict for a commit off the pushed line warns as stale [criterion 3]",
+        case_verdict_off_the_pushed_line_warns,
+    ),
+    (
+        "a verdict for a head this clone has never seen warns as stale",
+        case_verdict_for_an_unknown_head_warns,
+    ),
     ("a current PASS verdict says nothing [criterion 4]", case_current_pass_verdict_is_silent),
     ("a verdict recorded for an ancestor of the push is current", case_ancestor_verdict_is_current),
-    ("a verdict current for one of several pushed refs is not stale", case_a_verdict_current_for_one_pushed_ref_is_not_stale),
+    (
+        "a verdict current for one of several pushed refs is not stale",
+        case_a_verdict_current_for_one_pushed_ref_is_not_stale,
+    ),
     ("both stages report their own failure from one push", case_both_stages_report_separately),
     ("TADW_PREPUSH=off allows a recorded FAIL through", case_off_switch_allows_a_failed_verdict),
-    ("an unreadable report warns and allows, and is not read as a FAIL", case_unparseable_report_warns_and_allows),
+    (
+        "an unreadable report warns and allows, and is not read as a FAIL",
+        case_unparseable_report_warns_and_allows,
+    ),
     ("a lowercase verdict still blocks", case_a_lowercase_verdict_still_blocks),
     ("the verdict is read from the resolved git directory", case_verdict_is_read_from_the_git_dir),
     ("a delete-only push ignores a recorded FAIL", case_delete_only_push_ignores_a_fail_verdict),
@@ -1882,16 +2005,33 @@ def case_delete_only_push_skips_the_tracker_export() -> None:
     result = fixture.push("--delete", "doomed")
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a delete-only push must be allowed: {output}"
-    assert head_of(fixture.work) == before, f"a delete-only push must not run stage 3 either: {output}"
+    assert head_of(fixture.work) == before, (
+        f"a delete-only push must not run stage 3 either: {output}"
+    )
 
 
 for name, fn in [
-    ("a changed export lands as a follow-up commit [criterion 1]", case_tracker_export_is_committed_when_it_changes),
-    ("a clean export adds no line and no commit [criterion 2]", case_tracker_export_is_silent_when_nothing_changed),
-    ("a failed export warns, names the cost, and allows the push [criterion 3]", case_tracker_export_failure_warns_and_allows),
+    (
+        "a changed export lands as a follow-up commit [criterion 1]",
+        case_tracker_export_is_committed_when_it_changes,
+    ),
+    (
+        "a clean export adds no line and no commit [criterion 2]",
+        case_tracker_export_is_silent_when_nothing_changed,
+    ),
+    (
+        "a failed export warns, names the cost, and allows the push [criterion 3]",
+        case_tracker_export_failure_warns_and_allows,
+    ),
     ("a missing bd warns by name and allows [criterion 4]", case_missing_bd_warns_and_allows),
-    ("TADW_PREPUSH=off skips the tracker export too [criterion 5]", case_off_switch_also_skips_the_tracker_export),
-    ("a delete-only push runs no export either [criterion 6]", case_delete_only_push_skips_the_tracker_export),
+    (
+        "TADW_PREPUSH=off skips the tracker export too [criterion 5]",
+        case_off_switch_also_skips_the_tracker_export,
+    ),
+    (
+        "a delete-only push runs no export either [criterion 6]",
+        case_delete_only_push_skips_the_tracker_export,
+    ),
 ]:
     check(name, fn)
 
@@ -1934,7 +2074,10 @@ def case_every_hook_command_exists() -> None:
 
 
 for name, fn in [
-    ("the hook's list is the AGENTS.md block minus the documented exclusions", case_command_list_matches_agents_md),
+    (
+        "the hook's list is the AGENTS.md block minus the documented exclusions",
+        case_command_list_matches_agents_md,
+    ),
     ("every command the hook runs names a real path", case_every_hook_command_exists),
 ]:
     check(name, fn)

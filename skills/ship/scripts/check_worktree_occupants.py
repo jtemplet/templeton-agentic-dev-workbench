@@ -76,9 +76,7 @@ def process_cwds() -> dict[int, str]:
             timeout=LSOF_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired as exc:
-        raise LsofUnavailable(
-            f"lsof did not answer within {LSOF_TIMEOUT_SECONDS} seconds"
-        ) from exc
+        raise LsofUnavailable(f"lsof did not answer within {LSOF_TIMEOUT_SECONDS} seconds") from exc
     except OSError as exc:
         raise LsofUnavailable(f"lsof could not be run: {exc}") from exc
 
@@ -87,9 +85,7 @@ def process_cwds() -> dict[int, str]:
     # and it still prints every record it did read. Empty output is the real
     # failure, because that is the answer nothing produced.
     if not result.stdout.strip():
-        raise LsofUnavailable(
-            f"lsof reported no process at all (exit {result.returncode})"
-        )
+        raise LsofUnavailable(f"lsof reported no process at all (exit {result.returncode})")
 
     cwds: dict[int, str] = {}
     pid: int | None = None
@@ -164,11 +160,7 @@ def main() -> int:
         print(f"OK: no live process has {worktree} as its working directory")
         return EXIT_UNOCCUPIED
 
-    subject = (
-        "1 live process stands"
-        if len(found) == 1
-        else f"{len(found)} live processes stand"
-    )
+    subject = "1 live process stands" if len(found) == 1 else f"{len(found)} live processes stand"
     print(f"WARNING: {subject} in {worktree}:")
     for pid, raw_cwd in found:
         print(f"  pid {pid} ({command_name(pid)}) cwd {raw_cwd}")

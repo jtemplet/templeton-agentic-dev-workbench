@@ -92,9 +92,7 @@ PASSING_GATES = [
 ]
 
 
-def report(
-    criteria: list[dict], gates: list[dict] = PASSING_GATES, **overrides
-) -> dict:
+def report(criteria: list[dict], gates: list[dict] = PASSING_GATES, **overrides) -> dict:
     """A version 2 acceptance report whose counts agree with its rows."""
     body = {
         "version": 2,
@@ -170,9 +168,7 @@ def case_invalid_json_is_report_unreadable() -> None:
 def case_version_1_is_report_unreadable_and_names_it() -> None:
     outcome = load(report([criterion(1, "PASS")], version=1))
     assert reason_of(outcome) == "report-unreadable", f"got {outcome!r}"
-    assert "version is 1" in outcome.detail, (
-        f"must name the version: {outcome.detail!r}"
-    )
+    assert "version is 1" in outcome.detail, f"must name the version: {outcome.detail!r}"
 
 
 def case_missing_version_2_field_is_report_unreadable() -> None:
@@ -408,9 +404,7 @@ def case_pass_and_skip_rows_are_not_findings() -> None:
     findings = failing_findings()
     every = findings["in_scope"] + findings["out_of_scope"]
     assert by_key(every, "criterion", 1) is None, "a PASS criterion is not a finding"
-    assert by_key(every, "gate", "Type checking") is None, (
-        "a SKIP gate is not a finding"
-    )
+    assert by_key(every, "gate", "Type checking") is None, "a SKIP gate is not a finding"
 
 
 def case_known_base_marks_scope_known() -> None:
@@ -475,9 +469,7 @@ def case_findings_print_as_json() -> None:
 
 def case_renamed_from_path_counts_as_dirty() -> None:
     code, out, _ = run_cli(dirty_files=RENAME_STATUS)
-    assert code == 1, (
-        f"the rename's original path is a changed file, got {code}: {out!r}"
-    )
+    assert code == 1, f"the rename's original path is a changed file, got {code}: {out!r}"
     assert out.strip() == "RECONCILE_ACCEPTANCE_BLOCKED uncommitted-changes", out
 
 
@@ -555,9 +547,12 @@ def run_subprocess(*args: str) -> subprocess.CompletedProcess[str]:
 
 def case_subprocess_missing_report_ends_on_the_machine_line() -> None:
     result = run_subprocess(
-        "--report", str(WORKDIR / "absent.json"),
-        "--head", HEAD,
-        "--dirty-files", str(CLEAN_STATUS),
+        "--report",
+        str(WORKDIR / "absent.json"),
+        "--head",
+        HEAD,
+        "--dirty-files",
+        str(CLEAN_STATUS),
     )
     assert result.returncode == 1, f"must exit 1, got {result.returncode}"
     assert result.stdout.splitlines()[-1] == "RECONCILE_ACCEPTANCE_BLOCKED report-missing", (
@@ -602,9 +597,7 @@ print("\n  [the shape of the file itself]")
 def case_script_never_names_subprocess() -> None:
     lines = [
         f"{number}: {line}"
-        for number, line in enumerate(
-            SCRIPT.read_text(encoding="utf-8").splitlines(), 1
-        )
+        for number, line in enumerate(SCRIPT.read_text(encoding="utf-8").splitlines(), 1)
         if "subprocess" in line
     ]
     assert not lines, f"the loader must run no process: {lines}"
@@ -643,9 +636,7 @@ def case_no_third_party_imports() -> None:
     }
     for path in (SCRIPT, Path(__file__).resolve()):
         source = path.read_text(encoding="utf-8")
-        imported = set(
-            re.findall(r"^(?:from|import)\s+([A-Za-z_][\w.]*)", source, re.M)
-        )
+        imported = set(re.findall(r"^(?:from|import)\s+([A-Za-z_][\w.]*)", source, re.M))
         outside = {m for m in imported if m.split(".")[0] not in stdlib}
         assert not outside, f"{path.name} imports outside the stdlib: {outside}"
 
@@ -682,9 +673,5 @@ for name, fn in [
 ]:
     check(name, fn)
 
-print(
-    f"\nAll {passed} checks passed."
-    if not failed
-    else f"\n{failed} FAILED, {passed} passed."
-)
+print(f"\nAll {passed} checks passed." if not failed else f"\n{failed} FAILED, {passed} passed.")
 sys.exit(1 if failed else 0)

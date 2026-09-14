@@ -54,9 +54,7 @@ import sys
 from pathlib import Path
 
 DEFAULT_SKILL = Path(__file__).resolve().parent.parent / "SKILL.md"
-DEFAULT_COMMAND = (
-    Path(__file__).resolve().parents[3] / "commands" / "bead-refine.md"
-)
+DEFAULT_COMMAND = Path(__file__).resolve().parents[3] / "commands" / "bead-refine.md"
 
 MARKERS = {
     "round": ("<!-- refine-round:round-start -->", "<!-- refine-round:round-end -->"),
@@ -189,9 +187,7 @@ def check_round(lines: list[str], start: int, end: int) -> list[str]:
     tables = tables_in(lines, start, end)
 
     if len(tables) != 1:
-        return [
-            f"line {start + 1}: a round region must hold exactly 1 table, found {len(tables)}"
-        ]
+        return [f"line {start + 1}: a round region must hold exactly 1 table, found {len(tables)}"]
 
     header_index, rows = tables[0]
     header = cells(lines[header_index])

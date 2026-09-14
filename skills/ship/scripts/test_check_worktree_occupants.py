@@ -58,9 +58,7 @@ def check(name: str, fn) -> None:
         failed += 1
 
 
-def run(
-    worktree: str, env: dict[str, str] | None = None
-) -> subprocess.CompletedProcess[str]:
+def run(worktree: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--worktree", str(worktree)],
         capture_output=True,
@@ -98,9 +96,7 @@ def case_occupied_reports_the_pid() -> None:
         assert result.returncode == 1, (
             f"occupied must exit 1, got {result.returncode}: {result.stderr}"
         )
-        assert f"pid {process.pid}" in result.stdout, (
-            f"must name the pid: {result.stdout!r}"
-        )
+        assert f"pid {process.pid}" in result.stdout, f"must name the pid: {result.stdout!r}"
         assert "WARNING" in result.stdout, f"must warn: {result.stdout!r}"
     finally:
         process.kill()
@@ -113,9 +109,7 @@ def case_occupied_names_the_consequence() -> None:
     process = occupy(worktree)
     try:
         result = run(worktree)
-        assert "labels no bead" in result.stdout, (
-            f"must name the consequence: {result.stdout!r}"
-        )
+        assert "labels no bead" in result.stdout, f"must name the consequence: {result.stdout!r}"
     finally:
         process.kill()
         process.wait()
@@ -216,12 +210,8 @@ def case_subdirectory_occupant_counts() -> None:
     process = occupy(inner)
     try:
         result = run(worktree)
-        assert result.returncode == 1, (
-            f"a subdirectory occupant must count: {result.stdout!r}"
-        )
-        assert f"pid {process.pid}" in result.stdout, (
-            f"must name the pid: {result.stdout!r}"
-        )
+        assert result.returncode == 1, f"a subdirectory occupant must count: {result.stdout!r}"
+        assert f"pid {process.pid}" in result.stdout, f"must name the pid: {result.stdout!r}"
     finally:
         process.kill()
         process.wait()
@@ -258,17 +248,13 @@ print("\n  [operator error is 2, never 1]")
 
 
 def case_missing_worktree_exits_2() -> None:
-    result = subprocess.run(
-        [sys.executable, str(SCRIPT)], capture_output=True, text=True
-    )
+    result = subprocess.run([sys.executable, str(SCRIPT)], capture_output=True, text=True)
     assert result.returncode == 2, f"argparse must exit 2, got {result.returncode}"
 
 
 def case_nonexistent_path_exits_2() -> None:
     result = run(Path(tempfile.mkdtemp()) / "not-here")
-    assert result.returncode == 2, (
-        f"a missing directory must exit 2, got {result.returncode}"
-    )
+    assert result.returncode == 2, f"a missing directory must exit 2, got {result.returncode}"
     assert "ERROR" in result.stderr, f"must say why: {result.stderr!r}"
 
 
@@ -328,9 +314,7 @@ def case_no_third_party_imports() -> None:
     }
     for path in (SCRIPT, Path(__file__).resolve()):
         source = path.read_text(encoding="utf-8")
-        imported = set(
-            re.findall(r"^(?:from|import)\s+([A-Za-z_][\w.]*)", source, re.M)
-        )
+        imported = set(re.findall(r"^(?:from|import)\s+([A-Za-z_][\w.]*)", source, re.M))
         outside = {m for m in imported if m.split(".")[0] not in stdlib}
         assert not outside, f"{path.name} imports outside the stdlib: {outside}"
 
@@ -340,9 +324,5 @@ for name, fn in [
 ]:
     check(name, fn)
 
-print(
-    f"\nAll {passed} checks passed."
-    if not failed
-    else f"\n{failed} FAILED, {passed} passed."
-)
+print(f"\nAll {passed} checks passed." if not failed else f"\n{failed} FAILED, {passed} passed.")
 sys.exit(1 if failed else 0)

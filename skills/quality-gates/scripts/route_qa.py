@@ -323,11 +323,16 @@ DIFF_ARGS = ("diff", "--unified=0", "--no-color", "--no-ext-diff", "--no-textcon
 # and finds none, so the gate checks nothing and says so in a voice that sounds
 # fine. check_hygiene.py pins the same four for the same reason.
 CONFIG_ARGS = (
-    "-c", "core.quotePath=false",
-    "-c", "diff.noprefix=false",
-    "-c", "diff.mnemonicPrefix=false",
-    "-c", "diff.srcPrefix=a/",
-    "-c", "diff.dstPrefix=b/",
+    "-c",
+    "core.quotePath=false",
+    "-c",
+    "diff.noprefix=false",
+    "-c",
+    "diff.mnemonicPrefix=false",
+    "-c",
+    "diff.srcPrefix=a/",
+    "-c",
+    "diff.dstPrefix=b/",
 )
 
 
@@ -398,9 +403,7 @@ def glob_to_re(pattern: str) -> re.Pattern[str]:
 
 
 PATH_MATCHERS = [(rule, glob_to_re(rule.pattern)) for rule in PATH_RULES]
-CONTENT_MATCHERS = [
-    (rule, re.compile(rule.pattern, re.MULTILINE)) for rule in CONTENT_RULES
-]
+CONTENT_MATCHERS = [(rule, re.compile(rule.pattern, re.MULTILINE)) for rule in CONTENT_RULES]
 TEST_MATCHERS = [glob_to_re(pattern) for pattern in TEST_PATTERNS]
 IGNORED_MATCHERS = [glob_to_re(pattern) for pattern in IGNORED_PATTERNS]
 
@@ -464,19 +467,13 @@ DECORATOR_RE = re.compile(
 )
 FLASK_RE = re.compile(r"@\w+\.route\(\s*['\"](/[^'\"]*)['\"]([^)]*)\)")
 FLASK_METHODS_RE = re.compile(r"methods\s*=\s*[\[(]([^\])]*)[\])]")
-RAILS_ROUTE_RE = re.compile(
-    r"^\s*(get|post|put|patch|delete)\s+['\"]([^'\"]+)['\"]", re.MULTILINE
-)
+RAILS_ROUTE_RE = re.compile(r"^\s*(get|post|put|patch|delete)\s+['\"]([^'\"]+)['\"]", re.MULTILINE)
 RAILS_RESOURCE_RE = re.compile(r"^\s*(resources?)\s+:(\w+)", re.MULTILINE)
 DJANGO_PATH_RE = re.compile(r"\b(?:re_)?path\(\s*[r]?['\"]([^'\"]*)['\"]")
 DJANGO_INCLUDE_RE = re.compile(r"\binclude\(\s*['\"]([^'\"]+)['\"]")
-GO_CHI_RE = re.compile(
-    r"\.(Get|Post|Put|Patch|Delete|Head|Options)\(\s*\"(/[^\"]*)\""
-)
+GO_CHI_RE = re.compile(r"\.(Get|Post|Put|Patch|Delete|Head|Options)\(\s*\"(/[^\"]*)\"")
 GO_HANDLEFUNC_RE = re.compile(r"HandleFunc\(\s*\"(/[^\"]*)\"")
-SPRING_RE = re.compile(
-    r"@(Get|Post|Put|Patch|Delete)Mapping\(\s*(?:value\s*=\s*)?\"([^\"]*)\""
-)
+SPRING_RE = re.compile(r"@(Get|Post|Put|Patch|Delete)Mapping\(\s*(?:value\s*=\s*)?\"([^\"]*)\"")
 NEXT_HANDLER_RE = re.compile(
     r"^\s*export\s+(?:async\s+)?(?:function|const)\s+"
     r"(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b",
