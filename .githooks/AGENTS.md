@@ -31,10 +31,41 @@ model and costs about 2 seconds, so cost is not why it left the hook. The evals 
 you run deliberately. Both stay in the root `AGENTS.md` check list, so the ship gate still runs
 the harness suite.
 
-Derive the number of checks with `grep -c '^check ' .githooks/pre-push`. They take tens of
-seconds, and the figure moves with the machine. `test_probe_api.py` takes about 11 of those
-seconds, and it cannot be made much faster. It starts real servers and waits on real sockets.
-That is the only way to check which host it addresses, and that it leaks no process.
+Derive the number of checks with `grep -c '^check ' .githooks/pre-push`.
+
+**The checks run at the same time.** Each `check` line assigns its check to a background job, and
+the jobs start after the last line. A push waits for the slowest check rather than for the sum. A
+passing push prints how many seconds the checks took on its summary line. The report still lists
+failures in the order of the `check` lines, because each check writes to its own numbered files.
+
+**No more jobs run at once than `getconf _NPROCESSORS_ONLN` reports processors.** Past that, the
+checks compete for the CPU, and a check that waits on a timeout or a race can fail a clean push.
+
+`test_probe_api.py` cannot be made much faster. It starts real servers and waits on real sockets,
+which is the only way to check which host it addresses, and that it leaks no process.
+
+**`after_previous=yes` above a `check` line puts that check in the job of the check on the line
+above.** The two then run one after the other. The flag applies to that one line. When the check
+above was skipped for a missing tool, the flagged check gets a job of its own. The two
+`bd`-command checks are paired this way, because `bd` opens its embedded Dolt database inside each
+process.
+
+**An interrupted push is refused, never passed.** On HUP, INT, or TERM during the checks, the hook
+does three things, then exits 129, 130, or 143:
+
+1. **It freezes every process under it** with SIGSTOP, and looks again until nothing new turns up.
+   A stopped process cannot start another one.
+2. **It sends SIGINT to the checks**, so a Python check runs its own cleanup. A background job
+   starts with SIGINT ignored, and `sh` cannot undo that, so the hook starts each check through
+   `python3`, which resets SIGINT and then becomes the check.
+3. **It sends SIGTERM to whatever still runs after a grace period,** after freezing it again with
+   every process it started in the meantime.
+
+A check that started but recorded no exit status counts as failed. Once the checks finish, a signal
+only ends the hook.
+
+**Stage 3 can still leave the export staged.** A signal between its `git add .beads/` and its
+`git commit` leaves `.beads/` staged in the index. The serial hook had the same gap.
 
 Two behaviors are deliberate:
 

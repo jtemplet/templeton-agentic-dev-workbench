@@ -96,41 +96,278 @@ cd "$root" || exit 0
 
 work=${TMPDIR:-/tmp}/tadw-prepush.$$
 mkdir -p "$work" || exit 0
-trap 'rm -rf "$work"' EXIT HUP INT TERM
 
 total=0
 ran=0
 failed=0
 skipped=''
+job_plan=''
+job_pids=''
+after_previous=''
+previous_line_planned=''
 
-# Runs one check, and never returns non-zero: the caller wants every check
-# attempted, so a failure is recorded rather than propagated.
+# THE CHECKS RUN AT THE SAME TIME, so a push waits for the slowest check rather
+# than for the sum. `check` only plans: it records the command and assigns it
+# to a job. The jobs start after the last `check` line. The report reads each
+# check's numbered files in list order, so it reads the same as a serial run's.
+#
+# `after_previous=yes` on the line above a `check` line puts that check in the
+# job of the check on the line above, so the two run one after the other. When
+# the check above was skipped for a missing tool, there is nothing to take turns
+# with, and this check gets a job of its own.
 check() {
-  tool=$1
   total=$((total + 1))
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    # Deduplicated, because python3 carries most of these checks and one warning
-    # about it is the useful number. Not a count on purpose: the earlier wording
-    # said "six" and was stale at eight.
-    case " $skipped " in
-      *" $tool "*) ;;
-      *) skipped="$skipped$tool " ;;
-    esac
-    return 0
+  if command -v "$1" >/dev/null 2>&1; then
+    plan_check "$@"
+    previous_line_planned=yes
+  else
+    note_skipped_tool "$1"
+    previous_line_planned=''
   fi
-
-  ran=$((ran + 1))
-  if "$@" >"$work/out" 2>&1; then
-    return 0
-  fi
-
-  failed=$((failed + 1))
-  {
-    printf '\n----- FAILED: %s\n' "$*"
-    cat "$work/out"
-  } >>"$work/report"
+  after_previous=''
   return 0
 }
+
+# Deduplicated, because python3 carries most of these checks and one warning
+# about it is the useful number. Not a count on purpose: the earlier wording
+# said "six" and was stale at eight.
+note_skipped_tool() {
+  case " $skipped " in
+    *" $1 "*) ;;
+    *) skipped="$skipped$1 " ;;
+  esac
+}
+
+# Creates the check's files here, in the hook's own shell, where a failure to
+# write one prints a visible error. The job silences its own stderr later.
+# A job is its check numbers joined by ':'; the plan is the jobs, space-separated.
+plan_check() {
+  ran=$((ran + 1))
+  printf '%s\n' "$*" >"$work/$total.cmd"
+  : >"$work/$total.out"
+  : >"$work/$total.rc"
+  if [ "$after_previous" = yes ] && [ -n "$previous_line_planned" ]; then
+    job_plan="$job_plan:$total"
+  else
+    job_plan="$job_plan $total"
+  fi
+}
+
+# One job per processor at most. Past that the checks compete for the CPU, and
+# the ones that wait on a timeout or a race fail a clean push.
+job_limit() {
+  limit=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null)
+  case $limit in
+    '' | *[!0-9]* | 0) echo 4 ;;
+    *) echo "$limit" ;;
+  esac
+}
+
+start_jobs() {
+  limit=$(job_limit)
+  for job in $job_plan; do
+    # shellcheck disable=SC2046,SC2086 # one word per pid, split on purpose
+    while [ "$(count_words $(running_among $job_pids))" -ge "$limit" ]; do
+      pause
+    done
+    run_job "$job" &
+    job_pids="$job_pids $!"
+  done
+}
+
+# The body of one background job: its checks, one after the other. A check
+# ended by a signal ends the job too, so an interrupt starts no later check.
+run_job() {
+  # Every file this job writes already exists, so this stream carries only the
+  # shell's notices, such as "Terminated" when an interrupt stops a check.
+  exec 2>/dev/null
+  IFS=:
+  # shellcheck disable=SC2086 # split on ':' on purpose
+  set -- $1
+  unset IFS
+  for number in "$@"; do
+    # A check's arguments are single words. test_prepush.py splits them the
+    # same way; -f keeps a word from expanding as a glob.
+    set -f
+    # shellcheck disable=SC2046
+    set -- $(cat "$work/$number.cmd")
+    set +f
+    with_default_signals "$@" >"$work/$number.out" 2>&1
+    code=$?
+    echo "$code" >"$work/$number.rc"
+    [ "$code" -gt 128 ] && exit "$code"
+  done
+}
+
+# A non-interactive shell starts every background job with SIGINT ignored, and
+# a program inherits that through exec. So a Python check would neither stop on
+# Ctrl-C nor run its own cleanup, and sh has no way to undo it. python3 resets
+# the signal and then becomes the check. It also resets SIGPIPE and SIGXFSZ,
+# which Python itself ignores and would pass on the same way. Without python3,
+# the check runs as it is, and the TERM after the grace period stops it.
+with_default_signals() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c '
+import os, signal, sys
+for name in ("SIGINT", "SIGPIPE", "SIGXFSZ"):
+    if hasattr(signal, name):
+        signal.signal(getattr(signal, name), signal.SIG_DFL)
+os.execvp(sys.argv[1], sys.argv[1:])
+' "$@"
+  else
+    "$@"
+  fi
+}
+
+# Prints each pid that is still running. A finished job can stay a zombie
+# until its shell reaps it, and `kill -0` succeeds on a zombie, so this reads
+# the process state instead. `ps -p` takes a comma-separated list.
+running_among() {
+  [ "$#" -gt 0 ] || return 0
+  pid_list=$1
+  shift
+  for pid in "$@"; do
+    pid_list="$pid_list,$pid"
+  done
+  ps -o pid=,stat= -p "$pid_list" 2>/dev/null | while read -r pid state; do
+    case $state in
+      Z*) ;;
+      *) echo "$pid" ;;
+    esac
+  done
+}
+
+count_words() {
+  echo "$#"
+}
+
+# A fraction of a second is not POSIX, but macOS, GNU, and busybox `sleep` all
+# take one, and a whole second would add to every push.
+pause() {
+  sleep 0.1 2>/dev/null || sleep 1
+}
+
+# FREEZE, THEN ASK, THEN INSIST.
+#
+# Freeze: SIGSTOP every process under this hook, then look again, until a look
+# finds nothing new. A stopped process cannot start another, so this also finds
+# the processes started while the hook was looking.
+#
+# Ask: SIGINT to every frozen check, and SIGTERM to the job shells, which ignore
+# SIGINT and would otherwise start the next check in their job. A Python check
+# then runs its cleanup: its `finally` blocks, its atexit handlers, and the
+# servers it started in sessions of their own.
+#
+# Insist: whatever still runs after a grace period is frozen again, together
+# with every process it started during the grace period, and gets SIGTERM.
+# That second search starts from the survivors, not from this hook: their job
+# shells are gone by then, so the survivors are no longer under this hook.
+#
+# The first search walks this hook's own process tree rather than a list of job
+# pids, so a job that started a moment before the signal is found too.
+stop_checks() {
+  frozen=''
+  freeze_under "$$"
+  [ -n "$frozen" ] || return 0
+
+  job_shells=$(children_of "$$")
+  # shellcheck disable=SC2086 # one word per pid, split on purpose
+  kill -INT $frozen 2>/dev/null
+  # shellcheck disable=SC2086
+  kill -TERM $job_shells 2>/dev/null
+  # shellcheck disable=SC2086
+  kill -CONT $frozen 2>/dev/null
+
+  tries=0
+  # shellcheck disable=SC2086
+  while [ "$tries" -lt 50 ] && [ -n "$(running_among $frozen)" ]; do
+    pause
+    tries=$((tries + 1))
+  done
+
+  # shellcheck disable=SC2086
+  survivors=$(running_among $frozen)
+  [ -n "$survivors" ] || return 0
+  # shellcheck disable=SC2086
+  kill -STOP $survivors 2>/dev/null
+  # One space between pids, because freeze_under matches a pid by the spaces
+  # around it, and running_among prints one pid per line.
+  # shellcheck disable=SC2086
+  set -- $survivors
+  frozen=" $*"
+  freeze_under "$@"
+  # shellcheck disable=SC2086
+  kill -TERM $frozen 2>/dev/null
+  # shellcheck disable=SC2086
+  kill -CONT $frozen 2>/dev/null
+}
+
+# Sends SIGSTOP to every process under the given pids and adds each to $frozen,
+# looking again until a look finds nothing new.
+freeze_under() {
+  while :; do
+    unseen=''
+    for pid in $(descendants_of "$@"); do
+      # The walk's own subshells are children of this hook too, but they have
+      # already exited here, and without this test each walk finds new ones.
+      kill -0 "$pid" 2>/dev/null || continue
+      case " $frozen " in
+        *" $pid "*) ;;
+        *) unseen="$unseen $pid" ;;
+      esac
+    done
+    [ -n "$unseen" ] || return 0
+    # shellcheck disable=SC2086
+    kill -STOP $unseen 2>/dev/null
+    frozen="$frozen $unseen"
+  done
+}
+
+# Every process as a pid and its parent's pid, one pair per line. One reading
+# per search: a `pgrep` for each process made one search take seconds once a
+# check had started a few hundred children.
+process_table() {
+  ps -A -o pid= -o ppid= 2>/dev/null
+}
+
+children_of() {
+  process_table | while read -r pid parent; do
+    if [ "$parent" = "$1" ]; then echo "$pid"; fi
+  done
+}
+
+# Prints every pid under the given pids, at any depth.
+descendants_of() {
+  table=$(process_table)
+  under=" $* "
+  grew=yes
+  while [ -n "$grew" ]; do
+    grew=''
+    while read -r pid parent; do
+      case $under in
+        *" $pid "*) ;;
+        *" $parent "*) under="$under$pid " grew=yes ;;
+      esac
+    done <<EOF
+$table
+EOF
+  done
+  for pid in $under; do
+    case " $* " in
+      *" $pid "*) ;;
+      *) echo "$pid" ;;
+    esac
+  done
+}
+
+# Exits on a signal rather than returning to the script. A parallel hook that
+# fell through would read no status files and report that the checks passed.
+# stop_checks writes to /dev/null, so the shell's own notices about the jobs
+# it stops never reach the author.
+trap 'rm -rf "$work"' EXIT
+trap 'stop_checks 2>/dev/null; exit 129' HUP
+trap 'stop_checks 2>/dev/null; exit 130' INT
+trap 'stop_checks 2>/dev/null; exit 143' TERM
 
 started=$(date +%s)
 
@@ -150,6 +387,9 @@ check python3 skills/quality-gates/scripts/test_check_hygiene.py
 check python3 skills/quality-gates/scripts/test_route_qa.py
 check python3 skills/quality-gates/scripts/test_probe_api.py
 check python3 skills/quality-gates/scripts/test_check_documented_bd_commands.py
+# Both of these run the real bd, which opens the embedded Dolt database under
+# .beads/ inside each process, so they take turns rather than contend for it.
+after_previous=yes
 check python3 skills/quality-gates/scripts/check_documented_bd_commands.py
 check python3 skills/quality-gates/scripts/test_check_documented_paths.py
 check python3 skills/quality-gates/scripts/check_documented_paths.py
@@ -158,6 +398,33 @@ check python3 skills/product-surface-docs/scripts/check_drive_blocks.py
 check python3 skills/bead-refine/scripts/test_check_round_format.py
 check python3 skills/bead-refine/scripts/check_round_format.py
 check python3 skills/ship/scripts/test_check_worktree_occupants.py
+
+start_jobs
+wait
+
+# The checks are done, and stages 2 and 3 start no background job, so from here
+# a signal only ends the hook, which leaves stage 3 no chance to commit. A trap
+# that returned to the script would let it go on to commit after the interrupt.
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+number=0
+while [ "$number" -lt "$total" ]; do
+  number=$((number + 1))
+  # No command file means the check never started, because its tool is missing.
+  [ -e "$work/$number.cmd" ] || continue
+  status=$(cat "$work/$number.rc" 2>/dev/null)
+  [ "$status" = 0 ] && continue
+  failed=$((failed + 1))
+  {
+    printf '\n----- FAILED: %s\n' "$(cat "$work/$number.cmd")"
+    cat "$work/$number.out" 2>/dev/null
+    # An empty status file means the check never finished, so it verified
+    # nothing: its job was killed, or it could not write its own files.
+    [ -n "$status" ] || echo "the check recorded no exit status, so it did not finish"
+  } >>"$work/report"
+done
 
 elapsed=$(( $(date +%s) - started ))
 

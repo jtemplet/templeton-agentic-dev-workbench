@@ -5,9 +5,16 @@ Stdlib only, no install, mirroring the gate-script suites. Run with:
     python3 .githooks/test_prepush.py
 
 Every behavioral case builds a throwaway repository from this repository's own
-tracked tree, points `core.hooksPath` at the hook under test, and runs a real
-`git push --dry-run` into a bare remote beside it. The hook is therefore driven
-by git, with git's own stdin format and environment, rather than called directly.
+tracked tree, and points `core.hooksPath` at the hook under test. Most cases then
+run a real `git push --dry-run` into a bare remote beside it, so git drives the
+hook, with git's own stdin format and environment.
+
+A few cases run the hook directly instead, with a stdin line written by hand. The
+signal cases do this so they can signal the hook alone; through git, the signal
+reaches git too. Two gaps follow, and nothing here covers them: the hook under
+git's own environment during an interrupt, and what git does when the hook exits
+on a signal. The one stage-2 case that needs its stdin lines in a chosen order
+runs directly for the same kind of reason, and says so.
 
 WHY THE FIXTURE LIVES UNDER /tmp. `rumdl fmt --check .` discovers no markdown
 files at all under macOS's per-user TMPDIR (`/var/folders/...`), which is what
@@ -51,6 +58,27 @@ RULE-TO-TEST MAPPING. A rule with no test here is a rule nothing holds.
   A push carrying code IS gated, even when it   case_mixed_delete_and_update_runs_checks
     also deletes a ref
   POSIX sh, executable                          case_hook_is_executable_posix_sh
+
+PARALLEL RUNS (tadw-94w). Every check starts as a background job.
+
+  Rule                                            Pinned by
+  ------------------------------------------------------------------------------
+  HUP, INT, and TERM each refuse the push with    interrupted_hook_case, once per signal
+    their own exit code, let a Python check
+    clean up, and stop it and its children
+  A process started while the hook looks for     case_a_process_started_during_the_interrupt_is_stopped
+    processes to stop is stopped too
+  The check under after_previous=yes runs in      case_paired_check_runs_in_the_job_of_the_one_above
+    the job of the check above it
+  The flag applies to one check, even when that   case_after_previous_does_not_outlive_a_skipped_check
+    check is skipped
+  No more jobs run than there are processors      case_jobs_never_exceed_the_processor_count
+  A check that left no exit status counts as      case_check_killed_before_its_status_counts_as_failed
+    failed, never as a skipped tool
+  A check ended by a signal starts no later       case_a_check_ended_by_a_signal_ends_its_job
+    check in its job
+  A signal after the checks ends the hook         case_a_signal_during_the_tracker_export_commits_nothing
+    before stage 3 commits
 
 STAGE 2, the recorded quality-gates verdict (M4). Same fixture, same real
 `git push --dry-run`, with a report planted in the fixture's own git directory.
@@ -122,9 +150,11 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -516,9 +546,13 @@ def record_verdict(root: Path, verdict: str, *, head: str | None = None) -> Path
     return report
 
 
-# Everything the hook reaches for: the checkers themselves, plus the four
-# utilities it shells out to, plus `sh` for its own `#!/usr/bin/env sh` line.
-HOOK_TOOLS = ("sh", "bash", "date", "mkdir", "cat", "rm", "git", "node", "python3", "rumdl", "bd")
+# Everything the hook reaches for: the checkers themselves, the utilities it
+# shells out to, and `sh` for its own `#!/usr/bin/env sh` line. `sysctl` is the
+# fallback when `getconf` cannot count the processors.
+HOOK_TOOLS = (
+    "sh", "bash", "date", "mkdir", "cat", "rm", "git", "node", "python3", "rumdl", "bd",
+    "sleep", "ps", "getconf", "sysctl",
+)
 
 
 def stub_path_without(*drop: str) -> str:
@@ -1063,6 +1097,403 @@ for name, fn in [
     ("the hook modifies nothing, including the CI workflow [criterion 5]", case_hook_leaves_the_tree_alone),
     ("a push from a linked worktree spares the main repository", case_push_from_a_linked_worktree_spares_the_main_repository),
     ("a clean push prints one summary line", case_clean_push_is_quiet),
+]:
+    check(name, fn)
+
+
+print("\n  [the checks run in parallel, tadw-94w]")
+
+# How long a case waits for a background process to show up or to go away.
+# Generous, because a loaded machine starts python3 slowly, and a case that
+# timed out early would blame the hook for the machine.
+PROCESS_DEADLINE_SECONDS = 15
+
+# Two checks that sit next to each other in the hook and share no job, for the
+# cases that need a pair of stubs outside the after_previous pair.
+NEIGHBOR_ABOVE = "skills/quality-gates/scripts/test_check_hygiene.py"
+NEIGHBOR_BELOW = "skills/quality-gates/scripts/test_route_qa.py"
+
+
+def wait_until(condition, what: str) -> None:
+    deadline = time.monotonic() + PROCESS_DEADLINE_SECONDS
+    while not condition():
+        assert time.monotonic() < deadline, f"timed out waiting until {what}"
+        time.sleep(0.05)
+
+
+def process_is_alive(pid: int) -> bool:
+    """Whether a pid this suite started is still running.
+
+    A PermissionError means the pid now belongs to another user's process, so
+    ours is gone. Letting it escape would end the whole suite in a traceback,
+    because check() catches AssertionError alone.
+    """
+    try:
+        os.kill(pid, 0)
+    except (ProcessLookupError, PermissionError):
+        return False
+    return True
+
+
+def paired_checks() -> tuple[str, str]:
+    """The two commands the hook joins with `after_previous=yes`, in order.
+
+    Read from the hook rather than named here, so a pair moved or renamed in the
+    hook is still the pair this suite tests.
+    """
+    lines = HOOK.read_text(encoding="utf-8").splitlines()
+    marker = lines.index("after_previous=yes")
+    above = next(line for line in reversed(lines[:marker]) if line.startswith("check "))
+    below = next(line for line in lines[marker:] if line.startswith("check "))
+    return above[len("check "):].strip(), below[len("check "):].strip()
+
+
+def script_of(command: str) -> str:
+    return next(part for part in command.split()[1:] if "/" in part)
+
+
+def assert_neighbors_are_adjacent() -> None:
+    commands = [script_of(command) for command in commands_in_hook() if "/" in command]
+    above = commands.index(NEIGHBOR_ABOVE)
+    assert commands[above + 1] == NEIGHBOR_BELOW, (
+        f"{NEIGHBOR_BELOW} must follow {NEIGHBOR_ABOVE} in the hook"
+    )
+
+
+def start_hook_directly(fixture: Fixture, path_prefix: str = "") -> subprocess.Popen[str]:
+    """The hook run by hand, so a case can signal the hook alone.
+
+    Unlike every `fixture.push` case, git is not in the loop. Through git, a
+    signal to the push would reach git as well, and git's own handling would be
+    under test instead of the hook's traps.
+
+    A session of its own, so stop_hook_tree can end everything the hook started
+    even when the hook fails to. SIGINT is reset to its default first: a shell
+    cannot trap a signal that was ignored when it started, and this suite may
+    itself run with SIGINT ignored.
+    """
+    environment = dict(os.environ)
+    environment["PATH"] = os.pathsep.join(
+        part for part in (path_prefix, str(fixture.bd_stub_dir), environment.get("PATH", "")) if part
+    )
+    hook = subprocess.Popen(
+        ["sh", str(fixture.work / ".githooks" / "pre-push"), "origin", "/dev/null"],
+        cwd=fixture.work,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=environment,
+        start_new_session=True,
+        preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL),
+    )
+    zeros = "0" * 40
+    hook.stdin.write(f"refs/heads/main {head_of(fixture.work)} refs/heads/main {zeros}\n")
+    hook.stdin.close()
+    return hook
+
+
+def stop_hook_tree(hook: subprocess.Popen[str]) -> None:
+    try:
+        os.killpg(hook.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    hook.wait()
+
+
+def output_after(hook: subprocess.Popen[str], what: str) -> str:
+    """The hook's output once it exits. A timeout rather than a bare read: a job
+    the hook failed to stop keeps the output pipe open, and the case would hang
+    instead of failing."""
+    try:
+        output, _ = hook.communicate(timeout=PROCESS_DEADLINE_SECONDS)
+    except subprocess.TimeoutExpired:
+        raise AssertionError(f"the hook did not exit after {what}")
+    return output
+
+
+def recorded_pids(path: Path) -> list[int]:
+    return [int(word) for word in path.read_text().split()] if path.exists() else []
+
+
+def interrupted_hook_case(signum: signal.Signals, expected_code: int):
+    def case() -> None:
+        """A signal refuses the push, lets a Python check clean up, and leaves nothing running.
+
+        A trap that only deleted the work directory let the script fall through:
+        it read no status files, printed "checks passed", and exited 0. The check
+        here starts a child, records both pids, and sleeps inside a `finally`
+        that leaves a mark. The mark proves the check got SIGINT, which a
+        background job would otherwise ignore, before anything forced it to stop.
+        """
+        fixture = build()
+        pid_file = fixture.work.parent / "slow-check.pid"
+        cleaned = fixture.work.parent / "slow-check.cleaned"
+        fixture.write(
+            "skills/quality-gates/scripts/test_probe_api.py",
+            "import os, pathlib, subprocess, sys, time\n"
+            "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(300)'])\n"
+            f"pathlib.Path({str(pid_file)!r}).write_text(f'{{os.getpid()}} {{child.pid}}')\n"
+            "try:\n"
+            "    time.sleep(300)\n"
+            "finally:\n"
+            f"    pathlib.Path({str(cleaned)!r}).write_text('yes')\n",
+        )
+        fixture.commit_all("a check that outlives the case")
+
+        hook = start_hook_directly(fixture)
+        try:
+            wait_until(lambda: len(recorded_pids(pid_file)) == 2, "the slow check started")
+            hook.send_signal(signum)
+            output = output_after(hook, signum.name)
+            assert hook.returncode == expected_code, (
+                f"{signum.name} must exit {expected_code}, not {hook.returncode}: {output}"
+            )
+            assert "passed" not in output, f"an interrupted hook verified nothing: {output!r}"
+            assert "Terminated" not in output, f"an interrupt adds no shell notice: {output!r}"
+            wait_until(cleaned.exists, "the slow check ran its own cleanup")
+            wait_until(
+                lambda: not any(process_is_alive(pid) for pid in recorded_pids(pid_file)),
+                "the slow check and its child stopped",
+            )
+        finally:
+            stop_hook_tree(hook)
+            for pid in recorded_pids(pid_file):
+                if process_is_alive(pid):
+                    os.kill(pid, signal.SIGKILL)
+
+    return case
+
+
+def case_a_process_started_during_the_interrupt_is_stopped() -> None:
+    """The hook stops processes that appear while it is looking for them.
+
+    The check ignores SIGINT and starts a new child every few milliseconds, each
+    of which ignores SIGINT too, so only the TERM after the grace period stops
+    them. A hook that listed the processes once and then signaled that list
+    would leave every child started in between running.
+    """
+    fixture = build()
+    pid_file = fixture.work.parent / "spawner.pids"
+    fixture.write(
+        "skills/quality-gates/scripts/test_probe_api.py",
+        "import os, pathlib, signal, subprocess, sys, time\n"
+        "signal.signal(signal.SIGINT, signal.SIG_IGN)\n"
+        "sleeper = 'import signal, time; signal.signal(signal.SIGINT, signal.SIG_IGN); time.sleep(300)'\n"
+        f"with open({str(pid_file)!r}, 'a') as pids:\n"
+        "    pids.write(f'{os.getpid()}\\n'); pids.flush()\n"
+        "    while True:\n"
+        "        child = subprocess.Popen([sys.executable, '-c', sleeper])\n"
+        "        pids.write(f'{child.pid}\\n'); pids.flush()\n"
+        "        time.sleep(0.02)\n",
+    )
+    fixture.commit_all("a check that keeps starting children")
+
+    hook = start_hook_directly(fixture)
+    try:
+        wait_until(lambda: len(recorded_pids(pid_file)) >= 5, "the spawner started children")
+        hook.send_signal(signal.SIGTERM)
+        output = output_after(hook, "SIGTERM")
+        assert hook.returncode == 143, f"SIGTERM must exit 143: {output}"
+        wait_until(
+            lambda: not any(process_is_alive(pid) for pid in recorded_pids(pid_file)),
+            "every child the spawner started stopped",
+        )
+    finally:
+        stop_hook_tree(hook)
+        for pid in recorded_pids(pid_file):
+            if process_is_alive(pid):
+                os.kill(pid, signal.SIGKILL)
+
+
+def case_paired_check_runs_in_the_job_of_the_one_above() -> None:
+    """The check under `after_previous=yes` runs in the same job, after the one above.
+
+    Each stub compares its parent, the job shell, so the case needs no timing:
+    only a shared job gives the second check the parent the first one recorded.
+    """
+    first, second = paired_checks()
+    assert all("documented_bd_commands" in command for command in (first, second)), (
+        f"the pair exists for the two checks that open the bd database: {first!r}, {second!r}"
+    )
+    fixture = build()
+    mark = fixture.work.parent / "first-check-job"
+    fixture.write(
+        script_of(first),
+        f"import os, pathlib\npathlib.Path({str(mark)!r}).write_text(str(os.getppid()))\n",
+    )
+    fixture.write(
+        script_of(second),
+        f"import os, pathlib, sys\nmark = pathlib.Path({str(mark)!r})\n"
+        "sys.exit(0 if mark.exists() and mark.read_text() == str(os.getppid()) else 1)\n",
+    )
+    fixture.commit_all("a pair that fails unless it shares a job")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, f"the second check must run after the first, in its job: {output}"
+
+
+def case_after_previous_does_not_outlive_a_skipped_check() -> None:
+    """A flag above a skipped check applies to that check alone.
+
+    The fixture's own hook gets `after_previous=yes` above a check whose tool
+    does not exist, between two neighbors. If the flag outlived the skipped
+    check, the neighbor below would join the job of the neighbor above, and
+    its stub fails when it finds that check's job shell as its own parent.
+    """
+    assert_neighbors_are_adjacent()
+    fixture = build()
+    hook = fixture.work / ".githooks" / "pre-push"
+    above_line = f"check python3 {NEIGHBOR_ABOVE}\n"
+    body = hook.read_text(encoding="utf-8")
+    assert body.count(above_line) == 1, f"the fixture hook must run {NEIGHBOR_ABOVE} once"
+    hook.write_text(
+        body.replace(above_line, f"{above_line}after_previous=yes\ncheck tadw-no-such-tool\n"),
+        encoding="utf-8",
+    )
+    mark = fixture.work.parent / "above-check-job"
+    fixture.write(
+        NEIGHBOR_ABOVE,
+        f"import os, pathlib\npathlib.Path({str(mark)!r}).write_text(str(os.getppid()))\n",
+    )
+    fixture.write(
+        NEIGHBOR_BELOW,
+        f"import os, pathlib, sys\nmark = pathlib.Path({str(mark)!r})\n"
+        "sys.exit(1 if mark.exists() and mark.read_text() == str(os.getppid()) else 0)\n",
+    )
+    fixture.commit_all("a flag above a skipped check")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert "tadw-no-such-tool" in output, f"the control: the inserted check must be skipped: {output}"
+    assert result.returncode == 0, f"the check below must get a job of its own: {output}"
+
+
+def case_jobs_never_exceed_the_processor_count() -> None:
+    """With one processor reported, no two checks overlap.
+
+    A `getconf` shim reports one processor. Two neighbors record when they
+    start and end, each holding its slot long enough for the other to overlap
+    it if the hook started both at once.
+    """
+    fixture = build()
+    shim_dir = fixture.work.parent / "one-processor"
+    shim_dir.mkdir()
+    shim = shim_dir / "getconf"
+    shim.write_text("#!/bin/sh\necho 1\n", encoding="utf-8")
+    shim.chmod(0o755)
+    spans = fixture.work.parent / "spans"
+    for script in (NEIGHBOR_ABOVE, NEIGHBOR_BELOW):
+        fixture.write(
+            script,
+            "import time\nstart = time.time()\ntime.sleep(0.5)\n"
+            f"with open({str(spans)!r}, 'a') as out:\n"
+            "    out.write(f'{start} {time.time()}\\n')\n",
+        )
+    fixture.commit_all("two checks that would overlap")
+
+    hook = start_hook_directly(fixture, path_prefix=str(shim_dir))
+    try:
+        output = output_after(hook, "its checks finished")
+        assert hook.returncode == 0, f"the push must pass: {output}"
+    finally:
+        stop_hook_tree(hook)
+    (first_start, first_end), (second_start, second_end) = (
+        tuple(float(word) for word in line.split()) for line in spans.read_text().splitlines()
+    )
+    assert first_end <= second_start or second_end <= first_start, (
+        f"with one processor the checks must not overlap: {spans.read_text()!r}"
+    )
+
+
+def case_check_killed_before_its_status_counts_as_failed() -> None:
+    """A check whose job dies before it records an exit status has verified nothing.
+
+    The stub kills the background job that runs it, which is the process that
+    would have written the status file. Read as a skipped tool, that silence
+    would pass the push.
+    """
+    fixture = build()
+    fixture.write(
+        BREAKABLE_CHECK,
+        "import os, signal\nos.kill(os.getppid(), signal.SIGKILL)\n",
+    )
+    fixture.commit_all("a check whose job dies")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f"a check with no status must refuse the push: {output}"
+    assert f"FAILED: python3 {BREAKABLE_CHECK}" in output, f"and name the check: {output}"
+    assert "recorded no exit status" in output, f"and say why: {output}"
+
+
+def case_a_check_ended_by_a_signal_ends_its_job() -> None:
+    """When the first check of a pair dies from a signal, the second never starts.
+
+    The signal comes from outside the hook, so no trap runs, and only the job
+    itself can stop the next check. The second check leaves a mark if it runs,
+    and is reported as unfinished if it does not.
+    """
+    first, second = paired_checks()
+    fixture = build()
+    mark = fixture.work.parent / "second-check-ran"
+    fixture.write(script_of(first), "import os, signal\nos.kill(os.getpid(), signal.SIGTERM)\n")
+    fixture.write(
+        script_of(second),
+        f"import pathlib\npathlib.Path({str(mark)!r}).write_text('ran')\n",
+    )
+    fixture.commit_all("a first check that a signal ends")
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f"a check ended by a signal must refuse the push: {output}"
+    assert not mark.exists(), f"the second check of the job must not start: {output}"
+    assert f"FAILED: {second}" in output, f"the second check must be reported: {output}"
+    assert "recorded no exit status" in output, f"as unfinished: {output}"
+
+
+def case_a_signal_during_the_tracker_export_commits_nothing() -> None:
+    """A signal after the checks ends the hook before stage 3 can commit.
+
+    The `bd` stub marks that it started, then sleeps before it changes the
+    export. The hook defers a trapped signal until its foreground command
+    ends, so a trap that returned to the script would go on to commit the
+    change the stub just made.
+    """
+    fixture = build()
+    started = fixture.work.parent / "export-started"
+    fixture.stub_bd(
+        "#!/usr/bin/env sh\n"
+        f"touch '{started}'\n"
+        "sleep 2\n"
+        "mkdir -p .beads\n"
+        'echo \'{"id": "stub-export"}\' > .beads/issues.jsonl\n'
+    )
+    commits_before = git(fixture.work, "rev-list", "--count", "HEAD").stdout.strip()
+
+    hook = start_hook_directly(fixture)
+    try:
+        wait_until(started.exists, "the tracker export started")
+        hook.send_signal(signal.SIGTERM)
+        output = output_after(hook, "SIGTERM")
+        assert "checks passed" in output, f"the control: the checks must have finished: {output}"
+        assert hook.returncode == 143, f"SIGTERM must exit 143: {output}"
+    finally:
+        stop_hook_tree(hook)
+    commits_after = git(fixture.work, "rev-list", "--count", "HEAD").stdout.strip()
+    assert commits_after == commits_before, (
+        f"an interrupted export must not commit: {commits_before} commits became {commits_after}"
+    )
+
+
+for name, fn in [
+    ("SIGINT refuses the push, lets a check clean up, and stops it", interrupted_hook_case(signal.SIGINT, 130)),
+    ("SIGHUP refuses the push, lets a check clean up, and stops it", interrupted_hook_case(signal.SIGHUP, 129)),
+    ("SIGTERM refuses the push, lets a check clean up, and stops it", interrupted_hook_case(signal.SIGTERM, 143)),
+    ("a process started during the interrupt is stopped too", case_a_process_started_during_the_interrupt_is_stopped),
+    ("the paired check runs in the job of the check above it", case_paired_check_runs_in_the_job_of_the_one_above),
+    ("after_previous does not outlive a skipped check", case_after_previous_does_not_outlive_a_skipped_check),
+    ("jobs never exceed the processor count", case_jobs_never_exceed_the_processor_count),
+    ("a check killed before its status counts as failed", case_check_killed_before_its_status_counts_as_failed),
+    ("a check ended by a signal ends its job", case_a_check_ended_by_a_signal_ends_its_job),
+    ("a signal during the tracker export commits nothing", case_a_signal_during_the_tracker_export_commits_nothing),
 ]:
     check(name, fn)
 

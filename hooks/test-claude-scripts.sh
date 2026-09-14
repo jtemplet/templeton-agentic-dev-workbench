@@ -575,6 +575,18 @@ fi
 
 marker_dir() { echo "$1/.git/pending-bead-labels"; }
 
+# Moves every marker and report written so far into the past, so the next one
+# is strictly newer. The hook orders them with `-nt` and `find -newer`, which
+# can see only whole seconds on some filesystems. The TTL reads the epoch
+# inside the marker, never its mtime, so aging the file changes no TTL.
+age_artifacts() {  # age_artifacts <repo>
+  local f
+  for f in "$(marker_dir "$1")"/* "$1"/.gstack/qa-reports/* "$1"/.git/*-report.json; do
+    [[ -f "$f" ]] && touch -t 202001010000 "$f"
+  done
+  return 0
+}
+
 write_report() {  # write_report <repo> <critical> <high> <deferred>
   mkdir -p "$1/.gstack/qa-reports"
   cat > "$1/.gstack/qa-reports/qa-report-x-2026-01-01.md" <<EOF
@@ -592,7 +604,7 @@ if case_start "label/stop: the marker filename decides the label, not qa-d"; the
   R="$(new_repo b1 with-origin)"
   M="$(marker_dir "$R")"; mkdir -p "$M"
   printf '%s\ntadw-alpha-one\nqa\n' "$(date +%s)" > "$M/reviewed__tadw-alpha-one"
-  sleep 1; write_report "$R" 0 0 0
+  age_artifacts "$R"; write_report "$R" 0 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_match "$R/.bdcalls" "--add-label reviewed" "applied the marker's label"
@@ -603,7 +615,7 @@ if case_start "label/stop: a failing report earns no label"; then
   R="$(new_repo b2 with-origin)"
   M="$(marker_dir "$R")"; mkdir -p "$M"
   printf '%s\ntadw-alpha-one\nqa\n' "$(date +%s)" > "$M/qa-d__tadw-alpha-one"
-  sleep 1; write_report "$R" 2 1 0
+  age_artifacts "$R"; write_report "$R" 2 1 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_no_match "$R/.bdcalls" "--add-label" "no label"
@@ -620,7 +632,7 @@ if case_start "label/stop: an unreadable marker is discarded and the rest still 
   M="$(marker_dir "$R")"; mkdir -p "$M"
   printf 'not-a-timestamp\ntadw-alpha-one\nqa\ngate\n' > "$M/qa-d__aaa-corrupt"
   printf '%s\ntadw-alpha-one\nqa\ngate\n' "$(date +%s)" > "$M/qa-d__tadw-alpha-one"
-  sleep 1; write_report "$R" 0 0 0
+  age_artifacts "$R"; write_report "$R" 0 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_eq "$HOOK_CODE" 0 "exits 0"
@@ -633,7 +645,7 @@ if case_start "label/stop: a marker past its TTL is abandoned"; then
   R="$(new_repo b3 with-origin)"
   M="$(marker_dir "$R")"; mkdir -p "$M"
   printf '%s\ntadw-alpha-one\nqa\n' "$(( $(date +%s) - 99999 ))" > "$M/qa-d__tadw-alpha-one"
-  sleep 1; write_report "$R" 0 0 0
+  age_artifacts "$R"; write_report "$R" 0 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_no_match "$R/.bdcalls" "--add-label" "no label"
@@ -667,7 +679,7 @@ fi
 if case_start "label/stop: a PASS quality-gates report newer than the marker labels qa-d"; then
   R="$(new_repo q2 with-origin)"
   qg_marker "$R" tadw-alpha-one
-  sleep 1; write_qg_report "$R" PASS
+  age_artifacts "$R"; write_qg_report "$R" PASS
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_match "$R/.bdcalls" "--add-label qa-d" "labeled it qa-d"
@@ -679,7 +691,7 @@ if case_start "label/stop: any quality-gates verdict but PASS earns no label"; t
   for v in FAIL INCOMPLETE "NO GATES RAN"; do
     R="$(new_repo "q3-${v// /-}" with-origin)"
     qg_marker "$R" tadw-alpha-one
-    sleep 1; write_qg_report "$R" "$v"
+    age_artifacts "$R"; write_qg_report "$R" "$v"
     export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
     run_hook "$LABEL" "$R" "$(payload Stop '')"
     assert_no_match "$R/.bdcalls" "--add-label" "no label on $v"
@@ -690,7 +702,7 @@ fi
 if case_start "label/stop: a quality-gates report older than the marker means the run is still going"; then
   R="$(new_repo q4 with-origin)"
   write_qg_report "$R" PASS
-  sleep 1; qg_marker "$R" tadw-alpha-one
+  age_artifacts "$R"; qg_marker "$R" tadw-alpha-one
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_no_match "$R/.bdcalls" "--add-label" "no label from a stale report"
@@ -702,7 +714,7 @@ if case_start "label/stop: a quality-gates marker ignores a passing /qa report";
   # concurrent /qa run says nothing about the gates.
   R="$(new_repo q5 with-origin)"
   qg_marker "$R" tadw-alpha-one
-  sleep 1; write_report "$R" 0 0 0
+  age_artifacts "$R"; write_report "$R" 0 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_no_match "$R/.bdcalls" "--add-label" "no label from the wrong artifact"
@@ -713,7 +725,7 @@ if case_start "label/stop: a /qa marker still reads the .gstack report"; then
   R="$(new_repo q6 with-origin)"
   M="$(marker_dir "$R")"; mkdir -p "$M"
   printf '%s\ntadw-alpha-one\ngstack:qa\n' "$(date +%s)" > "$M/qa-d__tadw-alpha-one"
-  sleep 1; write_report "$R" 0 0 0
+  age_artifacts "$R"; write_report "$R" 0 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_match "$R/.bdcalls" "--add-label qa-d" "labeled it qa-d"
@@ -800,7 +812,7 @@ fi
 if case_start "label/stop: a clean build report labels implemented"; then
   R="$(new_repo bg1 with-origin)"
   build_marker "$R" tadw-alpha-one
-  sleep 1; write_build_report "$R" 4 4 0 0
+  age_artifacts "$R"; write_build_report "$R" 4 4 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_match "$R/.bdcalls" "--add-label implemented" "labeled it implemented"
@@ -818,7 +830,7 @@ if case_start "label/stop: any failing count withholds implemented"; then
     set -- $counts
     R="$(new_repo "bg2-$1$2$3$4" with-origin)"
     build_marker "$R" tadw-alpha-one
-    sleep 1; write_build_report "$R" "$1" "$2" "$3" "$4"
+    age_artifacts "$R"; write_build_report "$R" "$1" "$2" "$3" "$4"
     export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
     run_hook "$LABEL" "$R" "$(payload Stop '')"
     assert_no_match "$R/.bdcalls" "--add-label" "no label on $why"
@@ -846,7 +858,7 @@ fi
 if case_start "label/stop: a build marker past its TTL is abandoned, never labeled"; then
   R="$(new_repo bg4 with-origin)"
   build_marker "$R" tadw-alpha-one "$(( $(date +%s) - 99999 ))"
-  sleep 1; write_build_report "$R" 4 4 0 0
+  age_artifacts "$R"; write_build_report "$R" 4 4 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_no_match "$R/.bdcalls" "--add-label" "no label"
@@ -857,7 +869,7 @@ fi
 if case_start "label/stop: a build report older than the marker means the run is still going"; then
   R="$(new_repo bg5 with-origin)"
   write_build_report "$R" 4 4 0 0
-  sleep 1; build_marker "$R" tadw-alpha-one
+  age_artifacts "$R"; build_marker "$R" tadw-alpha-one
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_no_match "$R/.bdcalls" "--add-label" "no label from a stale report"
@@ -871,7 +883,7 @@ if case_start "label/stop: the build reader fails closed on a malformed report";
   for shape in 'not json at all' '{"criteria_met":4}' '{"criteria_met":"four","criteria_total":4,"tests_failed":0,"lint_violations":0}'; do
     R="$(new_repo "bg6-${#shape}" with-origin)"
     build_marker "$R" tadw-alpha-one
-    sleep 1; printf '%s' "$shape" > "$R/.git/build-report.json"
+    age_artifacts "$R"; printf '%s' "$shape" > "$R/.git/build-report.json"
     export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
     run_hook "$LABEL" "$R" "$(payload Stop '')"
     assert_no_match "$R/.bdcalls" "--add-label" "no label on: $shape"
@@ -888,7 +900,7 @@ if case_start "label/stop: a linter that never ran earns no label"; then
   for shape in 'false' 'absent'; do
     R="$(new_repo "bg11-$shape" with-origin)"
     build_marker "$R" tadw-alpha-one
-    sleep 1
+    age_artifacts "$R"
     if [[ "$shape" == false ]]; then
       jq -n '{bead:"tadw-alpha-one", criteria_met:4, criteria_total:4,
               tests_passed:14, tests_failed:0, lint_ran:false, lint_violations:0}' \
@@ -911,7 +923,7 @@ if case_start "label/stop: a run with no passing tests earns no label"; then
   # it: there is nothing to count. Zero passing tests proves nothing.
   R="$(new_repo bg12 with-origin)"
   build_marker "$R" tadw-alpha-one
-  sleep 1
+  age_artifacts "$R"
   jq -n '{bead:"tadw-alpha-one", criteria_met:4, criteria_total:4,
           tests_passed:0, tests_failed:0, lint_ran:true, lint_violations:0}' \
     > "$R/.git/build-report.json"
@@ -927,7 +939,7 @@ if case_start "label/stop: one passing test is enough, it is not compared to the
   # withhold the label from correct runs.
   R="$(new_repo bg13 with-origin)"
   build_marker "$R" tadw-alpha-one
-  sleep 1
+  age_artifacts "$R"
   jq -n '{bead:"tadw-alpha-one", criteria_met:4, criteria_total:4,
           tests_passed:1, tests_failed:0, lint_ran:true, lint_violations:0}' \
     > "$R/.git/build-report.json"
@@ -946,7 +958,7 @@ if case_start "label/stop: a leading-zero count does not fall through to a label
   # the arithmetic with a leading zero: JSON forbids 08 as a bare number.
   R="$(new_repo bg9 with-origin)"
   build_marker "$R" tadw-alpha-one
-  sleep 1
+  age_artifacts "$R"
   jq -n '{bead:"tadw-alpha-one", criteria_met:"09", criteria_total:"09",
           tests_passed:"14", tests_failed:"08", lint_ran:true, lint_violations:"0"}' \
     > "$R/.git/build-report.json"
@@ -962,7 +974,7 @@ if case_start "label/stop: a leading-zero count still passes when it is clean"; 
   # make it pass rather than making every leading zero fail closed.
   R="$(new_repo bg10 with-origin)"
   build_marker "$R" tadw-alpha-one
-  sleep 1
+  age_artifacts "$R"
   jq -n '{bead:"tadw-alpha-one", criteria_met:"04", criteria_total:"04",
           tests_passed:"08", tests_failed:"00", lint_ran:true, lint_violations:"00"}' \
     > "$R/.git/build-report.json"
@@ -978,7 +990,7 @@ if case_start "label/stop: a verdict field in the build report is ignored"; then
   # /verify-acceptance exists to prevent. The counts decide, and only the counts.
   R="$(new_repo bg7 with-origin)"
   build_marker "$R" tadw-alpha-one
-  sleep 1
+  age_artifacts "$R"
   jq -n '{bead:"tadw-alpha-one", verdict:"PASS", criteria_met:2, criteria_total:4,
           tests_passed:9, tests_failed:3, lint_ran:true, lint_violations:0}' \
     > "$R/.git/build-report.json"
@@ -993,7 +1005,7 @@ if case_start "label/stop: a build marker ignores a quality-gates report"; then
   # same directory. A concurrent /quality-gates PASS says nothing about /build.
   R="$(new_repo bg8 with-origin)"
   build_marker "$R" tadw-alpha-one
-  sleep 1; write_qg_report "$R" PASS
+  age_artifacts "$R"; write_qg_report "$R" PASS
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_no_match "$R/.bdcalls" "--add-label" "no label from the wrong artifact"
@@ -1047,7 +1059,7 @@ if case_start "label/stop: a clean acceptance report labels accepted"; then
   # and the model ran no bd command.
   R="$(new_repo a2 with-origin)"
   acceptance_marker "$R" tadw-alpha-one
-  sleep 1; write_acceptance_report "$R" 9 9 0 0 3 0 0
+  age_artifacts "$R"; write_acceptance_report "$R" 9 9 0 0 3 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_match "$R/.bdcalls" "--add-label accepted" "labeled it accepted"
@@ -1070,7 +1082,7 @@ if case_start "label/stop: any failing criterion or gate withholds accepted"; th
     set -- $counts
     R="$(new_repo "a3-$1$2$3$4$5$6$7" with-origin)"
     acceptance_marker "$R" tadw-alpha-one
-    sleep 1; write_acceptance_report "$R" "$1" "$2" "$3" "$4" "$5" "$6" "$7"
+    age_artifacts "$R"; write_acceptance_report "$R" "$1" "$2" "$3" "$4" "$5" "$6" "$7"
     export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
     run_hook "$LABEL" "$R" "$(payload Stop '')"
     assert_no_match "$R/.bdcalls" "--add-label" "no label on $why"
@@ -1094,7 +1106,7 @@ if case_start "label/stop: an unverifiable criterion is caught even when the tot
   # able to buy a label with the inconsistency.
   R="$(new_repo a3u with-origin)"
   acceptance_marker "$R" tadw-alpha-one
-  sleep 1; write_acceptance_report "$R" 9 9 0 1 3 0 0
+  age_artifacts "$R"; write_acceptance_report "$R" 9 9 0 1 3 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_no_match "$R/.bdcalls" "--add-label" "no label when the totals agree but a criterion is unverifiable"
@@ -1119,7 +1131,7 @@ if case_start "label/stop: an acceptance marker past its TTL is abandoned, never
   # Criterion 3's other half: the waiting ends, and it ends without a label.
   R="$(new_repo a5 with-origin)"
   acceptance_marker "$R" tadw-alpha-one "$(( $(date +%s) - 99999 ))"
-  sleep 1; write_acceptance_report "$R" 9 9 0 0 3 0 0
+  age_artifacts "$R"; write_acceptance_report "$R" 9 9 0 0 3 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_no_match "$R/.bdcalls" "--add-label" "no label"
@@ -1133,7 +1145,7 @@ if case_start "label/stop: a bare ACCEPTED verdict string earns nothing on its o
   # it had just graded as failed.
   R="$(new_repo a6 with-origin)"
   acceptance_marker "$R" tadw-alpha-one
-  sleep 1
+  age_artifacts "$R"
   jq -n '{bead:"tadw-alpha-one", verdict:"ACCEPTED"}' > "$R/.git/acceptance-report.json"
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
@@ -1142,7 +1154,7 @@ if case_start "label/stop: a bare ACCEPTED verdict string earns nothing on its o
   # And the counts decide even when a verdict field contradicts them.
   R="$(new_repo a6b with-origin)"
   acceptance_marker "$R" tadw-alpha-one
-  sleep 1
+  age_artifacts "$R"
   jq -n '{bead:"tadw-alpha-one", verdict:"ACCEPTED", criteria_total:9, criteria_passed:7,
           criteria_failed:2, criteria_unverifiable:0, gates_total:3, gates_failed:0,
           gates_blocked:0}' > "$R/.git/acceptance-report.json"
@@ -1165,7 +1177,7 @@ if case_start "label/stop: the acceptance reader fails closed on a malformed rep
   do
     R="$(new_repo "a7-${#shape}" with-origin)"
     acceptance_marker "$R" tadw-alpha-one
-    sleep 1; printf '%s' "$shape" > "$R/.git/acceptance-report.json"
+    age_artifacts "$R"; printf '%s' "$shape" > "$R/.git/acceptance-report.json"
     export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
     run_hook "$LABEL" "$R" "$(payload Stop '')"
     assert_no_match "$R/.bdcalls" "--add-label" "no label on: $shape"
@@ -1185,7 +1197,7 @@ if case_start "label/stop: a report grading nothing earns no label"; then
     set -- $counts
     R="$(new_repo "a8-${why// /-}" with-origin)"
     acceptance_marker "$R" tadw-alpha-one
-    sleep 1; write_acceptance_report "$R" "$1" "$2" "$3" "$4" "$5" "$6" "$7"
+    age_artifacts "$R"; write_acceptance_report "$R" "$1" "$2" "$3" "$4" "$5" "$6" "$7"
     export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
     run_hook "$LABEL" "$R" "$(payload Stop '')"
     assert_no_match "$R/.bdcalls" "--add-label" "no label on $why"
@@ -1199,7 +1211,7 @@ if case_start "label/stop: all gates skipped still earns the label"; then
   # the skill it reads. Three gates considered, none failed, none blocked.
   R="$(new_repo a9 with-origin)"
   acceptance_marker "$R" tadw-alpha-one
-  sleep 1; write_acceptance_report "$R" 9 9 0 0 3 0 0
+  age_artifacts "$R"; write_acceptance_report "$R" 9 9 0 0 3 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_match "$R/.bdcalls" "--add-label accepted" "labeled it with no gates_passed field present"
@@ -1210,7 +1222,7 @@ if case_start "label/stop: grading leaves the working tree as clean as it found 
   # stay empty across the whole labeling flow.
   R="$(new_repo a10 with-origin)"
   acceptance_marker "$R" tadw-alpha-one
-  sleep 1; write_acceptance_report "$R" 9 9 0 0 3 0 0
+  age_artifacts "$R"; write_acceptance_report "$R" 9 9 0 0 3 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_match "$R/.bdcalls" "--add-label accepted" "labeled it"
@@ -1603,7 +1615,7 @@ fi
 if case_start "label/log: a gate withheld at Stop is recorded, not just dropped"; then
   R="$(new_repo g3 with-origin)"
   qg_marker "$R" tadw-alpha-one
-  sleep 1; write_qg_report "$R" FAIL
+  age_artifacts "$R"; write_qg_report "$R" FAIL
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_no_match "$R/.bdcalls" "--add-label" "applied no label"
@@ -1617,7 +1629,7 @@ if case_start "label/log: a marker with no label prefix is recorded, not just dr
   R="$(new_repo g3b with-origin)"
   M="$(marker_dir "$R")"; mkdir -p "$M"
   printf '%s\ntadw-alpha-one\nqa\ngate\n' "$(date +%s)" > "$M/no-separator-here"
-  sleep 1; write_report "$R" 0 0 0
+  age_artifacts "$R"; write_report "$R" 0 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_eq "$HOOK_CODE" 0 "exits 0"
@@ -1631,7 +1643,7 @@ if case_start "label/log: a marker with an unreadable header is recorded, not ju
   R="$(new_repo g3c with-origin)"
   M="$(marker_dir "$R")"; mkdir -p "$M"
   printf 'not-a-timestamp\ntadw-alpha-one\nqa\ngate\n' > "$M/qa-d__aaa-corrupt"
-  sleep 1; write_report "$R" 0 0 0
+  age_artifacts "$R"; write_report "$R" 0 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_eq "$HOOK_CODE" 0 "exits 0"
@@ -1785,7 +1797,7 @@ if case_start "label/inject: a marker with no mode line is still treated as a ga
   R="$(new_repo j6 with-origin)"
   M="$(marker_dir "$R")"; mkdir -p "$M"
   printf '%s\ntadw-alpha-one\ntadw:quality-gates\n' "$(date +%s)" > "$M/qa-d__tadw-alpha-one"
-  sleep 1; write_qg_report "$R" PASS
+  age_artifacts "$R"; write_qg_report "$R" PASS
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_match "$R/.bdcalls" "--add-label qa-d" "read its report and labeled it"
@@ -1996,7 +2008,7 @@ if case_start "install/wiring: the guard still runs the script when it is there"
   run_installer "$R"
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   qg_marker "$R" tadw-alpha-one
-  sleep 1; write_qg_report "$R" PASS
+  age_artifacts "$R"; write_qg_report "$R" PASS
   run_wired "$R" "$R" "$(payload Stop '')"
   assert_eq "$WIRED_CODE" 0 "exits 0"
   assert_match "$R/.bdcalls" "--add-label qa-d" "reached the script, which labeled the bead"
@@ -2018,7 +2030,7 @@ if case_start "install/wiring: a linked worktree runs the MAIN checkout's copy";
 
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   qg_marker "$R" tadw-alpha-one
-  sleep 1; write_qg_report "$R" PASS
+  age_artifacts "$R"; write_qg_report "$R" PASS
   run_wired "$R" "$WT" "$(payload Stop '')"
   assert_eq "$WIRED_CODE" 0 "exits 0"
   assert_match "$R/.bdcalls" "--add-label qa-d" "reached the main checkout's script anyway"
@@ -2040,7 +2052,7 @@ if case_start "install/wiring: a stale copy in the worktree is not the one that 
 
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   qg_marker "$R" tadw-alpha-one
-  sleep 1; write_qg_report "$R" PASS
+  age_artifacts "$R"; write_qg_report "$R" PASS
   run_wired "$R" "$WT" "$(payload Stop '')"
   assert_no_match "$R/.wirederr" "STALE-WORKTREE-COPY-RAN" "the worktree's copy did not run"
   assert_match "$R/.bdcalls" "--add-label qa-d" "the main checkout's copy did"
@@ -2073,7 +2085,7 @@ if case_start "install/wiring: an empty project dir resolves nothing, not the cw
   run_installer "$R"
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   qg_marker "$R" tadw-alpha-one
-  sleep 1; write_qg_report "$R" PASS
+  age_artifacts "$R"; write_qg_report "$R" PASS
   run_wired "$R" "" "$(payload Stop '')"
   assert_eq "$WIRED_CODE" 0 "exits 0"
   assert_no_match "$R/.bdcalls" "add-label" "labeled nothing from an unnamed project"
@@ -2095,7 +2107,7 @@ fi
 if case_start "codex/runner: Stop applies an artifact-gated label"; then
   R="$(new_repo cx2 with-origin)"
   build_marker "$R" tadw-alpha-one
-  sleep 1; write_build_report "$R" 1 1 0 0
+  age_artifacts "$R"; write_build_report "$R" 1 1 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$CODEX_RUNNER" "$R" "$(payload Stop '')"
   assert_match "$R/.bdcalls" "--add-label implemented" "applied the implemented label"
@@ -2145,7 +2157,7 @@ if case_start "codex/runner: a runner with no sibling finds the installed label 
   cp "$REPO_ROOT/scripts/label_bead_on_skill_invocation.sh" "$R/.claude/scripts/"
   chmod +x "$R/.claude/scripts/label_bead_on_skill_invocation.sh"
   build_marker "$R" tadw-alpha-one
-  sleep 1; write_build_report "$R" 1 1 0 0
+  age_artifacts "$R"; write_build_report "$R" 1 1 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$R/lonely/run_codex_bead_hooks.sh" "$R" "$(payload Stop '')" Stop
   assert_match "$R/.bdcalls" "--add-label implemented" "applied the implemented label"
@@ -2329,7 +2341,7 @@ if case_start "label/export: a Stop-resolved gate label also leaves the tree cle
   # session, which is exactly when a dirtied tree is hardest to notice.
   R="$(new_repo d2d with-origin)"
   qg_marker "$R" tadw-alpha-one
-  sleep 1; write_qg_report "$R" PASS
+  age_artifacts "$R"; write_qg_report "$R" PASS
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$LABEL" "$R" "$(payload Stop '')"
   assert_match "$R/.bdcalls" "--add-label qa-d" "labeled it qa-d"
