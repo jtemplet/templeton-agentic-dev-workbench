@@ -174,6 +174,11 @@ those results rather than re-deriving them.
 Reading code for defects or for conventions. `/fresh-eyes-cr` hunts bugs; `/code-review` checks
 conventions.
 
+**Reconcile**:
+Fixing the findings of one report, without grading the fix. The check that wrote the report
+grades the result again. `reconcile-quality-gates` and `reconcile-acceptance` are the two.
+_Avoid_: resolve, self-heal
+
 **Gate**:
 A check that can refuse to let work proceed. The same word covers all three scales it appears
 at: one shell command, a named list of commands such as the ship gate, and a pass-or-fail step
@@ -193,9 +198,19 @@ _Avoid_: bare "band", grade, tier
 The single categorical result a skill returns, such as PASS, Ready, or NOT ACCEPTED. A verdict
 is never a score.
 
+**Findings**:
+The failing rows a check records in its report file, in a form a reconcile skill can fix. They
+travel only in that file, never in a transcript.
+_Avoid_: handoff, which names a QA surface
+
 **Changed set**:
 The files a change touches, resolved from a git base by a bundled script. Never classified by
 eye.
+
+**Base**:
+The commit a changed set is diffed against. It is the merge-base with the remote's default
+branch, unless the caller names another, as on a stacked branch.
+_Avoid_: parent, which is only one way to name a base
 
 **QA surface**:
 What a changed file demands of a test, resolved by a bundled router. Nine exist, such as
