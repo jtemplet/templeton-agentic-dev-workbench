@@ -6,5 +6,41 @@ requires-python = ">=3.14"
 [tool.ruff]
 extend = ".boreas/ruff.toml"
 
+[tool.ruff.lint.per-file-ignores]
+# Test files: assert is the whole point, subprocess/complexity/length often needed for setup
+"**/test_*.py" = ["S101", "S603", "S607", "PLR0915", "C901", "E501"]
+"**/*_test.py" = ["S101", "S603", "S607", "PLR0915", "C901", "E501"]
+"**/tests/**" = ["S101", "S603", "S607", "PLR0915", "C901", "E501"]
+"**/scripts/test_*.py" = ["S101", "S603", "S607", "PLR0915", "C901", "E501"]
+".githooks/test_*.py" = ["S101", "S603", "S607", "PLR0915", "C901", "E501"]
+"**/conftest.py" = ["S101", "S603", "S607", "PLR0915", "C901", "E501"]
+
+# Gatekeeping and admin scripts: subprocess and complexity are core to their work
+"skills/quality-gates/scripts/*.py" = ["S603", "S607", "PLR0915", "C901"]
+"skills/style-testing/scripts/*.py" = ["S603", "S607", "PLR0915", "C901", "E501"]
+"skills/product-surface-docs/scripts/*.py" = ["S603", "S607", "PLR0915"]
+"skills/roadmap-dashboard/scripts/*.py" = ["S603", "S607", "PLR0915"]
+"skills/ship/scripts/*.py" = ["S603", "S607", "PLR0915", "C901", "E501"]
+"evals/*.py" = ["PLR0915", "C901", "S104", "S108", "E501"]
+".githooks/pre-push" = ["S104", "PLR0915", "C901", "PLR0913", "SIM117", "SIM105", "S603", "S607"]
+
+# Intentional hardcoded values (fixtures, defaults) in all skills
+"skills/**" = ["S104", "S108", "S602", "S105"]
+
+# Additional ignores for specific files with structural patterns
+"skills/bead-audit/scripts/check_bead_body.py" = ["PLR0915"]
+"skills/bead-refine/scripts/check_round_format.py" = ["PLR0915"]
+"skills/bead-refine/scripts/test_check_round_format.py" = ["PLR0913"]
+"skills/product-surface-docs/scripts/check_staleness.py" = ["C901"]
+"skills/quality-gates/scripts/probe_api.py" = ["S101", "E501"]
+"skills/quality-gates/scripts/route_qa.py" = ["S101"]
+"skills/quality-gates/scripts/check_documented_bd_commands.py" = ["E501"]
+"skills/quality-gates/scripts/test_check_documented_bd_commands.py" = ["F841"]
+"skills/reconcile-acceptance/scripts/load_findings.py" = ["PLR0915", "PTH123"]
+"skills/roadmap-dashboard/scripts/collect_beads.py" = ["SIM105", "SIM117"]
+"evals/run.py" = ["PLR0913", "S603", "S607"]
+"evals/test_run.py" = ["SIM117"]
+".githooks/test_prepush.py" = ["S108", "SIM105", "B904"]
+
 [dependency-groups]
 dev = ["ruff==0.14.14"]
