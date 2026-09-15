@@ -23,20 +23,25 @@
 //   6. /response-style must NOT route through the Skill tool. The skill sets
 //      disable-model-invocation, so the Skill tool refuses it and the command
 //      silently no-ops. Regression guard for that exact bug.
-//   7. run-hook.sh emits the failure marker when node fails, and stays SILENT
-//      when node fails and the off-switch is set. The fallback used to fire
-//      regardless, telling an opted-out user something had failed when they
-//      had simply turned it off.
+//   7. run-hook.sh picks its runtime by PRESENCE: bun when bun is on PATH, and
+//      node otherwise. A bun that exits non-zero is never retried on node,
+//      because the script would then run twice and a partial first write would
+//      repeat its stdout. With neither runtime on PATH it emits the failure
+//      marker, and it stays SILENT whenever the off-switch is set, working
+//      runtime or not. That fallback used to fire regardless of the off-switch,
+//      telling an opted-out user something had failed when they had simply
+//      turned it off.
 //   8. run-hook.sh needs no external command and no HOME. It lowercased with
 //      `tr`, so on a PATH without `tr` the off-switch was ignored; and an unset
 //      HOME aborted it under `set -u`, emitting neither core nor marker.
 //   9. run-hook.sh and runtime.js agree on what "disabled" means. The shell
-//      copy exists because the off-switch must hold when node cannot run, and
-//      duplicated logic drifts unless something asserts otherwise.
-//  10. The manifest commands actually RUN. Everything above tests the manifest
-//      as a string and the wrapper as a program, never together, so a shell
-//      quoting error would ship green. Matters most for the SubagentStart
-//      fallback: JSON nested in single quotes inside a JSON string.
+//      copy exists because the off-switch must hold when no runtime can run,
+//      and duplicated logic drifts unless something asserts otherwise.
+//  10. The manifest commands actually RUN, on a PATH holding only fake runtimes.
+//      Everything above tests the manifest as a string and the wrapper as a
+//      program, never together, so a shell quoting error would ship green.
+//      Matters most for the SubagentStart fallback: JSON nested in single
+//      quotes inside a JSON string.
 //  11. Both response-style sources carry the report-your-own-work rule. Rule 3
 //      (no jargon) listed only words about system behavior, so the words an
 //      agent reaches for to describe its OWN work ("green", "a flake") read as
@@ -406,6 +411,16 @@ check('SessionStart matcher covers every session source', () => {
         /FAILED to load/.test(hook.commandWindows),
         `commandWindows must supply a failure marker: ${hook.commandWindows}`
       );
+
+      // Bun first, node second, matching run-hook.sh. PowerShell takes the first
+      // branch that matches, so checking node first would pin every machine that
+      // has both runtimes to node and silently undo the choice.
+      const bunCheck = hook.commandWindows.indexOf('Get-Command bun');
+      const nodeCheck = hook.commandWindows.indexOf('Get-Command node');
+      assert.ok(
+        bunCheck > -1 && nodeCheck > bunCheck,
+        `commandWindows must check Get-Command bun before Get-Command node: ${hook.commandWindows}`
+      );
     }
   }
 });
@@ -627,25 +642,58 @@ check('every runnable bash block in a skill or command parses', () => {
   );
 });
 
-// --- 7. The wrapper honors the off-switch even when node fails -----------
-// The bug this pins: the failure fallback used to fire regardless of the
-// off-switch, so a user who had deliberately disabled the hook still got a
+// --- 7. The wrapper picks its runtime, and honors the off-switch ----------
+// Two rules are pinned below. The runtime is chosen by PRESENCE: bun when bun is
+// on PATH, node otherwise, and a bun that exits non-zero is never retried on
+// node. And the off-switch outranks both: the failure fallback used to fire
+// regardless of it, so a user who had deliberately disabled the hook still got a
 // "FAILED to load" marker injected into every session. Nothing had failed.
-//
-// A `node` shim that exits non-zero stands in for a missing node. Both produce
-// a non-zero status from the same branch of run-hook.sh, and a shim keeps the
-// rest of PATH intact so the wrapper's own utilities still resolve.
 const WRAPPER = path.join(HOOKS_DIR, 'run-hook.sh');
 const FALLBACK = '<!-- house-style-core: FAILED to load (test) -->';
 
-function withBrokenNode(env) {
-  const shimDir = tmpDir('tadw-shim-');
-  fs.writeFileSync(path.join(shimDir, 'node'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
-  return { ...env, PATH: `${shimDir}${path.delimiter}${env.PATH || ''}` };
+// Printed by the `sentinel` fake below. A retry after a failed bun would leak it
+// into stdout, which is the only way to observe that retry from outside.
+const SENTINEL = 'the-second-runtime-ran';
+
+// One fake per behavior, written under the name of the runtime it stands in for.
+// A `working` fake execs this suite's own interpreter by absolute path, so it
+// proves the wrapper chose that NAME without a real bun being installed: CI runs
+// on Linux with node alone, and the choice is what these checks are about.
+const RUNTIME_FAKES = {
+  working: `#!/bin/sh\nexec ${process.execPath} "$@"\n`,
+  failing: '#!/bin/sh\nexit 1\n',
+  sentinel: `#!/bin/sh\nprintf '%s\\n' '${SENTINEL}'\n`,
+};
+
+// Build PATH from scratch, holding only the named fakes and an `sh`. Prepending
+// a shim to the INHERITED PATH leaves the machine's real runtimes behind it, so
+// on a machine that has bun installed every "the runtime is broken" check would
+// run on the real bun and pass for the wrong reason. `sh` is there because the
+// manifest command in check 10 invokes it by bare name.
+function withRuntimes(env, runtimes) {
+  const dir = tmpDir('tadw-runtimes-');
+  fs.symlinkSync('/bin/sh', path.join(dir, 'sh'));
+
+  for (const [name, behavior] of Object.entries(runtimes)) {
+    if (behavior === 'absent') continue;
+    assert.ok(RUNTIME_FAKES[behavior], `unknown runtime behavior for ${name}: ${behavior}`);
+    fs.writeFileSync(path.join(dir, name), RUNTIME_FAKES[behavior], { mode: 0o755 });
+  }
+
+  return { ...env, PATH: dir };
 }
 
-function runWrapper(env) {
-  const result = spawnSync('/bin/sh', [WRAPPER, SESSION, FALLBACK], {
+const BOTH_FAIL = { bun: 'failing', node: 'failing' };
+
+// An enabled core on a PATH of fakes. The config dir is a fresh empty one, so a
+// real ~/.claude flag file can never disable an enabled-path check.
+const enabledWith = (runtimes) =>
+  withRuntimes(enabledEnv({ CLAUDE_CONFIG_DIR: tmpDir('tadw-cfg-') }), runtimes);
+
+// session-start.js takes a payload index. Index 0 is the coding-style core, so
+// the loaded marker is in stdout whenever the chosen runtime worked.
+function runWrapper(env, args = ['0']) {
+  const result = spawnSync('/bin/sh', [WRAPPER, SESSION, FALLBACK, ...args], {
     encoding: 'utf8',
     env,
     timeout: 5000,
@@ -654,17 +702,51 @@ function runWrapper(env) {
   return result.stdout;
 }
 
-check('run-hook.sh emits the failure marker when node fails and the core is enabled', () => {
-  const tmp = tmpDir('tadw-on-');
-  const out = runWrapper(withBrokenNode(enabledEnv({ CLAUDE_CONFIG_DIR: tmp })));
-  assert.ok(out.includes(FALLBACK), 'a broken node must produce a visible marker');
+check('run-hook.sh runs the hook on bun when bun is on PATH', () => {
+  const out = runWrapper(enabledWith({ bun: 'working', node: 'failing' }));
+  assert.ok(
+    out.includes(MARKER),
+    'bun must inject the core, and a node that cannot run must not matter'
+  );
 });
 
-check('run-hook.sh stays silent when node fails AND the off-switch is set', () => {
+check('run-hook.sh runs the hook on node when bun is absent', () => {
+  const out = runWrapper(enabledWith({ bun: 'absent', node: 'working' }));
+  assert.ok(out.includes(MARKER), 'node must inject the core when bun is not on PATH');
+});
+
+check('run-hook.sh never retries on node after bun fails', () => {
+  const out = runWrapper(enabledWith({ bun: 'failing', node: 'sentinel' }));
+
+  assert.ok(out.includes(FALLBACK), 'a bun that exits non-zero must produce the marker');
+  assert.ok(
+    !out.includes(SENTINEL),
+    'node must not run after bun fails: the script would run twice and repeat its stdout'
+  );
+});
+
+check('run-hook.sh emits the failure marker when neither runtime is on PATH', () => {
+  const out = runWrapper(enabledWith({ bun: 'absent', node: 'absent' }));
+  assert.strictEqual(
+    out.trim(),
+    FALLBACK,
+    'with no runtime at all the wrapper must emit the marker and nothing else'
+  );
+});
+
+check('run-hook.sh emits the failure marker when the chosen runtime fails', () => {
+  const out = runWrapper(enabledWith(BOTH_FAIL));
+  assert.ok(out.includes(FALLBACK), 'a broken runtime must produce a visible marker');
+});
+
+check('run-hook.sh stays silent when the runtime fails AND the off-switch is set', () => {
   const tmp = tmpDir('tadw-off-');
 
   for (const value of ['off', '0', 'false', 'OFF', ' off ']) {
-    const env = withBrokenNode({ ...process.env, CLAUDE_CONFIG_DIR: tmp, TADW_STYLE_CORE: value });
+    const env = withRuntimes(
+      { ...process.env, CLAUDE_CONFIG_DIR: tmp, TADW_STYLE_CORE: value },
+      BOTH_FAIL
+    );
     assert.strictEqual(
       runWrapper(env),
       '',
@@ -675,9 +757,26 @@ check('run-hook.sh stays silent when node fails AND the off-switch is set', () =
   // Flag-file path, with the env var explicitly cleared.
   fs.writeFileSync(path.join(tmp, '.tadw-style-core-off'), '');
   assert.strictEqual(
-    runWrapper(withBrokenNode(enabledEnv({ CLAUDE_CONFIG_DIR: tmp }))),
+    runWrapper(withRuntimes(enabledEnv({ CLAUDE_CONFIG_DIR: tmp }), BOTH_FAIL)),
     '',
     'the flag file must suppress the marker too'
+  );
+});
+
+check('run-hook.sh stays silent when the off-switch is set and a runtime works', () => {
+  const tmp = tmpDir('tadw-off-working-');
+  const disabledWith = (runtimes) =>
+    withRuntimes({ ...process.env, CLAUDE_CONFIG_DIR: tmp, TADW_STYLE_CORE: 'off' }, runtimes);
+
+  assert.strictEqual(
+    runWrapper(disabledWith({ bun: 'working', node: 'absent' })),
+    '',
+    'a working bun must inject nothing while the off-switch is set'
+  );
+  assert.strictEqual(
+    runWrapper(disabledWith({ bun: 'absent', node: 'working' })),
+    '',
+    'a working node must inject nothing while the off-switch is set'
   );
 });
 
@@ -690,7 +789,7 @@ check('run-hook.sh needs no external commands and no HOME', () => {
   const emptyDir = tmpDir('tadw-nopath-');
   const cfg = tmpDir('tadw-cfg-');
 
-  // PATH contains neither `node` nor any coreutil.
+  // PATH contains neither runtime nor any coreutil.
   const bare = { PATH: emptyDir, CLAUDE_CONFIG_DIR: cfg };
 
   assert.strictEqual(
@@ -700,11 +799,11 @@ check('run-hook.sh needs no external commands and no HOME', () => {
   );
   assert.ok(
     runWrapper(bare).includes(FALLBACK),
-    'an enabled core with an unusable node must still emit the marker'
+    'an enabled core with no usable runtime must still emit the marker'
   );
 
   // No HOME and no CLAUDE_CONFIG_DIR: must not abort under `set -u`.
-  const homeless = spawnSync('/bin/sh', [WRAPPER, SESSION, FALLBACK], {
+  const homeless = spawnSync('/bin/sh', [WRAPPER, SESSION, FALLBACK, '0'], {
     encoding: 'utf8',
     env: { PATH: emptyDir },
     timeout: 5000,
@@ -717,8 +816,8 @@ check('run-hook.sh needs no external commands and no HOME', () => {
 });
 
 // --- 8. The two off-switch implementations agree --------------------------
-// run-hook.sh re-implements isDisabled() because it must work when node cannot
-// run. Duplicated logic drifts, so assert the copies match.
+// run-hook.sh re-implements isDisabled() because it must work when no runtime
+// can run. Duplicated logic drifts, so assert the copies match.
 check('run-hook.sh and runtime.js agree on what "disabled" means', () => {
   const { isDisabled } = require('./runtime.js');
   const tmp = tmpDir('tadw-parity-');
@@ -734,7 +833,10 @@ check('run-hook.sh and runtime.js agree on what "disabled" means', () => {
     if (saved.dir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
     else process.env.CLAUDE_CONFIG_DIR = saved.dir;
 
-    const env = withBrokenNode({ ...process.env, CLAUDE_CONFIG_DIR: tmp, TADW_STYLE_CORE: value });
+    const env = withRuntimes(
+      { ...process.env, CLAUDE_CONFIG_DIR: tmp, TADW_STYLE_CORE: value },
+      BOTH_FAIL
+    );
     const shellSaysDisabled = runWrapper(env) === '';
 
     assert.strictEqual(
@@ -752,6 +854,9 @@ check('run-hook.sh and runtime.js agree on what "disabled" means', () => {
 // matters most for SubagentStart, whose fallback is JSON nested inside single
 // quotes inside a JSON string. It had been verified only by hand, which is the
 // same discarded-verification pattern that let earlier bugs through twice.
+//
+// Every path runs on a PATH holding only fake runtimes, so a machine that has
+// bun installed cannot turn the broken-runtime path into a working one.
 check('the manifest commands execute correctly end to end', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(HOOKS_DIR, 'style-core-hooks.json'), 'utf8'));
   const pluginRoot = path.join(HOOKS_DIR, '..');
@@ -765,31 +870,31 @@ check('the manifest commands execute correctly end to end', () => {
     return result.stdout;
   };
 
-  for (const event of ['SessionStart', 'SubagentStart']) {
-    const working = runCommand(event, enabledEnv({ CLAUDE_CONFIG_DIR: cfg }));
-    assert.ok(working.includes(MARKER), `${event}: a working node must inject the core`);
+  const bothWork = { bun: 'working', node: 'working' };
 
-    const broken = runCommand(event, withBrokenNode(enabledEnv({ CLAUDE_CONFIG_DIR: cfg })));
+  for (const event of ['SessionStart', 'SubagentStart']) {
+    const working = runCommand(event, enabledWith(bothWork));
+    assert.ok(working.includes(MARKER), `${event}: a working runtime must inject the core`);
+
+    const broken = runCommand(event, enabledWith(BOTH_FAIL));
     assert.ok(
       broken.includes('FAILED to load'),
-      `${event}: a broken node must inject the failure marker`
+      `${event}: a broken runtime must inject the failure marker`
     );
 
     const disabled = runCommand(
       event,
-      withBrokenNode({ ...process.env, CLAUDE_CONFIG_DIR: cfg, TADW_STYLE_CORE: 'off' })
+      withRuntimes({ ...process.env, CLAUDE_CONFIG_DIR: cfg, TADW_STYLE_CORE: 'off' }, BOTH_FAIL)
     );
     assert.strictEqual(disabled.trim(), '', `${event}: the off-switch must silence the marker`);
   }
 
   // The SubagentStart wrapper contract must survive the nested quoting, in both
   // the success and the failure path.
-  const okJson = JSON.parse(runCommand('SubagentStart', enabledEnv({ CLAUDE_CONFIG_DIR: cfg })));
+  const okJson = JSON.parse(runCommand('SubagentStart', enabledWith(bothWork)));
   assert.strictEqual(okJson.hookSpecificOutput.hookEventName, 'SubagentStart');
 
-  const failJson = JSON.parse(
-    runCommand('SubagentStart', withBrokenNode(enabledEnv({ CLAUDE_CONFIG_DIR: cfg })))
-  );
+  const failJson = JSON.parse(runCommand('SubagentStart', enabledWith(BOTH_FAIL)));
   assert.ok(
     failJson.hookSpecificOutput.additionalContext.includes('FAILED to load'),
     'the SubagentStart fallback must be valid JSON carrying the marker'

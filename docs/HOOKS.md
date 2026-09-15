@@ -1,7 +1,7 @@
 # Hooks
 
 Design notes and rationale for the plugin's hook feature. `AGENTS.md` keeps only the
-operational summary (what fires, the off-switch, the `node` requirement) and points here for
+operational summary (what fires, the off-switch, the runtime requirement) and points here for
 everything else.
 
 It is wired through `hooks/style-core-hooks.json`, registered by the `hooks` field in
@@ -94,18 +94,21 @@ node -e "require('./hooks/preamble.js').getSessionStartPayloads().forEach((p,i)=
   into the subagent hook process, so one setting covers both surfaces, or
 - a persistent flag file at `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`.
 
-**`node` on PATH requirement.** Both hooks run through `hooks/run-hook.sh`, which invokes `node`.
-If `node` is not on the non-interactive shell's PATH (common for `fnm`/`nvm` users), the core
-cannot be injected, and the wrapper makes that **visible rather than silent**: it emits
+**`bun` or `node` on PATH requirement.** Both hooks run through `hooks/run-hook.sh`, which runs
+`bun` when `bun` is on PATH and `node` otherwise. The runtime is chosen by presence, not by
+failure. A `bun` that exits non-zero is never retried on `node`: the script would run twice, and a
+partial first write would repeat its stdout. If neither runtime is on the non-interactive shell's
+PATH (common for `fnm`/`nvm` users), the core cannot be injected. The chosen runtime failing has
+the same result. The wrapper makes both **visible rather than silent**: it emits
 `<!-- house-style-core: FAILED to load ... -->` in place of the core (as valid
 `hookSpecificOutput` JSON for `SubagentStart`). If you see that marker, the hook ran and could not
 execute; if you see no marker at all, the hook did not run (check the matcher and the off-switch).
 The wrapper always exits 0, so a failure never blocks the session.
 
 **Why the off-switch is checked twice.** `run-hook.sh` re-implements `isDisabled()` from
-`hooks/runtime.js`, because the off-switch has to be honored even when `node` cannot run, which
-is exactly when the JS copy is unavailable. The wrapper checks it **before** spawning `node`, so
-there is no node-missing path that skips it; an opted-out user gets silence, not a misleading
+`hooks/runtime.js`, because the off-switch has to be honored even when no runtime can run, which
+is exactly when the JS copy is unavailable. The wrapper checks it **before** it picks a runtime, so
+there is no missing-runtime path that skips it; an opted-out user gets silence, not a misleading
 "FAILED to load" marker for something they turned off themselves. `test-hooks.js` asserts the two
 implementations agree across a matrix of env values and the flag file, so the duplication cannot
 drift unnoticed.
@@ -123,7 +126,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 23 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 28 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
 frontmatter stripped), the three that hold the split shut (every payload inside the
@@ -132,13 +135,20 @@ counts above measured against the real payloads rather than remembered), the
 SubagentStart JSON wrapping (response style absent), both off-switch paths, the **manifest**
 (the matcher covers all five SessionStart sources, every referenced script exists, every
 command routes through the wrapper with a fallback marker, and the Windows command honors both
-off-switch paths, since it cannot be executed on a macOS or Linux runner and would otherwise
+off-switch paths, and the Windows command tries `Get-Command bun` before `Get-Command node`,
+since it cannot be executed on a macOS or Linux runner and would otherwise
 drift in silence), that `/response-style` reads the
-skill file rather than invoking the disabled skill through the Skill tool, and four covering
-`run-hook.sh`: it emits the marker when `node` fails, it stays silent when `node` fails *and*
-the off-switch is set, it needs neither an external command nor `HOME`, and its off-switch
-agrees with `runtime.js`. One check **executes the manifest commands themselves** against a
-working and a broken `node`, because everything else tests the manifest as a string and the
+skill file rather than invoking the disabled skill through the Skill tool, and nine covering
+`run-hook.sh`. Four of the nine pin the runtime choice: it runs the hook on `bun` when `bun` is on
+PATH, it runs the hook on `node` when `bun` is absent, it never retries on `node` after `bun`
+fails, and it emits the marker when neither runtime is on PATH. The other five: it emits the
+marker when the chosen runtime fails, it stays silent when the runtime fails *and* the off-switch
+is set, it stays silent when the off-switch is set and a runtime works, it needs neither an
+external command nor `HOME`, and its off-switch agrees with `runtime.js`. Each of the nine builds
+its PATH out of fake runtimes alone, holding no inherited entry. A real `bun` on the machine would
+otherwise run the broken-`node` cases and pass them for the wrong reason. One check **executes the
+manifest commands themselves** against working and broken runtimes, because everything else tests
+the manifest as a string and the
 wrapper as a program, never the two together, so a shell-quoting error would ship green. One
 check pins the **report-your-own-work** rule in both response-style sources (the skill and
 `preamble.js`'s fallback): the no-jargon rule illustrated only words about system behavior, so

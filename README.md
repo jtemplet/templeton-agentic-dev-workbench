@@ -323,12 +323,13 @@ research, ASO). This is intentional. Use the off-switch below for sessions where
 `${CLAUDE_CONFIG_DIR:-~/.claude}/.tadw-style-core-off`. Either disables both the session and
 subagent injection.
 
-**Requires `node` on PATH.** The hook runs `node` through `hooks/run-hook.sh`. If `node` is not
-on the non-interactive shell's PATH (common with `fnm`/`nvm`), the core cannot be injected and
-the wrapper says so: it emits `<!-- house-style-core: FAILED to load (node missing or script
-error) -->` in place of the core. If you see that marker, fix your PATH so `node` resolves in a
-non-interactive shell. If you see no marker at all, the hook did not run; check the matcher and
-the off-switch.
+**Requires `bun` or `node` on PATH.** The hook runs `hooks/run-hook.sh`, which uses `bun` when
+`bun` is on PATH and `node` otherwise. A `bun` that fails is not retried on `node`. If neither
+resolves on the non-interactive shell's PATH (common with `fnm`/`nvm`), the core cannot be
+injected and the wrapper says so: it emits `<!-- house-style-core: FAILED to load (bun and node
+missing, or script error) -->` in place of the core. If you see that marker, fix your PATH so one
+of the two resolves in a non-interactive shell. If you see no marker at all, the hook did not run;
+check the matcher and the off-switch.
 
 **Test the hooks:** `node hooks/test-hooks.js` (no dependencies, no install).
 

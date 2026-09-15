@@ -100,7 +100,7 @@ request, and a failed request here is invisible.
   `docs/HOOKS.md` tabulates the sizes and the suite asserts them.
 - These hooks fire in **every** project the plugin is loaded for, non-coding sessions included. A
   `SessionStart` hook cannot see the task type.
-- Both hooks run through `hooks/run-hook.sh`, which needs `node` on the non-interactive shell's
-  PATH. Without `node` the wrapper emits `<!-- house-style-core: FAILED to load ... -->` rather
-  than failing silently, because a silent failure here is the thing this whole record exists to
-  prevent.
+- Both hooks run through `hooks/run-hook.sh`, which needs `bun` or `node` on the non-interactive
+  shell's PATH. It uses `bun` when `bun` is there, and `node` otherwise. With neither runtime the
+  wrapper emits `<!-- house-style-core: FAILED to load ... -->` rather than failing silently,
+  because a silent failure here is the thing this whole record exists to prevent.

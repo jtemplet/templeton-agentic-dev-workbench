@@ -3,21 +3,22 @@
 #
 # Usage: run-hook.sh <script-path> <fallback-text> [script-args...]
 #
-# Runs a hook script, and makes failure VISIBLE (emits <fallback-text>) instead
-# of the silent no-op a bare `node ...; exit 0` produces when node is missing.
+# Runs a hook script on bun when bun is on PATH, and on node otherwise. Makes
+# failure VISIBLE (emits <fallback-text>) instead of the silent no-op a bare
+# `node ...; exit 0` produces when the runtime is missing.
 #
 # Any arguments after <fallback-text> are passed through to the script. The
 # SessionStart payload exceeds Claude Code's 10,000-character per-hook cap, so it
 # is emitted by several manifest entries that differ only in a payload index.
 #
-# Why the off-switch is re-implemented here. It must be honored even when node
-# is unavailable, which is precisely when runtime.js isDisabled() cannot be
-# consulted. That forces a second implementation outside node. Two things keep
-# the copies honest:
+# Why the off-switch is re-implemented here. It must be honored even when no
+# JavaScript runtime is available, which is precisely when runtime.js
+# isDisabled() cannot be consulted. That forces a second implementation outside
+# JavaScript. Two things keep the copies honest:
 #
-#   1. The check runs BEFORE node is spawned, so the off-switch behaves
-#      identically whether node works, fails, or is absent. There is no
-#      node-missing path that skips it.
+#   1. The check runs BEFORE the runtime is spawned, so the off-switch behaves
+#      identically whether the runtime works, fails, or is absent. There is no
+#      missing-runtime path that skips it.
 #   2. hooks/test-hooks.js asserts this file and runtime.js agree across a
 #      matrix of env values and the flag file.
 #
@@ -53,7 +54,7 @@ is_disabled() {
   # Known, deliberate divergence: runtime.js resolves the default config dir with
   # os.homedir(), which falls back to the password database when HOME is unset;
   # this uses $HOME only. They differ solely when HOME is unset AND the flag file
-  # exists AND node is broken, where the marker would be emitted despite the flag.
+  # exists AND no runtime works, where the marker would be emitted despite the flag.
   # Closing it needs either an external command (`getent`) or tilde expansion,
   # which dash does not perform with HOME unset. Not worth reintroducing a
   # dependency this wrapper just removed.
@@ -67,7 +68,17 @@ if is_disabled; then
   exit 0
 fi
 
-if ! node "$script" "$@"; then
+# The runtime is chosen by presence, never by failure. A bun that exits non-zero
+# is NOT retried on node: the script would run twice, and a partial first write
+# would repeat whatever stdout it had already emitted. `command -v` is a shell
+# builtin, so this keeps the wrapper free of external commands.
+if command -v bun > /dev/null 2>&1; then
+  runtime=bun
+else
+  runtime=node
+fi
+
+if ! "$runtime" "$script" "$@"; then
   printf '%s\n' "$fallback"
 fi
 

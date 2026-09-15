@@ -293,8 +293,9 @@ surviving preview.
 Read the entry count from the manifest, never from memory; `docs/HOOKS.md` tabulates the sizes,
 and `node hooks/test-hooks.js` fails when the manifest disagrees with the run-time split.
 
-Both style hooks run through `hooks/run-hook.sh`, which needs `node` on the non-interactive
-shell's PATH. Without `node`, the wrapper emits
+Both style hooks run through `hooks/run-hook.sh`, which needs `bun` or `node` on the
+non-interactive shell's PATH. It uses `bun` when `bun` is there, and `node` otherwise; a `bun`
+that fails is not retried on `node`. With neither runtime, the wrapper emits
 `<!-- house-style-core: FAILED to load ... -->` instead of failing silently.
 
 These hooks fire in **every project** the plugin is loaded for, non-coding sessions included. A
