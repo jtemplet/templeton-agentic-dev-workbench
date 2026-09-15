@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+## [4.5.1] - 2026-09-15
+
+### Added
+
+- **Name each quality-gates report row uniquely.** (`32a8778`, tadw-7al)
+
+### Changed
+
+- **Script the quality-gates report write at version 2.** (`a4a3522`, tadw-6qd)
+- **Build the quality-gates findings loader.** (`66e0d3c`, tadw-gni)
+- **Install the Boreas JavaScript linting baseline with Bun.** (`b996a7f`)
+
+### Fixed
+
+- **Exclude .outrigger from check_documented_paths.py.** (`2b51ce7`, tadw-zp9)
+
 ## [4.5.0] - 2026-09-14
 
 ### Added
@@ -2643,7 +2659,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.5.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.5.1...HEAD
+[4.5.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.5.0...v4.5.1
 [4.5.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.4...v4.5.0
 [4.4.4]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.3...v4.4.4
 [4.4.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.1...v4.4.3
