@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [4.5.0] - 2026-09-14
+
+### Added
+
+- **Add the reconcile-acceptance skill and its findings loader (tadw-3vp, tadw-568).** (`becbd8d`)
+
+### Changed
+
+- **Install Boreas Python linting baseline (ruff).** (`20b2a7c`)
+- **Reformat Python files with ruff formatter.** (`e39bb8e`)
+- **Configure ruff per-file ignores for pragmatic baseline compliance.** (`eb97a64`)
+- **Fix yamllint findings in the CI workflow.** (`b045263`)
+
 ## [4.4.4] - 2026-09-13
 
 ### Changed
@@ -2630,7 +2643,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.4...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.5.0...HEAD
+[4.5.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.4...v4.5.0
 [4.4.4]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.3...v4.4.4
 [4.4.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.1...v4.4.3
 [4.4.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.0...v4.4.1
