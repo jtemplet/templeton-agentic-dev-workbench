@@ -321,11 +321,33 @@ produces an answer about a different scope than the report claims.
 | The changed path list | The same run |
 | The discovered gate set | Step 1 |
 | The numbered case list | Enumerated once over the whole changed set, per Gate 2 step B, before any case is graded |
+| The name of every row the lane owns | Naming Each Row, below, applied once over the discovered gate set |
 
 Two runs of `changed_set.py` against a moving working tree can disagree, and Gate 6 shows what that
 costs. A lane that re-discovers the gate set may pick a different source and run a command the
 project replaced. Three lanes numbering cases independently produce three unrelated lists, and a
 case nobody listed cannot be graded, which is what Gate 2 step B's numbering exists to prevent.
+
+#### Naming Each Row
+
+**Every row in the report has a name that no other row shares.** A finding names exactly one row,
+so the artifact's writer refuses a report that repeats a name.
+
+A gate that yields one row keeps its bare name, such as `Tests` or `Lint`. A gate that yields more
+than one row names each row `<Gate>: <qualifier>`. The qualifier says which row it is:
+
+| Rows | Qualifier | Example names |
+|---|---|---|
+| Gate 1, one row per suite | The suite's runner. When two suites share a runner, the runner and then the suite's directory | `Tests: pytest`, `Tests: vitest`, `Tests: pytest tests/unit` |
+| Any other gate that runs several commands, one row each | The tool the command runs. When two commands run the same tool, the tool and then its subcommand | `Lint: ruff`, `Lint: eslint`, `Lint: rumdl fmt`, `Lint: rumdl check` |
+| One row per handoff surface | The surface | `Handoff: browser-ui` |
+
+Gate 2 never takes a qualifier. Its rows reduce to one, under Reducing Two Change Coverage Rows
+below.
+
+**When lanes run, the orchestrator names every row before any lane starts.** It hands each lane
+the names of the rows that lane owns. A lane sees only its own rows, so two lanes that each name
+their own suite's row both pick `Tests`.
 
 #### Reducing Two Change Coverage Rows
 
@@ -351,7 +373,8 @@ selection.
 
 **Every discovered suite gets its own row.** The report requires the exact command and real counts
 in each row, so merging two suites into one discards a command and a count. One suite means one row.
-Which lane owns which suite is in Step 4's ownership table.
+Which lane owns which suite is in Step 4's ownership table. Two or more suites name their rows by
+Naming Each Row in Step 4, such as `Tests: pytest` and `Tests: vitest`.
 
 An exit code of 127, a missing runner, or a collection error is BLOCKED, not FAIL. Zero tests
 collected in a project that has a test directory is BLOCKED too, because the runner found nothing to
@@ -795,10 +818,13 @@ line:
 }
 ```
 
-Five rules the consumer depends on:
+Six rules the consumer depends on:
 
 - **`verdict` is one of `PASS`, `FAIL`, `INCOMPLETE`, or `NO GATES RAN`,** verbatim from the Verdict
   Rules. No other string, no lowercase, no added punctuation.
+- **Every `gates` entry has a `name` that no other entry shares,** spelled as the report table
+  spells the row, qualifier included. A finding's `gate` carries that full name, such as
+  `Tests: vitest`, never the bare `Tests`. Step 4's Naming Each Row sets the names.
 - **`gates` carries one entry per row of the report table,** in the same order, with the same
   `status`. A SKIP, BLOCKED, or HANDOFF row gets its entry too. Count the array against the table
   before you write it: ten rows means ten entries. A short array contradicts a run the reader can
@@ -990,6 +1016,7 @@ Before reporting completion, verify:
 - [ ] The report says whether the full suite ran
 - [ ] Every gate has a row, including the ones that did not run
 - [ ] Every row traces to one owner in Step 4's table
+- [ ] No two rows share a name, and a gate with several rows names each `<Gate>: <qualifier>`
 - [ ] Exactly one Change coverage row survives, and its counts and its case table cover every numbered case
 - [ ] If lanes ran, every one of them returned, and its rows are in the report
 - [ ] Every non-SKIP row carries its exact command and a real count

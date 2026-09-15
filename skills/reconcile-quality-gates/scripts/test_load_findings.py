@@ -29,6 +29,10 @@ RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds
   ------------------------------------------------------------------------------
   1. SKILL.md names all ten reasons and both     case_skill_names_every_reason_and_machine_line
      machine lines
+
+  tadw-7al criterion                             Pinned by
+  ------------------------------------------------------------------------------
+  5. Two suites named by runner load             case_two_suites_named_by_runner_load
 """
 
 from __future__ import annotations
@@ -368,6 +372,15 @@ def case_null_file_finding_on_fail_gate_stays_in_scope() -> None:
     assert len(findings_of(load(body))["in_scope"]) == 1
 
 
+def case_two_suites_named_by_runner_load() -> None:
+    body = report(
+        [gate("Tests: pytest", "PASS"), gate("Tests: vitest", "FAIL")],
+        [finding("Tests: vitest", CHANGED_FILE)],
+    )
+    in_scope = findings_of(load(body))["in_scope"]
+    assert [entry["gate"] for entry in in_scope] == ["Tests: vitest"], in_scope
+
+
 for name, fn in [
     ("no --bead skips the bead check", case_no_bead_argument_skips_the_bead_check),
     (
@@ -377,6 +390,10 @@ for name, fn in [
     (
         "a FAIL finding with a null file stays in scope, never failures-outside-change",
         case_null_file_finding_on_fail_gate_stays_in_scope,
+    ),
+    (
+        "rows `Tests: pytest` and `Tests: vitest` load, with the finding in scope [tadw-7al criterion 5]",
+        case_two_suites_named_by_runner_load,
     ),
 ]:
     check(name, fn)

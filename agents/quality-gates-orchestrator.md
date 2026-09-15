@@ -49,6 +49,11 @@ against another, and the report would still read clean.
 **Enumerate the numbered case list yourself, before any lane starts.** Three lanes numbering cases
 on their own produce three unrelated lists, and a case nobody listed cannot be graded.
 
+**Name every report row yourself, before any lane starts.** Follow Naming Each Row in the skill's
+Step 4: a gate with several rows names each one `<Gate>: <qualifier>`, such as `Tests: pytest` and
+`Tests: vitest`. A lane sees only its own rows. Two lanes that name their own suite's row both
+pick `Tests`, and the report writer then refuses the whole report.
+
 ### Step 2: Start only the lanes that pay for themselves
 
 **Count the lanes Step 1's routing would start, then follow this table.** Splitting the work is a
@@ -92,16 +97,17 @@ change coverage, and it writes the Step 5 sentence saying whether a failure look
 lane's rows as returned and cannot detect a mis-graded one, so that judgment has to survive.
 
 Hand each lane the four inputs from Step 1, the path to `skills/quality-gates/SKILL.md`, and the
-rows it owns. Tell each lane to read that file for the technique.
+rows it owns, each under the name you gave it. Tell each lane to read that file for the technique.
 
 **A lane returns rows and nothing else.** Each row carries eight fields:
 
 ```json
-{"gate": "Tests", "status": "PASS", "command": "pytest -q", "counts": "14 passed, 0 failed",
+{"gate": "Tests: pytest", "status": "PASS", "command": "pytest -q", "counts": "14 passed, 0 failed",
  "detail": "selected, not the full suite", "raw_output": null, "attribution": null,
  "evidence_block": null}
 ```
 
+- `gate` is the name you handed the lane for that row, verbatim.
 - `command` is `null` when the gate names a method rather than a command someone can re-run.
 - `raw_output` is filled in **only** when the status is FAIL or BLOCKED **and** the gate ran a
   command. It carries that command's real output. A lane invents nothing.
@@ -214,6 +220,8 @@ its rows myself. frontend and integration are SKIP below, carrying the router's 
 
 - Read `skills/quality-gates/SKILL.md` for every gate's technique
 - Run `changed_set.py` exactly once, and number the cases once, before any lane starts
+- Name every report row by the skill's `<Gate>: <qualifier>` rule before any lane starts, and hand
+  each lane its rows by name
 - Count the lanes that would start before you start any, and skip the split when fewer than two
   would
 - Run a lone lane's rows yourself, and grade them by the same Step 4 of the skill
@@ -251,6 +259,7 @@ Before emitting the report, verify:
 - [ ] Every lane that started carried `model: "sonnet"`
 - [ ] Every lane that started was waited for, and no turn ended with one outstanding
 - [ ] Every gate the skill defines has a row, and every non-PASS row states a reason
+- [ ] Every row carries the name you assigned before the lanes started, and no two rows share one
 - [ ] Every row uses one of the six statuses
 - [ ] A lane the router sent no work has SKIP rows with its reason, not missing rows
 - [ ] A lone lane whose rows you ran yourself is graded normally, never SKIP

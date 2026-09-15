@@ -27,6 +27,13 @@ RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds
      is capped before a trimmed line             group
   5. No subprocess in the script                 case_script_never_names_subprocess
   6. AGENTS.md names this suite                  case_agents_md_lists_this_suite
+
+  tadw-7al criterion                             Pinned by
+  ------------------------------------------------------------------------------
+  4. Two suites named by runner are written      the [with two suites named by the row
+                                                 naming rule] group
+  6. Either document without the                 case_skill_states_the_row_naming_rule,
+     `<Gate>: <qualifier>` rule fails            case_orchestrator_states_the_row_naming_rule
 """
 
 from __future__ import annotations
@@ -341,6 +348,38 @@ for name, fn in [
     ),
     ("empty routing and empty findings are valid", case_empty_routing_and_findings_are_valid),
     ("an existing report at --out is replaced", case_existing_report_is_replaced),
+]:
+    check(name, fn)
+
+print("\n  [with two suites named by the row naming rule]")
+
+TWO_SUITES = [gate("Tests: pytest", "PASS"), gate("Tests: vitest", "FAIL")]
+TWO_SUITES_OUT = fresh_out()
+TWO_SUITES_RUN = run_cli(
+    fields(gates=TWO_SUITES, findings=[finding("Tests: vitest", problem="export.test.ts failed")]),
+    arguments(TWO_SUITES_OUT),
+)
+
+
+def case_two_suites_exit_0() -> None:
+    code, _, err = TWO_SUITES_RUN
+    assert code == 0, f"must exit 0, got {code}: {err!r}"
+
+
+def case_two_suites_write_both_rows() -> None:
+    names = [row["name"] for row in written(TWO_SUITES_OUT)["gates"]]
+    assert names == ["Tests: pytest", "Tests: vitest"], names
+
+
+for name, fn in [
+    (
+        "rows `Tests: pytest` and `Tests: vitest` exit 0 [tadw-7al criterion 4]",
+        case_two_suites_exit_0,
+    ),
+    (
+        "the written gates hold both `Tests: <runner>` rows [tadw-7al criterion 4]",
+        case_two_suites_write_both_rows,
+    ),
 ]:
     check(name, fn)
 
@@ -846,6 +885,19 @@ def case_agents_md_lists_this_suite() -> None:
     assert "python3 skills/quality-gates/scripts/test_write_report_json.py" in agents
 
 
+ROW_NAMING_RULE = "`<Gate>: <qualifier>`"
+
+
+def case_skill_states_the_row_naming_rule() -> None:
+    skill = (HERE.parent / "SKILL.md").read_text(encoding="utf-8")
+    assert ROW_NAMING_RULE in skill, f"SKILL.md never states {ROW_NAMING_RULE}"
+
+
+def case_orchestrator_states_the_row_naming_rule() -> None:
+    orchestrator = (REPO / "agents" / "quality-gates-orchestrator.md").read_text(encoding="utf-8")
+    assert ROW_NAMING_RULE in orchestrator, f"the orchestrator never states {ROW_NAMING_RULE}"
+
+
 for name, fn in [
     (
         "the script never names subprocess [criterion 5]",
@@ -853,6 +905,14 @@ for name, fn in [
     ),
     ("neither file imports outside the standard library", case_no_third_party_imports),
     ("AGENTS.md lists this suite [criterion 6]", case_agents_md_lists_this_suite),
+    (
+        "SKILL.md states the `<Gate>: <qualifier>` row naming rule [tadw-7al criterion 6]",
+        case_skill_states_the_row_naming_rule,
+    ),
+    (
+        "the orchestrator states the `<Gate>: <qualifier>` row naming rule [tadw-7al criterion 6]",
+        case_orchestrator_states_the_row_naming_rule,
+    ),
 ]:
     check(name, fn)
 
