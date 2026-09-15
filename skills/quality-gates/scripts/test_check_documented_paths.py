@@ -23,6 +23,12 @@ RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds
   4. Every reference in this repository is        case_this_repository_passes
      prose or a path proven to resolve
 
+  tadw-zp9 criterion                              Pinned by
+  ------------------------------------------------------------------------------
+  1. A document under .outrigger/worktrees/ is    case_outrigger_worktree_is_excluded
+     excluded, even when its path does not
+     resolve
+
   Design decisions in the script's docstring:
   A placeholder names no single file              case_angle_placeholder_is_skipped,
                                                   case_brace_placeholder_is_skipped,
@@ -355,6 +361,25 @@ def case_out_of_tree_document_does_not_crash() -> None:
     assert "outside.md" in result.stdout, f"and label it by its full path: {result.stdout}"
 
 
+def case_outrigger_worktree_is_excluded() -> None:
+    """An Outrigger worktree is a nested checkout, so its documents are another
+    branch's copy, and `docs/plans/` matches only at the root."""
+    root = tree(
+        {
+            ".outrigger/worktrees/demo/docs/guide.md": (
+                "Read `${CLAUDE_PLUGIN_ROOT}/skills/gone/SKILL.md` now.\n"
+            )
+        }
+    )
+    result = run(root)
+    assert result.returncode == 0, (
+        f"a document in an Outrigger worktree must not fail the check: {result.stdout}"
+    )
+    assert ".outrigger" not in result.stdout, (
+        f"and must not be named in the report: {result.stdout}"
+    )
+
+
 def case_missing_repo_root_exits_2() -> None:
     result = run(Path("/no/such/directory"))
     assert result.returncode == 2, f"operator error is 2, never 1: {result.stderr}"
@@ -371,6 +396,10 @@ for name, fn in [
     (
         "a document outside the root is labelled, not a crash",
         case_out_of_tree_document_does_not_crash,
+    ),
+    (
+        "a document under .outrigger/worktrees/ is excluded [tadw-zp9 criterion 1]",
+        case_outrigger_worktree_is_excluded,
     ),
     ("a repo root that does not exist exits 2", case_missing_repo_root_exits_2),
     ("a named document that does not exist exits 2", case_named_document_missing_exits_2),

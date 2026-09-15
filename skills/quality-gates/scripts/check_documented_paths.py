@@ -79,7 +79,9 @@ RUNNABLE_COMMAND = re.compile(r"^\s*(?:python3|bash|sh)\b")
 # it and prose routinely closes a sentence straight after a path.
 SENTENCE_PUNCTUATION = ".,;:"
 
-EXCLUDED_DIRS = frozenset((".git", "node_modules", ".worktrees"))
+# `.worktrees` and `.outrigger` hold nested checkouts of this same repository, so
+# their documents are another branch's copy, not this tree's.
+EXCLUDED_DIRS = frozenset((".git", "node_modules", ".worktrees", ".outrigger"))
 EXCLUDED_PATHS = frozenset(("CHANGELOG.md", "docs/plans"))
 
 EXIT_OK = 0
