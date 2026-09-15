@@ -20,7 +20,7 @@ try {
   if (!isDisabled()) {
     writeHookOutput('SubagentStart', getStyleCorePreamble());
   }
-} catch (e) {
+} catch {
   // Silent fail - a stdout/read error at hook exit must not surface as a failure.
 }
 

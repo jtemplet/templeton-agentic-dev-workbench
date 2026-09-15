@@ -1,0 +1,13 @@
+{
+  "name": "templeton-agentic-dev-workbench",
+  "version": "0.0.0",
+  "private": true,
+  "devDependencies": {
+    "@eslint/compat": "2.1.1",
+    "@eslint/js": "10.0.1",
+    "eslint": "10.10.0",
+    "eslint-plugin-vue": "10.11.0",
+    "globals": "17.12.0",
+    "vue-eslint-parser": "10.4.1"
+  }
+}

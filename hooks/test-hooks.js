@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tadw - standalone hook test
 //
-// No dependencies, no package.json: uses only Node built-ins. Run with:
+// No dependencies: uses only Node built-ins, so it needs no npm install. Run with:
 //   node hooks/test-hooks.js
 //
 // Asserts the load-bearing guarantees of the style-core hooks:
@@ -112,7 +112,7 @@ const TMP_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'tadw-tests-'));
 process.on('exit', () => {
   try {
     fs.rmSync(TMP_ROOT, { recursive: true, force: true });
-  } catch (e) {
+  } catch {
     // Cleanup failure must not mask a test result.
   }
 });

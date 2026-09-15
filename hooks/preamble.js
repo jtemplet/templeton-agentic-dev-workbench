@@ -92,7 +92,7 @@ function readOrFallback(filePath, fallback) {
     const text = fs.readFileSync(filePath, 'utf8');
     // Guard against an empty/whitespace file blanking the injection.
     return text.trim().length > 0 ? text : fallback;
-  } catch (e) {
+  } catch {
     return fallback;
   }
 }

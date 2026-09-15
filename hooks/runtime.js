@@ -43,7 +43,7 @@ function isDisabled() {
     if (fs.existsSync(getFlagPath())) {
       return true;
     }
-  } catch (e) {
+  } catch {
     // Stat failure is not a reason to disable; fall through to enabled.
   }
   return false;
