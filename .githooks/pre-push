@@ -386,6 +386,7 @@ check python3 skills/quality-gates/scripts/test_changed_set.py
 check python3 skills/quality-gates/scripts/test_check_hygiene.py
 check python3 skills/quality-gates/scripts/test_route_qa.py
 check python3 skills/quality-gates/scripts/test_probe_api.py
+check python3 skills/quality-gates/scripts/test_write_report_json.py
 check python3 skills/quality-gates/scripts/test_check_documented_bd_commands.py
 # Both of these run the real bd, which opens the embedded Dolt database under
 # .beads/ inside each process, so they take turns rather than contend for it.

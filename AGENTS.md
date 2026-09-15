@@ -33,6 +33,7 @@ python3 skills/quality-gates/scripts/test_changed_set.py            # regression
 python3 skills/quality-gates/scripts/test_check_hygiene.py          # regression suite for the hygiene counter
 python3 skills/quality-gates/scripts/test_route_qa.py                # regression suite for the QA-method router
 python3 skills/quality-gates/scripts/test_probe_api.py               # regression suite for the live API probe
+python3 skills/quality-gates/scripts/test_write_report_json.py       # regression suite for the report writer
 python3 skills/quality-gates/scripts/test_check_documented_bd_commands.py   # regression suite for the bd-command checker
 python3 skills/quality-gates/scripts/check_documented_bd_commands.py        # assert every fenced bd command runs
 python3 skills/quality-gates/scripts/test_check_documented_paths.py         # regression suite for the documented-path checker
