@@ -400,6 +400,7 @@ check python3 skills/bead-refine/scripts/test_check_round_format.py
 check python3 skills/bead-refine/scripts/check_round_format.py
 check python3 skills/ship/scripts/test_check_worktree_occupants.py
 check python3 skills/reconcile-acceptance/scripts/test_load_findings.py
+check python3 skills/reconcile-quality-gates/scripts/test_load_findings.py
 
 start_jobs
 wait

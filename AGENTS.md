@@ -44,6 +44,7 @@ python3 skills/bead-refine/scripts/test_check_round_format.py               # re
 python3 skills/bead-refine/scripts/check_round_format.py                    # assert the refine round table keeps its 6 columns
 python3 skills/ship/scripts/test_check_worktree_occupants.py   # regression suite for the worktree occupant check
 python3 skills/reconcile-acceptance/scripts/test_load_findings.py   # regression suite for the acceptance findings loader
+python3 skills/reconcile-quality-gates/scripts/test_load_findings.py   # regression suite for the quality-gates findings loader
 python3 .githooks/test_prepush.py                             # regression suite for the pre-push hook
 claude plugin validate .                                      # parses every SKILL.md frontmatter
 python3 evals/test_run.py                                     # regression suite for the eval harness; calls no model
@@ -240,7 +241,7 @@ two files, then tags and pushes main before the tag. Its bump rubric and stop co
 Read the last tag with `git tag --list 'v*' --sort=-v:refname`, because lexical order puts
 `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
-**Registered Skills** (46). One-line descriptions live in the `README.md` skills
+**Registered Skills** (47). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
@@ -249,7 +250,7 @@ reads when deciding what to invoke.
 `feature-development` `grilling` `house-response-style` `idea-wizard` `plan-review`
 `plan-to-beads`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
-`publish-plugin` `quality-gates` `reconcile-acceptance`
+`publish-plugin` `quality-gates` `reconcile-acceptance` `reconcile-quality-gates`
 `research-ingest` `research-synthesize` `review-fresh-eyes` `review-python` `review-rails`
 `roadmap-dashboard` `ship` `style-fizzy` `style-frontend` `style-go` `style-markdown`
 `style-python` `style-rails` `style-rspec` `style-swift` `style-testing` `terraform-iac-expert`
@@ -371,12 +372,12 @@ command wins. So a command body that says "Use the `<name>` skill" resolves back
 fixes: rename the command, delete it so the skill takes the slash name, or have it **Read**
 `${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md`.
 
-**Five skills are accepted orphans.** `/validate-plugin` reports `business-ideas`,
-`idea-wizard`, `publish-plugin`, `reconcile-acceptance`, and `ship` as orphans, because no agent
-and no command references them. You invoke all five directly as `/<name>`, so a referrer would add
-nothing. `reconcile-acceptance` joins this set for the same reason: the reconcile skills plan
-deliberately gives it no agent and no command, and names an agent, if one comes later, differently
-from the skill.
+**Six skills are accepted orphans.** `/validate-plugin` reports `business-ideas`,
+`idea-wizard`, `publish-plugin`, `reconcile-acceptance`, `reconcile-quality-gates`, and `ship` as
+orphans, because no agent and no command references them. You invoke all six directly as
+`/<name>`, so a referrer would add nothing. `reconcile-acceptance` and `reconcile-quality-gates`
+join this set for the same reason: the reconcile skills plan deliberately gives neither an agent
+or a command, and names an agent, if one comes later, differently from the skill.
 
 The check follows agent and command references alone, so it misses one live path: `publish-plugin`
 invokes `ship` to land a branch. It also matches on the skill's name, so `commands/adr.md` counts
