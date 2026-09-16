@@ -1,3 +1,5 @@
 issue-prefix: tadw
 sync:
     remote: "git+ssh://git@github.com/jtemplet/templeton-agentic-dev-workbench.git"
+export:
+    auto: true
