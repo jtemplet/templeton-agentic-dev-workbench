@@ -45,6 +45,7 @@ python3 skills/bead-refine/scripts/check_round_format.py                    # as
 python3 skills/ship/scripts/test_check_worktree_occupants.py   # regression suite for the worktree occupant check
 python3 skills/reconcile-acceptance/scripts/test_load_findings.py   # regression suite for the acceptance findings loader
 python3 skills/reconcile-quality-gates/scripts/test_load_findings.py   # regression suite for the quality-gates findings loader
+python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py   # regression suite for the acceptance report writer
 python3 .githooks/test_prepush.py                             # regression suite for the pre-push hook
 claude plugin validate .                                      # parses every SKILL.md frontmatter
 python3 evals/test_run.py                                     # regression suite for the eval harness; calls no model
