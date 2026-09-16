@@ -68,6 +68,42 @@ if is_disabled; then
   exit 0
 fi
 
+# Pin the two variables runtime.js reads, so the PROJECT cannot set them.
+#
+# bun loads the current directory's .env into its own environment; node does
+# not. Both names below are normally unset in a session, and an unset variable
+# is exactly what a .env entry fills, so under bun alone a project could silence
+# the core or move the flag-file lookup, exiting 0 with neither the core nor the
+# marker to show for it. That is the silent no-op this wrapper exists to
+# eliminate, reached by a new door.
+#
+# A real environment variable beats a .env entry, so exporting the session's own
+# values closes the door on every bun version and on both platforms. Not
+# `bun --no-env-file`: it arrived in bun 1.3.3, and an older bun answers an
+# unknown flag by printing its help and exiting 0 WITHOUT running the script,
+# which would inject that help text into the session and emit no marker. The
+# wrapper cannot even detect that, because bun exits 0 on an unknown flag.
+#
+# `on` stands in for unset. It has to be non-empty: assigning an empty string to
+# an environment variable in PowerShell deletes it, which would hand .env the
+# unset variable back on Windows. Any value that is not off/0/false enables.
+export TADW_STYLE_CORE="${TADW_STYLE_CORE:-on}"
+
+# Resolved from the same expression is_disabled() uses, so the shell copy and
+# the JS copy read one directory.
+#
+# Skipped when HOME is unset, which leaves one case open: HOME unset AND the
+# runtime is bun AND the project's .env sets CLAUDE_CONFIG_DIR. The flag-file
+# lookup then follows .env for the JS copy alone. Closing it needs some value to
+# export, and both candidates cost more than the hole. `/.claude` is what this
+# script's own is_disabled() reads, but os.homedir() falls back to the password
+# database, so exporting it would stop node finding a flag file in the real home
+# directory; a path that cannot exist does the same. A flag file the user really
+# set outranks a .env entry they may never have read.
+if [ -n "${HOME:-}" ]; then
+  export CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+fi
+
 # The runtime is chosen by presence, never by failure. A bun that exits non-zero
 # is NOT retried on node: the script would run twice, and a partial first write
 # would repeat whatever stdout it had already emitted. `command -v` is a shell

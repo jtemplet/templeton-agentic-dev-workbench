@@ -105,6 +105,29 @@ the same result. The wrapper makes both **visible rather than silent**: it emits
 execute; if you see no marker at all, the hook did not run (check the matcher and the off-switch).
 The wrapper always exits 0, so a failure never blocks the session.
 
+**A project's `.env` cannot change the hook's behavior.** `bun` loads the current directory's
+`.env` into its own environment and `node` does not, so the hook process would otherwise inherit
+whatever the project it is running in happens to put there. Both names `runtime.js` reads,
+`TADW_STYLE_CORE` and `CLAUDE_CONFIG_DIR`, are normally unset in a session, and an unset variable
+is exactly what a `.env` entry fills. Measured before the fix, in a directory whose `.env` held
+`TADW_STYLE_CORE=off`: `bun hooks/session-start.js 0` wrote 0 bytes where `node` wrote 4,780, and
+`bun` exited 0, so neither the core nor the failure marker appeared. `run-hook.sh` now exports both
+names before it spawns the runtime, since a real environment variable takes precedence over a
+`.env` entry. The exported off-switch value is `on` rather than an empty string, because assigning
+an empty string to `$env:X` in PowerShell deletes the variable, which would hand `.env` the unset
+variable back on Windows.
+
+The fix is an export rather than `bun --no-env-file`. That flag arrived in `bun` 1.3.3, and an
+older `bun` answers an unrecognized flag by printing its help text and exiting 0 **without running
+the script**, which would inject that help into every session and emit no marker. The wrapper
+cannot detect it either: `bun` exits 0 on an unknown flag.
+
+One case stays open, deliberately. With `HOME` unset **and** the runtime `bun` **and** a `.env`
+setting `CLAUDE_CONFIG_DIR`, the flag-file lookup follows `.env` for the JS copy alone, because the
+wrapper skips that export when it cannot resolve the same directory `os.homedir()` would. Exporting
+a guess would stop `node` reading a flag file in the real home directory, and a flag file the user
+really set outranks a `.env` entry they may never have read.
+
 **Why the off-switch is checked twice.** `run-hook.sh` re-implements `isDisabled()` from
 `hooks/runtime.js`, because the off-switch has to be honored even when no runtime can run, which
 is exactly when the JS copy is unavailable. The wrapper checks it **before** it picks a runtime, so
@@ -126,7 +149,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 28 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 30 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
 frontmatter stripped), the three that hold the split shut (every payload inside the
@@ -138,15 +161,26 @@ command routes through the wrapper with a fallback marker, and the Windows comma
 off-switch paths, and the Windows command tries `Get-Command bun` before `Get-Command node`,
 since it cannot be executed on a macOS or Linux runner and would otherwise
 drift in silence), that `/response-style` reads the
-skill file rather than invoking the disabled skill through the Skill tool, and nine covering
-`run-hook.sh`. Four of the nine pin the runtime choice: it runs the hook on `bun` when `bun` is on
+skill file rather than invoking the disabled skill through the Skill tool, and eleven covering
+`run-hook.sh`. Four of the eleven pin the runtime choice: it runs the hook on `bun` when `bun` is on
 PATH, it runs the hook on `node` when `bun` is absent, it never retries on `node` after `bun`
-fails, and it emits the marker when neither runtime is on PATH. The other five: it emits the
+fails, and it emits the marker when neither runtime is on PATH. Five more: it emits the
 marker when the chosen runtime fails, it stays silent when the runtime fails *and* the off-switch
 is set, it stays silent when the off-switch is set and a runtime works, it needs neither an
-external command nor `HOME`, and its off-switch agrees with `runtime.js`. Each of the nine builds
-its PATH out of fake runtimes alone, holding no inherited entry. A real `bun` on the machine would
-otherwise run the broken-`node` cases and pass them for the wrong reason. One check **executes the
+external command nor `HOME`, and its off-switch agrees with `runtime.js`. Those nine build
+their PATH out of fake runtimes alone, holding no inherited entry. A real `bun` on the machine
+would otherwise run the broken-`node` cases and pass them for the wrong reason.
+
+The last two hold the project's `.env` out of the hook process, and they are split on purpose.
+One reads back what the wrapper exported, using a fake runtime that prints its own environment,
+so it holds on a machine with no `bun`, which is what CI is; it also pins the `HOME`-unset case
+the wrapper leaves open. The other runs the wrapper for real, on the machine's own PATH rather
+than a fake one, from a directory whose `.env` sets `TADW_STYLE_CORE=off` and points
+`CLAUDE_CONFIG_DIR` at a directory that really holds the flag file, so both halves of the leak are
+live rather than one of them passing on an empty directory. On a machine
+with `bun` that second check is the regression test, since before the fix it produced no output
+at all; on a machine without `bun` it passes on `node`, which never read `.env`, and proves
+less. Neither check alone is enough, which is why both are there. One check **executes the
 manifest commands themselves** against working and broken runtimes, because everything else tests
 the manifest as a string and the
 wrapper as a program, never the two together, so a shell-quoting error would ship green. One

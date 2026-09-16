@@ -412,6 +412,20 @@ check('SessionStart matcher covers every session source', () => {
         `commandWindows must supply a failure marker: ${hook.commandWindows}`
       );
 
+      // The Windows branch invokes bun directly, so it needs the same two
+      // variables pinned that run-hook.sh exports, or a project .env reaches the
+      // hook process on Windows alone. `on` rather than an empty string because
+      // assigning an empty string to $env:X in PowerShell deletes the variable,
+      // which would hand .env the unset variable straight back.
+      assert.ok(
+        hook.commandWindows.includes("$env:TADW_STYLE_CORE = 'on'"),
+        `commandWindows must pin TADW_STYLE_CORE against a project .env: ${hook.commandWindows}`
+      );
+      assert.ok(
+        hook.commandWindows.includes('$env:CLAUDE_CONFIG_DIR = $cfg'),
+        `commandWindows must pin CLAUDE_CONFIG_DIR against a project .env: ${hook.commandWindows}`
+      );
+
       // Bun first, node second, matching run-hook.sh. PowerShell takes the first
       // branch that matches, so checking node first would pin every machine that
       // has both runtimes to node and silently undo the choice.
@@ -663,6 +677,14 @@ const RUNTIME_FAKES = {
   working: `#!/bin/sh\nexec ${process.execPath} "$@"\n`,
   failing: '#!/bin/sh\nexit 1\n',
   sentinel: `#!/bin/sh\nprintf '%s\\n' '${SENTINEL}'\n`,
+  // Prints the environment the wrapper handed it, so a check can read what was
+  // exported without depending on which runtime the machine happens to have.
+  // Single-quoted here because the shell parameter expansions must survive into
+  // the file rather than being read as JavaScript interpolation.
+  reporting:
+    '#!/bin/sh\n' +
+    'printf "TADW_STYLE_CORE=%s\\n" "${TADW_STYLE_CORE-<unset>}"\n' +
+    'printf "CLAUDE_CONFIG_DIR=%s\\n" "${CLAUDE_CONFIG_DIR-<unset>}"\n',
 };
 
 // Build PATH from scratch, holding only the named fakes and an `sh`. Prepending
@@ -812,6 +834,89 @@ check('run-hook.sh needs no external commands and no HOME', () => {
   assert.ok(
     homeless.stdout.includes(FALLBACK),
     'an unset HOME must still produce the failure marker, not silence'
+  );
+});
+
+// --- 7c. A project's .env cannot reach the hook process -------------------
+// bun loads the current directory's .env; node does not. Both names runtime.js
+// reads are normally unset in a session, and unset is exactly what a .env entry
+// fills, so before the wrapper exported them a project could silence the core
+// under bun alone, with no marker to show for it.
+//
+// Two layers, because neither one is enough by itself. This first check reads
+// what the wrapper exported, so it holds on a machine with no bun, which is what
+// CI is. The second runs the real thing.
+check('run-hook.sh pins the two variables a project .env could otherwise set', () => {
+  const report = (env) => runWrapper(withRuntimes(env, { bun: 'reporting', node: 'absent' }));
+  const sessionCfg = tmpDir('tadw-pin-');
+  const home = tmpDir('tadw-pin-home-');
+  const withNoConfigDir = (extra) => {
+    const env = enabledEnv(extra);
+    delete env.CLAUDE_CONFIG_DIR;
+    return env;
+  };
+
+  const cases = [
+    {
+      name: 'a CLAUDE_CONFIG_DIR set in the session',
+      env: enabledEnv({ CLAUDE_CONFIG_DIR: sessionCfg }),
+      configDir: `CLAUDE_CONFIG_DIR=${sessionCfg}`,
+    },
+    // The wrapper resolves the same default its own is_disabled() reads, so the
+    // shell copy and the JS copy check one directory.
+    {
+      name: 'an unset CLAUDE_CONFIG_DIR, with HOME to resolve it from',
+      env: withNoConfigDir({ HOME: home }),
+      configDir: `CLAUDE_CONFIG_DIR=${home}/.claude`,
+    },
+    // The one case left open, and left open deliberately: exporting a guess
+    // would stop node reading the flag file os.homedir() finds. Pinned so the
+    // limit is a decision on record rather than an oversight.
+    {
+      name: 'HOME unset, where the wrapper cannot resolve the default',
+      env: {},
+      configDir: 'CLAUDE_CONFIG_DIR=<unset>',
+    },
+  ];
+
+  const assertPinned = (name, env, configDir) => {
+    const out = report(env);
+    assert.ok(
+      out.includes('TADW_STYLE_CORE=on'),
+      `${name}: the off-switch must be exported non-empty, never left unset for .env to fill`
+    );
+    assert.ok(out.includes(configDir), `${name}: expected ${configDir}, got ${out.trim()}`);
+  };
+
+  for (const { name, env, configDir } of cases) assertPinned(name, env, configDir);
+});
+
+// The end-to-end half. On a machine with bun this is the regression test: before
+// the export, this wrote nothing at all. On a machine without bun it passes on
+// node, which never read .env, so it proves less. That is why the check above
+// exists and does not depend on the runtime.
+check('a project .env cannot disable the core through the wrapper', () => {
+  const project = tmpDir('tadw-dotenv-');
+
+  // The .env points at a config dir that really does hold the flag file, so
+  // both halves of the leak are live: naming an empty directory here would let
+  // the CLAUDE_CONFIG_DIR line pass whether or not the wrapper pinned it.
+  const trap = path.join(project, 'config-dir-from-dotenv');
+  fs.mkdirSync(trap);
+  fs.writeFileSync(path.join(trap, '.tadw-style-core-off'), '');
+  fs.writeFileSync(path.join(project, '.env'), `TADW_STYLE_CORE=off\nCLAUDE_CONFIG_DIR=${trap}\n`);
+
+  const result = spawnSync('/bin/sh', [WRAPPER, SESSION, FALLBACK, '0'], {
+    encoding: 'utf8',
+    env: enabledEnv({ CLAUDE_CONFIG_DIR: tmpDir('tadw-dotenv-cfg-') }),
+    cwd: project,
+    timeout: 5000,
+  });
+
+  assert.strictEqual(result.status, 0, 'run-hook.sh must always exit 0');
+  assert.ok(
+    result.stdout.includes(MARKER),
+    'a .env holding TADW_STYLE_CORE=off must not disable a core the session enabled'
   );
 });
 
