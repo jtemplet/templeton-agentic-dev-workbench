@@ -43,6 +43,9 @@ python3 skills/product-surface-docs/scripts/check_drive_blocks.py           # as
 python3 skills/bead-refine/scripts/test_check_round_format.py               # regression suite for the refine-round format checker
 python3 skills/bead-refine/scripts/check_round_format.py                    # assert the refine round table keeps its 6 columns
 python3 skills/ship/scripts/test_check_worktree_occupants.py   # regression suite for the worktree occupant check
+python3 skills/ship/scripts/test_resolve_ground.py             # regression suite for ship's ground resolver
+python3 skills/ship/scripts/test_landed_check.py               # regression suite for ship's landed check
+python3 skills/ship/scripts/test_resolve_rebase_conflict.py    # regression suite for ship's conflict resolver
 python3 skills/reconcile-acceptance/scripts/test_load_findings.py   # regression suite for the acceptance findings loader
 python3 skills/reconcile-quality-gates/scripts/test_load_findings.py   # regression suite for the quality-gates findings loader
 python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py   # regression suite for the acceptance report writer
