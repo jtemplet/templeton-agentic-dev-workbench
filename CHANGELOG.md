@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [4.6.1] - 2026-09-17
+
+### Changed
+
+- **Simplify the ship skill and extract its mechanical steps into tested scripts.** (`a33d338`)
+
 ## [4.6.0] - 2026-09-15
 
 ### Added
@@ -2673,7 +2679,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.1...HEAD
+[4.6.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.0...v4.6.1
 [4.6.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.5.1...v4.6.0
 [4.5.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.5.0...v4.5.1
 [4.5.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.4.4...v4.5.0
