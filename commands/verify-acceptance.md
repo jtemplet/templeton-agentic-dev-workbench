@@ -28,8 +28,8 @@ not given are results it re-runs. Without them it runs the whole suite a second 
 same verdict.
 
 Report-only. It never edits code, never closes a bead, and never invents criteria when the bead
-records none. It never applies the `accepted` label either: read its verdict, and when it is
-ACCEPTED, run `bd update <bead-id> --add-label accepted` yourself.
+records none. It writes `acceptance-report.json`, and a `Stop` hook reads that file and applies
+the `accepted` label. The caller runs no `bd` command.
 
 Pass a bead id as an argument to grade that bead instead of the auto-resolved one. No argument
 needed otherwise.
