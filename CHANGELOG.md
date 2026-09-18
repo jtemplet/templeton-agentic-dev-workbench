@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [4.6.3] - 2026-09-18
+
+### Changed
+
+- **Close tadw-dlx.** (`461e579`)
+
+### Fixed
+
+- **Point verify-acceptance at the Stop hook for the accepted label.** (`8681cf5`, tadw-dlx)
+
 ## [4.6.2] - 2026-09-17
 
 ### Changed
@@ -2686,7 +2696,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.2...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.3...HEAD
+[4.6.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.2...v4.6.3
 [4.6.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.1...v4.6.2
 [4.6.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.0...v4.6.1
 [4.6.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.5.1...v4.6.0
