@@ -21,7 +21,7 @@ review_tool_large='the `tadw:code-reviewer` agent'
 review_small_max_files=5
 review_small_max_lines=250
 
-qa_tool='the `/qa` skill'
+qa_tool='the `tadw:quality-gates` skill'
 
 # reconcile_tool is optional. Many review tools auto-fix and never reach
 # reconcile; in that case this key is unused. When reconcile does run with
