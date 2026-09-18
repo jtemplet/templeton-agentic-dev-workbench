@@ -118,25 +118,42 @@ not resolve.
 
 Run the bundled script. Do not hand-roll the base resolution or the file list.
 
+**Run `changed_set.py` once, save its stdout, and use that one result for the rest of the run.**
+Step 3 routes the saved paths, every gate narrows to them, and Step 6 records the same list in the
+report. A second run against a tree that is still changing can list different files. The report
+would then name a changed set that no gate checked.
+
+Pass `--base <ref>` through when the caller gave one: add it after `--repo-root .`. A caller names
+the base on a stacked branch, meaning a branch built on another branch that is not merged yet.
+Without `--base`, the script picks the default base itself.
+
 <!-- plugin-root-fallback -->
 **Every command below finds its plugin script when `CLAUDE_PLUGIN_ROOT` is unset.** The `find`
 fallback searches the installed plugin cache. Claude Code uses the loaded plugin root first.
 
+<!-- quality-gates-scope:start -->
+
 ```bash
 python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
-  -path '*/skills/quality-gates/scripts/changed_set.py' -print -quit 2>/dev/null)" --repo-root .
+  -path '*/skills/quality-gates/scripts/changed_set.py' -print -quit 2>/dev/null)" --repo-root . \
+  > "$(git rev-parse --path-format=absolute --git-dir)/quality-gates-changed.txt"
 ```
 
-It prints one changed path per line on stdout, so a caller can pipe stdout without filtering it. The
-base goes to stderr, as `base: <sha> (merge-base of HEAD and <ref>)`. **Keep that SHA. Gate 6 takes
-its `--base` from it**, and re-deriving it with `git merge-base` is the hand-rolling this script
-exists to replace.
+<!-- quality-gates-scope:end -->
+
+The saved file `<git-dir>/quality-gates-changed.txt` holds one changed path per line. The base goes
+to stderr, as `base: <sha> (merge-base of HEAD and <ref>)`. **Keep that ref and that SHA.** Gate 6
+takes its `--base` from the SHA, and Step 6 records both as the report's `base`. Re-deriving either
+with `git merge-base` is the hand-rolling this script exists to replace.
 
 | Exit | Status |
 |---|---|
-| 0 | The base resolved. stdout is the changed set, and no output means nothing changed |
-| 2 | BLOCKED. The operator gave it a root that is not a git repository, or git will not run |
-| 3 | The base will not resolve. Run at `--all`, and say so in the report |
+| 0 | The base resolved. The saved file is the changed set, and an empty file means nothing changed |
+| 2 | BLOCKED. The operator gave it a root that is not a git repository, git will not run, or the `--base` the caller named does not resolve |
+| 3 | The default base will not resolve. Run at `--all`, say so in the report, and give Step 6 a `null` base |
+
+**A named `--base` never widens to `--all`.** Exit 3 comes only from the default base. Widening on a
+ref the caller named would check the parent branch's code as if it were this branch's.
 
 **Exit 3 and an empty exit 0 are different answers.** A repository with no remote, a shallow clone,
 or a first commit produces exit 3. An unresolvable base is not an empty diff, and treating it as one
@@ -183,19 +200,18 @@ scope.
 
 ### Step 3: Route the QA Method
 
-Rule 4 lives here. Run the bundled script against the changed set from Step 2. Do not classify the
-diff by eye.
+Rule 4 lives here. Run the bundled script against the changed set Step 2 saved. Do not classify
+the diff by eye.
 
 ```bash
 python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
-  -path '*/skills/quality-gates/scripts/changed_set.py' -print -quit 2>/dev/null)" --repo-root . |
-  python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
-    -path '*/skills/quality-gates/scripts/route_qa.py' -print -quit 2>/dev/null)" \
-    --repo-root . --paths-from - --base "$BASE"
+  -path '*/skills/quality-gates/scripts/route_qa.py' -print -quit 2>/dev/null)" --repo-root . \
+  --paths-from "$(git rev-parse --path-format=absolute --git-dir)/quality-gates-changed.txt" \
+  --base "$BASE"
 ```
 
-That pipe is why Step 2's script puts paths on stdout and everything else on stderr. `--paths-from
-FILE` takes a file instead, and bare arguments take a handful of paths.
+`--paths-from` reads the file Step 2 saved, so the router sees the changed set every gate checks.
+Do not run `changed_set.py` again to pipe it in. Bare arguments take a handful of paths instead.
 
 **Pass `--base`**, the SHA Step 2 printed: without it every endpoint the changed files define is
 reported, including the ones the diff never touched, and the probe spec balloons to a dozen URLs.
@@ -318,7 +334,7 @@ produces an answer about a different scope than the report claims.
 | Input | Resolved by |
 |---|---|
 | The base SHA | Step 2's `changed_set.py`, run exactly once |
-| The changed path list | The same run |
+| The changed path list | The same run, saved to `<git-dir>/quality-gates-changed.txt` |
 | The discovered gate set | Step 1 |
 | The numbered case list | Enumerated once over the whole changed set, per Gate 2 step B, before any case is graded |
 | The name of every row the lane owns | Naming Each Row, below, applied once over the discovered gate set |
@@ -746,6 +762,13 @@ write did, including a refusal, so emitting the report first would mean predicti
 
 #### The JSON Artifact
 
+**Write it through `write_report_json.py`, and never build the JSON yourself.** The script checks
+the verdict against the gate statuses, checks every field, and writes nothing when a check fails.
+Inline `python3` or hand-typed JSON can drift from that shape. The pre-push hook reads a report it
+cannot parse the same way it reads a missing one. It warns that no verdict was recorded, which reads
+as "you forgot to run the gates" rather than "your gate is broken", so the author fixes the wrong
+thing or nothing.
+
 Resolve the git directory first:
 
 ```bash
@@ -774,39 +797,33 @@ gives each its own file, and a `pre-push` hook run from a worktree resolves the 
 that worktree's own report. `--git-common-dir` would let the last run to finish decide every
 worktree's push.
 
-Collect the three facts the markdown report does not already carry:
+Apply the Verdict Rules first. Then replace the example object on stdin with what this run produced,
+and run the command below. The example is the run the Output Format section reports, so the two can
+be compared line for line.
+
+<!-- quality-gates-writer:start -->
 
 ```bash
-git rev-parse HEAD                  # head
-git status --porcelain              # dirty: true when this prints anything
-date -u +%Y-%m-%dT%H:%M:%SZ         # timestamp
-```
-
-Then build the object in `python3` and `json.dump` it. Do not hand-assemble JSON text: one stray
-quote in a command string or a gate detail produces a file no reader can parse, and the pre-push
-consumer cannot tell an unparseable report from a missing one. It warns that no verdict was
-recorded, which reads as "you forgot to run the gates" rather than "your gate is broken", so the
-author fixes the wrong thing or nothing.
-
-This example is the run the Output Format section below reports, so the two can be compared line for
-line:
-
-```json
+python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
+  -path '*/skills/quality-gates/scripts/write_report_json.py' -print -quit 2>/dev/null)" \
+  --out "$(git rev-parse --path-format=absolute --git-dir)/quality-gates-report.json" \
+  --head "$(git rev-parse HEAD)" \
+  --dirty "$(test -n "$(git status --porcelain)" && echo true || echo false)" \
+  --timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --changed-files "$(git rev-parse --path-format=absolute --git-dir)/quality-gates-changed.txt" <<'JSON'
 {
-  "version": 1,
-  "head": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-  "dirty": true,
-  "timestamp": "2026-08-11T04:12:07Z",
   "scope": "changed",
   "gate_source": "AGENTS.md",
   "routing": {
     "http-api": {"method": "curl", "owner": null, "files": 2, "endpoints": 3},
     "browser-ui": {"method": "handoff", "owner": "agent-browser", "files": 1, "endpoints": 0}
   },
+  "bead": "tadw-abc",
+  "base": {"ref": "origin/HEAD", "sha": "abc1234e5f60718293a4b5c6d7e8f9012345678a"},
   "verdict": "FAIL",
   "gates": [
     {"name": "Tests", "status": "PASS", "command": "pytest tests/test_exports.py -q", "detail": "14 passed, 0 failed (selected, not the full suite)"},
-    {"name": "Change coverage", "status": "FAIL", "command": null, "detail": "case review over 6 cases: 5 of 6 have unit tests, 0 request-level, span 7 of 11"},
+    {"name": "Change coverage", "status": "FAIL", "command": null, "detail": "case review over 6 cases: 5 of 6 have unit tests, 1 request-level, span 7 of 11"},
     {"name": "Live API probe", "status": "FAIL", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/probe_api.py\" --spec .git/quality-gates-probe.json --repo-root .", "detail": "5 probes: 4 passed, 1 failed, 0 blocked"},
     {"name": "Handoff: browser-ui", "status": "HANDOFF", "command": null, "detail": "1 component changed; agent-browser owns it"},
     {"name": "Lint", "status": "FAIL", "command": "ruff check src/api/exports.py", "detail": "2 errors, 11 warnings"},
@@ -814,14 +831,55 @@ line:
     {"name": "Doc freshness", "status": "WARN", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py\" --repo-root .", "detail": "3 docs checked, 1 missing path"},
     {"name": "Hygiene", "status": "WARN", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_hygiene.py\" --base abc1234", "detail": "2 TODOs added"},
     {"name": "Project checks", "status": "PASS", "command": "node hooks/test-hooks.js", "detail": "19 checks, 0 failed"}
+  ],
+  "findings": [
+    {"gate": "Live API probe", "file": null, "line": null, "problem": "POST /api/v1/exports answers 500 on an unknown format, where it must answer 422", "evidence": "reject an unknown format: status 500, expected 422"},
+    {"gate": "Change coverage", "file": null, "line": null, "problem": "No request-level test drives the two error paths", "evidence": null},
+    {"gate": "Change coverage", "file": null, "line": null, "problem": "Case 3, the 404 on a missing export id, has no test", "evidence": null},
+    {"gate": "Lint", "file": "src/api/exports.py", "line": null, "problem": "2 ruff errors, at lines 88 and 94", "evidence": "src/api/exports.py:88:5: F841 Local variable `rows` is assigned to but never used\nsrc/api/exports.py:94:1: F401 `csv` imported but unused"},
+    {"gate": "Type checking", "file": null, "line": null, "problem": "mypy is configured in pyproject.toml and not installed", "evidence": "mypy: command not found"},
+    {"gate": "Handoff: browser-ui", "file": null, "line": null, "problem": "Nobody checked the changed component in a browser", "evidence": null}
   ]
 }
+JSON
 ```
 
-Six rules the consumer depends on:
+<!-- quality-gates-writer:end -->
 
-- **`verdict` is one of `PASS`, `FAIL`, `INCOMPLETE`, or `NO GATES RAN`,** verbatim from the Verdict
-  Rules. No other string, no lowercase, no added punctuation.
+The path comes from `git rev-parse --path-format=absolute --git-dir`. It is the directory the table
+above names, as an absolute path.
+
+**The script sets `version`, `head`, `dirty`, `timestamp`, and `changed_files` from its
+arguments.** Leave all five off stdin, because the script refuses a field it does not expect. Each
+argument takes its value through command substitution, so none is retyped. `--changed-files` takes
+the file Step 2 saved.
+
+**When Step 2 exited 3, write `"base": null` and leave out the `--changed-files` line.** The script
+refuses a `null` base beside a changed-set file, and a base beside no file.
+
+Every field on stdin is required:
+
+| Field | What it holds |
+|---|---|
+| `scope` | `changed` or `all`, matching what Step 2 set |
+| `gate_source` | The source Step 1 used, as the **Gate source** line names it |
+| `routing` | One key per surface Step 3 found, with the method and owner verbatim from the router's output. `{}` when the changed set had no surface |
+| `bead` | The bead id the caller named. When the caller named none, an id in the branch name that `bd show <id>` confirms. Otherwise `null`, and `null` when `bd` is not installed. Never ask the user, and never pick one from the beads in progress |
+| `base` | The ref and SHA from Step 2's `base:` line, or `null` when Step 2 exited 3 |
+| `verdict` | One of `PASS`, `FAIL`, `INCOMPLETE`, or `NO GATES RAN`, verbatim from the Verdict Rules |
+| `gates` | One object per row of the report table: `name`, `status`, `command`, and `detail` |
+| `findings` | One object per Action Item: `gate`, `file`, `line`, `problem`, and `evidence`. `[]` when the report has no Action Items |
+
+| Exit | What to do |
+|---|---|
+| 0 | Written. The script prints the path |
+| 1 | Refused, and nothing written. stderr names the field and the problem. A verdict that disagrees with the gate statuses is the usual cause: apply the Verdict Rules to the table again, correct stdin, and run it again. Never change a gate's status to make the verdict fit |
+| 2 | A usage error: an argument is malformed, or `--out` cannot be written. Put the stderr line on the **Artifact** line |
+
+Seven rules the consumer depends on:
+
+- **`verdict` is verbatim from the Verdict Rules.** No other string, no lowercase, no added
+  punctuation. The script derives the verdict from the gate statuses and refuses a mismatch.
 - **Every `gates` entry has a `name` that no other entry shares,** spelled as the report table
   spells the row, qualifier included. A finding's `gate` carries that full name, such as
   `Tests: vitest`, never the bare `Tests`. Step 4's Naming Each Row sets the names.
@@ -833,15 +891,32 @@ Six rules the consumer depends on:
   describes a method rather than naming a command, so its `command` is `null` and the description
   moves into `detail`. A gate that never ran is `null` too. An invented command is worse than an
   absent one.
-- **`scope` is `changed` or `all`,** matching what Step 2 set.
 - **`routing` carries one key per surface Step 3 found,** with the method and owner verbatim from the
   router's output. A consumer reads it to know whether a live check happened at all, which `verdict`
   alone does not say: a PASS over a diff whose only surface was a handoff means much less than a PASS
   over a probed one. Write `{}` when the changed set had no surface.
+- **`base` is the ref and SHA the one Step 2 run printed.** `changed_files` comes from that run's
+  saved file, so the two describe the same changed set. A SHA re-derived here could name a base
+  that no gate used.
+- **Every finding names one row of `gates`, by its full name.** `file` and `line` are `null` when
+  the Action Item names no place, and a `line` needs a `file`. `problem` says in one line what is
+  wrong. `evidence` carries the failing output behind it, or `null`. The script trims `evidence`
+  over 20 lines or 2,000 characters.
 
 `dirty` is for a human reader, and nothing automated reads it. It records that this skill runs
 before the commit most of the time, so `head` is usually the commit *before* the one that gets
 pushed. Nearly every honest report is dirty, and a gate blocking on that would block constantly.
+
+#### The Next Line
+
+**Print the `**Next:**` line only when the verdict is FAIL.** It names
+`/tadw:reconcile-quality-gates`, the skill that fixes the FAIL rows this report recorded, followed
+by the report's `bead` when it is not `null`. It is the last line of the report. A PASS or NO GATES
+RAN verdict has nothing to fix. An INCOMPLETE verdict gets no `**Next:**` line either: it has no
+FAIL row, so the reconcile skill could only stop and ask for a human check.
+
+**The line is for the caller to act on.** This skill never runs `/tadw:reconcile-quality-gates`
+itself, and it never fixes what it found.
 
 ## Output Format
 
@@ -938,9 +1013,13 @@ not a skip. Install it or remove the configuration.
 
 **Artifact:** `.git/quality-gates-report.json`, verdict FAIL
 
+**Next:** /tadw:reconcile-quality-gates tadw-abc
+
 ```text
 
-The Artifact line always appears, and states either the path written or why nothing was written: `**Artifact:** not written, the tree is not a git repository`.
+The Artifact line always appears, and states either the path written or why nothing was written: `**Artifact:** not written, the tree is not a git repository`, or `**Artifact:** not written, write_report_json.py refused: <its stderr line>`.
+
+The Next line appears only when the verdict is FAIL, and then it is the last line. Step 6's The Next Line says why an INCOMPLETE verdict gets none.
 
 Omit the Failures section when nothing failed. Omit the Live API Probe section when that gate is SKIP, and say in its table row which method Step 3 routed instead. Omit the Change Coverage table only when that gate is SKIP. Never omit a gate row; a gate that did not run gets its row with SKIP, BLOCKED, or HANDOFF and a reason.
 
@@ -979,19 +1058,22 @@ The order is load-bearing. An all-BLOCKED run is a FAIL by rule 1 and never reac
 - Probe this machine unless the caller named another URL, and one probe per case rather than one per route
 - Name the probed host in the report, and mark it when it is not this machine
 - Stop any server you started, and say in the report whether you started it or found it running
-- Write the JSON artifact after the markdown report, with the verdict verbatim and one entry per table row
+- Run `changed_set.py` once, in Step 2, with `--base` when the caller gave one, and give Step 3, every gate, and the report that one saved result
+- Write the JSON artifact through `write_report_json.py` before emitting the markdown report, with the verdict verbatim and one entry per table row
+- End a FAIL report with the `**Next:**` line naming `/tadw:reconcile-quality-gates`, and no other verdict's report
 - Give every report row an owner from Step 4's table, including the residual row, so no row can go unclaimed
 - When lanes ran: emit an undispatched lane's rows as SKIP with the router's reason, and record a lane that did not return as BLOCKED
 
 **Never:**
 
-- Fix, format, or edit anything in the working tree (this skill is report-only; its report is the deliverable, and the only files it writes are that report's JSON form and the probe spec, both inside the git directory)
+- Fix, format, or edit anything in the working tree (this skill is report-only; its report is the deliverable, and the only files it writes are three, all inside the git directory: the changed set `quality-gates-changed.txt` from Step 2, the report's JSON form `quality-gates-report.json`, and the probe spec `quality-gates-probe.json`)
 - Fill in a `base_url` from a URL you found in the repository; use the caller's URL or the localhost default
 - Guess a server start command the project does not declare; SKIP the probe with that reason instead
 - Put a literal credential in the probe spec, or copy a token into the report
 - Read a green probe as an end-to-end test; it measures this build and leaves nothing behind
 - Report a refused connection as a failing endpoint; nothing answered, so it is BLOCKED
-- Hand-assemble the artifact's JSON text, or record a verdict there that the report does not state
+- Build the artifact's JSON by hand or in inline `python3`, write it with anything but `write_report_json.py`, or record a verdict there that the report does not state
+- Run `/tadw:reconcile-quality-gates` yourself; the `**Next:**` line is for the caller
 - Report a gate as "green", "clean", or "passing" without its numbers
 - Treat a passing suite as evidence that the change is tested
 - Count a test you have not read, or one that exercises a case without asserting it
@@ -1035,6 +1117,10 @@ Before reporting completion, verify:
 - [ ] A REST change with a passing probe and no committed request-level test is still a Gate 2 finding
 - [ ] Every FAIL shows real command output, and says whether it looks new
 - [ ] The overall verdict follows the Verdict Rules mechanically
+- [ ] `changed_set.py` ran once, and Step 3, every gate, and the report used the changed set it saved
+- [ ] The artifact was written through `write_report_json.py`, which exited 0, or the Artifact line names why not
 - [ ] The artifact's `verdict` matches the report's, its `routing` matches the router's output, and its `gates` array matches the table row for row
+- [ ] The artifact's `base` is the ref and SHA the one `changed_set.py` run printed, and its `findings` hold one entry per Action Item
 - [ ] The Artifact line names the file written, or why the write was skipped
-- [ ] No file in the working tree was edited; the only writes are the report artifact and the probe spec, both inside the git directory
+- [ ] The report ends with the `**Next:**` line when the verdict is FAIL, and has none otherwise
+- [ ] No file in the working tree was edited; the only writes are the saved changed set, the report artifact, and the probe spec, all inside the git directory

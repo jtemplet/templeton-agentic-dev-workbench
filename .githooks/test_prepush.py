@@ -108,6 +108,15 @@ STAGE 2, the recorded quality-gates verdict (M4). Same fixture, same real
     the command resolves, not a literal .git/
   A deletion is gated by neither stage          case_delete_only_push_ignores_a_fail_verdict
 
+  tadw-s6d                                        Pinned by
+  ------------------------------------------------------------------------------
+  2. A version 2 report with a FAIL verdict     case_version_2_fail_verdict_refuses_the_push
+     for the pushed commit refuses the push
+  The skill's documented Step 2 and Step 6      case_documented_scope_command_saves_the_changed_set,
+    commands, run as written, save the          case_documented_writer_command_writes_version_2,
+    changed set and write a version 2 report    case_documented_report_names_the_head_it_checked,
+    for HEAD over that saved set                case_documented_report_carries_the_saved_changed_set
+
 STAGE 3, the tracker export (tadw-pm8). Same fixture, same real `git push --dry-run`. A stub `bd`
 is installed ahead of any real one, so the default fixture stays silent the same way the six
 project checks are stubbed for stage 1; a case that needs one export behavior overwrites the stub.
@@ -160,6 +169,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 HOOK = REPO / ".githooks" / "pre-push"
 AGENTS = REPO / "AGENTS.md"
+QUALITY_GATES_SKILL = REPO / "skills" / "quality-gates" / "SKILL.md"
+QUALITY_GATES_SCRIPTS = REPO / "skills" / "quality-gates" / "scripts"
+REPORT_WRITER = QUALITY_GATES_SCRIPTS / "write_report_json.py"
 
 # The hooks directory beads writes, which git never reads while core.hooksPath
 # names .githooks. The two markers tell the two kinds of file there apart on
@@ -1902,6 +1914,178 @@ for name, fn in [
     ("a lowercase verdict still blocks", case_a_lowercase_verdict_still_blocks),
     ("the verdict is read from the resolved git directory", case_verdict_is_read_from_the_git_dir),
     ("a delete-only push ignores a recorded FAIL", case_delete_only_push_ignores_a_fail_verdict),
+]:
+    check(name, fn)
+
+
+print("\n  [stage 2: the version 2 report the skill writes, tadw-s6d]")
+
+
+def write_version_2_report(root: Path) -> Path:
+    """A FAIL report for HEAD, written by the script the skill calls rather than by hand.
+
+    Version 2 adds `bead`, `base`, `changed_files`, and `findings` beside the
+    three fields the hook reads. Going through the writer means the hook reads
+    exactly the shape the skill now produces.
+    """
+    changed = git_dir(root) / "quality-gates-changed.txt"
+    changed.write_text("PENDING.txt\n", encoding="utf-8")
+    report = git_dir(root) / "quality-gates-report.json"
+    fields = {
+        "scope": "changed",
+        "gate_source": "AGENTS.md",
+        "routing": {},
+        "bead": "tadw-abc",
+        "base": {"ref": "origin/main", "sha": git(root, "rev-parse", "HEAD~1").stdout.strip()},
+        "verdict": "FAIL",
+        "gates": [
+            {"name": "Lint", "status": "FAIL", "command": "rumdl check .", "detail": "1 error"}
+        ],
+        "findings": [
+            {
+                "gate": "Lint",
+                "file": "PENDING.txt",
+                "line": 1,
+                "problem": "a lint error",
+                "evidence": None,
+            }
+        ],
+    }
+    subprocess.run(
+        [
+            sys.executable,
+            str(REPORT_WRITER),
+            "--out",
+            str(report),
+            "--head",
+            head_of(root),
+            "--dirty",
+            "false",
+            "--timestamp",
+            RECORDED_AT,
+            "--changed-files",
+            str(changed),
+        ],
+        input=json.dumps(fields),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return report
+
+
+def documented_block(region: str) -> str:
+    """The fenced command between `<!-- <region>:start -->` and `<!-- <region>:end -->`.
+
+    Found by its paired comments and never by its heading, so a reworded heading
+    cannot silently empty the command. The fence lines themselves are dropped.
+    """
+    lines = QUALITY_GATES_SKILL.read_text(encoding="utf-8").splitlines()
+    start, end = f"<!-- {region}:start -->", f"<!-- {region}:end -->"
+    if start not in lines or end not in lines:
+        return ""
+    inside = lines[lines.index(start) + 1 : lines.index(end)]
+    return "\n".join(line for line in inside if not line.startswith("```"))
+
+
+def run_documented_block(fixture: Fixture, region: str) -> subprocess.CompletedProcess[str]:
+    """One command block of the quality-gates skill, run in the fixture as a session would.
+
+    The plugin root is a copy of this working tree's two scripts, because the
+    `find` in each block stops at its first match and a checkout with worktrees
+    under it holds several. HOME points at nothing, so a script missing from the
+    copy is not found in an installed plugin cache instead.
+    """
+    plugin = fixture.work.parent / "plugin"
+    scripts = plugin / "skills" / "quality-gates" / "scripts"
+    scripts.mkdir(parents=True, exist_ok=True)
+    for script in ("changed_set.py", "write_report_json.py"):
+        shutil.copy2(QUALITY_GATES_SCRIPTS / script, scripts / script)
+    environment = dict(os.environ)
+    environment.update(CLAUDE_PLUGIN_ROOT=str(plugin), HOME=str(fixture.work.parent / "no-home"))
+    return subprocess.run(
+        ["bash", "-c", documented_block(region)],
+        cwd=fixture.work,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+
+
+def case_version_2_fail_verdict_refuses_the_push() -> None:
+    """tadw-s6d criterion 2. The version 2 report still gates the push it describes.
+
+    The tree is clean and every check is stubbed, so a refusal naming the verdict
+    can only have come from stage 2 reading the new shape.
+    """
+    fixture = build()
+    report = write_version_2_report(fixture.work)
+    assert json.loads(report.read_text(encoding="utf-8"))["version"] == 2, (
+        "the control: the writer must produce version 2"
+    )
+    result = fixture.push()
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f"a version 2 FAIL must refuse the push: {output}"
+    assert "verdict is FAIL" in output, f"and stage 2 must be what refused it: {output}"
+
+
+# One fixture, and each documented block run once in it, the way one session
+# runs Step 2 and then Step 6. The cases below read what those two runs left.
+DOCUMENTED = build()
+DOCUMENTED_SCOPE = run_documented_block(DOCUMENTED, "quality-gates-scope")
+DOCUMENTED_WRITE = run_documented_block(DOCUMENTED, "quality-gates-writer")
+DOCUMENTED_CHANGED = git_dir(DOCUMENTED.work) / "quality-gates-changed.txt"
+DOCUMENTED_REPORT = git_dir(DOCUMENTED.work) / "quality-gates-report.json"
+
+
+def documented_report() -> dict:
+    assert DOCUMENTED_REPORT.is_file(), f"no report was written: {DOCUMENTED_WRITE.stderr}"
+    return json.loads(DOCUMENTED_REPORT.read_text(encoding="utf-8"))
+
+
+def case_documented_scope_command_saves_the_changed_set() -> None:
+    assert DOCUMENTED_SCOPE.returncode == 0, f"Step 2 must exit 0: {DOCUMENTED_SCOPE.stderr}"
+    saved = DOCUMENTED_CHANGED.read_text(encoding="utf-8") if DOCUMENTED_CHANGED.is_file() else None
+    assert saved == "PENDING.txt\n", f"Step 2 must save the one changed path: {saved!r}"
+
+
+def case_documented_writer_command_writes_version_2() -> None:
+    assert DOCUMENTED_WRITE.returncode == 0, f"Step 6 must exit 0: {DOCUMENTED_WRITE.stderr}"
+    version = documented_report()["version"]
+    assert version == 2, f"the report must be version 2, got {version!r}"
+
+
+def case_documented_report_names_the_head_it_checked() -> None:
+    recorded, head = documented_report()["head"], head_of(DOCUMENTED.work)
+    assert recorded == head, f"the report must name HEAD {head}, got {recorded!r}"
+
+
+def case_documented_report_carries_the_saved_changed_set() -> None:
+    changed = documented_report()["changed_files"]
+    assert changed == ["PENDING.txt"], f"the report must carry the saved set, got {changed!r}"
+
+
+for name, fn in [
+    (
+        "a version 2 FAIL report refuses the push [tadw-s6d criterion 2]",
+        case_version_2_fail_verdict_refuses_the_push,
+    ),
+    (
+        "the skill's Step 2 command saves the changed set",
+        case_documented_scope_command_saves_the_changed_set,
+    ),
+    (
+        "the skill's Step 6 command writes a version 2 report",
+        case_documented_writer_command_writes_version_2,
+    ),
+    (
+        "that report names the head the gates checked",
+        case_documented_report_names_the_head_it_checked,
+    ),
+    (
+        "that report carries the changed set Step 2 saved",
+        case_documented_report_carries_the_saved_changed_set,
+    ),
 ]:
     check(name, fn)
 

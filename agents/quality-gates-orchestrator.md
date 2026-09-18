@@ -37,14 +37,19 @@ them out again:
 
 | Input | Where it comes from |
 |---|---|
-| The base SHA | Step 2's `changed_set.py`, run **exactly once** |
-| The changed path list | The same run |
+| The base ref and SHA | Step 2's `changed_set.py`, run **exactly once**, with the caller's `--base` when one was given |
+| The changed path list | The same run, saved to `<git-dir>/quality-gates-changed.txt` |
 | The discovered gate set | Step 1 |
 | The numbered case list | Enumerated once over the whole changed set, per Gate 2 step B |
 
 **Run `changed_set.py` exactly once for the whole run.** Two runs against a working tree that is
 still being edited can disagree. The Scope line would then name one base SHA while a gate counted
 against another, and the report would still read clean.
+
+Run the scope command in the skill's Step 2 as written. It saves the changed set to
+`<git-dir>/quality-gates-changed.txt`, and Step 3's router reads that file instead of running the
+script again. Pass `--base <ref>` through when the caller gave one. Keep the ref and SHA the script
+prints on stderr, because Step 5 records them as the report's `base`.
 
 **Enumerate the numbered case list yourself, before any lane starts.** Three lanes numbering cases
 on their own produce three unrelated lists, and a case nobody listed cannot be graded.
@@ -197,6 +202,16 @@ Write the JSON artifact before you emit the report, so the **Artifact** line can
 write did. Resolve its path with `git rev-parse --git-dir`, never a literal `.git/` and never
 `--git-common-dir`.
 
+**Write it through `write_report_json.py`, by running the writer command in the skill's Step 6.**
+Put the merged rows, the verdict, and one finding per Action Item on its stdin. Do not copy that
+command into this file, and do not build the JSON yourself. The script checks the verdict against
+the gate statuses and refuses a report that repeats a row name. Its `--changed-files` is the file
+Step 1 saved. Its `base` is the ref and SHA that the one `changed_set.py` run printed, so the
+report's `base.sha` is the SHA the Scope line names.
+
+End the report with the `**Next:**` line only when the verdict is FAIL, as the skill's Step 6
+specifies. Never run the reconcile skill it names.
+
 ## Output Format
 
 The report is the one `skills/quality-gates/SKILL.md` Step 6 specifies, unchanged. Its **Scope**
@@ -233,6 +248,8 @@ its rows myself. frontend and integration are SKIP below, carrying the router's 
 - Emit SKIP only for a lane the router sent no work; grade a lone lane's rows normally, because they
   ran
 - Record a lane that returned nothing as BLOCKED on every gate it owned
+- Write the artifact through `write_report_json.py`, with the `base` the one `changed_set.py` run
+  printed
 - Merge two Gate 2 rows field by field, never on the status alone
 - Write the Step 5 attribution for every FAIL in a gate you ran yourself
 - Own any row for a surface the ownership table does not name
@@ -249,6 +266,7 @@ its rows myself. frontend and integration are SKIP below, carrying the router's 
 - Fill in `raw_output` on a PASS row, or on any row whose gate ran no command
 - Carry a passing lane's test-runner output into the report
 - Fix, format, or edit anything in the working tree; this run is report-only
+- Build the artifact's JSON yourself, or run `changed_set.py` a second time to feed the router
 
 ## Quality Checklist
 
@@ -267,4 +285,7 @@ Before emitting the report, verify:
 - [ ] Every FAIL carries a Step 5 attribution, including the FAILs in gates you ran yourself
 - [ ] `raw_output` is filled in only on FAIL and BLOCKED rows whose gate ran a command
 - [ ] No passing lane's test-runner output reached the report
-- [ ] The JSON artifact was written first, and its `gates` array has one entry per table row
+- [ ] The JSON artifact was written first, through `write_report_json.py`, and its `gates` array has
+      one entry per table row
+- [ ] The artifact's `base.sha` is the SHA the one `changed_set.py` run printed
+- [ ] The report ends with the `**Next:**` line when the verdict is FAIL, and has none otherwise

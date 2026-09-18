@@ -34,6 +34,24 @@ RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds
                                                  naming rule] group
   6. Either document without the                 case_skill_states_the_row_naming_rule,
      `<Gate>: <qualifier>` rule fails            case_orchestrator_states_the_row_naming_rule
+
+  tadw-s6d criterion                             Pinned by
+  ------------------------------------------------------------------------------
+  1. The skill, the orchestrator, and the        names_the_writer_case, once per document
+     command all name the writer
+  2. A version 2 FAIL report refuses the push    .githooks/test_prepush.py, which builds
+                                                 the repository this suite does not
+  3. A FAIL report ends with a Next line, and    case_the_next_line_prints_on_fail_only,
+     an INCOMPLETE one does not                  case_an_incomplete_verdict_prints_no_next_line
+  4. changed_set.py runs once, and the report    case_the_documented_flow_runs_changed_set_once,
+     records the base that run printed           case_the_orchestrator_keeps_base_from_the_one_run
+  5. The rule listing the written files names    case_the_written_files_rule_names_the_changed_set
+     quality-gates-changed.txt
+  6. check_documented_paths.py exits 0           that script itself, in the AGENTS.md check list
+
+  Criterion 4 is about a live orchestrator run. These cases pin the documents
+  that run follows: one documented changed_set.py command, and every later step
+  reading the file it saved. Counting a real run's Bash calls needs a model.
 """
 
 from __future__ import annotations
@@ -886,16 +904,120 @@ def case_agents_md_lists_this_suite() -> None:
 
 
 ROW_NAMING_RULE = "`<Gate>: <qualifier>`"
+SKILL = HERE.parent / "SKILL.md"
+ORCHESTRATOR = REPO / "agents" / "quality-gates-orchestrator.md"
+COMMAND = REPO / "commands" / "quality-gates.md"
+
+
+def text_of(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def paragraphs_of(path: Path) -> list[str]:
+    """Each paragraph on one line, so a rule wrapped at 100 columns still matches one pattern."""
+    return [" ".join(block.split("\n")) for block in text_of(path).split("\n\n")]
+
+
+def states(path: Path, pattern: str) -> bool:
+    return any(re.search(pattern, paragraph) for paragraph in paragraphs_of(path))
+
+
+def fenced_shell_lines(path: Path) -> list[str]:
+    """The lines inside every ```bash fence, which is where a documented command lives.
+
+    A fence opened with an info string closes only on a bare ```, so a ```bash
+    line quoted inside a ```markdown example stays part of that example.
+    """
+    lines: list[str] = []
+    fence = None
+    for line in text_of(path).splitlines():
+        marker = line.strip()
+        if fence is None and marker.startswith("```"):
+            fence = marker[3:]
+        elif fence is not None and marker == "```":
+            fence = None
+        elif fence == "bash":
+            lines.append(line)
+    return lines
 
 
 def case_skill_states_the_row_naming_rule() -> None:
-    skill = (HERE.parent / "SKILL.md").read_text(encoding="utf-8")
-    assert ROW_NAMING_RULE in skill, f"SKILL.md never states {ROW_NAMING_RULE}"
+    assert ROW_NAMING_RULE in text_of(SKILL), f"SKILL.md never states {ROW_NAMING_RULE}"
 
 
 def case_orchestrator_states_the_row_naming_rule() -> None:
-    orchestrator = (REPO / "agents" / "quality-gates-orchestrator.md").read_text(encoding="utf-8")
-    assert ROW_NAMING_RULE in orchestrator, f"the orchestrator never states {ROW_NAMING_RULE}"
+    assert ROW_NAMING_RULE in text_of(ORCHESTRATOR), (
+        f"the orchestrator never states {ROW_NAMING_RULE}"
+    )
+
+
+def names_the_writer_case(path: Path):
+    def case() -> None:
+        assert "write_report_json.py" in text_of(path), f"{path.name} never names the writer"
+
+    return case
+
+
+def case_skill_builds_no_report_in_inline_python() -> None:
+    assert "json.dump" not in text_of(SKILL), "SKILL.md still builds the report in inline python3"
+
+
+def case_the_documented_flow_runs_changed_set_once() -> None:
+    runs = [
+        line
+        for path in (SKILL, ORCHESTRATOR)
+        for line in fenced_shell_lines(path)
+        if "changed_set.py" in line
+    ]
+    assert len(runs) == 1, f"the documented commands must run changed_set.py once: {runs}"
+
+
+def case_the_router_reads_the_saved_changed_set() -> None:
+    reads = [
+        line
+        for line in fenced_shell_lines(SKILL)
+        if "--paths-from" in line and "quality-gates-changed.txt" in line
+    ]
+    assert reads, "Step 3 must route the changed set Step 2 saved, not a second run"
+
+
+def case_the_writer_reads_the_saved_changed_set() -> None:
+    reads = [
+        line
+        for line in fenced_shell_lines(SKILL)
+        if "--changed-files" in line and "quality-gates-changed.txt" in line
+    ]
+    assert reads, "Step 6 must pass the changed set Step 2 saved to the writer"
+
+
+def case_the_orchestrator_keeps_base_from_the_one_run() -> None:
+    assert states(ORCHESTRATOR, r"`base`.{0,200}one `changed_set\.py` run"), (
+        "the orchestrator must record the base that the one changed_set.py run printed"
+    )
+
+
+def case_the_report_format_has_the_next_line() -> None:
+    assert "**Next:** /tadw:reconcile-quality-gates" in text_of(SKILL), (
+        "the report format must show the Next line naming the reconcile skill"
+    )
+
+
+def case_the_next_line_prints_on_fail_only() -> None:
+    assert states(SKILL, r"Print the `\*\*Next:\*\*` line only when the verdict is FAIL"), (
+        "SKILL.md must print the Next line on a FAIL verdict only"
+    )
+
+
+def case_an_incomplete_verdict_prints_no_next_line() -> None:
+    assert states(SKILL, r"An INCOMPLETE verdict gets no `\*\*Next:\*\*` line"), (
+        "SKILL.md must say an INCOMPLETE verdict prints no Next line"
+    )
+
+
+def case_the_written_files_rule_names_the_changed_set() -> None:
+    assert states(SKILL, r"only files it writes.{0,200}`quality-gates-changed\.txt`"), (
+        "the rule listing what the skill writes must name the saved changed set"
+    )
 
 
 for name, fn in [
@@ -912,6 +1034,45 @@ for name, fn in [
     (
         "the orchestrator states the `<Gate>: <qualifier>` row naming rule [tadw-7al criterion 6]",
         case_orchestrator_states_the_row_naming_rule,
+    ),
+]:
+    check(name, fn)
+
+print("\n  [the documents that run the gates, tadw-s6d]")
+
+for name, fn in [
+    ("SKILL.md names the writer [criterion 1]", names_the_writer_case(SKILL)),
+    ("the orchestrator names the writer [criterion 1]", names_the_writer_case(ORCHESTRATOR)),
+    ("the command names the writer [criterion 1]", names_the_writer_case(COMMAND)),
+    ("SKILL.md builds no report in inline python3", case_skill_builds_no_report_in_inline_python),
+    (
+        "the documented commands run changed_set.py once [criterion 4]",
+        case_the_documented_flow_runs_changed_set_once,
+    ),
+    (
+        "the router reads the changed set Step 2 saved [criterion 4]",
+        case_the_router_reads_the_saved_changed_set,
+    ),
+    (
+        "the writer reads the changed set Step 2 saved [criterion 4]",
+        case_the_writer_reads_the_saved_changed_set,
+    ),
+    (
+        "the orchestrator records the base the one run printed [criterion 4]",
+        case_the_orchestrator_keeps_base_from_the_one_run,
+    ),
+    (
+        "the report format ends with a Next line [criterion 3]",
+        case_the_report_format_has_the_next_line,
+    ),
+    ("the Next line prints on FAIL only [criterion 3]", case_the_next_line_prints_on_fail_only),
+    (
+        "an INCOMPLETE verdict prints no Next line [criterion 3]",
+        case_an_incomplete_verdict_prints_no_next_line,
+    ),
+    (
+        "the rule listing the written files names the changed set [criterion 5]",
+        case_the_written_files_rule_names_the_changed_set,
     ),
 ]:
     check(name, fn)
