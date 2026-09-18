@@ -22,6 +22,12 @@ run at --all"; exit 0 with no output says "the base resolved and nothing
 changed". Treating the first as the second narrows every gate to nothing while
 reporting confidently. Exit 2 is operator error, which is neither.
 
+A NAMED BASE NEVER WIDENS. `--base <ref>` replaces the default with the merge-base
+of HEAD and that ref, for a stacked branch whose parent is not merged yet. A
+named base that does not resolve exits 2, never 3: exit 3 would widen the run to
+--all and check the parent branch's code, and a bad value the caller gave is a
+usage error. ADR 0011 records why the base is named rather than detected.
+
 STDOUT IS PATHS AND NOTHING ELSE. The resolved base SHA, the ref it came from,
 the count, and any skipped path all go to stderr, so a caller can pipe stdout
 without filtering it first.
@@ -71,6 +77,13 @@ class BaseUnresolved(Exception):
     """
 
 
+class NamedBaseUnresolved(Exception):
+    """The ref the caller named as `--base` produced no merge base with HEAD.
+
+    Not a BaseUnresolved, because its exit status must be 2, never 3.
+    """
+
+
 def git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
@@ -116,10 +129,26 @@ def resolve_base(root: Path) -> tuple[str, str]:
     """
     candidates = base_candidates(root)
     for ref in candidates:
-        result = git(root, "merge-base", "HEAD", ref)
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip(), ref
+        if sha := merge_base(root, ref):
+            return sha, ref
     raise BaseUnresolved("no merge base with " + " or ".join(candidates))
+
+
+def resolve_named_base(root: Path, ref: str) -> tuple[str, str]:
+    """Return the merge-base of HEAD and the ref the caller named, and that ref.
+
+    Raises NamedBaseUnresolved for a ref that names no commit, a ref with no
+    history in common with HEAD, and an unborn HEAD.
+    """
+    if sha := merge_base(root, ref):
+        return sha, ref
+    raise NamedBaseUnresolved(f"--base {ref} has no merge base with HEAD")
+
+
+def merge_base(root: Path, ref: str) -> str | None:
+    result = git(root, "merge-base", "HEAD", ref)
+    sha = result.stdout.strip()
+    return sha if result.returncode == 0 and sha else None
 
 
 def changed_set(root: Path, base: str) -> tuple[list[str], list[str]]:
@@ -137,9 +166,25 @@ def changed_set(root: Path, base: str) -> tuple[list[str], list[str]]:
     return printable, unprintable
 
 
+def revision(value: str) -> str:
+    """Accept a `--base` value only when git will read it as a revision.
+
+    A value such as `--fork-point` reaches `git merge-base` as a flag, and git
+    then answers a different question at exit 0 with a SHA that looks right.
+    """
+    if not value or value.startswith("-"):
+        raise argparse.ArgumentTypeError(f"not a revision: {value!r}")
+    return value
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo-root", default=".", help="Repository root")
+    parser.add_argument(
+        "--base",
+        type=revision,
+        help="Diff against the merge-base of HEAD and this ref, as on a stacked branch",
+    )
     args = parser.parse_args()
 
     root = Path(args.repo_root).resolve()
@@ -151,14 +196,14 @@ def main() -> int:
         return EXIT_OPERATOR_ERROR
 
     try:
-        base, ref = resolve_base(root)
+        base, ref = resolve_named_base(root, args.base) if args.base else resolve_base(root)
         paths, unprintable = changed_set(root, base)
     except BaseUnresolved as exc:
         print(f"ERROR: {exc}; run the gates at --all", file=sys.stderr)
         return EXIT_BASE_UNRESOLVED
-    except GitUnavailable as exc:
-        # Exit 2, never 3. Exit 3 tells the caller to widen the scope, and a
-        # machine without git has not earned that instruction.
+    except (GitUnavailable, NamedBaseUnresolved) as exc:
+        # Exit 2, never 3. Exit 3 tells the caller to widen the scope, and
+        # neither a machine without git nor a bad --base has earned that.
         print(f"ERROR: {exc}", file=sys.stderr)
         return EXIT_OPERATOR_ERROR
 

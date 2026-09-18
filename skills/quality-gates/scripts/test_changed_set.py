@@ -39,6 +39,17 @@ caller does something different for each:
   Operator error exits 2                        case_bad_root_exits_2, case_not_a_git_repo_exits_2
   A missing git exits 2, never 3                case_git_missing_exits_2_not_3
 
+A named base, for a stacked branch (tadw-46w, ADR 0011). A named base that fails
+exits 2, never 3, because exit 3 widens the run to --all and checks the parent:
+
+  `--base` leaves the parent's commits out      case_named_base_leaves_parent_out  (tadw-46w criterion 1)
+  `--base` still sees uncommitted work          case_named_base_keeps_uncommitted_work
+  Stderr names the ref given as `--base`        case_named_base_reported_on_stderr
+  `--base` needs no remote                      case_named_base_needs_no_remote
+  An unresolved `--base` exits 2                case_unresolved_named_base_exits_2  (tadw-46w criterion 2)
+  A `--base` with no shared history exits 2     case_named_base_without_shared_history_exits_2
+  An option-shaped `--base` exits 2             case_option_shaped_base_exits_2
+
 Bare python3 with no third-party import is pinned by case_no_third_party_imports
 plus the fact that this file runs at all.
 """
@@ -114,6 +125,21 @@ def build(*, default_branch: str = "main", gitignore: str = "") -> Path:
     # Local config, not a one-shot `-c`: the script runs its own git commands, and
     # they must be as isolated from the developer's global config as these are.
     git(clone, "config", "core.excludesFile", "/dev/null")
+    return clone
+
+
+def build_stacked() -> Path:
+    """A clone on branch `child`, stacked on an unmerged branch `parent`.
+
+    Each branch commits one file named after itself, so a base that reaches past
+    `parent` shows up as `parent.txt` in the changed set.
+    """
+    clone = build()
+    for branch in ("parent", "child"):
+        git(clone, "checkout", "-q", "-b", branch)
+        (clone / f"{branch}.txt").write_text("new\n", encoding="utf-8")
+        git(clone, "add", f"{branch}.txt")
+        git(clone, "commit", "-qm", branch)
     return clone
 
 
@@ -293,6 +319,95 @@ for name, fn in [
         "a non-main default branch resolves through origin/HEAD",
         case_non_main_default_branch_resolves,
     ),
+]:
+    check(name, fn)
+
+
+print("\n  [a named base, for a stacked branch]")
+
+
+def case_named_base_leaves_parent_out() -> None:
+    """tadw-46w criterion 1. The default base would carry `parent.txt` in as well."""
+    r = run(build_stacked(), "--base", "parent")
+    assert r.returncode == 0, f"a named base must resolve, got {r.returncode}: {r.stderr}"
+    assert r.stdout.splitlines() == ["child.txt"], f"only the child's files: {r.stdout!r}"
+
+
+def case_named_base_keeps_uncommitted_work() -> None:
+    """The working-tree trap stays closed when the caller names the base."""
+    clone = build_stacked()
+    plant_all_four_kinds(clone)
+    r = run(clone, "--base", "parent")
+    expected = {"child.txt", "committed.txt", "staged.txt", "unstaged.txt", "untracked.txt"}
+    assert set(r.stdout.splitlines()) == expected, f"all of the child's work: {r.stdout!r}"
+
+
+def case_named_base_reported_on_stderr() -> None:
+    """A caller records the base from this line, so it must name the ref it was given."""
+    clone = build_stacked()
+    tip = git(clone, "rev-parse", "parent").stdout.strip()
+    r = run(clone, "--base", "parent")
+    assert f"base: {tip} (merge-base of HEAD and parent)" in r.stderr, r.stderr
+
+
+def case_named_base_needs_no_remote() -> None:
+    """A named base never consults origin, so a repository without one still resolves."""
+    root = Path(tempfile.mkdtemp())
+    git(root, "init", "-q")
+    for name in ("parent.txt", "child.txt"):
+        (root / name).write_text("new\n", encoding="utf-8")
+        git(root, "add", name)
+        git(root, "commit", "-qm", name)
+    git(root, "branch", "parent", "HEAD~1")
+    r = run(root, "--base", "parent")
+    assert r.returncode == 0, f"a local named base must resolve, got {r.returncode}: {r.stderr}"
+    assert r.stdout.splitlines() == ["child.txt"], f"only the child's files: {r.stdout!r}"
+
+
+def case_unresolved_named_base_exits_2() -> None:
+    """tadw-46w criterion 2. A bad value the caller gave is a usage error, not a widen."""
+    r = run(build_stacked(), "--base", "no-such-branch")
+    assert r.returncode == 2, f"an unresolved --base must exit 2, got {r.returncode}"
+    assert r.stdout == "", f"an unresolved --base prints no path: {r.stdout!r}"
+    assert "ERROR: --base no-such-branch" in r.stderr, f"stderr must name the ref: {r.stderr!r}"
+
+
+def case_named_base_without_shared_history_exits_2() -> None:
+    """The ref exists but shares no ancestor with HEAD. Still the caller's error."""
+    clone = build()
+    git(clone, "checkout", "-q", "--orphan", "detached-work")
+    git(clone, "commit", "-qm", "unrelated root")
+    r = run(clone, "--base", "main")
+    assert r.returncode == 2, f"a --base with no merge base must exit 2, got {r.returncode}"
+    assert r.stdout == "", f"a --base with no merge base prints no path: {r.stdout!r}"
+    assert "ERROR: --base main" in r.stderr, f"stderr must name the ref: {r.stderr!r}"
+
+
+def case_option_shaped_base_exits_2() -> None:
+    """`git merge-base HEAD --fork-point` exits 0 with a SHA, answering another question."""
+    r = run(build_stacked(), "--base=--fork-point")
+    assert r.returncode == 2, f"an option-shaped --base must exit 2, got {r.returncode}"
+    assert r.stdout == "", f"an option-shaped --base prints no path: {r.stdout!r}"
+    assert "not a revision" in r.stderr, f"stderr must say why: {r.stderr!r}"
+
+
+for name, fn in [
+    (
+        "a named base leaves the parent branch's commits out [tadw-46w criterion 1]",
+        case_named_base_leaves_parent_out,
+    ),
+    ("a named base still sees uncommitted work", case_named_base_keeps_uncommitted_work),
+    ("stderr names the ref given as --base", case_named_base_reported_on_stderr),
+    ("a named base resolves in a repository with no remote", case_named_base_needs_no_remote),
+    (
+        "a --base that does not resolve exits 2 and prints no path [tadw-46w criterion 2]",
+        case_unresolved_named_base_exits_2,
+    ),
+    (
+        "a --base with no shared history exits 2, not 3",
+        case_named_base_without_shared_history_exits_2,
+    ),
+    ("a --base shaped like an option exits 2", case_option_shaped_base_exits_2),
 ]:
     check(name, fn)
 
