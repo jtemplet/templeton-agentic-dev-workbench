@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [4.6.2] - 2026-09-17
+
+### Changed
+
+- **Name the base for the changed set.** (`fb6f51b`, tadw-46w)
+- **Point verify-acceptance at the version 2 report writer.** (`6462d35`, tadw-bhi)
+
 ## [4.6.1] - 2026-09-17
 
 ### Changed
@@ -2679,7 +2686,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.2...HEAD
+[4.6.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.1...v4.6.2
 [4.6.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.0...v4.6.1
 [4.6.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.5.1...v4.6.0
 [4.5.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.5.0...v4.5.1
