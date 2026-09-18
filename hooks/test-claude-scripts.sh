@@ -1041,6 +1041,78 @@ acceptance_marker() {  # acceptance_marker <repo> <bead> [created-epoch]
     > "$M/accepted__$2"
 }
 
+# The same grading as `write_acceptance_report <repo> 2 2 0 0 3 0 0`, written
+# through the version 2 writer the skill calls, so the hook reads what that
+# script produces rather than a shape this suite built by hand. tadw-bhi.
+write_v2_acceptance_report() {  # write_v2_acceptance_report <repo>
+  printf 'file.txt\n' > "$1/.git/acceptance-changed.txt"
+  jq -n '{bead:"tadw-alpha-one",
+          base:{ref:"origin/main", sha:"9f8e7d6c5b4a39281706f5e4d3c2b1a098765432"},
+          criteria_total:2, criteria_passed:2, criteria_failed:0, criteria_unverifiable:0,
+          gates_total:3, gates_failed:0, gates_blocked:0,
+          criteria:[
+            {number:1, text:"a valid token returns 200", verdict:"PASS",
+             evidence:"test_accepts_valid_token passed", command:"pytest -k valid_token"},
+            {number:2, text:"the ceiling is still 35", verdict:"PASS",
+             evidence:"limits.py:12 sets CEILING = 35", command:null}],
+          gates:[
+            {name:"Tests", status:"PASS", command:"pytest -q", detail:"218 passed, 0 failed"},
+            {name:"Lint", status:"PASS", command:"ruff check .", detail:"0 errors"},
+            {name:"Type checking", status:"SKIP", command:null, detail:"No type checker configured"}]}' |
+    python3 "$REPO_ROOT/skills/verify-acceptance/scripts/write_acceptance_report.py" \
+      --out "$1/.git/acceptance-report.json" --head "$(sgit "$1" rev-parse HEAD)" \
+      --changed-files "$1/.git/acceptance-changed.txt" > /dev/null
+}
+
+# The fenced block between `<!-- <name>:start -->` and `<!-- <name>:end -->`,
+# without its fence lines. A script finds a region by these comments and never
+# by its heading, per style-markdown rule 16.
+doc_block() {  # doc_block <file> <region-name>
+  awk -v start="<!-- $2:start -->" -v end="<!-- $2:end -->" '
+    $0 == start { inside = 1; next }
+    $0 == end   { inside = 0; next }
+    inside && /^```/ { next }
+    inside { print }
+  ' "$1"
+}
+
+# Each paragraph of a document on one line, so a rule wrapped at 100 columns
+# still matches a single pattern.
+paragraphs_of() {  # paragraphs_of <file>
+  awk 'BEGIN { RS = "" } { gsub(/\n/, " "); print }' "$1"
+}
+
+# The frontmatter `description` line of a skill or agent document.
+description_of() {  # description_of <file>
+  awk 'NR > 1 && /^---$/ { exit } /^description:/ { print }' "$1"
+}
+
+# Runs a documented command block inside <repo>, as a run of the skill would.
+# The plugin root is a copy holding only the two scripts the blocks name,
+# because the `find` in each block stops at its first match, and a checkout
+# with worktrees under it holds several copies. HOME points at nothing, so a
+# script missing from the copy is not found in the real plugin cache instead.
+# Output goes outside <repo>, where the changed set cannot see it.
+run_doc_block() {  # run_doc_block <repo> <file> <region-name>; sets DOC_CODE
+  local plugin="$SANDBOX/acceptance-plugin"
+  local block
+  block="$(doc_block "$2" "$3")"
+  # `bash -c ""` exits 0, so a region that went missing would read as a pass.
+  if [[ -z "$block" ]]; then
+    DOC_CODE="no block between the $3 comments"
+    return 0
+  fi
+  mkdir -p "$plugin/skills/quality-gates/scripts" "$plugin/skills/verify-acceptance/scripts"
+  cp "$REPO_ROOT/skills/quality-gates/scripts/changed_set.py" \
+    "$plugin/skills/quality-gates/scripts/"
+  cp "$REPO_ROOT/skills/verify-acceptance/scripts/write_acceptance_report.py" \
+    "$plugin/skills/verify-acceptance/scripts/"
+  sandbox_path "$1"
+  ( cd "$1" && HOME="$SANDBOX/no-home" CLAUDE_PLUGIN_ROOT="$plugin" \
+      bash -c "$block" > "$SANDBOX/doc.out" 2> "$SANDBOX/doc.err" )
+  DOC_CODE=$?
+}
+
 if case_start "label/pre: verify-acceptance drops a gate marker and injects nothing"; then
   # Criterion 1's front half. The run must be asked for no bd command at all.
   R="$(new_repo a1 with-origin)"
@@ -1272,6 +1344,75 @@ if case_start "label/gate: verify-acceptance writes the artifact the hook reads"
   assert_match "$AGENT_BODY" "acceptance-report.json" "the agent names the artifact"
   assert_no_match "$AGENT_BODY" "You must not write or edit anything" "the agent no longer claims it writes nothing"
   assert_no_match "$AGENT_BODY" "Stop before Step 5" "the agent no longer skips the step that writes it"
+
+  # tadw-bhi. The report is version 2 now, and only the script writes that
+  # shape and checks its counts against its rows. An inline json.dump left in
+  # the body would still write the version 1 shape the reconcile loader refuses.
+  assert_match "$SKILL_BODY" "write_acceptance_report.py" "writes through the version 2 writer"
+  assert_no_match "$SKILL_BODY" "json.dump" "builds no report in inline python"
+  assert_match "$AGENT_BODY" "write_acceptance_report.py" "the agent names the writer"
+fi
+
+if case_start "label/stop: a version 2 report whose criteria all PASS labels accepted"; then
+  # tadw-bhi, criterion 1. The writer adds criteria and gates arrays beside the
+  # seven counts, and the hook must still read the counts by name.
+  R="$(new_repo a11 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  age_artifacts "$R"; write_v2_acceptance_report "$R"
+  assert_eq "$(jq -r .version "$R/.git/acceptance-report.json" 2>/dev/null)" 2 "the writer produced version 2"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "--add-label accepted" "labeled it accepted"
+fi
+
+if case_start "label/gate: the documented verify-acceptance commands write a version 2 report"; then
+  # tadw-bhi, criterion 2. Steps 4 and 6 of the skill run exactly as written.
+  # A flag the document names and the script does not take fails here, rather
+  # than in a grading run whose Stop hook then waits six hours for a file.
+  R="$(new_repo a12 with-origin)"
+  echo "changed" > "$R/file.txt"
+  ACCEPT_SKILL="$REPO_ROOT/skills/verify-acceptance/SKILL.md"
+  REPORT="$R/.git/acceptance-report.json"
+  run_doc_block "$R" "$ACCEPT_SKILL" acceptance-scope
+  assert_eq "$DOC_CODE" 0 "the Step 4 scope command exited 0"
+  assert_eq "$(cat "$R/.git/acceptance-changed.txt" 2>/dev/null)" file.txt "the Step 4 scope command saved the changed set"
+  run_doc_block "$R" "$ACCEPT_SKILL" acceptance-writer
+  assert_eq "$DOC_CODE" 0 "the Step 6 writer command exited 0"
+  assert_eq "$(jq -r .version "$REPORT" 2>/dev/null)" 2 "has version 2"
+  assert_eq "$(jq -r .head "$REPORT" 2>/dev/null)" "$(sgit "$R" rev-parse HEAD)" "has head, the commit it graded"
+  assert_eq "$(jq -c .changed_files "$REPORT" 2>/dev/null)" '["file.txt"]' "has changed_files, from the saved changed set"
+  for spec in base:object criteria:array gates:array \
+              criteria_total:number criteria_passed:number criteria_failed:number \
+              criteria_unverifiable:number gates_total:number gates_failed:number \
+              gates_blocked:number; do
+    field="${spec%%:*}"
+    assert_eq "$(jq -r --arg f "$field" '.[$f] | type' "$REPORT" 2>/dev/null)" "${spec#*:}" "has $field"
+  done
+fi
+
+if case_start "label/gate: verify-acceptance names the reconcile skill on NOT ACCEPTED only"; then
+  # tadw-bhi, criterion 3. The model renders the report, so the instruction is
+  # what a suite can pin. ADR 0011 rule 3: a check skill names its fixer for
+  # the caller and never calls it. An INCONCLUSIVE verdict has no FAIL to fix.
+  ACCEPT_SKILL="$REPO_ROOT/skills/verify-acceptance/SKILL.md"
+  ACCEPT_PARAS="$(paragraphs_of "$ACCEPT_SKILL")"
+  assert_match_str "$ACCEPT_PARAS" '\*\*Next:\*\* /tadw:reconcile-acceptance' "the report format has the Next line"
+  assert_match_str "$ACCEPT_PARAS" "Print the .\*\*Next:\*\*. line only when the verdict is NOT ACCEPTED" "prints it on NOT ACCEPTED"
+  assert_match_str "$ACCEPT_PARAS" "INCONCLUSIVE verdict gets no .\*\*Next:\*\*. line" "prints none on INCONCLUSIVE"
+fi
+
+if case_start "label/gate: every rule listing what verify-acceptance writes names the saved changed set"; then
+  # tadw-bhi, criterion 4. Step 4 now writes acceptance-changed.txt. A rule that
+  # still says the run writes one file contradicts that step, and a model given
+  # a rule and a step that disagree obeys one of them, with no telling which.
+  ACCEPT_SKILL="$REPO_ROOT/skills/verify-acceptance/SKILL.md"
+  ACCEPT_AGENT="$REPO_ROOT/agents/acceptance-verifier.md"
+  assert_match_str "$(description_of "$ACCEPT_SKILL")" "acceptance-changed.txt" "the skill description names it"
+  assert_match_str "$(paragraphs_of "$ACCEPT_SKILL")" "This skill writes exactly two files.{0,200}acceptance-changed.txt" "the skill's Never rule names it"
+  assert_match_str "$(paragraphs_of "$ACCEPT_AGENT")" "You write exactly two files.{0,200}acceptance-changed.txt" "the agent's rule names it"
+  assert_match_str "$(description_of "$ACCEPT_AGENT")" "acceptance-changed.txt" "the agent description names it"
+  assert_no_match "$ACCEPT_SKILL" "exactly one file" "no rule in the skill still claims one file"
+  assert_no_match "$ACCEPT_AGENT" "exactly one file" "no rule in the agent still claims one file"
 fi
 
 if case_start "label/gate: feature-development writes the artifact the hook reads"; then
