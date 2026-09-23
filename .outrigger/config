@@ -97,3 +97,8 @@ closeout_tool = 'the `/tadw:ship` skill'
 # merged proves two things instead: the landed commit is an ancestor of the
 # main branch, and the bead reads closed in the tracker committed at that ref.
 closeout_verify = merged
+
+# Per-phase model override (outrigger-lijg): pin a cheaper/stronger model
+# per dev-pipeline phase instead of every phase sharing --model.
+qa_model = sonnet
+closeout_model = haiku
