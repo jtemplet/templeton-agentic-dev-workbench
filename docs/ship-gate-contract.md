@@ -81,6 +81,22 @@ only after this repository has finished step 4 and these instructions are publis
 After the switch, a repository with no file and no override stops with `SHIP_BLOCKED gate` and the
 setup action. That stop is deliberate: a repository cannot be migrated from here.
 
+`skills/ship/scripts/tadw_ship.py --repo-root <path> --check-gate` shows which gate a ship run
+would select, and stops there. It prints the gate as JSON and exits 0. With no usable gate, it
+names each problem and the setup action on stderr, prints `SHIP_BLOCKED gate`, and exits 1. It
+selects the gate before it runs any `git` or `bd` command, so that stop changes nothing. The flag
+name and its output are provisional: `tadw-kgql` settles the terminal interface, so do not build
+a script on them yet.
+
+A blank `TADW_SHIP_CHECK` counts as unset, because an empty command would pass every ship.
+`TADW_SHIP_CHECK_TIMEOUT` bounds the override command alone. A gate from the file uses its own
+`timeout` key and ignores the variable, so raise that key for a slow configured gate. A value
+that is not a positive whole number stops the run and names that variable as the fix.
+
+This repository finished step 4 with `.tadw/ship-gates.json`.
+`skills/ship/scripts/test_tadw_ship.py` checks that its commands match the `AGENTS.md` block
+minus `python3 evals/run.py`, so a check added to one and not the other fails that suite.
+
 ## Baseline method
 
 `skills/ship/scripts/measure_gate_baseline.py` runs a gate command and records, for each run, the

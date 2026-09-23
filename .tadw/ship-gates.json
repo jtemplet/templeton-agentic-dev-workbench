@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "gates": [
+    {"name": "markdown-format", "command": ["rumdl", "fmt", "--check", "."]},
+    {"name": "markdown-lint", "command": ["rumdl", "check", ".", "--extend-disable", "MD013"]},
+    {"name": "markdown-wrap", "command": ["python3", "skills/quality-gates/scripts/check_markdown_wrap.py"]},
+    {"name": "hook-suite", "command": ["node", "hooks/test-hooks.js"]},
+    {"name": "claude-scripts-suite", "command": ["bash", "hooks/test-claude-scripts.sh"]},
+    {"name": "framework-leak-suite", "command": ["python3", "skills/style-testing/scripts/test_check_framework_leak.py"]},
+    {"name": "framework-leak", "command": ["python3", "skills/style-testing/scripts/check_framework_leak.py"]},
+    {"name": "doc-paths-suite", "command": ["python3", "skills/quality-gates/scripts/test_check_doc_paths.py"]},
+    {"name": "doc-paths", "command": ["python3", "skills/quality-gates/scripts/check_doc_paths.py"]},
+    {"name": "changed-set-suite", "command": ["python3", "skills/quality-gates/scripts/test_changed_set.py"]},
+    {"name": "hygiene-suite", "command": ["python3", "skills/quality-gates/scripts/test_check_hygiene.py"]},
+    {"name": "route-qa-suite", "command": ["python3", "skills/quality-gates/scripts/test_route_qa.py"]},
+    {"name": "probe-api-suite", "command": ["python3", "skills/quality-gates/scripts/test_probe_api.py"]},
+    {"name": "report-writer-suite", "command": ["python3", "skills/quality-gates/scripts/test_write_report_json.py"]},
+    {
+      "name": "bd-commands-suite",
+      "command": ["python3", "skills/quality-gates/scripts/test_check_documented_bd_commands.py"],
+      "resources": ["tracker"]
+    },
+    {
+      "name": "bd-commands",
+      "command": ["python3", "skills/quality-gates/scripts/check_documented_bd_commands.py"],
+      "resources": ["tracker"]
+    },
+    {"name": "documented-paths-suite", "command": ["python3", "skills/quality-gates/scripts/test_check_documented_paths.py"]},
+    {"name": "documented-paths", "command": ["python3", "skills/quality-gates/scripts/check_documented_paths.py"]},
+    {"name": "drive-blocks-suite", "command": ["python3", "skills/product-surface-docs/scripts/test_check_drive_blocks.py"]},
+    {"name": "drive-blocks", "command": ["python3", "skills/product-surface-docs/scripts/check_drive_blocks.py"]},
+    {"name": "round-format-suite", "command": ["python3", "skills/bead-refine/scripts/test_check_round_format.py"]},
+    {"name": "round-format", "command": ["python3", "skills/bead-refine/scripts/check_round_format.py"]},
+    {"name": "worktree-occupants-suite", "command": ["python3", "skills/ship/scripts/test_check_worktree_occupants.py"]},
+    {"name": "resolve-ground-suite", "command": ["python3", "skills/ship/scripts/test_resolve_ground.py"]},
+    {"name": "landed-check-suite", "command": ["python3", "skills/ship/scripts/test_landed_check.py"]},
+    {"name": "gate-config-suite", "command": ["python3", "skills/ship/scripts/test_read_gate_config.py"]},
+    {"name": "gate-baseline-suite", "command": ["python3", "skills/ship/scripts/test_measure_gate_baseline.py"]},
+    {"name": "ship-runner-suite", "command": ["python3", "skills/ship/scripts/test_tadw_ship.py"]},
+    {"name": "rebase-conflict-suite", "command": ["python3", "skills/ship/scripts/test_resolve_rebase_conflict.py"]},
+    {"name": "acceptance-findings-suite", "command": ["python3", "skills/reconcile-acceptance/scripts/test_load_findings.py"]},
+    {"name": "quality-gates-findings-suite", "command": ["python3", "skills/reconcile-quality-gates/scripts/test_load_findings.py"]},
+    {"name": "acceptance-report-suite", "command": ["python3", "skills/verify-acceptance/scripts/test_write_acceptance_report.py"]},
+    {"name": "prepush-suite", "command": ["python3", ".githooks/test_prepush.py"]},
+    {"name": "plugin-validate", "command": ["claude", "plugin", "validate", "."]},
+    {"name": "eval-harness-suite", "command": ["python3", "evals/test_run.py"]}
+  ]
+}

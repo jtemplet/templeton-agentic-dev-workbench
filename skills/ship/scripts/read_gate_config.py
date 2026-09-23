@@ -22,6 +22,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 EXIT_VALID = 0
 EXIT_INVALID = 1
@@ -34,6 +35,19 @@ DEFAULT_TIMEOUT_SECONDS = 900
 GATE_KEYS = frozenset(
     ["name", "command", "inputs", "cwd", "timeout", "depends_on", "resources", "reuse"]
 )
+
+
+class NormalizedGate(TypedDict):
+    """One gate with every default filled in, as `normalize` returns it."""
+
+    name: str
+    command: list[str]
+    inputs: list[str]
+    cwd: str
+    timeout: int
+    depends_on: list[str]
+    resources: list[str]
+    reuse: bool
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -128,7 +142,7 @@ def validate_dependencies(where: str, gate: dict, names: list[object]) -> list[s
     return problems
 
 
-def find_cycle(gates: list[dict]) -> list[str]:
+def find_cycle(gates: list[NormalizedGate]) -> list[str]:
     """Return the names on one dependency cycle, or an empty list when there is none."""
     graph = {g["name"]: g["depends_on"] for g in gates}
     finished: set[str] = set()
@@ -157,16 +171,16 @@ def normalize(document: dict) -> dict:
     return {
         "version": document["version"],
         "gates": [
-            {
-                "name": gate["name"],
-                "command": gate["command"],
-                "inputs": gate.get("inputs", []),
-                "cwd": gate.get("cwd", "."),
-                "timeout": gate.get("timeout", DEFAULT_TIMEOUT_SECONDS),
-                "depends_on": gate.get("depends_on", []),
-                "resources": gate.get("resources", []),
-                "reuse": gate.get("reuse", False) and bool(gate.get("inputs")),
-            }
+            NormalizedGate(
+                name=gate["name"],
+                command=gate["command"],
+                inputs=gate.get("inputs", []),
+                cwd=gate.get("cwd", "."),
+                timeout=gate.get("timeout", DEFAULT_TIMEOUT_SECONDS),
+                depends_on=gate.get("depends_on", []),
+                resources=gate.get("resources", []),
+                reuse=gate.get("reuse", False) and bool(gate.get("inputs")),
+            )
             for gate in document["gates"]
         ],
     }
