@@ -45,6 +45,8 @@ python3 skills/bead-refine/scripts/check_round_format.py                    # as
 python3 skills/ship/scripts/test_check_worktree_occupants.py   # regression suite for the worktree occupant check
 python3 skills/ship/scripts/test_resolve_ground.py             # regression suite for ship's ground resolver
 python3 skills/ship/scripts/test_landed_check.py               # regression suite for ship's landed check
+python3 skills/ship/scripts/test_read_gate_config.py         # regression suite for the ship gate configuration reader
+python3 skills/ship/scripts/test_measure_gate_baseline.py   # regression suite for the gate baseline measurer
 python3 skills/ship/scripts/test_resolve_rebase_conflict.py    # regression suite for ship's conflict resolver
 python3 skills/reconcile-acceptance/scripts/test_load_findings.py   # regression suite for the acceptance findings loader
 python3 skills/reconcile-quality-gates/scripts/test_load_findings.py   # regression suite for the quality-gates findings loader

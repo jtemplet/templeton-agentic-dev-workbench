@@ -401,6 +401,8 @@ check python3 skills/bead-refine/scripts/check_round_format.py
 check python3 skills/ship/scripts/test_check_worktree_occupants.py
 check python3 skills/ship/scripts/test_resolve_ground.py
 check python3 skills/ship/scripts/test_landed_check.py
+check python3 skills/ship/scripts/test_read_gate_config.py
+check python3 skills/ship/scripts/test_measure_gate_baseline.py
 check python3 skills/ship/scripts/test_resolve_rebase_conflict.py
 check python3 skills/reconcile-acceptance/scripts/test_load_findings.py
 check python3 skills/reconcile-quality-gates/scripts/test_load_findings.py
