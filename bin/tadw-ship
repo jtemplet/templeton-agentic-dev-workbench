@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""tadw-ship: ship a bead's branch from any shell, with no model and no shell function.
+
+Put this file on PATH with a symbolic link, for example:
+
+    ln -s <plugin-root>/bin/tadw-ship ~/.local/bin/tadw-ship
+
+It follows the link back to its own copy of the plugin and runs that copy's
+runner, skills/ship/scripts/tadw_ship.py. The runner loads every helper from
+its own directory, so two installed copies never mix. Run `tadw-ship --help`
+for the flags.
+"""
+
+import importlib.util
+import sys
+from pathlib import Path
+from types import ModuleType
+
+RUNNER = Path(__file__).resolve().parent.parent / "skills" / "ship" / "scripts" / "tadw_ship.py"
+
+
+def load_runner() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("tadw_ship", RUNNER)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["tadw_ship"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+if __name__ == "__main__":
+    sys.exit(load_runner().main())

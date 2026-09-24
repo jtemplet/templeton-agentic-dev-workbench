@@ -28,6 +28,7 @@ boundary and marks the cut, so the id at the end survives any title length.
 from __future__ import annotations
 
 import re
+import shlex
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,11 +59,15 @@ class CheckReport:
 
 @dataclass(frozen=True)
 class ShipResult:
-    """Everything the report says, recorded once; `machine_line` is its last line."""
+    """Everything the report says, recorded once; `machine_line` is its last line.
+
+    `cd_target` is set only when the run removed the directory its caller started in.
+    """
 
     bead_id: str | None
     checks: tuple[CheckReport, ...]
     machine_line: str
+    cd_target: Path | None = None
 
 
 def report_check(name: str, status: str, log: Path) -> CheckReport:
@@ -73,7 +78,22 @@ def report_check(name: str, status: str, log: Path) -> CheckReport:
 
 def render(result: ShipResult) -> list[str]:
     bead = result.bead_id or "bead-free"
-    return [f"tadw_ship: bead {bead}", *check_lines(result.checks), result.machine_line]
+    return [
+        f"tadw_ship: bead {bead}",
+        *check_lines(result.checks),
+        *cd_lines(result.cd_target),
+        result.machine_line,
+    ]
+
+
+def cd_lines(target: Path | None) -> list[str]:
+    """The line a caller pastes to leave a removed directory; a child process cannot move it."""
+    if target is None:
+        return []
+    return [
+        "tadw_ship: the directory this run started in was removed; your shell is still there",
+        f"cd {shlex.quote(str(target))}",
+    ]
 
 
 def check_lines(checks: Sequence[CheckReport]) -> list[str]:

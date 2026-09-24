@@ -233,6 +233,7 @@ check python3 skills/ship/scripts/test_resolve_rebase_conflict.py
 check python3 skills/ship/scripts/test_select_bead.py
 check python3 skills/ship/scripts/test_ship_report.py
 check python3 skills/ship/scripts/test_candidate.py
+check python3 skills/ship/scripts/test_worktree_cleanup.py
 check python3 skills/reconcile-acceptance/scripts/test_load_findings.py
 check python3 skills/reconcile-quality-gates/scripts/test_load_findings.py
 check python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py

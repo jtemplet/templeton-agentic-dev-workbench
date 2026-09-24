@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """Ship a bead's branch without a model: the executable the ship skill will call.
 
-This first stage selects the gate, and can run it. It resolves the gate before
-any step that changes Git or tracker state, so a repository with no gate stops
-with `SHIP_BLOCKED gate` having touched nothing. The landing steps come later
-(tadw-9ed); until then only `--check-gate` and `--run-gate` run to completion.
+Run it from any shell as `tadw-ship [bead-id]`, through `bin/tadw-ship`, or as
+this file. It resolves the gate, then the stable checkout, before any step that
+changes Git or tracker state. A repository with no gate stops with
+`SHIP_BLOCKED gate`, and one with no stable checkout stops with
+`SHIP_BLOCKED git-state`, both having touched nothing. The landing steps come
+later (tadw-0jz2); until then only `--check-gate` and `--run-gate` run to
+completion.
+
+The stable checkout is the main worktree, which outlives every worktree ship
+removes. worktree_cleanup.py explains why ship needs one: a child process
+cannot move its caller's shell, so ship prints `cd <stable-path>` instead.
 
 The gate comes from the first of these sources that is set:
 
@@ -21,8 +28,6 @@ No other source is read. Markdown is never parsed for a gate.
 hook shares, and holds it to ship's policy: every gate must pass. A gate that
 fails, times out, cannot start, or is interrupted stops the run. Nothing is
 skipped for a missing tool, which is the pre-push hook's policy and not ship's.
-
-Both flags are provisional: tadw-kgql settles the terminal flags.
 
 Exit status: 0 when `--check-gate` found a gate (printed as JSON on stdout) or
 every gate `--run-gate` ran passed, 1 on a ship stop (the last stdout line is
@@ -45,6 +50,7 @@ from pathlib import Path
 from types import ModuleType
 
 
+# Each ship script carries this loader: a shared one would itself have to be loaded by path.
 def load_sibling(name: str) -> ModuleType:
     """Load a helper from this file's own directory, never from another installed copy."""
     spec = importlib.util.spec_from_file_location(
@@ -60,6 +66,7 @@ def load_sibling(name: str) -> ModuleType:
 read_gate_config = load_sibling("read_gate_config")
 run_checks = load_sibling("run_checks")
 ship_report = load_sibling("ship_report")
+worktree_cleanup = load_sibling("worktree_cleanup")
 
 EXIT_OK = 0
 EXIT_BLOCKED = 1
@@ -147,19 +154,29 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
 
     if args.run_gate:
         return run_gate_with_kept_failure_logs(gate, repo)
-    if not args.check_gate:
-        print(
-            "tadw_ship: the landing steps are not built yet (tadw-9ed); "
-            "only --check-gate and --run-gate run",
-            file=sys.stderr,
-        )
-        return EXIT_OPERATOR_ERROR
-    print(json.dumps(gate.as_json(), indent=2))
-    return EXIT_OK
+    if args.check_gate:
+        print(json.dumps(gate.as_json(), indent=2))
+        return EXIT_OK
+    try:
+        worktree_cleanup.stable_checkout(repo)
+    except worktree_cleanup.NoStableCheckout as missing:
+        return stop_without_stable_checkout(missing)
+    print(
+        "tadw_ship: the landing steps are not built yet (tadw-0jz2); "
+        "only --check-gate and --run-gate run",
+        file=sys.stderr,
+    )
+    return EXIT_OPERATOR_ERROR
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "bead_id",
+        nargs="?",
+        metavar="bead-id",
+        help="the bead to ship; when omitted, the bead is derived from the branch name",
+    )
     parser.add_argument("--repo-root", default=".", help="the repository to ship from")
     flags = parser.add_mutually_exclusive_group()
     flags.add_argument(
@@ -168,7 +185,10 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     flags.add_argument(
         "--run-gate", action="store_true", help="select the gate, run it, and stop on any failure"
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.bead_id and (args.check_gate or args.run_gate):
+        parser.error("bead-id ships a bead; --check-gate and --run-gate only test the gate")
+    return args
 
 
 def resolve_gate(repo: Path, environ: Mapping[str, str]) -> OverrideGate | ConfiguredGate:
@@ -236,6 +256,17 @@ def gate_passed(outcome: run_checks.Outcome) -> bool:
     return outcome.stopped_by is None and all(
         result.status is run_checks.Status.PASSED for result in outcome.results
     )
+
+
+def stop_without_stable_checkout(missing: worktree_cleanup.NoStableCheckout) -> int:
+    print(f"tadw_ship: {missing}", file=sys.stderr)
+    print(
+        "tadw_ship: nothing was changed. Ship from a repository with a main checkout, "
+        "because ship moves there before it removes any worktree.",
+        file=sys.stderr,
+    )
+    print("SHIP_BLOCKED git-state")
+    return EXIT_BLOCKED
 
 
 def stop_on_gate(blocked: GateBlocked) -> int:

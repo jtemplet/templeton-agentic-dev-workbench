@@ -30,10 +30,24 @@ Stdlib only, no install. Run with:
   tadw-a7r criterion 5: a failed gate's full output stays in its log, and the
   runner prints only a bounded excerpt, pinned by
   case_run_gate_prints_a_bounded_excerpt and case_run_gate_log_keeps_every_line.
+
+  tadw-kgql criterion                               Pinned by
+  ------------------------------------------------------------------------------
+  3. No stable checkout stops with                  case_no_stable_checkout_stops_with_git_state,
+     `SHIP_BLOCKED git-state` before any Git or     case_no_stable_checkout_names_the_reason,
+     tracker mutation, and names the reason         case_no_stable_checkout_changes_nothing
+  4. Each installed copy loads its own helpers      case_each_copy_loads_its_own_helpers,
+                                                    case_linked_executable_loads_its_own_copy
+  5. `tadw-ship --help` runs with no shell, lists   case_help_runs_without_a_shell,
+     every terminal flag, and no flag is called     case_help_lists_every_flag,
+     provisional                                    case_no_flag_is_called_provisional
+
+  Criteria 1 and 2 are pinned in test_worktree_cleanup.py and test_ship_report.py.
 """
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -43,9 +57,12 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import NamedTuple
 
 SCRIPT = Path(__file__).resolve().parent / "tadw_ship.py"
 REPO = Path(__file__).resolve().parents[3]
+EXECUTABLE = REPO / "bin" / "tadw-ship"
+TERMINAL_FLAGS = ("bead-id", "--repo-root", "--check-gate", "--run-gate")
 AGENTS = REPO / "AGENTS.md"
 CONFIG = Path(".tadw") / "ship-gates.json"
 
@@ -300,9 +317,155 @@ def case_missing_repository_is_operator_error() -> None:
 
 
 def case_start_without_check_gate_does_not_claim_a_ship() -> None:
-    result = run_in_empty_repo(config=valid_config())
+    with tempfile.TemporaryDirectory() as directory:
+        fixture = Fixture(Path(directory))
+        write_config(fixture.repo, valid_config())
+        result = fixture.start()
     assert result.returncode == 2, f"expected exit 2, got {result.returncode}"
     assert "SHIP_DONE" not in result.stdout, result.stdout
+
+
+def case_bead_with_a_gate_flag_is_operator_error() -> None:
+    result = run_in_empty_repo("tadw-kgql", "--check-gate", config=valid_config())
+    assert result.returncode == 2, f"expected exit 2, got {result.returncode}"
+
+
+@functools.cache
+def bare_start() -> StartFromBareLinkedWorktree:
+    return StartFromBareLinkedWorktree()
+
+
+class StartFromBareLinkedWorktree:
+    """A start from a linked worktree of a bare repository, which has no main checkout."""
+
+    def __init__(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture(Path(directory))
+            bare = Path(directory) / "bare.git"
+            subprocess.run(["git", "clone", "-q", "--bare", str(fixture.repo), str(bare)],
+                           check=True)  # fmt: skip
+            fixture.repo = Path(directory) / "linked"
+            subprocess.run(
+                ["git", "-C", str(bare), "worktree", "add", "-q", str(fixture.repo), "main"],
+                check=True,
+            )
+            before = fixture.state()
+            self.result = fixture.start(env={"TADW_SHIP_CHECK": "true"})
+            self.state_changed = fixture.state() != before
+            self.bd_calls = [
+                line for line in fixture.calls().splitlines() if line.startswith("bd ")
+            ]
+
+
+def case_no_stable_checkout_stops_with_git_state() -> None:
+    result = bare_start().result
+    assert result.returncode == 1, f"expected exit 1, got {result.returncode}"
+    assert result.stdout.splitlines()[-1] == "SHIP_BLOCKED git-state", result.stdout
+
+
+def case_no_stable_checkout_names_the_reason() -> None:
+    result = bare_start().result
+    assert "is bare" in result.stderr, result.stderr
+
+
+def case_no_stable_checkout_changes_nothing() -> None:
+    stop = bare_start()
+    assert not stop.state_changed, "the refs or the working tree changed"
+    assert not stop.bd_calls, (
+        f"no bd call may run before the stable checkout is known: {stop.bd_calls}"
+    )
+
+
+@functools.cache
+def help_run() -> subprocess.CompletedProcess:
+    """Run the executable file itself, with no shell and no interpreter named."""
+    return subprocess.run([str(EXECUTABLE), "--help"], capture_output=True, text=True, check=False)
+
+
+def case_help_runs_without_a_shell() -> None:
+    result = help_run()
+    assert result.returncode == 0, result.stderr
+
+
+def case_help_lists_every_flag() -> None:
+    usage = help_run().stdout
+    missing = [flag for flag in TERMINAL_FLAGS if flag not in usage]
+    assert not missing, f"--help does not list {missing}:\n{usage}"
+
+
+def case_no_flag_is_called_provisional() -> None:
+    assert "provisional" not in SCRIPT.read_text(encoding="utf-8").lower()
+
+
+class PluginCopy(NamedTuple):
+    """One installed copy of the plugin, laid out as the plugin lays itself out."""
+
+    executable: Path
+    scripts: Path
+
+
+def install_copy(root: Path) -> PluginCopy:
+    copy = PluginCopy(root / "bin" / "tadw-ship", root / "skills" / "ship" / "scripts")
+    copy.executable.parent.mkdir(parents=True)
+    shutil.copy2(EXECUTABLE, copy.executable)
+    copy.scripts.mkdir(parents=True)
+    for helper in SCRIPT.parent.glob("*.py"):
+        shutil.copy2(helper, copy.scripts / helper.name)
+    return copy
+
+
+def poison(copy: PluginCopy) -> None:
+    """Make every script in `copy` stop the process the moment it is loaded."""
+    for helper in copy.scripts.glob("*.py"):
+        helper.write_text('raise SystemExit("loaded from the poisoned copy")\n')
+
+
+class CopyRuns(NamedTuple):
+    """`--check-gate` run through copy A, copy B, and a link to copy A."""
+
+    sound: subprocess.CompletedProcess
+    poisoned: subprocess.CompletedProcess
+    linked: subprocess.CompletedProcess
+
+
+@functools.cache
+def copy_runs() -> CopyRuns:
+    """Copy A is sound; copy B is poisoned and sits on PYTHONPATH and in the working directory."""
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        sound = install_copy(root / "a")
+        poisoned = install_copy(root / "b")
+        poison(poisoned)
+        link = poisoned.executable.parent / "tadw-ship-link"
+        link.symlink_to(sound.executable)
+        repo = root / "repo"
+        repo.mkdir()
+        write_config(repo, valid_config())
+
+        def check_gate(executable: Path) -> subprocess.CompletedProcess:
+            return subprocess.run(
+                [str(executable), "--repo-root", str(repo), "--check-gate"],
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=poisoned.scripts,
+                env={**os.environ, "PYTHONPATH": str(poisoned.scripts)},
+            )
+
+        return CopyRuns(
+            *(check_gate(path) for path in (sound.executable, poisoned.executable, link))
+        )
+
+
+def case_each_copy_loads_its_own_helpers() -> None:
+    runs = copy_runs()
+    assert "poisoned" in runs.poisoned.stderr, "the poisoned copy must fail, or this proves nothing"
+    assert runs.sound.returncode == 0, f"copy A loaded a helper from copy B:\n{runs.sound.stderr}"
+
+
+def case_linked_executable_loads_its_own_copy() -> None:
+    result = copy_runs().linked
+    assert result.returncode == 0, f"the link did not run copy A's helpers:\n{result.stderr}"
 
 
 def gate_config(*gates: dict) -> dict:
@@ -400,6 +563,15 @@ for name, fn in [
      case_missing_repository_is_operator_error),
     ("a start without --check-gate does not claim a ship",
      case_start_without_check_gate_does_not_claim_a_ship),
+    ("a bead-id with a gate flag is operator error", case_bead_with_a_gate_flag_is_operator_error),
+    ("no stable checkout stops with git-state", case_no_stable_checkout_stops_with_git_state),
+    ("no stable checkout names the reason", case_no_stable_checkout_names_the_reason),
+    ("no stable checkout changes nothing", case_no_stable_checkout_changes_nothing),
+    ("--help runs without a shell", case_help_runs_without_a_shell),
+    ("--help lists every terminal flag", case_help_lists_every_flag),
+    ("no flag is called provisional", case_no_flag_is_called_provisional),
+    ("each installed copy loads its own helpers", case_each_copy_loads_its_own_helpers),
+    ("a linked executable loads its own copy", case_linked_executable_loads_its_own_copy),
     ("--run-gate passes when every gate passes", case_run_gate_passes_when_every_gate_passes),
     ("--run-gate stops on one failed gate", case_run_gate_stops_on_one_failed_gate),
     ("--run-gate stops on a missing tool, never skips it", case_run_gate_stops_on_a_missing_tool),

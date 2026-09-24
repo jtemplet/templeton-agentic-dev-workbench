@@ -42,6 +42,7 @@
     {"name": "select-bead-suite", "command": ["python3", "skills/ship/scripts/test_select_bead.py"]},
     {"name": "ship-report-suite", "command": ["python3", "skills/ship/scripts/test_ship_report.py"]},
     {"name": "candidate-suite", "command": ["python3", "skills/ship/scripts/test_candidate.py"]},
+    {"name": "worktree-cleanup-suite", "command": ["python3", "skills/ship/scripts/test_worktree_cleanup.py"]},
     {"name": "acceptance-findings-suite", "command": ["python3", "skills/reconcile-acceptance/scripts/test_load_findings.py"]},
     {"name": "quality-gates-findings-suite", "command": ["python3", "skills/reconcile-quality-gates/scripts/test_load_findings.py"]},
     {"name": "acceptance-report-suite", "command": ["python3", "skills/verify-acceptance/scripts/test_write_acceptance_report.py"]},
