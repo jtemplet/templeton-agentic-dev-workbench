@@ -6,7 +6,7 @@
 ## Summary
 
 Move the ship workflow into a Python executable for repository maintainers and unattended callers.
-Keep a short ship skill and an optional fish function as interfaces to the same executable.
+Keep a short ship skill and direct terminal use as the two interfaces to the same executable.
 The executable will enforce the workflow, record progress, and generate reports without model calls.
 
 ## Motivation
@@ -44,7 +44,7 @@ The evidence comes from [the ship skill](../../skills/ship/SKILL.md),
 
 - A Python executable that performs ship without model calls.
 - A smaller ship skill that invokes the executable and passes through its result.
-- An optional fish function for arguments, exit status, and changing the caller's directory.
+- Exact `cd` guidance when ship removes the worktree its caller started in.
 - Explicit gate configuration, shared check execution, and bounded concurrency.
 - Migration of this repository's gate list before `/tadw:ship` switches to the new command.
 - Final-tree verification, recorded progress, and recovery after interruption.
@@ -56,13 +56,12 @@ The evidence comes from [the ship skill](../../skills/ship/SKILL.md),
 
 ### Out of Scope
 
-- A fish implementation of the full workflow.
+- A shell function or wrapper in any shell, fish or bash included.
 - Pull requests, hosted CI as the ship gate, or changes to release numbering.
 - Resolving source conflicts or fixing failing application checks during ship.
 - Disabling hooks, skipping required checks, or force-pushing the default branch.
 - Changing tracker schemas or making the export a source of truth.
 - Replacing the quality-gates orchestrator or changing its agent delegation policy.
-- Installing a fish function into the user's shell as part of writing this plan.
 - Filing implementation beads or implementing this plan during the planning task.
 
 ## Technical Approach
@@ -70,7 +69,6 @@ The evidence comes from [the ship skill](../../skills/ship/SKILL.md),
 ### Architecture
 
 Use one Python executable for both direct terminal use and `/tadw:ship`.
-The optional fish function calls that executable and performs only shell-specific actions.
 Retain Python because the existing ship helpers already use it and have regression suites.
 
 The executable owns named workflow states and the rules for moving between them.
@@ -193,12 +191,14 @@ Report counts only when a known parser can extract them; otherwise mark counts u
 Shorten bead titles through a fixed algorithm that preserves the bead ID.
 For bead-free shipping, accept an explicit subject and define a deterministic branch-slug fallback.
 
-The fish function resolves the original repository path before it calls Python. It changes its
-caller's directory to a stable checkout path outside any worktree Python may remove. If it cannot
-find one, it stops before invoking the mutating command. It passes the original path through a
-`--repo-root` argument and returns Python's exit status. A Python child process cannot change its
-parent shell's directory. Agent callers receive accurate directory guidance rather than a false
-claim that their shell moved. The Python executable also works when fish is absent.
+No shell function ships. A child process cannot change its parent shell's directory, and a shell
+function would tie the interface to one shell: fish must be installed, and a bash function does not
+load in fish. Python records its starting directory, which is the caller's directory. Before it
+removes a worktree, Python resolves a stable checkout path outside every worktree it may remove, and
+moves its own process there. If it cannot find one, it stops before the first mutation. When the
+starting directory sat inside a removed worktree, the result prints the exact `cd <stable-path>`
+line before the final machine line. Agent and terminal callers get the same accurate guidance, and
+no output claims that their shell moved.
 
 ### Key Components
 
@@ -212,7 +212,7 @@ Existing paths below were checked during planning. Names of new commands and fil
 | `landed_check.py` and its regression suite | Check branch content before cleanup | Reuse |
 | `resolve_rebase_conflict.py` and its regression suite | Resolve the existing mechanical conflicts | Reuse |
 | `check_worktree_occupants.py` and its regression suite | Report occupants before cleanup | Reuse |
-| Proposed `tadw-ship` executable and fish function | Provide direct terminal access | New |
+| Proposed `tadw-ship` executable | Provide direct terminal access | New |
 | Proposed gate configuration and shared check runner | Declare and execute checks | New |
 | Repository gate configuration | Preserve this repository's complete ship gate during migration | New |
 | `.githooks/pre-push` and `.githooks/test_prepush.py` | Consume the shared runner without changing hook policy | Modify |
@@ -224,7 +224,7 @@ Existing paths below were checked during planning. Names of new commands and fil
 
 A test seam is the public boundary through which a test proves behavior.
 The user confirmed Python command tests in temporary repositories and retention of existing helper tests.
-The user also confirmed fish tests limited to arguments, exit status, and changing the caller's directory.
+The user later removed the fish function, so no shell-function seam remains.
 Existing pre-push tests continue to protect hook behavior during runner extraction.
 
 | Seam | Existing or new | What it proves |
@@ -232,7 +232,6 @@ Existing pre-push tests continue to protect hook behavior during runner extracti
 | Python executable in temporary repositories | New | Workflow outcomes, recovery, refs, files, and tracker calls |
 | Existing helper command interfaces | Existing | Repository inspection, landed checks, conflict resolution, and occupant reporting |
 | Existing pre-push test interface | Existing | Check selection, interruption, and hook policy after runner extraction |
-| Fish function with a controlled executable | New | Argument forwarding, exit status, and the caller's directory |
 
 Use the executable as the primary seam because its observable behavior should survive internal
 refactoring. Keep helper tests that already prove independent behavior without duplicating every
@@ -257,7 +256,8 @@ Exact filenames and serialization formats remain implementation choices.
 Proposed terminal commands are `tadw-ship [bead-id]` and `tadw-ship --resume <run-id>`.
 A result-file option provides JSON without changing the existing final machine line.
 Exact flag names must be settled before implementation beads expose them as contracts.
-The fish function passes `--repo-root <original-path>` after changing its caller's directory.
+When the caller's starting directory is removed, the output names the `cd` target before the
+machine line.
 
 Retain `/tadw:ship`, its bead argument, the documented environment overrides, and existing stop
 categories. Do not create `commands/ship.md`, which would compete with the skill's invocation name.
@@ -291,7 +291,7 @@ These milestones describe the design sequence; bd remains the implementation tra
 | 3 | Checked candidate and recovery | Commit and check a temporary candidate, then record and recover each mutation | L | A failed gate leaves main unchanged; interruption and moved-base tests preserve work |
 | 4 | Shared check execution | Extract concurrency and command execution for ship and pre-push | M | Both callers retain their required checks and failure policies |
 | 5 | Eligible result reuse | Reuse only results with complete, matching inputs | M | Invalidation tests rerun every changed or unverifiable check |
-| 6 | Terminal, documentation, and skill switch | Add fish support, generated output, and a smaller skill; publish setup instructions | M | The skill switches only after configuration and documentation; both interfaces preserve the machine line |
+| 6 | Terminal, documentation, and skill switch | Add terminal use with `cd` guidance, generated output, and a smaller skill; publish setup instructions | M | The skill switches only after configuration and documentation; both interfaces preserve the machine line |
 | 7 | Final verification | Measure savings and check all acceptance criteria | M | Evidence covers behavior, instruction size, check counts, and execution time |
 
 ## Acceptance Criteria
@@ -337,8 +337,8 @@ These milestones describe the design sequence; bd remains the implementation tra
 20. Reports derive from recorded results, keep full logs outside model output, and never invent
     test counts or bead IDs.
 21. Multiple installations cannot silently select a helper from a different version.
-22. Fish changes its caller's directory before invoking Python, passes the original repository
-    path, and returns Python's exit status. Python runs without fish.
+22. Python runs from any shell with no wrapper. When it removes the worktree its caller started
+    in, it prints the exact `cd` line to a stable checkout before the final machine line.
 23. Source conflicts stop and abort rebase. Dirty worktrees and the default-branch worktree survive
     cleanup.
 24. Tracker exports remain generated by bd, and the interactions log stays untracked.
@@ -363,7 +363,7 @@ content, recovery, compatibility, and protection of existing work.
 | Concurrent callers change refs or tracker state | High | Medium | Serialize ship mutations and recheck external state |
 | Runner extraction changes pre-push forgiveness | High | Medium | Keep caller policy separate and retain hook regression tests |
 | Existing repositories lack gate configuration | Medium | High | Migrate this repository before the skill switches; document configuration and the override for others |
-| Installation and fish support expand into general shell tooling | Medium | Medium | Limit fish to invocation and directory changes |
+| Installation expands into general shell tooling | Medium | Medium | Ship no shell function; print `cd` guidance from Python |
 | A smaller skill omits a rule before code enforces it | High | Medium | Map each removed rule to executable behavior and acceptance evidence |
 
 ## Dependencies
@@ -371,7 +371,6 @@ content, recovery, compatibility, and protection of existing work.
 - Python 3 and Git, already required by the existing helper workflow.
 - bd for ships with a bead; direct bead-free execution remains supported.
 - Repository-specific tools declared by the configured gate.
-- Fish only for the optional shell function.
 - Current helper regression suites and `.githooks/test_prepush.py`.
 - Resolution of configuration, installation, and result-reuse contracts before their implementation
   milestones.
@@ -400,8 +399,7 @@ tracker database without touching a tracked file; the post-gate export compariso
 
 Keep existing helper suites and run pre-push fixtures after extracting shared execution. Test result
 reuse with changed content, command definitions, tool identities, and declared environment inputs.
-Use fish subprocess fixtures only for shell behavior; prove Git and tracker behavior through Python
-execution.
+Prove Git, tracker, and `cd` guidance behavior through Python execution.
 
 Measure instruction size before and after with the same command. Measure each cold and warm case
 three times with identical fixture inputs and gate commands. Record median elapsed time and actual
@@ -414,8 +412,8 @@ ADR 0005 requires.
 
 - **Milestone 1 implementer:** Choose the configuration filename and versioned format. Draft the
   migration procedure for publication before the milestone 6 skill switch.
-- **Implementer and plan reviewer:** Choose the installation mechanism and fish function location
-  without assuming a particular plugin cache layout.
+- **Implementer and plan reviewer:** Choose the installation mechanism without assuming a
+  particular plugin cache layout.
 - **Implementer and plan reviewer:** Specify the progress-record format and retention. Preserve the
   closure, candidate, and gate states defined in this plan.
 - **Implementer and plan reviewer:** Select the first checks eligible for reuse and enumerate their
@@ -432,3 +430,8 @@ proposed implementation data, not new plugin components or replacements for bead
 temporary candidate commit checked after pre-commit hooks, the bead state after a failed gate, and
 resume points after interruption. Placed the fish directory change before Python invocation and
 added a measured warm-run speed criterion.
+
+**2026-09-24 interface change:** Removed the fish function, and chose no shell function in its
+place. A bash script cannot change its caller's directory, and a bash function does not load in
+fish. Python now detects when it removes its caller's starting worktree and prints the exact `cd`
+line. This keeps the interface independent of the shell.
