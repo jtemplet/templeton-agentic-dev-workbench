@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [4.6.4] - 2026-09-23
+
+### Added
+
+- **Build the Python runner with repository gate configuration.** (`fca12ff`, tadw-8j8)
+
+### Changed
+
+- **Point quality-gates at the version 2 report writer.** (`30319c6`, tadw-s6d)
+- **Point outrigger's qa_tool at tadw:quality-gates.** (`5a84d36`)
+- **Add deterministic ship plan.** (`870a08e`)
+- **Ship deterministic-ship-planning.** (`1c4ed44`)
+- **Specify the gate configuration contract.** (`078a480`, tadw-lc9)
+- **Share check execution with pre-push.** (`a9656e3`, tadw-7raw)
+
 ## [4.6.3] - 2026-09-18
 
 ### Changed
@@ -2696,7 +2711,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.3...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.4...HEAD
+[4.6.4]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.3...v4.6.4
 [4.6.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.2...v4.6.3
 [4.6.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.1...v4.6.2
 [4.6.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.0...v4.6.1
