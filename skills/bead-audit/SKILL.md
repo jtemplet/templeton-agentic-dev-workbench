@@ -37,8 +37,8 @@ responsibility (a human pasting, a script looping over a backlog, or a `/goal`-s
 - After inheriting a project or picking up someone else's work
 - Before a sprint to verify every in-scope bead is implementation-ready
 - After running `/plan-to-beads` on a modified plan to verify the generated beads meet the bar
-- To rank a backlog by quality, or gate on a target quality band, using the Scorecard (request a score; use
-  JSON mode for a loop)
+- To rank a backlog by quality, or gate on a target quality band, using the Scorecard (request a
+  score; use JSON mode for a loop)
 - Before re-opening an aging backlog, to find beads whose premise the code has already overtaken
   (Grounding Audit)
 
@@ -152,8 +152,8 @@ The bead as a whole gets a third verdict, on its own axis:
   - `satisfied`: the bead's desired end state already holds, so the work appears done or obsolete
   - `ungroundable`: the repository was unavailable, or the bead names nothing checkable
 
-Grounding never changes a content verdict. It caps the reported quality band, and it is reported in its own
-column.
+Grounding never changes a content verdict. It caps the reported quality band, and it is reported in
+its own column.
 
 ### 1. Marr Audit (Why / How / Done when)
 
@@ -190,15 +190,15 @@ apply to every bead.**
   evident from the type or the How) are `N/A (operational)`. A `## Estimated size` of "N/A
   (operational)" passes; absence is not a finding.
 - **Code-bearing beads** (task/feature/bug that change the repo) require `## Estimated size`. If it
-  is absent, flag it as a missing section (a content FAIL on size), not a size-band failure. Do not guess
-  a size band from the title or body **for the purpose of scoring** (you may not invent a passing size band to
-  suppress the FAIL during the audit).
+  is absent, flag it as a missing section (a content FAIL on size), not a size-band failure. Do not
+  guess a size band from the title or body **for the purpose of scoring** (you may not invent a
+  passing size band to suppress the FAIL during the audit).
 
 **Size is the one section where a drafted fix may infer a value.** The audit rule "do not guess a
-size band" governs *scoring*; it does not forbid a *drafted fix* from supplying a reasonable estimate.
-When you fix a missing `## Estimated size`, derive a provisional size band from the How. Count the files
-and modules, and note whether the work is a port or new code. Mark the size band explicitly as
-provisional:
+size band" governs *scoring*; it does not forbid a *drafted fix* from supplying a reasonable
+estimate. When you fix a missing `## Estimated size`, derive a provisional size band from the How.
+Count the files and modules, and note whether the work is a port or new code. Mark the size band
+explicitly as provisional:
 
 ```markdown
 ## Estimated size
@@ -267,7 +267,8 @@ backlog to resolve and the most expensive to keep re-reading.
 The same four checks `plan-review` uses for a plan, applied to a bead and bounded the same way:
 
 - **Existence check:** every file path, module, symbol, command, and endpoint the bead names must
-  exist. Use Glob and Grep; do not deep-read.
+  exist on main. Use `git ls-tree -r --name-only origin/main` and
+  `git grep -n <pattern> origin/main --`; do not deep-read.
 - **Pattern check:** when the bead says "extend the existing X" or "follow the Y pattern", confirm X
   and Y are real and roughly match the bead's description.
 - **Stack check:** confirm the tools, libraries, and commands the bead relies on are actually in the
@@ -366,15 +367,15 @@ the two verdicts would change a bead's Overall without anyone touching the bead.
 the difference between "needs writing" and "needs re-grounding". Those two have different fixes and
 different owners.
 
-Report grounding as its own column. It reaches the score only through a quality-band cap (see "Bands, capped
-by verdict"), so a stale bead cannot report Excellent while its premise is false.
+Report grounding as its own column. It reaches the score only through a quality-band cap (see
+"Bands, capped by verdict"), so a stale bead cannot report Excellent while its premise is false.
 
 ## Scorecard
 
 The three-state verdict answers "is this bead done?" The scorecard answers "how close, and which
-quality band?" That lets a caller rank and gate. The caller may be a human triaging, or a refinement loop
-targeting a quality band. The score **refines the verdict; it never overrides it.** The quality bands are
-constructed so that Excellent is exactly equivalent to PASS.
+quality band?" That lets a caller rank and gate. The caller may be a human triaging, or a refinement
+loop targeting a quality band. The score **refines the verdict; it never overrides it.** The quality
+bands are constructed so that Excellent is exactly equivalent to PASS.
 
 ### The score is derived, never asserted
 
@@ -416,8 +417,8 @@ the denominator.
 
 ### Bands, capped by verdict
 
-Compute the raw score, map it to a quality band, then take the **lower** of that band and the ceiling
-implied by the rollup verdict:
+Compute the raw score, map it to a quality band, then take the **lower** of that band and the
+ceiling implied by the rollup verdict:
 
 | Band | Score |
 |---|---|
@@ -471,9 +472,9 @@ computed from the weights and rules above:
 | task, all pass, canonical, size Trivial | 95.0 | Excellent | Great | **Great** |
 | epic, all sections pass, size N/A | 100.0 | Excellent | Excellent | **Excellent** |
 
-The lower-of-two rule means a cap only ever moves a quality band down, as in rows 3 and 6. It never moves
-one up. So a NEEDS WORK bead can never report above Weak, however high its raw score, as in rows 2
-and 4. The bug row denominator is 110: Why, How, Done, AC, Steps, and Size total 100, plus
+The lower-of-two rule means a cap only ever moves a quality band down, as in rows 3 and 6. It never
+moves one up. So a NEEDS WORK bead can never report above Weak, however high its raw score, as in
+rows 2 and 4. The bug row denominator is 110: Why, How, Done, AC, Steps, and Size total 100, plus
 Structure 10. 5 of 6 sections canonical gives structure `10 × 5/6`. Recompute it to confirm that the
 skill and the caller agree.
 
@@ -565,9 +566,9 @@ Omit the claim table when the verdict is `ungroundable`, and replace it with the
 Include it whenever any claim was checked, including an all-`verified` result: the evidence is what
 makes `grounded` re-checkable rather than asserted.
 
-A caller targeting a quality band, or a human, may request a score. Then add a trailing `Points` column to
-the table, holding the weighted contribution of each dimension, for example `20/20`, `10/20`,
-or `size excluded`. Add a line under Overall too:
+A caller targeting a quality band, or a human, may request a score. Then add a trailing `Points`
+column to the table, holding the weighted contribution of each dimension, for example `20/20`,
+`10/20`, or `size excluded`. Add a line under Overall too:
 
 ```markdown
 Score: N/100 → Band   (denominator D after excluding <named N/A dimensions>)
@@ -834,25 +835,5 @@ to Reproduce / Success Criteria, draft them. Otherwise insert
 
 ## Quality Checklist
 
-Before reporting completion, verify:
-
-- [ ] Every provided bead was parsed and audited
-- [ ] Each required section has both a content verdict and a structure verdict
-- [ ] No bead was failed for heading format alone (format-only issues are REFORMAT)
-- [ ] Native-field content (where the tracker has fields) was audited as canonical, not flagged as a
-  missing heading
-- [ ] Size was recorded as N/A for epics and operational beads, not forced into a size band
-- [ ] Any inferred size estimate in a drafted fix carries the `(provisional ...)` marker
-- [ ] Every drafted fix was self-verified by re-auditing it (Step 6) and re-passes
-- [ ] Corrected drafts use the byte-exact canonical headings (or write to the correct native field)
-- [ ] No draft marked `applyable: true` contains an `[AUTHOR TO COMPLETE]` placeholder
-- [ ] Beads with un-inferable gaps carry an `[AUTHOR TO COMPLETE]` placeholder, are marked
-  `applyable: false`, and are routed to a human rather than written back
-- [ ] The Grounding Audit ran against main (not the working tree), and the ref and sha are stated in
-  the report
-- [ ] No bead was marked `drifted` for an unmet acceptance criterion
-- [ ] Every grounding claim carries evidence, and every `ungroundable` carries a reason
-- [ ] `drifted` and `satisfied` beads are marked `applyable: false` and escalated rather than
-  auto-corrected
-- [ ] JSON output (when requested) validates against the schema and `summary` counts (including
-  `applyable` / `blocked_on_human` / the four grounding counts) match the per-bead verdicts
+- [ ] JSON output (when requested) matches the schema, and `summary` counts (including
+  `applyable`, `blocked_on_human`, and the four grounding counts) match the per-bead verdicts

@@ -136,10 +136,9 @@ No ready beads matching "docs". Of 18 open beads, 12 are ready and none match th
 bv --robot-triage
 ```
 
-The fields live under a top-level `triage` key in `bv` v0.18: `.triage.quick_ref`,
-`.triage.recommendations`, `.triage.quick_wins`, `.triage.blockers_to_clear`,
-`.triage.project_health`, `.triage.commands`. Older output put them at the root, and
-`docs/beads-workflow.md` still documents the flat shape. Read through `(.triage // .)` so both work.
+The fields may sit under a top-level `triage` key or at the root, depending on the `bv` version:
+`quick_ref`, `recommendations`, `quick_wins`, `blockers_to_clear`, `project_health`, `commands`.
+Read through `(.triage // .)` so both work.
 
 What to take from it:
 
@@ -162,8 +161,7 @@ not zero.
 **Do not take the blocked count from `quick_ref.blocked_count`.** It counts beads whose *status* is
 `blocked`. Almost nothing sets that status, so the count reads `0` on a backlog with plenty of
 dependency-blocked work. The count that matches reality is the length of `bd blocked`, and `bv`
-reports the same number as `project_health.counts.dependency_blocked`. On this repository at the
-time of writing: `blocked_count` 0, `dependency_blocked` 6, `bd blocked` 6 rows.
+reports the same number as `project_health.counts.dependency_blocked`.
 
 Three cheap `bd` reads complete the momentum picture:
 
@@ -192,7 +190,7 @@ filter on `dependency_type == "blocks"` before you call an edge a blocker or cou
 Verified: a child created with `bd create --parent <epic>` shows `dependency_count` 1 and appears in
 `bd ready` at the same time.
 
-Unlike a Linear fetch, `bd list --json` already carries the **full** `description`, `design`,
+`bd list --json` already carries the **full** `description`, `design`,
 `acceptance_criteria`, and `notes`. There is no truncation to work around, so do not re-fetch a body
 you already have.
 
@@ -272,8 +270,8 @@ Prefer stored evidence over a read of the prose, in this order:
    `2 files, about 70 LOC, band: Target`. Map the band by its file and LOC counts: one or two files
    under ~100 LOC is S, a cross-surface or several-hundred-LOC band is L, the rest M.
 3. Membership in `bv`'s `quick_wins`, whose `reason` is `Low complexity`: S. Its sibling
-   `time_to_impact_explanation` looks like an estimate and usually is not: on this repository all
-   ten recommendations carry the identical `Leaf node, median estimate 60m`. Compare it across
+   `time_to_impact_explanation` looks like an estimate and often is not: it can be identical across
+   candidates. Compare it across
    candidates before quoting it, and when they all match, it separates nothing and is not evidence.
 4. Failing all three, infer: **S** is one file or one concern, one to three acceptance criteria, no
    new interface. **L** is "Phase N", several deliverables, a new endpoint or migration, or a
@@ -319,8 +317,8 @@ judgment.
 Terse and scannable: one pick, one leaderboard, one blocked list, one footer. Cap the leaderboard at
 5 and the tail at 10.
 
-Bead ids vary in length, from `tadw-op0` to `tadw-qg-prepush-verdict-gate-tug`, so do not expect a
-`FAC-388`-sized column. Never abbreviate an id: it gets copied into a command. A long title may be
+Bead ids vary in length, from `tadw-op0` to `tadw-qg-prepush-verdict-gate-tug`.
+Never abbreviate an id: it gets copied into a command. A long title may be
 truncated to about 60 characters with a trailing ellipsis, but never reworded, because the user
 searches on the words the tracker holds.
 

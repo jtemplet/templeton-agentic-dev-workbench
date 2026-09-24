@@ -1,6 +1,6 @@
 ---
 name: house-response-style
-description: "How to write every response to the user: lead with the answer, cut narration, use no word that could name more than one thing (name the kind of record rather than saying \"row\", never say \"wire\", and write so a ten-year-old could follow the sentence while every technical name stays exact), and write in Simplified Technical English, the controlled-English standard specified in ASD-STE100 (its writing rules only, never its licensed dictionary: one word for one thing, active voice, literal language over borrowed metaphor, sentences capped at twenty-five words for an explanation and twenty for an instruction, and every technical term defined in the sentence that uses it), report your own work in a fixed shape (the number, what failed, what you did about it, the evidence instead of the verdict) and never let a label like \"green\" or \"a flake\" stand without the facts it stands for, put hard choices in a decision matrix, prefer accuracy over brevity, match depth to the reader without loosening word choice, and end any open work with an owner-split Next actions section. Injected always-on by the SessionStart hook; invoke with /response-style to re-assert after a compaction or to load the rules inside a subagent."
+description: "How to write every response to the user: lead with the answer, cut narration, use no word that could name more than one thing (name the kind of record rather than saying \"row\", never say \"wire\", and write so a ten-year-old could follow the sentence while every technical name stays exact), and write in Simplified Technical English, the controlled-English standard specified in ASD-STE100 (its writing rules only, never its licensed dictionary: one word for one thing, active voice, literal language over borrowed metaphor, one statement per sentence, and every technical term defined in the sentence that uses it), report your own work in a fixed shape (the number, what failed, what you did about it, the evidence instead of the verdict) and never let a label like \"green\" or \"a flake\" stand without the facts it stands for, put hard choices in a decision matrix, prefer accuracy over brevity, match depth to the reader without loosening word choice, and end any open work with an owner-split Next actions section. Injected always-on by the SessionStart hook; invoke with /response-style to re-assert after a compaction or to load the rules inside a subagent."
 disable-model-invocation: true
 license: MIT
 ---
@@ -79,8 +79,9 @@ failed once and passed on re-run, and that your change touches no file it reads.
 1. **Lead with the answer.** The first sentence gives the outcome, finding, or recommendation.
    When the answer is a choice, it gives the recommendation. Detail follows only when it
    changes what the reader does next.
-2. **Cut narration.** Do not restate the question, announce what you are about to do, recap
-   what the transcript already shows, or offer more help at the end.
+2. **Cut narration from the answer.** Do not restate the question, recap what the transcript
+   already shows, or offer more help at the end. Between tool calls, one short line that says
+   what you are doing next is fine.
 3. **Prose for a simple answer.** Use headers and lists only when the answer has real parts the
    reader will scan back to, never to look thorough.
 4. **Selective, not compressed.** Drop what does not matter, then write the rest in full
@@ -96,9 +97,9 @@ content.
 
 1. **One word for one thing, through the whole answer.** Renaming something halfway down reads
    as a second thing.
-2. **Twenty-five words per sentence, and twenty when it tells the reader to do something.** A
-   number, not a judgment call. Length comes from two statements joined, so cut at "which",
-   "so", "but", "since", "because", ", meaning", and ", making".
+2. **One statement per sentence.** An explanation reads in one pass, and an instruction names
+   one action. Length comes from two statements joined, so cut at "which", "so", "but",
+   "since", "because", ", meaning", and ", making".
 3. **Technical names stay verbatim:** paths, commands, function names, configuration keys,
    environment variables, error text, product names. Write "Set `TADW_STYLE_CORE=off`", not
    "flip the setting in the config".

@@ -80,8 +80,8 @@ Grilling produces alignment, not artifacts. Hand the outcome to whichever skill 
 
 Run `grilling` and `mattpocock-skills:domain-modeling` together when the interview is also
 teaching you the project's vocabulary. The interview settles the decisions; that skill writes the
-terms into `CONTEXT.md` as they crystallize. Name it in full: this plugin used to ship a
-`domain-modeling` of its own, and a bare name could still resolve to a stale copy elsewhere.
+terms into `CONTEXT.md` as they crystallize. Name it in full, because a bare `domain-modeling`
+can resolve to a stale copy elsewhere.
 
 ---
 

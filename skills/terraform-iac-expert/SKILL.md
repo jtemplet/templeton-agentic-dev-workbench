@@ -5,7 +5,10 @@ description: Best practices for writing and reviewing Terraform / Infrastructure
 
 # Terraform & Infrastructure as Code Expert
 
-A deep Terraform/IaC best-practices skill for writing and reviewing infrastructure across AWS, Azure, and GCP. It layers IaC-specific deltas (state, providers, modules, secrets, cloud patterns) on top of the injected universal style core, and drives the `/terraform-review` command with a structured report and a standardized severity scale.
+A deep Terraform/IaC best-practices skill for writing and reviewing infrastructure across AWS,
+Azure, and GCP. It layers IaC-specific deltas (state, providers, modules, secrets, cloud patterns)
+on top of the injected universal style core, and drives the `/terraform-review` command with a
+structured report and a standardized severity scale.
 
 ## When to Use / When NOT to Use
 
@@ -20,31 +23,33 @@ Use this skill when:
 
 Do NOT use this skill when:
 
-- The IaC is not Terraform/HCL (raw CloudFormation, Pulumi, Ansible, CDK). The state, provider, and module guidance here is Terraform-specific.
-- You are reviewing application code rather than infrastructure definitions. Use the matching language style skill instead.
-- The change is a one-off `terraform import` or state inspection with no configuration change to review.
+- The IaC is not Terraform/HCL (raw CloudFormation, Pulumi, Ansible, CDK). The state, provider, and
+  module guidance here is Terraform-specific.
+- You are reviewing application code rather than infrastructure definitions. Use the matching
+  language style skill instead.
+- The change is a one-off `terraform import` or state inspection with no configuration change to
+  review.
 
 ## Universal Core (injected)
 
-The universal style core in `hooks/style-core.md` (TRUE code plus the 9 principles) is injected separately every session; do not restate it. It maps cleanly onto Terraform: prefer small single-purpose modules (small units); wait for real duplication before extracting a module or `locals` block (DRY without premature abstraction); keep module interfaces simple and fail fast with typed input variables, `validation` blocks, and explicit `sensitive` flags (simple interfaces plus fail fast); and let descriptive variable names and `description` fields do the documenting (names do the documenting). The sections below are the IaC-specific deltas only.
+The universal style core in `hooks/style-core.md` (TRUE code plus its principles) is injected
+separately every session; do not restate it. It maps cleanly onto Terraform: prefer small
+single-purpose modules (small units); wait for real duplication before extracting a module or
+`locals` block (DRY without premature abstraction); keep module interfaces simple and fail fast with
+typed input variables, `validation` blocks, and explicit `sensitive` flags (simple interfaces plus
+fail fast); and let descriptive variable names and `description` fields do the documenting (names do
+the documenting). The sections below are the IaC-specific deltas only.
 
 ## Terraform Principles
 
 ### Architecture & Modularity
 
 - Infrastructure as Code first: every resource is declared, version-controlled, and reproducible.
-- Build modular, reusable, single-responsibility modules; break infrastructure into logical units (networking, compute, storage).
+- Build modular, reusable, single-responsibility modules; break infrastructure into logical units
+  (networking, compute, storage).
 - Treat infrastructure as immutable: replace rather than mutate in place.
 - Security by default with least-privilege access across all three clouds.
 - Isolate environments via separate state and/or workspaces.
-
-Key principles:
-
-1. **Modularity**: Break infrastructure into logical, reusable modules.
-2. **Immutability**: Treat infrastructure as immutable; replace rather than modify.
-3. **Version Control**: Everything in Git with semantic versioning.
-4. **State Management**: Remote backends with locking and encryption.
-5. **Documentation**: Self-documenting code with clear variable descriptions.
 
 ### Code Organization & File Structure
 
@@ -112,7 +117,7 @@ variable "instance_count" {
 ### State Management
 
 - **Always** use remote backends (S3, Azure Blob, GCS, Terraform Cloud).
-- Enable state locking (DynamoDB for S3, native for others).
+- Enable state locking (`use_lockfile = true` on S3; native on other backends).
 - Enable encryption at rest for state files.
 - Use workspaces for environment separation.
 - Never commit state files to version control.
@@ -124,18 +129,19 @@ terraform {
     key            = "project/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true
-    dynamodb_table = "terraform-state-lock"
+    use_lockfile   = true
   }
 }
 ```
 
 ### Provider Version Locking
 
-Pin both Terraform and every provider so plans are reproducible:
+Pin both Terraform and every provider so plans are reproducible. Pin each provider with `~>` to
+its current major version; the numbers below are illustrative:
 
 ```hcl
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.11.0"
 
   required_providers {
     aws = {
@@ -204,7 +210,7 @@ Brief description of what the module does.
 
 ## Requirements
 
-- Terraform >= 1.6.0
+- Terraform >= 1.11.0
 - AWS Provider >= 5.0
 
 ## Usage
@@ -379,7 +385,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.6.0
+          terraform_version: 1.11.0
 
       - name: Terraform Format
         run: terraform fmt -check -recursive
@@ -412,7 +418,7 @@ stages:
   - apply
 
 variables:
-  TF_VERSION: "1.6.0"
+  TF_VERSION: "1.11.0"
 
 .terraform-base:
   image: hashicorp/terraform:$TF_VERSION
@@ -499,32 +505,6 @@ resource "aws_subnet" "private" {
   cidr_block        = cidrsubnet(var.vpc_cidr, 8, index(var.availability_zones, each.value))
 }
 ```
-
-### Cloud-Specific Patterns
-
-AWS:
-
-- Use VPC endpoints for AWS services.
-- Implement multi-AZ deployments.
-- Use Auto Scaling Groups for resilience.
-- Enable CloudWatch logging and monitoring.
-- Use Systems Manager for parameter storage.
-
-Azure:
-
-- Use Resource Groups for logical organization.
-- Implement Azure Policy for governance.
-- Use Managed Identities for authentication.
-- Enable Azure Monitor and Log Analytics.
-- Use Azure Key Vault for secrets.
-
-GCP:
-
-- Use Projects for isolation.
-- Implement Organization Policies.
-- Use Service Accounts with minimal permissions.
-- Enable Cloud Logging and Monitoring.
-- Use Secret Manager for sensitive data.
 
 ### Common Patterns
 
@@ -655,10 +635,12 @@ terraform {
 
 Common issues:
 
-1. **State Lock**: Check DynamoDB/blob storage for stuck locks.
+1. **State Lock**: Check the lock file or blob lease for a stuck lock; `terraform force-unlock`.
 2. **Provider Version Conflicts**: Update version constraints.
-3. **Circular Dependencies**: Refactor with explicit `depends_on`.
-4. **Resource Drift**: Run `terraform refresh` and investigate.
+3. **Circular Dependencies**: Break the cycle by splitting a resource (for example a separate
+   `aws_security_group_rule`), or pass the value through a variable or data source instead of a
+   direct reference.
+4. **Resource Drift**: Run `terraform plan -refresh-only` and investigate.
 5. **Large State Files**: Consider splitting into multiple states.
 
 Debugging commands:
@@ -668,8 +650,8 @@ Debugging commands:
 export TF_LOG=DEBUG
 export TF_LOG_PATH=terraform.log
 
-# Refresh state from actual infrastructure
-terraform refresh
+# Compare state with actual infrastructure
+terraform plan -refresh-only
 
 # Show current state
 terraform show
@@ -683,8 +665,8 @@ terraform state show aws_instance.web
 # Import existing resource
 terraform import aws_instance.web i-1234567890abcdef0
 
-# Taint resource for recreation
-terraform taint aws_instance.web
+# Force recreation of a resource
+terraform apply -replace=aws_instance.web
 
 # Remove resource from state
 terraform state rm aws_instance.web
@@ -696,7 +678,8 @@ High-signal IaC review smells. For each: the bad pattern, why it hurts, and the 
 
 ### Hardcoded secrets or credentials
 
-Bad: a password or access key written inline in `.tf` or `.tfvars`. Why: secrets land in Git history and state in plaintext, and rotating them means a code change. Corrected:
+Bad: a password or access key written inline in `.tf` or `.tfvars`. Why: secrets land in Git history
+and state in plaintext, and rotating them means a code change. Corrected:
 
 ```hcl
 data "aws_secretsmanager_secret_version" "db" {
@@ -712,7 +695,9 @@ variable "db_password" {
 
 ### Committing state files
 
-Bad: `terraform.tfstate` tracked in Git. Why: state contains plaintext secrets and resource metadata, and concurrent edits corrupt it. Corrected: use a remote, encrypted, locked backend and add state files to `.gitignore`.
+Bad: `terraform.tfstate` tracked in Git. Why: state contains plaintext secrets and resource
+metadata, and concurrent edits corrupt it. Corrected: use a remote, encrypted, locked backend and
+add state files to `.gitignore`.
 
 ```hcl
 terraform {
@@ -721,14 +706,15 @@ terraform {
     key            = "project/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true
-    dynamodb_table = "terraform-state-lock"
+    use_lockfile   = true
   }
 }
 ```
 
 ### Unpinned providers or modules referenced by branch
 
-Bad: `version = ">= 0"` or `?ref=main`. Why: applies become non-reproducible and a silent upstream change can rewrite infrastructure. Corrected: pin a version constraint and reference modules by tag.
+Bad: `version = ">= 0"` or `?ref=main`. Why: applies become non-reproducible and a silent upstream
+change can rewrite infrastructure. Corrected: pin a version constraint and reference modules by tag.
 
 ```hcl
 module "vpc" {
@@ -738,11 +724,14 @@ module "vpc" {
 
 ### Missing state locking or encryption
 
-Bad: a remote backend with `encrypt = false` and no lock table. Why: two applies can race and corrupt state; an unencrypted state object leaks every secret it holds. Corrected: set `encrypt = true` and configure `dynamodb_table` (S3) or rely on native locking for other backends (see backend block above).
+Bad: a remote backend with `encrypt = false` and no locking. Why: two applies can race and corrupt
+state; an unencrypted state object leaks every secret it holds. Corrected: set `encrypt = true` and
+`use_lockfile = true` (S3), or rely on native locking for other backends (see backend block above).
 
 ### Missing variable validation
 
-Bad: a free-form `string` input with no guardrails. Why: invalid values fail deep inside the apply with a cryptic provider error. Corrected: fail fast at the interface.
+Bad: a free-form `string` input with no guardrails. Why: invalid values fail deep inside the apply
+with a cryptic provider error. Corrected: fail fast at the interface.
 
 ```hcl
 variable "environment" {
@@ -758,7 +747,8 @@ variable "environment" {
 
 ### `count` where `for_each` belongs
 
-Bad: `count = length(var.names)` over a list. Why: removing a middle element re-indexes every later resource, forcing needless destroy/recreate. Corrected: key by a stable identifier.
+Bad: `count = length(var.names)` over a list. Why: removing a middle element re-indexes every later
+resource, forcing needless destroy/recreate. Corrected: key by a stable identifier.
 
 ```hcl
 resource "aws_iam_user" "team" {
@@ -769,7 +759,8 @@ resource "aws_iam_user" "team" {
 
 ### Missing encryption at rest
 
-Bad: an S3 bucket, RDS instance, or EBS volume created without encryption. Why: data at rest is exposed and most compliance regimes reject it. Corrected: enable provider-native encryption.
+Bad: an S3 bucket, RDS instance, or EBS volume created without encryption. Why: data at rest is
+exposed and most compliance regimes reject it. Corrected: enable provider-native encryption.
 
 ```hcl
 resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
@@ -810,7 +801,9 @@ module "vpc" {
 }
 ```
 
-Rationale: the `before` resolves to whatever the default branch is at apply time, so the same configuration can produce different infrastructure on two runs. Pinning `?ref=v2.1.0` makes the plan reproducible and turns module upgrades into explicit, reviewable commits.
+Rationale: the `before` resolves to whatever the default branch is at apply time, so the same
+configuration can produce different infrastructure on two runs. Pinning `?ref=v2.1.0` makes the plan
+reproducible and turns module upgrades into explicit, reviewable commits.
 
 ### Hardcoded secret → Secrets Manager + `sensitive`
 
@@ -848,11 +841,16 @@ output "db_endpoint" {
 }
 ```
 
-Rationale: the literal password leaks into Git history and into state in plaintext, and rotation requires a code change. Sourcing it from Secrets Manager keeps the secret out of the repo, lets it rotate independently, and marking the output `sensitive` stops Terraform from echoing it in plan/apply logs. Adding `storage_encrypted = true` closes the encryption-at-rest gap in the same pass.
+Rationale: the literal password leaks into Git history and into state in plaintext, and rotation
+requires a code change. Sourcing it from Secrets Manager keeps the secret out of the repo, lets it
+rotate independently, and marking the output `sensitive` stops Terraform from echoing it in
+plan/apply logs. Adding `storage_encrypted = true` closes the encryption-at-rest gap in the same
+pass.
 
 ## Review Workflow
 
-Follow these steps when reviewing a Terraform change. Verify each issue against the actual configuration before flagging it.
+Follow these steps when reviewing a Terraform change. Verify each issue against the actual
+configuration before flagging it.
 
 1. **Format and validate.** Run the cheap mechanical checks first:
 
@@ -862,12 +860,21 @@ Follow these steps when reviewing a Terraform change. Verify each issue against 
    terraform validate
    ```
 
-2. **Security first.** Scan for the highest-impact problems before anything else: hardcoded secrets or credentials, overly broad IAM (`*` actions/resources), public exposure of sensitive resources, and missing encryption at rest or in transit.
-3. **State configuration.** Confirm the backend is remote, encrypted (`encrypt = true`), and locked (lock table or native locking). Flag any committed state files.
-4. **Module and version hygiene.** Check that Terraform and all providers are pinned, modules are referenced by tag (not branch), and module interfaces have descriptions and `validation`.
-5. **Performance and structure.** Look at `for_each` vs `count`, parallelism assumptions, tagging, file organization, and `depends_on` correctness.
-6. **Recommend tooling.** Where appropriate, suggest running `tfsec` or `checkov` (security), `tflint` (lint/provider rules), and `infracost` (cost impact) in CI to catch regressions automatically.
-7. **Assign severity and write the report.** Apply the severity scale below, then emit the structured report. If `terraform validate` passes and the configuration is functionally correct, cap purely stylistic/structural findings at MEDIUM.
+2. **Security first.** Scan for the highest-impact problems before anything else: hardcoded secrets
+   or credentials, overly broad IAM (`*` actions/resources), public exposure of sensitive resources,
+   and missing encryption at rest or in transit.
+3. **State configuration.** Confirm the backend is remote, encrypted (`encrypt = true`), and locked
+   (`use_lockfile` or native locking). Flag any committed state files.
+4. **Module and version hygiene.** Check that Terraform and all providers are pinned, modules are
+   referenced by tag (not branch), and module interfaces have descriptions and `validation`.
+5. **Performance and structure.** Look at `for_each` vs `count`, parallelism assumptions, tagging,
+   file organization, and `depends_on` correctness.
+6. **Recommend tooling.** Where appropriate, suggest running `tfsec` or `checkov` (security),
+   `tflint` (lint/provider rules), and `infracost` (cost impact) in CI to catch regressions
+   automatically.
+7. **Assign severity and write the report.** Apply the severity scale below, then emit the
+   structured report. If `terraform validate` passes and the configuration is functionally correct,
+   cap purely stylistic/structural findings at MEDIUM.
 
 ## Output Format
 
@@ -920,16 +927,22 @@ Produce the review as Markdown using this template:
 
 Use the standardized scale, most severe first:
 
-- **CRITICAL**: Exposed secret or credential; public exposure of a sensitive resource; state without encryption or locking; risk of a destructive change (data loss, forced replacement of stateful resources).
-- **HIGH**: Missing least-privilege or encryption on an impactful resource; unpinned Terraform/provider/module versions; missing `validation` on inputs that drive impactful behavior.
-- **MEDIUM**: Non-ideal structure that still works; `count` where `for_each` belongs; missing tags; weak organization.
+- **CRITICAL**: Exposed secret or credential; public exposure of a sensitive resource; state without
+  encryption or locking; risk of a destructive change (data loss, forced replacement of stateful
+  resources).
+- **HIGH**: Missing least-privilege or encryption on an impactful resource; unpinned
+  Terraform/provider/module versions; missing `validation` on inputs that drive impactful behavior.
+- **MEDIUM**: Non-ideal structure that still works; `count` where `for_each` belongs; missing tags;
+  weak organization.
 - **LOW**: Formatting, naming, and documentation nits.
 
 Severity cap rule (verbatim):
 
-> If `terraform validate` passes and the configuration is functionally correct, the maximum severity for purely stylistic or structural findings is MEDIUM, not HIGH or CRITICAL.
+> If `terraform validate` passes and the configuration is functionally correct, the maximum severity
+> for purely stylistic or structural findings is MEDIUM, not HIGH or CRITICAL.
 
-Security findings (for example, exposed secrets) remain CRITICAL regardless of whether `terraform validate` passes.
+Security findings (for example, exposed secrets) remain CRITICAL regardless of whether
+`terraform validate` passes.
 
 ## Quality Checklist
 

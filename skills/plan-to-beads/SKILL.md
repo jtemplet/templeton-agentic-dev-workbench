@@ -46,11 +46,9 @@ before you draft the first bead. It names every section, gives the byte-exact he
 type requires it, and says which `bd` field holds it. It also explains why Done when and Acceptance
 Criteria are different sections, with a worked example.
 
-This skill keeps no second copy of that list, and neither does `bead-audit`. Two copies
-contradicted each other once. [ADR
-0001](../../docs/adr/0001-native-tracker-fields-are-canonical.md) records the cost: every bead this
-repository generated failed its own auditor. Where this skill and the contract disagree, the
-contract wins.
+This skill keeps no second copy of that list, and neither does `bead-audit`, because two copies
+drift apart ([ADR 0001](../../docs/adr/0001-native-tracker-fields-are-canonical.md)). Where this
+skill and the contract disagree, the contract wins.
 
 Two things to carry from the contract into Step 5 below:
 
@@ -129,14 +127,6 @@ autonomously even with full budget.
 dominates), not Stretch. A bead at 12 files / 400 LOC is Too big (files dominates), not Stretch. The
 "worse" rule is conservative on purpose: a bead that fails on either dimension fails to ship
 autonomously, so split before creating.
-
-### Why this matters
-
-A real failure that motivated this rule: bead `outrigger-yov` was a 451-LOC / 6-file port
-(function + tests + wrapper wire-up + docs). It fit the wrapper's hard budget but did not fit one
-20-minute iteration, timing out at step 8 of 14. The agent spent $0.62 making real progress, but the
-bead could not close autonomously. Two right-sized beads (the port, then wire-up + docs) would have
-shipped cleanly.
 
 ### Anti-patterns that signal a too-big bead
 
@@ -489,14 +479,14 @@ If any `bd create` or `bd update` exited non-zero before all beads were fully wr
 proceed to Step 6. Issue creation is a side effect on shared state; the user owns the recovery
 decision.
 
-Because each bead is now two calls (create, then populate native fields), a failure lands the beads
+Because each bead takes two calls (create, then populate native fields), a failure lands the beads
 into one of three states. Classify every bead before presenting:
 
 - **Fully written**: `bd create` and its follow-up `bd update` both succeeded.
 - **Created but unpopulated**: `bd create` succeeded and its `bd update` failed. The bead exists in
   the tracker carrying only a Why and (if applicable) a size estimate; it has no How, Done when, or
-  Acceptance Criteria. This is the failure mode the two-call model introduces, and it is worse than
-  a missing bead because it looks real but fails its own audit.
+  Acceptance Criteria. This state is worse than a missing bead because it looks real but fails
+  its own audit.
 - **Never attempted**: neither call ran.
 
 Then:

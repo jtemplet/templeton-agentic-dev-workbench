@@ -5,7 +5,11 @@ description: Use when reviewing Rails 8 code before merge or PR - systematic rev
 
 # Rails Code Review Technique
 
-Systematic process for reviewing Ruby on Rails 8 code, prioritizing issues by impact (Critical to Low) and providing actionable fixes. Core principles: verify before flagging (if tests pass, verify claims before marking as issues); security first (actual vulnerabilities over theoretical concerns); pragmatic over pure (working non-standard code beats non-working standard code); context matters (understand Rails 8 patterns and modern conventions).
+Systematic process for reviewing Ruby on Rails 8 code, prioritizing issues by impact (Critical to
+Low) and providing actionable fixes. Core principles: verify before flagging (if tests pass, verify
+claims before marking as issues); security first (actual vulnerabilities over theoretical concerns);
+pragmatic over pure (working non-standard code beats non-working standard code); context matters
+(understand Rails 8 patterns and modern conventions).
 
 ## When to Use / When NOT to Use
 
@@ -27,11 +31,17 @@ Don't use this for:
 
 ## Universal Core (injected)
 
-The universal style core ("TRUE code" plus the 9 principles and the correctness-over-speed posture) is injected separately each session from `hooks/style-core.md`; apply it, do not restate it here. For Rails 8 *writing* conventions (the Rails Way, Solid Stack, Hotwire idioms), defer to the companion `style-rails` skill. For test style defer to `style-testing`, which owns the framework-independent principles, and additionally to `style-rspec` when the project's suite is RSpec. This skill owns the review *process*: security-first scanning, verify-before-flag discipline, and prioritized findings.
+The universal style core ("TRUE code", its principles, and the correctness-over-speed posture) is
+injected separately each session from `hooks/style-core.md`; apply it, do not restate it here. For
+Rails 8 *writing* conventions (the Rails Way, Solid Stack, Hotwire idioms), defer to the companion
+`style-rails` skill. For test style defer to `style-testing`, which owns the framework-independent
+principles, and additionally to `style-rspec` when the project's suite is RSpec. This skill owns the
+review *process*: security-first scanning, verify-before-flag discipline, and prioritized findings.
 
 ## Review Principles
 
-Scan changes by category in priority order so critical issues surface first. Use this table as the at-a-glance map; the per-category checklists below expand each row.
+Scan changes by category in priority order so critical issues surface first. Use this table as the
+at-a-glance map; the per-category checklists below expand each row.
 
 | Category | Focus Areas | Priority | Red Flags |
 |----------|-------------|----------|-----------|
@@ -144,13 +154,11 @@ def create
   end
 end
 
-# GOOD: Explicit rendering or proper response
+# GOOD: Explicit rendering
 def create
   respond_to do |format|
     format.turbo_stream { render turbo_stream: turbo_stream.append(...) }
   end
-rescue => e
-  head :unprocessable_entity
 end
 ```
 
@@ -192,7 +200,8 @@ redirect_to users_path, notice: "Created successfully"
 
 Check for:
 
-- Repeated code blocks (extract to partials)
+- Code repeated at three or more sites (extract to partials); two occurrences stay duplicated,
+  per the core's wait-for-duplication rule
 - Repeated styling patterns (create shared component classes)
 - Duplicate logic (move to helpers, concerns, or decorators)
 - Similar views (use shared partials with locals)
@@ -297,10 +306,8 @@ rescue ActiveRecord::RecordInvalid
 end
 ```
 
-Specifically exclude (not a concern per project requirements):
-
-- Accessibility issues
-- ARIA attributes
+Skip accessibility and ARIA findings only when the project's AGENTS.md or CLAUDE.md puts them
+out of scope.
 
 ### Browser Compatibility (LOW priority)
 
@@ -366,7 +373,8 @@ XSS via `raw`:
 = raw(@user.bio)
 ```
 
-Why: `raw` (and `html_safe`) bypass Rails auto-escaping, so a crafted bio injects executable script into the page.
+Why: `raw` (and `html_safe`) bypass Rails auto-escaping, so a crafted bio injects executable script
+into the page.
 
 ```ruby
 # GOOD: allowlist the tags you intend to permit
@@ -396,7 +404,8 @@ def update
 end
 ```
 
-Why: public controllers are reachable without authentication; scoping alone does not prove the caller may mutate the record.
+Why: public controllers are reachable without authentication; scoping alone does not prove the
+caller may mutate the record.
 
 ```ruby
 # GOOD: explicit authorization, explicit failure
@@ -511,7 +520,7 @@ bundle exec rspec spec/requests/public/deals/documents/requirements_spec.rb
 
 ## Review Workflow
 
-### Step 0: Pre-Review Validation (CRITICAL)
+### Step 0: Pre-Review Validation
 
 Before reviewing, verify the baseline.
 
@@ -549,13 +558,15 @@ git diff --stat $BASE_SHA..$HEAD_SHA
 # Review only the changes
 git diff $BASE_SHA..$HEAD_SHA
 
-# IMPORTANT: Only review code that changed in this range
-# Don't flag issues in code that wasn't touched
+# Review only code that changed in this range; untouched code is out of scope
 ```
 
 ### Step 2: Category Scan (Priority Order)
 
-Review changes in this exact order to catch critical issues first: Security (Critical), then Rails Conventions (High), then Performance (High), then Code Duplication (Medium), then CSS & Styling (Low), with Bugs/Logic and Browser Compatibility scanned throughout. The per-category checklists and code blocks are in [Review Principles](#review-principles).
+Review changes in this exact order to catch critical issues first: Security (Critical), then Rails
+Conventions (High), then Performance (High), then Code Duplication (Medium), then CSS & Styling
+(Low), with Bugs/Logic and Browser Compatibility scanned throughout. The per-category checklists and
+code blocks are in [Review Principles](#review-principles).
 
 ### Step 3: Verification Before Flagging
 
@@ -604,11 +615,12 @@ broadcast_refresh_to(@deal)  # Full page morph is valid pattern
 
 ### Step 4: Document Findings
 
-Document each verified finding using the per-issue format, then assemble the summary report. Both templates are in [Output Format](#output-format).
+Document each verified finding using the per-issue format, then assemble the summary report. Both
+templates are in [Output Format](#output-format).
 
 ## Output Format
 
-Output MUST be in proper Markdown. For each issue found, use this exact per-issue format.
+Write the report in Markdown. For each issue found, use this per-issue format.
 
 ````markdown
 ### 🔴 Issue #X: [Short Title]
@@ -741,7 +753,7 @@ Use these strict definitions for priority levels.
 ### MEDIUM
 
 - Non-standard patterns that work: code that functions but doesn't follow conventions
-- Code duplication: repeated patterns that should be extracted
+- Code duplication: a pattern repeated at three or more sites that should be extracted
 - Missing test coverage: core logic without tests
 - Performance optimizations: opportunities for caching or query improvements
 - Examples: duplicate code, could use scopes, missing tests for edge cases
@@ -751,19 +763,10 @@ Use these strict definitions for priority levels.
 - Code style issues: formatting, naming conventions
 - Optimization opportunities: minor performance tweaks
 - CSS improvements: redundant classes, `!important` flags
-- Unexplained *why*: a non-obvious decision, tradeoff, or workaround left with no comment (the absence of a comment is only a defect when the reasoning genuinely can't be recovered from the code; do not flag missing comments on self-explanatory code)
+- Unexplained *why*: a non-obvious decision, tradeoff, or workaround left with no comment (the
+  absence of a comment is only a defect when the reasoning genuinely can't be recovered from the
+  code; do not flag missing comments on self-explanatory code)
 - Examples: CSS important flags, inline styles, could extract constant
 
-If tests pass and the code works, the maximum severity is MEDIUM (a non-standard pattern), not HIGH or CRITICAL.
-
-## Quality Checklist
-
-Before finishing the review, verify:
-
-- [ ] Reviewed the diff only (not code that wasn't touched), with full context rather than line-by-line
-- [ ] Verified every claim against actual Rails behavior and passing tests before flagging
-- [ ] Scanned security first, then conventions/performance/DRY/style in that order
-- [ ] Did not flag modern Rails 8 patterns (`where.missing`, implicit Turbo responses, nested model concerns, `broadcast_refresh_to`, Solid Stack)
-- [ ] Applied the severity scale, including the "if tests pass, max MEDIUM" rule, with priorities never mixed within one finding
-- [ ] Output in proper Markdown (per-issue format plus summary report), not plain text
-- [ ] Every finding is specific, explains WHY it matters, and ships an actionable fix with verification steps
+If tests pass and the code works, the maximum severity is MEDIUM (a non-standard pattern), not HIGH
+or CRITICAL.

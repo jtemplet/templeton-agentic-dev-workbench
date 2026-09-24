@@ -118,20 +118,21 @@ tools to be safe to call more than once. If idempotency isn't possible, make it 
 
 ## II. Prompt Architecture Principles
 
-### 6. Small Prompts (Sandi Metz: Small Methods)
+### 6. Prompts Carry Context, Not Volume (Sandi Metz: Small Methods)
 
-A system prompt longer than ~200 words is a code smell. If your system prompt is doing
-multiple jobs — persona definition, tool instructions, formatting rules, behavioral
-constraints — extract and separate them. Long prompts diffuse model attention and are
-hard to test.
+A prompt's job is to give the model what only the author knows: audience, product,
+environment, quality bar, and the reason behind each constraint. That text is never cruft,
+however long it gets. The smell is a prompt doing jobs that belong elsewhere: tool contracts
+restated in prose instead of living in the tool description, a role line standing in for real
+context, or rules that restate trained defaults.
 
-**Decompose by concern:**
+State each constraint once, at normal volume, with its reason beside it. Capitalized
+MUST/NEVER and bare prohibition lists over-trigger on current models; describe the behavior
+you want instead. Keep a prohibition only when the failure it prevents actually reproduces.
 
-- Identity prompt: Who is this agent?
-- Capability prompt: What tools does it have?
-- Constraint prompt: What should it never do?
-- Format prompt: How should it respond?
-Each concern can be composed, versioned, and tested independently.
+Compose prompts from versioned, testable parts (identity and context, tool usage, constraints
+with reasons, output format), and judge each part by what it tells the model, not by its word
+count.
 
 ### 7. No Implicit State in Prompts (Uncle Bob: Don't Hide Information)
 
@@ -179,9 +180,6 @@ work. Never mix them. An orchestrator that also does work is impossible to reaso
 Orchestrator: "Given the plan, which step is next? Call the right tool."
 Tool:         "Given these inputs, produce this output."
 ```
-
-If an agent is making decisions AND calling tools in the same loop iteration, ask whether
-those concerns can be split across a planning step and an execution step.
 
 ### 10. Minimize the Agent's Footprint (Sandi Metz: Dependency Inversion → Agentic)
 
@@ -263,6 +261,11 @@ def send_email(draft: EmailDraft) -> SendResult:
 
 Never write "Sends an email." That's a category, not a contract.
 
+A contract is several sentences: what the tool does, when to use it and when not to, what each
+parameter means, limits and failure modes, and what it does not return. Keep behavioral
+steering ("ALWAYS call this first") and worked examples out of the description; they belong in
+the system prompt or a skill.
+
 ---
 
 ## V. Testability Principles
@@ -290,10 +293,12 @@ Sandi Metz's famous 4 rules for OOP classes, adapted:
 | Classes ≤ 100 lines | Tool implementations ≤ 50 lines |
 | Methods ≤ 5 lines | Tool logic ≤ 20 lines (or extract helpers) |
 | ≤ 4 method parameters | ≤ 3 tool parameters (use typed objects for more) |
-| Controllers instantiate one object | Orchestrators call one tool per reasoning step |
+| Controllers instantiate one object | Orchestrators spend model calls only on adaptive decisions |
 
-The last rule is the most important: if your orchestrator is calling multiple tools in a
-single LLM turn without reasoning in between, that's a workflow pretending to be an agent.
+The last rule is the most important: if every run of your agent loop makes the same calls in
+the same order, and its inputs fully determine its outputs, that's a workflow pretending to be
+an agent. Move it to plain code and keep a model call only where the work needs judgment.
+Independent tool calls in one turn are fine; current models run them in parallel.
 
 ---
 
@@ -302,11 +307,13 @@ single LLM turn without reasoning in between, that's a workflow pretending to be
 Before shipping agentic code, check for these smells:
 
 - [ ] Tools with "and" in the name → split them
-- [ ] System prompts over 300 words → decompose by concern
+- [ ] System prompt restates tool contracts, trained defaults, or unreasoned prohibitions →
+  move contracts to tool descriptions, delete defaults, attach the reason or delete
 - [ ] Tools that return raw dicts → add typed schemas
 - [ ] Agent loops with no error policy → add explicit failure handling
 - [ ] Prompt variables injected via string concat → use context objects
-- [ ] Tool lists with >8 tools → scope to the task
+- [ ] Tools exposed that are invalid for this agent's task, or dozens always loaded → scope to
+  the task; past a few dozen, use tool search or deferred loading
 - [ ] Tools that assume previous tool output without it being passed explicitly → hidden state
 - [ ] Docstrings that describe the tool category, not the contract → rewrite
 
@@ -317,4 +324,5 @@ Before shipping agentic code, check for these smells:
 - *Clean Code* — Robert C. Martin (Ch. 2: Names, Ch. 3: Functions, Ch. 7: Error Handling)
 - *Practical Object-Oriented Design* — Sandi Metz (Ch. 4: Flexible Interfaces, Ch. 9: Costs)
 - Simon Willison's `llm` CLI codebase — exemplary tool composability
-- Anthropic's [tool use best practices](https://docs.anthropic.com/en/docs/build-with-claude/tool-use)
+- Anthropic's
+  [tool use best practices](https://docs.anthropic.com/en/docs/build-with-claude/tool-use)

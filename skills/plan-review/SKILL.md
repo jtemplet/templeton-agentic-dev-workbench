@@ -185,9 +185,9 @@ under Dependencies:
 
 ## Process
 
-1. **Read the plan thoroughly**: understand the full scope and intent.
+1. **Read the plan**: its full scope and intent.
 2. **Ground the plan in the codebase**: run the Codebase Grounding checks (existence, pattern,
-   stack); route findings to Feasibility.
+   stack, behavior); route findings to Feasibility.
 3. **Run the Acceptance Criteria gate**: locate the criteria, judge them testable or not, and record
    the result. This sets the Actionability floor before any other scoring.
 4. **Score each dimension**: assign GREEN/YELLOW/RED with a 1-sentence justification.

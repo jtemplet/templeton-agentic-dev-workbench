@@ -63,8 +63,8 @@ gate on.
 
 - **Pros:** Keeps automatic protection without the flakiness.
 - **Cons:** A threshold set where the model already lands measures nothing. The 35-word ceiling
-  exists because it is the rule the style document states; moving it to fit observed behavior
-  inverts the purpose. Averaging hides the case the eval was built to catch.
+  exists to catch runaway sentences under the style document's one-statement rule; moving it to
+  fit observed behavior inverts the purpose. Averaging hides the case the eval was built to catch.
 
 ## Decision
 

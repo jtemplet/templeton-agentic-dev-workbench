@@ -194,7 +194,6 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `style-go` | Go style: accept interfaces and return structs, wrapped errors over sentinels, useful zero values, goroutines with a defined exit, table-driven tests | Writing or reviewing Go, or deciding whether an interface earns its place |
 | `style-markdown` | Markdown style for documents an agent reads and executes: link out instead of inlining, numbers derived not remembered, HTML comment sentinels for machine-read regions, a 100-column wrap | Composing, updating, or reviewing any knowledge-base document (`docs/`, wiki, runbook, README) or prompt asset (skill, agent, command, ADR, plan, `AGENTS.md`) |
 | `terraform-iac-expert` | Terraform/IaC expertise across AWS, Azure, GCP | Writing Terraform, or debugging state and deployments |
-| `style-fizzy` | Vanilla Rails conventions for the Fizzy codebase | Working anywhere in the Fizzy codebase |
 | `idea-wizard` | Structured ideation: generate, evaluate, distill | Reviewing a codebase for improvements, or stuck and needing options |
 | `architecture-decision-record` | ADR format with context, options, and rationale | You made a non-obvious choice future-you will question |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis | A project needs to justify its investment or find revenue angles |
@@ -202,7 +201,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `plan-review` | Acceptance-criteria gate + codebase grounding + 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability); report-only, drafts missing criteria/test plan | After writing a plan, as the gate before decomposing it |
 | `aso-review` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan | Before an app launch, or when organic installs are low |
 | `ux-review` | Web UX review via Playwright; 7-dimension evaluation with severity-ranked report | Auditing the UX of a running web app |
-| `ux-review-ios` | iOS UX review via Simulator; Dynamic Type / Dark Mode / Bold Text testing against Apple HIG | Auditing the UX of an iOS app in the Simulator |
+| `ux-review-ios` | iOS UX review via Simulator; Dynamic Type / Dark Mode / Increased Contrast / Bold Text testing against Apple HIG | Auditing the UX of an iOS app in the Simulator |
 | `code-simplify` | Language-agnostic simplification workflow; loads the matching language style skill | After a feature lands, as the refinement pass before committing |
 | `review-fresh-eyes` | Bug-and-correctness pass over recently changed code, fixes issues directly | After implementing or refactoring, before committing |
 | `verify-acceptance` | Grade a finished unit of work against its bead's `acceptance_criteria` and the QA gates; every criterion graded against a named test, a command's output, or a `file:line`, never the diff; reports ACCEPTED / NOT ACCEPTED / INCONCLUSIVE and writes nothing but the `accepted` label, which only an ACCEPTED verdict earns | Deciding whether work is done, before `bd close` or a PR |
@@ -246,8 +245,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `bulk-reader` | Read-only worker on a cheap model: answers a question about many files and returns structured bullets, so those files never enter the caller's context. Its tools are `Read`, `Grep`, and `Glob` alone, so it cannot write. Orientation only; an edit reads its own file |
 | `product-analyst` | Objective product analysis (features, pricing, competitors, pain points, market capture) |
 | `research-librarian` | Curates the Research wiki and answers questions from it: ingests sources with a study quality assessment, and weighs the filed sources to answer a question (uses `research-ingest` and `research-synthesize`) |
-| `ux-product-designer` | UX review of a web app via Playwright, 7-dimension evaluation with severity-ranked report |
-| `ux-product-designer-ios` | UX review of an iOS app via Simulator, tests Dynamic Type / Dark Mode / accessibility, 7-dimension evaluation against Apple HIG |
+| `ux-product-designer` | UX review of a web app via Playwright, or of an iOS app via Simulator (Dynamic Type, Dark Mode, accessibility, against Apple HIG); 7-dimension evaluation with severity-ranked report |
 | `product-manager` | Senior/Staff PM routing agent; dispatches to competitive-analysis, ab-test-design, product-research, product-roadmap, and product-brief skills |
 | `product-cartographer` | Maps a codebase into a MECE/Pyramid `docs/products/` tree and proactively hunts for bugs/gaps/debt, logging each to a ledger and promoting actionable ones into bead-audit-compliant beads; refresh-first (uses `product-surface-docs` skill) |
 
@@ -303,8 +301,8 @@ messages), except when quoting a name you do not own. Injected text opens with a
 `SessionStart` additionally injects a response style (`<!-- house-response-style: loaded -->`
 marker): respond concisely, write in Simplified Technical English, the controlled-English standard
 specified in ASD-STE100 (its writing rules only, never its licensed dictionary: one word one
-meaning, active voice, no jargon or borrowed metaphor, sentences capped at twenty-five words for an
-explanation and twenty for an instruction, with technical names like files and settings kept
+meaning, active voice, no jargon or borrowed metaphor, one statement per sentence, with
+technical names like files and settings kept
 verbatim), report your own work in a fixed shape and never let a label like "green" or "a flake"
 stand without the facts it stands for, put choices that trade off on more than one factor into a
 decision matrix with a bold recommendation, suggest a follow-up question only when the answer

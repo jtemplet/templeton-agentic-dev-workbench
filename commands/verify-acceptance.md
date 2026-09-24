@@ -37,4 +37,4 @@ needed otherwise.
 Pass `--base <ref>` on a stacked branch, meaning a branch built on another branch that is not
 merged yet. The gates then check only the files this branch changed, not its parent's.
 
-Invoke it by hand with `/verify-acceptance`, usually right after a fresh-eyes review.
+Invoke it by hand with `/verify-acceptance`, usually right after `/quality-gates`.

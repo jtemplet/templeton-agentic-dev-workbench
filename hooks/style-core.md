@@ -5,7 +5,7 @@
 # House Coding-Style Core
 
 These are the universal, language-agnostic principles for any code you write or review
-in this session. They apply across Python, Ruby/Rails, JavaScript/TypeScript, and Swift.
+in this session, in any language.
 When a `style-*` or `review-*` skill loads, it adds language-specific deltas on top of
 this core; it does not repeat or override it. If a directive here conflicts with a
 project's `AGENTS.md`/`CLAUDE.md`, the project file wins.

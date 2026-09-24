@@ -30,9 +30,8 @@ Read [docs/bead-body-contract.md](../../docs/bead-body-contract.md) before you p
 rewrite a bead. Its "Sentence rules" section holds ten numbered rules. Apply every one of them to
 every sentence you print. Apply them again to every bead body you rewrite under a Shrink verdict.
 
-Apply the ten rules, never a summary of them. A four-rule summary stood here once, and the plugin's
-owner reported that it did not bind. The same file owns the bead body shape, so a Shrink verdict
-puts each section in the `bd` field the contract names.
+Apply the ten rules, never a summary of them. The same file owns the bead body shape, so a Shrink
+verdict puts each section in the `bd` field the contract names.
 
 Two things this skill adds on top of that file:
 
@@ -363,10 +362,9 @@ Reply with your corrections, for example "3 and 7 keep, rest as proposed".
 
 <!-- refine-round:round-end -->
 
-Copy the shape of that example. A rule alone did not hold last time, so read the four things it
-shows. The table holds six columns. Every row carries a route. Each `Why` cell stays under 15 words
-and names a consequence to the author. Every number, path, and label sits in the `Detail` list, and
-none of them sit in the table.
+Copy the shape of that example. It shows four things. The table holds six columns. Every row
+carries a route. Each `Why` cell stays under 15 words and names a consequence to the author. Every
+number, path, and label sits in the `Detail` list, and none of them sit in the table.
 
 ### Step 7: Apply the confirmed verdicts in one batch
 
@@ -446,6 +444,9 @@ bd defer <id> --reason="<trigger>"
 ```
 
 Set `NEW_DESCRIPTION` to the old description with the `**Ask:**` line and one blank line on top.
+Before sending it, save both versions and run
+`python3 ${CLAUDE_PLUGIN_ROOT}/skills/bead-audit/scripts/check_bead_body.py --compare OLD NEW`;
+send nothing it rejects.
 
 Report the result of every command. If one fails, name the bead, the command, and the error, then
 continue with the rest. A half-applied batch that says nothing is worse than a failed one that

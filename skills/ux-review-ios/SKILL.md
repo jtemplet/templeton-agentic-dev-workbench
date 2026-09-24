@@ -1,15 +1,18 @@
 ---
 name: ux-review-ios
-description: Conduct a comprehensive UX review of an iOS app running in the Simulator. Captures screenshots via xcrun simctl, tests Dynamic Type and Dark Mode and Bold Text configurations, and produces a severity-ranked report covering all seven design dimensions against Apple HIG standards.
+description: Conduct a comprehensive UX review of an iOS app running in the Simulator. Captures screenshots via xcrun simctl, tests Dynamic Type, Dark Mode, Increased Contrast, and Bold Text configurations, and produces a severity-ranked report covering all seven design dimensions against Apple HIG standards.
 ---
 
 # UX Audit (iOS)
 
-A systematic technique for evaluating an iOS app running in the Simulator. Uses a guided interaction model (the user navigates; the auditor captures screenshots and analyzes). Produces a severity-ranked report against Apple HIG.
+A systematic technique for evaluating an iOS app running in the Simulator. Uses a guided interaction
+model (the user navigates; the auditor captures screenshots and analyzes). Produces a
+severity-ranked report against Apple HIG.
 
 ## Core Evaluation Dimensions
 
-Every audit assesses all seven dimensions adapted for iOS. Skipping any produces an incomplete audit.
+Every audit assesses all seven dimensions adapted for iOS. Skipping any produces an incomplete
+audit.
 
 | # | Dimension | What you're evaluating |
 |---|-----------|----------------------|
@@ -31,12 +34,18 @@ Every audit assesses all seven dimensions adapted for iOS. Skipping any produces
    - Target user (who they are, what they know, what they need)
    - Primary workflows / jobs-to-be-done
    - Any stated design principles or brand values
-3. If neither file exists or context is too thin to evaluate against, **stop and ask the user** for: product purpose, primary user, and the top 1 to 3 workflows to evaluate. Do not proceed in a vacuum.
-4. Form a **design hypothesis**: given this user and this goal, what should the ideal experience feel like? Snappy and confident? Calm and guided? Playful and discoverable? This hypothesis frames every finding below.
+3. If neither file exists or context is too thin to evaluate against, **stop and ask the user** for:
+   product purpose, primary user, and the top 1 to 3 workflows to evaluate. Do not proceed in a
+   vacuum.
+4. Form a **design hypothesis**: given this user and this goal, what should the ideal experience
+   feel like? Snappy and confident? Calm and guided? Playful and discoverable? This hypothesis
+   frames every finding below.
 
 ### Step 1: Parse Input and Verify Simulator
 
-`$ARGUMENTS` should contain the app's bundle ID, app name, or other identifier. If missing, ask for it. Optionally accept extra hints (specific flows to focus on, test account credentials, known pain points).
+`$ARGUMENTS` should contain the app's bundle ID, app name, or other identifier. If missing, ask for
+it. Optionally accept extra hints (specific flows to focus on, test account credentials, known pain
+points).
 
 **Verify the Simulator is ready:**
 
@@ -46,12 +55,14 @@ xcrun simctl list devices booted
 ```
 
 If no simulator is booted, tell the user:
-> No booted simulator found. Please launch the iOS Simulator with your app running, then re-run this audit. You can boot a simulator with:
-> `xcrun simctl boot <device-id>` or open it from Xcode.
+> No booted simulator found. Please launch the iOS Simulator with your app running, then re-run this
+> audit. You can boot a simulator with: `xcrun simctl boot <device-id>` or open it from Xcode.
 
-If a simulator is booted but the app may not be running, note this and ask the user to confirm the app is on screen.
+If a simulator is booted but the app may not be running, note this and ask the user to confirm the
+app is on screen.
 
-Create the output directory: `docs/ux-audits/`. Determine an audit slug: `<YYYY-MM-DD>-<app-name>`. Screenshots will live under `docs/ux-audits/<slug>/screenshots/`.
+Create the output directory: `docs/ux-audits/`. Determine an audit slug: `<YYYY-MM-DD>-<app-name>`.
+Screenshots will live under `docs/ux-audits/<slug>/screenshots/`.
 
 Clean the status bar for professional screenshots:
 
@@ -61,14 +72,18 @@ xcrun simctl status_bar booted override --time "9:41" --batteryLevel 100 --batte
 
 ### Step 2: Explore the App (Guided via Simulator)
 
-Because `xcrun simctl` cannot interact with UI elements semantically (no equivalent to Playwright's `click` or `type`), this audit uses a **guided interaction model**: you capture screenshots and the user navigates on your behalf.
+Because `xcrun simctl` cannot interact with UI elements semantically (no equivalent to Playwright's
+`click` or `type`), this audit uses a **guided interaction model**: you capture screenshots and the
+user navigates on your behalf.
 
 **How to interact with the user:**
 
 - Be specific about what you need: "Please tap the 'Sign Up' button" not "navigate to registration"
 - After each request, capture a screenshot to verify the state
-- Batch related navigation requests when possible: "Please complete the sign-up form with test data and tap Submit. I'll screenshot the result."
-- If the user says they can't reach a state (e.g., "I don't have test data for that"), note it as untested and move on
+- Batch related navigation requests when possible: "Please complete the sign-up form with test data
+  and tap Submit. I'll screenshot the result."
+- If the user says they can't reach a state (e.g., "I don't have test data for that"), note it as
+  untested and move on
 
 **Screenshot capture pattern:**
 
@@ -76,7 +91,8 @@ Because `xcrun simctl` cannot interact with UI elements semantically (no equival
 xcrun simctl io booted screenshot docs/ux-audits/<slug>/screenshots/<filename>.png
 ```
 
-Use descriptive, numbered filenames: `01-landing-light.png`, `02-tab-home.png`, `03-signup-form.png`, etc.
+Use descriptive, numbered filenames: `01-landing-light.png`, `02-tab-home.png`,
+`03-signup-form.png`, etc.
 
 ## 2a. First impression (5-second test)
 
@@ -133,17 +149,24 @@ xcrun simctl ui booted appearance light
 ```
 
 ```bash
-# Bold text
+# Increased contrast
 xcrun simctl ui booted increase_contrast enabled
 # Screenshot, then:
 xcrun simctl ui booted increase_contrast disabled
 ```
 
-For each configuration, capture the primary screen and the most critical screen of the primary workflow. Assess:
+Bold Text has no `simctl` switch. Ask the user to turn it on in Settings > Accessibility > Display
+& Text Size > Bold Text, then screenshot. If they cannot, list it under Untested Areas.
 
-- **Dynamic Type:** Does text scale? Do layouts accommodate larger text or does it clip/overlap/truncate? Do touch targets remain adequate?
-- **Dark mode:** Are all elements visible? Any hardcoded colors that don't adapt? Are images/icons legible on dark backgrounds? Is contrast maintained?
-- **Bold text / increased contrast:** Does the app respond? Are boundaries and text clearer?
+For each configuration, capture the primary screen and the most critical screen of the primary
+workflow. Assess:
+
+- **Dynamic Type:** Does text scale? Do layouts accommodate larger text or does it
+  clip/overlap/truncate? Do touch targets remain adequate?
+- **Dark mode:** Are all elements visible? Any hardcoded colors that don't adapt? Are images/icons
+  legible on dark backgrounds? Is contrast maintained?
+- **Increased contrast:** Does the app respond? Are boundaries and text clearer?
+- **Bold Text:** Does text weight increase everywhere, including custom fonts?
 
 ## 2e. Device size evaluation
 
@@ -153,7 +176,8 @@ If time permits and the user can switch simulators, request screenshots from:
 - iPhone 16 Pro Max (large: 430x932) - is the extra space used well or just padded?
 - iPad (if applicable) - does the app use split view, sidebars, or just scale up the phone layout?
 
-If switching simulators is impractical, note it as a limitation and evaluate based on the current device's screenshots.
+If switching simulators is impractical, note it as a limitation and evaluate based on the current
+device's screenshots.
 
 ## 2f. System integration checks
 
@@ -169,11 +193,13 @@ Note any that are not applicable or not testable.
 
 Save all screenshots into `docs/ux-audits/<slug>/screenshots/` with descriptive, numbered filenames.
 
-Keep a running log of (screenshot filename, what it shows, which flow step, which configuration). You will cite these in the report.
+Keep a running log of (screenshot filename, what it shows, which flow step, which configuration).
+You will cite these in the report.
 
 ### Step 3: Evaluate Against All Seven Dimensions
 
-For each dimension, evaluate every screen and flow you captured. This is the analytical core of the audit.
+For each dimension, evaluate every screen and flow you captured. This is the analytical core of the
+audit.
 
 ## Dimension 1: Accessibility & Inclusivity
 
@@ -183,33 +209,44 @@ For each dimension, evaluate every screen and flow you captured. This is the ana
 - Contrast: text, icons, and interactive element boundaries
 - Dark mode: full support or partial/broken?
 - Bold Text: does the app respond to the system setting?
-- Reduce Motion: are there animations that might be problematic? (Note: hard to verify from screenshots alone; flag if heavy animations are visible)
-- VoiceOver readiness: are custom controls clearly labeled? Are images decorative or informational? (Inferred from visual inspection; note limitations)
+- Reduce Motion: are there animations that might be problematic? (Note: hard to verify from
+  screenshots alone; flag if heavy animations are visible)
+- VoiceOver readiness: are custom controls clearly labeled? Are images decorative or informational?
+  (Inferred from visual inspection; note limitations)
 
 ## Dimension 2: Design System Coherence
 
 - SF Symbols: used consistently? Or a mix of SF Symbols and custom icons?
-- System components: UIKit/SwiftUI standard controls where appropriate? Or custom components that fight user expectations?
-- Typography: how many distinct text styles? Does it use the iOS type scale (Large Title, Title, Headline, Body, etc.) or custom?
+- System components: UIKit/SwiftUI standard controls where appropriate? Or custom components that
+  fight user expectations?
+- Typography: how many distinct text styles? Does it use the iOS type scale (Large Title, Title,
+  Headline, Body, etc.) or custom?
 - Spacing: consistent rhythm or ad-hoc?
 - Color: intentional palette? Do colors carry consistent meaning? Do they adapt to dark mode?
-- Component consistency: are similar elements (cells, buttons, inputs) rendered the same way across screens?
+- Component consistency: are similar elements (cells, buttons, inputs) rendered the same way across
+  screens?
 - Overall: does this feel like one app or several stitched together?
 
 ## Dimension 3: Information Architecture
 
-- Tab bar: how many tabs? (HIG recommends 3-5.) Is the primary action accessible from the default tab?
-- Navigation depth: how many levels deep does the hierarchy go? More than 3 levels creates "where am I?" anxiety
+- Tab bar: how many tabs? (HIG recommends 3-5.) Is the primary action accessible from the default
+  tab?
+- Navigation depth: how many levels deep does the hierarchy go? More than 3 levels creates "where am
+  I?" anxiety
 - Modal/sheet usage: are modals used for focused tasks or as a lazy navigation pattern?
 - Back button: does it always work predictably? Is state preserved?
 - Search: is content findable? Is search prominent enough for the content volume?
 
 ## Dimension 4: Interaction Design
 
-- Gesture vocabulary: does the app use standard iOS gestures (swipe back, pull to refresh, swipe to delete)? Any custom gestures without discoverability cues?
-- Haptic feedback: noted if the user reports it; otherwise flag where haptics would be expected (destructive actions, mode changes, selections)
-- Transitions: do navigation transitions follow iOS conventions (push/pop, modal present/dismiss)? Any jarring custom transitions?
-- Feedback: does every tap produce a visible response? Buttons that don't highlight on press feel broken.
+- Gesture vocabulary: does the app use standard iOS gestures (swipe back, pull to refresh, swipe to
+  delete)? Any custom gestures without discoverability cues?
+- Haptic feedback: noted if the user reports it; otherwise flag where haptics would be expected
+  (destructive actions, mode changes, selections)
+- Transitions: do navigation transitions follow iOS conventions (push/pop, modal present/dismiss)?
+  Any jarring custom transitions?
+- Feedback: does every tap produce a visible response? Buttons that don't highlight on press feel
+  broken.
 - Loading: spinner vs. skeleton screen vs. blank. Is progress communicated?
 - Error recovery: when something fails, is the path back obvious?
 - Destructive actions: confirmation before delete? Can it be undone?
@@ -227,9 +264,12 @@ For each dimension, evaluate every screen and flow you captured. This is the ana
 
 - First launch: does the app feel trustworthy and polished from the first screen?
 - Onboarding: does it respect the user's time? Can it be skipped? Does it teach by doing?
-- Permission timing: asks for permissions in context (e.g., camera access when taking a photo) vs. up front (app launch bombardment)?
-- Delight: any small moments of craft that signal care? (Animations, illustrations, micro-interactions)
-- Dark patterns: forced account creation before value is shown, confirmshaming in cancellation flows, hidden subscription traps, difficulty deleting account. Flag ANY instance.
+- Permission timing: asks for permissions in context (e.g., camera access when taking a photo) vs.
+  up front (app launch bombardment)?
+- Delight: any small moments of craft that signal care? (Animations, illustrations,
+  micro-interactions)
+- Dark patterns: forced account creation before value is shown, confirmshaming in cancellation
+  flows, hidden subscription traps, difficulty deleting account. Flag every instance.
 - App Store alignment: does the in-app experience match what the App Store listing promises?
 
 ## Dimension 7: Cognitive Load & Clarity
@@ -246,7 +286,8 @@ This remains the most important dimension. Every screen gets this assessment:
 
 ### Step 4: Write the Report
 
-Save to `docs/ux-audits/<slug>.md`. Reference screenshots with relative paths (e.g., `![Landing](./<slug>/screenshots/01-landing-light.png)`).
+Save to `docs/ux-audits/<slug>.md`. Reference screenshots with relative paths (e.g.,
+`![Landing](./<slug>/screenshots/01-landing-light.png)`).
 
 ```markdown
 # UX Audit: <App Name> (iOS)
@@ -350,10 +391,15 @@ Dedicated section documenting how the app responds to system accessibility setti
 - **Screenshot:** <reference>
 - **Verdict:** full support / partial / hardcoded colors found
 
-### Bold Text / Increased Contrast
+### Increased Contrast
 
 - **Observations:** <does the app respond?>
 - **Verdict:** supported / not supported
+
+### Bold Text
+
+- **Observations:** <does the app respond? or untested, with why>
+- **Verdict:** supported / not supported / untested
 
 ### Touch Targets
 
@@ -425,7 +471,7 @@ Report the file path back to the user.
 
 - Read AGENTS.md before evaluating. Context is non-negotiable.
 - Form a design hypothesis before evaluating. Without one, findings lack a frame.
-- Evaluate all seven dimensions explicitly. Partial audits are rejected.
+- Evaluate all seven dimensions explicitly.
 - Tie every finding back to a user goal from AGENTS.md.
 - Cite screenshots as evidence for every issue.
 - Prefer subtraction over addition in recommendations.
@@ -448,32 +494,6 @@ Report the file path back to the user.
 - Skip the accessibility configuration testing. It is the second most important section.
 - Fabricate findings. Every issue needs a screenshot reference.
 - Praise things that are merely adequate. Reserve positive callouts for genuinely exceptional craft.
-- Ignore dark patterns. Confirmshaming, forced account creation before value, hidden subscriptions, or account deletion obstruction are all Critical.
+- Ignore dark patterns. Confirmshaming, forced account creation before value, hidden subscriptions,
+  or account deletion obstruction are all Critical.
 - Assume the user can switch simulators. Work with what's booted.
-
-## Quality Checklist
-
-Before delivering:
-
-- [ ] AGENTS.md (or fallback context) was read and summarized in section 1
-- [ ] Design hypothesis formed and stated
-- [ ] First impression assessment performed and documented
-- [ ] Simulator verified as booted with app running
-- [ ] Status bar cleaned for professional screenshots
-- [ ] Primary workflow walked end-to-end (user-guided)
-- [ ] At least one form or input flow exercised
-- [ ] Error states and empty states captured (or noted as untested)
-- [ ] At least one alternate path explored
-- [ ] Dynamic Type tested at extra-large and XXXL
-- [ ] Dark Mode tested on key screens
-- [ ] Bold Text / Increased Contrast tested
-- [ ] Screenshots saved under `docs/ux-audits/<slug>/screenshots/`
-- [ ] Every issue in section 3 cites a screenshot and names a dimension
-- [ ] All seven dimension scorecards completed
-- [ ] Clutter and cognitive load deep-dive completed (not skipped, not hand-waved)
-- [ ] Accessibility configuration results documented with pass/fail
-- [ ] Dark pattern check explicitly performed and documented
-- [ ] Untested areas honestly documented in section 10
-- [ ] Recommendations are concrete, typed, and effort-rated
-- [ ] Quick Wins are genuinely low-effort and developer-actionable
-- [ ] Simulator appearance settings reset to defaults

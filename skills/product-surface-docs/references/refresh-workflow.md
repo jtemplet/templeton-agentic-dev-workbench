@@ -41,8 +41,7 @@ with no identifier. Some may already have a bead that nothing links to. Link the
    `**Bug (F-012):** ...`.
 3. Link each finding to any bead that already exists. Search the tracker by evidence and by
    keyword. When a finding matches an existing bead, write that bead's identifier into the row's
-   Bead column and set the row's status to match. This replaces the hand search that used to
-   happen on every run. After it, the ledger is the durable link.
+   Bead column and set the row's status to match. After it, the ledger is the durable link.
 
 Once R0 and R1 are done, every later refresh reaches the same answer from the same tree.
 
@@ -81,7 +80,6 @@ document's prose.
 ## Step R5: Reconcile the findings (four outcomes)
 
 Give every finding exactly one outcome. This covers the findings carried over and the new ones.
-It replaces the older choice between create and skip.
 
 | Outcome | When | What to do |
 |---|---|---|

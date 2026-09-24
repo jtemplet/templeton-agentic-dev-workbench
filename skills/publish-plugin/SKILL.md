@@ -13,10 +13,6 @@ branch. A commit on main is already published, whether or not anybody bumped a v
 and the manifest version are how a human finds out *which* published state they are running, and
 that is the whole reason this skill exists.
 
-It exists because the manual path drifted twice. `plugin.json` sat at `2.10.1` while main ran 13
-commits past its release commit, and `v2.10.0` and `v2.10.1` were created locally and never
-pushed. Neither failure announced itself.
-
 ## When to Use / When NOT to Use
 
 Use when:
@@ -73,7 +69,7 @@ likewise not yours to set.
 
 ## Required Workflow
 
-Track the seven steps with TodoWrite. On any stop, go straight to Step 7 and report.
+On any stop, go straight to Step 7 and report.
 
 ### Step 1: Read the Ground
 
@@ -160,8 +156,8 @@ git describe --tags --abbrev=0 --match 'v*'       # cross-check only
   `v2.5.2`, and reading the last line of an unsorted list is how a released tag gets reported as
   missing.
 - `git describe` is the cross-check, not the answer. It only sees tags reachable from HEAD, so a tag
-  made on another branch is invisible to it. When the two disagree, take the sorted list and say they
-  disagreed, since that means a release was tagged off this line.
+  made on another branch is invisible to it. When the two disagree, take the sorted list and say
+  they disagreed, since that means a release was tagged off this line.
 
 **Then check the tags against the remote,** because a local-only tag is the drift this skill closes:
 
@@ -227,8 +223,7 @@ git ls-remote --tags origin "refs/tags/v$NEW_VERSION"      # prints nothing when
 ```
 
 Either one printing a line stops the run with `tag-exists`. Check both, because the local and the
-remote disagree often enough to matter: this is the repository where two tags existed locally and on
-no remote. Never move or delete the existing tag; cut the next version instead.
+remote can disagree. Never move or delete the existing tag; cut the next version instead.
 
 ### Step 3: Land the Branch, When One Was Named
 
@@ -265,7 +260,7 @@ and one bolded lead sentence per entry:
 - **One bolded sentence naming the change.** Then the why, and what it replaces.
 ```
 
-Four rules for the section, and the first is the one that gets skipped:
+Five rules for the section, and the first is the one that gets skipped:
 
 1. **Every entry in it must be true of the diff.** Read `git log "$LAST_TAG".."$RELEASE_TIP"`, the
    same range Step 2 graded, and add an entry for anything the `Unreleased` section never recorded.
@@ -284,8 +279,7 @@ Four rules for the section, and the first is the one that gets skipped:
    Read `<owner>/<repo>` from `git remote get-url origin`. Do not hardcode it; a fork publishes from
    its own URL.
 5. **Re-point the `[Unreleased]` compare link at the new tag.** It sits at the top of the footer
-   block and reads `compare/<previous>...HEAD`. Nothing else updates it, and it is stale in this
-   repository right now: it names `v2.10.0` while 2.10.1 is released.
+   block and reads `compare/<previous>...HEAD`. Nothing else updates it.
 
 Then verify the file before it becomes a commit:
 
@@ -306,10 +300,7 @@ each one, either as an entry or as a change that needs none, before anything is 
 found after the push cannot be folded into the release commit, because Step 6 has already published
 it and main is never force-pushed.
 
-That is not a theoretical ordering point. Cutting 2.11.0 on 2026-08-24 pushed main at `cc9647e`,
-then found `b331dac`'s conditional-export change recorded nowhere. The recovery cost a second commit
-and moved the tag off the `chore(release)` commit. Nine of that release's 25 entries came from the
-log rather than from `Unreleased`, so a range this size should be expected to need them.
+Expect a large range to need entries written from the log rather than from `Unreleased`.
 
 ### Step 5: Bump the Manifest and Gate
 
@@ -325,9 +316,8 @@ git -C <that-path> branch --show-current   # must print the default branch
 
 **When a linked worktree holds main, `git switch` refuses,** and every command in this step and Step
 6 runs with `git -C <that-path>` instead. Do not remove that worktree, and do not detach anything to
-work around it. That is not hypothetical in this repository: a release run on 2026-08-23 found main
-checked out in `.worktrees/`, and `git switch main` exited with
-`fatal: 'main' is already used by worktree at ...`. Confirm with the `branch --show-current` line
+work around it. The refusal reads `fatal: 'main' is already used by worktree at ...`. Confirm
+with the `branch --show-current` line
 above before any command that moves a branch pointer or writes a file.
 
 Then bring it current, and refuse rather than reconcile:
@@ -426,10 +416,9 @@ rather than sweeping it into a release commit.
 git tag -a "v$NEW_VERSION" -m "$NEW_VERSION"
 ```
 
-`reference-transaction` runs `claude plugin validate` here and refuses the tag when it fails. That
-is the gate the 2.4.1 frontmatter bug went out through, so treat a refusal as a stop:
-`validate-refused-tag`. The release commit stays on disk, unpushed and untagged, and the report says
-so along with the validation output.
+`reference-transaction` runs `claude plugin validate` here and refuses the tag when it fails.
+Treat a refusal as a stop: `validate-refused-tag`. The release commit stays on disk, unpushed and
+untagged, and the report says so along with the validation output.
 
 A missing `claude` on PATH makes the hook warn and allow. Say so in the report; the tag exists but
 nothing validated it.
@@ -439,7 +428,7 @@ nothing validated it.
 ```bash
 git push origin main
 git push origin "v$NEW_VERSION"
-git push origin v2.10.0 v2.10.1                   # each older tag Step 1 found, BY NAME
+git push origin "$OLDER_TAG"                      # once per unpushed tag Step 1 found; never --tags
 git ls-remote --tags origin "v$NEW_VERSION"       # must print the tag
 ```
 
@@ -448,7 +437,8 @@ broken reference for everyone who fetches it.
 
 **Name every tag you push, and never use `git push origin --tags`.** That flag pushes every local
 tag, including private ones somebody made to mark an experiment, and publishing a ref is not
-reversible for anyone who has already fetched it. Step 1 listed the missing tags; push exactly those.
+reversible for anyone who has already fetched it. Step 1 listed the missing tags; push exactly
+those.
 
 **On a rejected push**, someone landed while this ran. Do not force, and do not reset a main that
 carries a commit this run did not create. Delete the local tag, rebase the release commit onto the
@@ -472,8 +462,8 @@ git commit -m "docs(changelog): record what <version> missed"
 git tag -a "v$NEW_VERSION" -m "$NEW_VERSION"
 ```
 
-The tag then names the follow-up commit rather than the `chore(release)` commit, because the tag must
-point at the tree whose changelog is complete. Say both facts in the report: the release is two
+The tag then names the follow-up commit rather than the `chore(release)` commit, because the tag
+must point at the tree whose changelog is complete. Say both facts in the report: the release is two
 commits, and the tag is on the second.
 
 **A tag that already reached the remote is different, and it is not recoverable this way.** Never
@@ -561,8 +551,8 @@ Both forms end with exactly one machine line, as the last line. Nothing follows 
 
 ## Edge Cases
 
-**The version in `plugin.json` is already ahead of the last tag.** Someone bumped and never tagged,
-which is what happened at 2.10.1. Do not bump again. Tag the existing version if the tree is
+**The version in `plugin.json` is already ahead of the last tag.** Someone bumped and never tagged.
+Do not bump again. Tag the existing version if the tree is
 unchanged since the bump commit, and say that is what you did. When main has moved since, derive
 the bump from the last *tag*, not from the manifest, and report both numbers.
 

@@ -5,29 +5,37 @@ description: Writes and reviews Swift/iOS in the house style (protocol-oriented,
 
 # Templeton Swift Style
 
-Writes and reviews Swift/iOS code in the house style: protocol-oriented, value-type-first, and TRUE (Transparent, Reasonable, Usable, Exemplary). This skill carries only the Swift-specific deltas layered on top of the universal style core; it does not restate the universal principles.
+Writes and reviews Swift/iOS code in the house style: protocol-oriented, value-type-first, and TRUE
+(Transparent, Reasonable, Usable, Exemplary). This skill carries only the Swift-specific deltas
+layered on top of the universal style core; it does not restate the universal principles.
 
 ## When to Use / When NOT to Use
 
 Use when:
 
 - Writing new Swift types, view models, or SwiftUI views in the house style.
-- Reviewing Swift/iOS code for design quality (protocol orientation, value semantics, error handling, concurrency).
+- Reviewing Swift/iOS code for design quality (protocol orientation, value semantics, error
+  handling, concurrency).
 - Refactoring Swift toward value types, composition, and explicit errors.
 
 Do NOT use when:
 
 - The code is not Swift (use the matching language style skill instead).
-- Reviewing generated or vendored Swift (e.g. `*.generated.swift`, protobuf output, third-party `Pods/`).
+- Reviewing generated or vendored Swift (e.g. `*.generated.swift`, protobuf output, third-party
+  `Pods/`).
 - Hacking in a throwaway playground or one-off script where production design rigor is overhead.
 
 ## Universal Core (injected)
 
-The universal "TRUE code" definition and the 9 language-agnostic principles (wait for duplication, small single-purpose units, simple interfaces, dependency injection, tell-don't-ask, compose over inherit, fail fast, step-down reading order, self-documenting names) are injected separately from `hooks/style-core.md` and apply here unchanged. This skill does not repeat them; the sections below add only what is specific to Swift.
+The universal "TRUE code" definition and the language-agnostic principles in
+`hooks/style-core.md` are injected separately and apply here unchanged. This skill does not repeat
+them; the sections below add only what is specific to Swift.
 
 ## Swift Principles
 
-1. **Default to value types; reach for a class only with a reason.** Use `struct`/`enum` unless you need reference semantics: shared mutable state, object identity, `class`-only framework requirements (`NSObject`, `ObservableObject`), or deinit lifecycle.
+1. **Default to value types; reach for a class only with a reason.** Use `struct`/`enum` unless you
+   need reference semantics: shared mutable state, object identity, `class`-only framework
+   requirements (`NSObject`, `ObservableObject`), or deinit lifecycle.
 
    ```swift
    // BAD
@@ -38,7 +46,8 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    }
    ```
 
-   Why: `User` has no identity, no shared mutation, and no deinit needs. A class adds reference semantics, aliasing bugs, and avoidable retain-cycle risk.
+   Why: `User` has no identity, no shared mutation, and no deinit needs. A class adds reference
+   semantics, aliasing bugs, and avoidable retain-cycle risk.
 
    ```swift
    // GOOD
@@ -48,7 +57,8 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    }
    ```
 
-2. **Make protocols the primary abstraction, not class inheritance.** Model capabilities as protocols and compose conformances; do not build base classes to share behavior.
+2. **Make protocols the primary abstraction, not class inheritance.** Model capabilities as
+   protocols and compose conformances; do not build base classes to share behavior.
 
    ```swift
    // BAD
@@ -56,7 +66,8 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    class UserRepository: BaseRepository { /* + user logic */ }
    ```
 
-   Why: A base class hard-couples subclasses to shared internals and forces a single hierarchy. Tests cannot substitute behavior cleanly.
+   Why: A base class hard-couples subclasses to shared internals and forces a single hierarchy.
+   Tests cannot substitute behavior cleanly.
 
    ```swift
    // GOOD
@@ -67,7 +78,8 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    }
    ```
 
-3. **Avoid the Bool trap.** Never expose two or more boolean parameters; model intent with an `enum`, a typed options `struct`, or `OptionSet`.
+3. **Avoid the Bool trap.** Never expose two or more boolean parameters; model intent with an
+   `enum`, a typed options `struct`, or `OptionSet`.
 
    ```swift
    // BAD
@@ -75,7 +87,8 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    loadUsers(animated: true, includeArchived: false, forceRefresh: true) // what is true?
    ```
 
-   Why: Boolean call sites are unreadable and trivially transposed, and each new flag doubles the combinations.
+   Why: Boolean call sites are unreadable and trivially transposed, and each new flag doubles the
+   combinations.
 
    ```swift
    // GOOD
@@ -89,7 +102,8 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    loadUsers([.animated, .forceRefresh])
    ```
 
-4. **Make errors explicit; never silently nil.** Prefer `throws` (or `Result`) with typed error cases over `try?` that collapses every failure into `nil`.
+4. **Make errors explicit; never silently nil.** Prefer `throws` (or `Result`) with typed error
+   cases over `try?` that collapses every failure into `nil`.
 
    ```swift
    // BAD
@@ -114,7 +128,9 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    }
    ```
 
-5. **Use async/await and structured concurrency; manage captures deliberately.** Prefer `async`/`await` over completion handlers, isolate UI state with `@MainActor`, and write an explicit capture list with a one-line reason whenever you capture `self`.
+5. **Use async/await and structured concurrency; manage captures deliberately.** Prefer
+   `async`/`await` over completion handlers, isolate UI state with `@MainActor`, and write an
+   explicit capture list with a one-line reason whenever you capture `self`.
 
    ```swift
    // BAD
@@ -125,7 +141,8 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    }
    ```
 
-   Why: An undocumented strong `self` capture in a retained closure creates a retain cycle and hides the threading contract.
+   Why: An undocumented strong `self` capture in a retained closure creates a retain cycle and hides
+   the threading contract.
 
    ```swift
    // GOOD
@@ -138,7 +155,9 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    // [weak self] in  // view may be deallocated before the callback fires
    ```
 
-6. **Keep SwiftUI views thin; push logic into view models.** Views render state and forward intent. Put business logic and mutable state in an `ObservableObject` view model with `@Published` properties, and extract subviews before a `body` grows unreadable.
+6. **Keep SwiftUI views thin; push logic into view models.** Views render state and forward intent.
+   Put business logic and mutable state in an `ObservableObject` view model with `@Published`
+   properties, and extract subviews before a `body` grows unreadable.
 
    ```swift
    // BAD
@@ -152,7 +171,8 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    }
    ```
 
-   Why: Business logic embedded in `body` is untestable, re-runs on every render, and bloats the view past readability.
+   Why: Business logic embedded in `body` is untestable, re-runs on every render, and bloats the
+   view past readability.
 
    ```swift
    // GOOD
@@ -171,7 +191,9 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    }
    ```
 
-7. **Use extensions to organize by responsibility, never to hide size.** Split conformances and cohesive helpers into extensions for readability, but moving 200 lines into an extension does not reduce the type's responsibilities.
+7. **Use extensions to organize by responsibility, never to hide size.** Split conformances and
+   cohesive helpers into extensions for readability, but moving 200 lines into an extension does not
+   reduce the type's responsibilities.
 
    ```swift
    // BAD
@@ -181,7 +203,8 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
    }
    ```
 
-   Why: An extension changes file layout, not coupling. A type doing five jobs across five extensions is still a type doing five jobs.
+   Why: An extension changes file layout, not coupling. A type doing five jobs across five
+   extensions is still a type doing five jobs.
 
    ```swift
    // GOOD
@@ -196,12 +219,22 @@ The universal "TRUE code" definition and the 9 language-agnostic principles (wai
 
 Each smell below shows bad, why it hurts, and the correction.
 
-- **Class where a struct fits.** Bad: a `class` model with stored `let`s and no identity. Why: needless reference semantics and aliasing/retain-cycle risk. Fix: make it a `struct` (see Principle 1).
-- **Deep inheritance.** Bad: `class C: B`, `class B: A` sharing behavior through three levels. Why: fragile base class, single rigid hierarchy, hard to test. Fix: model capabilities as protocols and compose (Principle 2).
-- **Bool-param trap.** Bad: `configure(animated: true, secure: false)`. Why: unreadable call sites and combinatorial explosion. Fix: an `enum`, options `struct`, or `OptionSet` (Principle 3).
-- **Silent `try?`.** Bad: `let user = try? decode(...)` discarding the error. Why: every distinct failure becomes an indistinguishable `nil`. Fix: `throws` with typed error cases (Principle 4).
-- **Singletons / global mutable state.** Bad: `NetworkManager.shared` referenced directly inside a type. Why: hidden dependency, unmockable, cross-test contamination. Fix: inject the dependency through `init` behind a protocol.
-- **Fat SwiftUI view.** Bad: networking, computation, and formatting inline in `body`. Why: untestable, re-runs every render, unreadable. Fix: move logic to an `ObservableObject` view model and extract subviews (Principle 6).
+- **Class where a struct fits.** Bad: a `class` model with stored `let`s and no identity. Why:
+  needless reference semantics and aliasing/retain-cycle risk. Fix: make it a `struct` (see
+  Principle 1).
+- **Deep inheritance.** Bad: `class C: B`, `class B: A` sharing behavior through three levels. Why:
+  fragile base class, single rigid hierarchy, hard to test. Fix: model capabilities as protocols and
+  compose (Principle 2).
+- **Bool-param trap.** Bad: `configure(animated: true, secure: false)`. Why: unreadable call sites
+  and combinatorial explosion. Fix: an `enum`, options `struct`, or `OptionSet` (Principle 3).
+- **Silent `try?`.** Bad: `let user = try? decode(...)` discarding the error. Why: every distinct
+  failure becomes an indistinguishable `nil`. Fix: `throws` with typed error cases (Principle 4).
+- **Singletons / global mutable state.** Bad: `NetworkManager.shared` referenced directly inside a
+  type. Why: hidden dependency, unmockable, cross-test contamination. Fix: inject the dependency
+  through `init` behind a protocol.
+- **Fat SwiftUI view.** Bad: networking, computation, and formatting inline in `body`. Why:
+  untestable, re-runs every render, unreadable. Fix: move logic to an `ObservableObject` view model
+  and extract subviews (Principle 6).
 
 ## Worked Examples
 
@@ -230,7 +263,8 @@ struct User {
 }
 ```
 
-Why: `User` is immutable, has no identity, and shares no state. A `struct` gives value semantics, thread-safety, and free `Equatable`/`Hashable` synthesis, and removes reference-cycle risk.
+Why: `User` is immutable, has no identity, and shares no state. A `struct` gives value semantics,
+thread-safety, and free `Equatable`/`Hashable` synthesis, and removes reference-cycle risk.
 
 ### Tell, don't ask: stop reaching through objects
 
@@ -251,7 +285,9 @@ if viewModel.hasActiveSubscription {
 }
 ```
 
-Why: The chain couples the controller to the internal shape of `User`, `Account`, and `Subscription`; any of those changing breaks the controller. Moving the behavior onto the view model leaves the controller sending one message.
+Why: The chain couples the controller to the internal shape of `User`, `Account`, and
+`Subscription`; any of those changing breaks the controller. Moving the behavior onto the view model
+leaves the controller sending one message.
 
 ### Step-down rule: one abstraction level per method
 
@@ -305,7 +341,9 @@ class OrderProcessor {
 }
 ```
 
-Why: The reader skims `process` for intent, then descends only as needed. Networking and encoding move behind injected `OrderAPI`/`PricingCalculator`, and silent `try?` is replaced by propagated `throws`.
+Why: The reader skims `process` for intent, then descends only as needed. Networking and encoding
+move behind injected `OrderAPI`/`PricingCalculator`, and silent `try?` is replaced by propagated
+`throws`.
 
 ### Error handling: explicit failures over silent nil
 
@@ -340,7 +378,8 @@ func fetchUser(_ id: String) async throws -> User {
 }
 ```
 
-Why: Typed cases let callers distinguish "not found" from "bad payload" and respond appropriately instead of guessing from a bare `nil`.
+Why: Typed cases let callers distinguish "not found" from "bad payload" and respond appropriately
+instead of guessing from a bare `nil`.
 
 ### Principles at a glance (quick reference)
 
@@ -367,7 +406,8 @@ When writing Swift:
 When reviewing Swift:
 
 1. Read changed files top to bottom for intent before judging details.
-2. Confirm correctness first: if tests pass and behavior is right, cap severity at MEDIUM (verification-first).
+2. Confirm correctness first: if tests pass and behavior is right, cap severity at MEDIUM
+   (verification-first).
 3. Flag the Swift smells in the Anti-Patterns list, each with file:line.
 4. For every flag, give bad -> why -> corrected with the matching principle named.
 5. Separate must-fix design defects from optional polish; do not gold-plate.

@@ -16,8 +16,8 @@ These checks run against this repository itself.
 CI (`.github/workflows/lint.yml`) runs seven of them on every push and pull request:
 `rumdl fmt --check .`, `rumdl check . --extend-disable MD013`, `node hooks/test-hooks.js`, both
 framework-leak checks, and both refine-round format checks. It skips
-`bash hooks/test-claude-scripts.sh`, so only the local hook enforces that suite. `.githooks/pre-push`
-runs all of them except the last four. See "Git hooks" below.
+`bash hooks/test-claude-scripts.sh`, so only the local hook enforces that suite.
+`.githooks/pre-push` runs all of them except the last four. See "Git hooks" below.
 
 ```bash
 rumdl fmt --check .                                          # what CI runs; ./lint.sh formats in place
@@ -153,7 +153,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Product strategy | `/competitive-analysis`, `/product-research`, `/product-roadmap`, `/product-brief`, `/ab-test-design` | `product-manager` agent |
 | Generate ideas | `/idea-wizard`, `/business-ideas` | `idea-wizard`, `business-ideas` |
 | Record a decision | `/adr` | `architecture-decision-record` |
-| Audit UX | `/ux-review`, `/ux-review-ios` | `ux-product-designer` agents |
+| Audit UX | `/ux-review`, `/ux-review-ios` | `ux-product-designer` agent |
 | Audit an App Store listing | `/aso-review` | `aso-review` |
 | Map product surfaces to docs | `/product-surface-docs` | `product-cartographer` agent |
 | Build a project dashboard | `/roadmap-dashboard` | `roadmap-dashboard` |
@@ -249,7 +249,7 @@ two files, then tags and pushes main before the tag. Its bump rubric and stop co
 Read the last tag with `git tag --list 'v*' --sort=-v:refname`, because lexical order puts
 `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
-**Registered Skills** (47). One-line descriptions live in the `README.md` skills
+**Registered Skills** (46). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
@@ -260,17 +260,17 @@ reads when deciding what to invoke.
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `publish-plugin` `quality-gates` `reconcile-acceptance` `reconcile-quality-gates`
 `research-ingest` `research-synthesize` `review-fresh-eyes` `review-python` `review-rails`
-`roadmap-dashboard` `ship` `style-fizzy` `style-frontend` `style-go` `style-markdown`
+`roadmap-dashboard` `ship` `style-frontend` `style-go` `style-markdown`
 `style-python` `style-rails` `style-rspec` `style-swift` `style-testing` `terraform-iac-expert`
 `triage-beads` `ux-review` `ux-review-ios` `verify-acceptance` `write-plan`
 
-**Registered Agents** (15). Descriptions live in the `README.md` agents table and in
+**Registered Agents** (14). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.
 
 `acceptance-verifier` `bulk-reader` `claude-md-reviewer` `code-reviewer` `diagnostician`
 `feature-planner` `product-analyst`
 `product-cartographer` `product-manager` `project-manager` `quality-gates-orchestrator`
-`research-librarian` `software-engineer` `ux-product-designer` `ux-product-designer-ios`
+`research-librarian` `software-engineer` `ux-product-designer`
 
 **Registered Commands** (31). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
@@ -340,9 +340,9 @@ before you suggest a change.
 
 ### Architecture Decision Records
 
-`docs/adr/` holds them and `/adr` writes them. It was named docs/decisions until 2026-08-28, and
-that directory is gone. It moved so that `mattpocock-skills:domain-modeling`, which writes ADRs
-to `docs/adr/` and cannot be told otherwise, lands them where everything here reads. Three rules
+`docs/adr/` holds them and `/adr` writes them. `mattpocock-skills:domain-modeling` writes
+ADRs to `docs/adr/` and cannot be told otherwise, so this is the one directory everything here
+reads. Three rules
 keep the directory from becoming write-only.
 
 **Two skills write into it, in two formats.** `/adr` writes the structured template in
@@ -439,7 +439,8 @@ conflict on `.beads/issues.jsonl`, still runs `bd export` itself.
 ## Landing the Plane (Session Completion)
 
 Complete every step below before you end a work session. The work is not complete until
-`git push` succeeds.
+`git push` succeeds. This section is the repository's opt-in to the Team-maintainer profile in
+the Beads block below, so it outranks that block's Conservative default.
 
 1. **File issues for remaining work.** Use `bd create` for anything that needs follow-up.
 2. **Run the quality gates**, if the code changed. `/quality-gates` runs the tests, linters, type

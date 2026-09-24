@@ -8,11 +8,7 @@ Use the `code-reviewer` agent to perform a comprehensive code review.
 
 1. Identifies all changed files (git diff against main)
 2. Detects the language/framework of each file
-3. Loads the appropriate review skill:
-   - Python -> `review-python`
-   - Ruby/Rails -> `review-rails`
-   - Swift/iOS -> `style-swift`
-   - Terraform -> `terraform-iac-expert`
+3. Loads the review skill for each language, per the table in `agents/code-reviewer.md`
 4. Produces a consolidated review report with severity, location, and fixes
 
 **Usage:**
@@ -25,4 +21,5 @@ Use the `code-reviewer` agent to perform a comprehensive code review.
 /code-review app/models/user.rb src/auth.py
 ```
 
-If specific files are provided via arguments, review those files. Otherwise, review all changes on the current branch relative to main.
+If specific files are provided via arguments, review those files. Otherwise, review all changes on
+the current branch relative to main.

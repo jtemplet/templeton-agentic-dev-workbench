@@ -42,13 +42,13 @@ hook output string at **10,000 characters**. The cap applies to plain stdout and
 `hookSpecificOutput.additionalContext` alike, so no output format avoids it. Anything longer
 is written to a file and replaced with a short preview plus that path.
 
-The combined payload is 13,857 characters (style core 4,780, response style 9,077), over the
+The combined payload is 13,847 characters (style core 4,725, response style 9,122), over the
 cap. Under a single entry the session received the first ~2,000 characters and a file path. The
 coding core arrived truncated after principle 4, and **the response style never arrived at all**.
 
 That failure was invisible from inside a session, and this is the part worth remembering. The
 style core's marker is the payload's first line, inside the surviving preview, so a session
-looked correctly loaded. The response style's marker sits at byte 4,780, past the preview cut
+looked correctly loaded. The response style's marker sits at byte 4,725, past the preview cut
 and inside the discarded remainder. The one signal designed to prove the injection worked was
 the one signal the truncation could not reach.
 
@@ -58,8 +58,8 @@ manifest entries that differ only in a payload index:
 
 | Entry | Payload | Characters |
 |---|---|---|
-| 0 | Coding-style core | 4,780 |
-| 1 | Response style | 9,077 |
+| 0 | Coding-style core | 4,725 |
+| 1 | Response style | 9,122 |
 
 `getSessionStartPayloads()` in `hooks/preamble.js` decides the split at run time, cutting on
 line boundaries and naming the resumed section in each continuation marker. Nothing is

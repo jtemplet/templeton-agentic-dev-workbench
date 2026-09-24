@@ -123,7 +123,7 @@ satisfied.
 git fetch origin main --quiet
 git log -1 --format=%H origin/main
 git show origin/main:path/to/file.py | sed -n '1,80p'
-grep -rn "<symbol>" --include=<ext> .
+git grep -n "<symbol>" origin/main -- '*.<ext>'
 ```
 
 For each load-bearing claim, record the evidence as a `path:line`, or as what you searched for and
@@ -192,6 +192,19 @@ Run `bead-audit`'s dimensions against your own draft before showing it to anyone
 
 A draft that fails any check gets rewritten, not annotated. Repeat until it passes. This is the one
 step that makes the skill's promise real: a bead this skill files passes the audit on day one.
+
+Then run the mechanical check on the drafted description, saved to a file. A non-zero exit is
+a failed self-audit.
+
+<!-- plugin-root-fallback -->
+**The command below finds its plugin script when `CLAUDE_PLUGIN_ROOT` is unset.** The `find`
+fallback searches the installed plugin cache. Claude Code uses the loaded plugin root first.
+
+```bash
+python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
+  -path '*/skills/bead-audit/scripts/check_bead_body.py' -print -quit 2>/dev/null)" \
+  <description-file>
+```
 
 If a gap survives the rewrite because only the author can close it, mark it
 `[AUTHOR TO COMPLETE: <what is needed>]`, and **do not file the bead**. The placeholder is the
@@ -370,22 +383,4 @@ Claim it with: bd update <id> --claim
 
 ## Quality Checklist
 
-Before reporting completion, verify:
-
-- [ ] The tracker was reachable and its native-field support was determined
-- [ ] A duplicate search ran before drafting, and any near-match was presented to the author
-- [ ] Every current-state claim in the Why is grounded against `origin/main`, with evidence and a
-  sha
-- [ ] The type is declared and every section that type requires is present and substantive
 - [ ] Done when and Acceptance Criteria sit at different altitudes; neither restates the other
-- [ ] The size estimate names files, LOC, and a band, and a Stretch band carries its justification
-- [ ] The title names exactly one work unit
-- [ ] The draft was self-audited against `bead-audit` and passes on content, structure, and size
-- [ ] No `[AUTHOR TO COMPLETE]` placeholder reached the tracker
-- [ ] The author confirmed before anything was written, or had already authorized it and the report
-  says so
-- [ ] `design`, `notes`, and `acceptance_criteria` were verified populated with `bd show`
-- [ ] A category label is set, reused from the existing label set, and any need for a person is
-  stated in the body
-- [ ] Parent and dependency edges the author confirmed are wired
-- [ ] `bd export -o .beads/issues.jsonl` ran, and was reported only if it failed

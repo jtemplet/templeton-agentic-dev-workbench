@@ -61,7 +61,7 @@ Drop `--bead "$BEAD_ID"` when the caller named none.
 |---|---|---|
 | 0 | Findings on stdout, as one JSON object | Continue to Step 2 |
 | 1 | Nothing was fixed. The last stdout line is `RECONCILE_QUALITY_GATES_BLOCKED <reason>` | Print that line and stop. See the reasons table below |
-| 2 | A usage error: a blank `--head`, a blank `--bead`, a `--report` naming no file, or an unreadable `--dirty-files` | Fix the argument and run it again. This is the caller's own mistake, not a report problem |
+| 2 | A usage error: a blank `--head`, a blank `--bead`, or an unreadable `--dirty-files` | Fix the argument and run it again. This is the caller's own mistake, not a report problem |
 | 3 | The verdict is already PASS or NO GATES RAN | Print `RECONCILE_QUALITY_GATES_DONE 0` and stop. Nothing to fix |
 
 The JSON object on exit 0 holds five keys. `in_scope` lists the findings to fix, each carrying its

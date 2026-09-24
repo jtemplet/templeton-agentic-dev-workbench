@@ -11,7 +11,7 @@ mechanics live in the matching delta skill; the idiom map in the appendix shows 
 is spelled in the common frameworks.
 
 This is the *testing* core. It is a sibling of `hooks/style-core.md`, which is the *production
-code* core (TRUE code plus nine design principles) and is injected separately each session. Apply
+code* core (TRUE code plus its design principles) and is injected separately each session. Apply
 both; neither restates the other.
 
 ## When to Use / When NOT to Use

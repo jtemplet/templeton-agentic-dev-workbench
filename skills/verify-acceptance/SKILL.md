@@ -269,9 +269,8 @@ whenever the model yields rather than when the work ends, so it cannot tell an i
 a finished one any other way. The marker stays in place while the file is absent, and the run is
 abandoned after six hours rather than labeled early.
 
-**Do not run `bd update --add-label accepted` yourself.** The hook applies it from this file. A run
-that both writes the artifact and applies the label is doing the same job twice, and the second way
-is the one that was landing 5 verdicts in 15.
+**Do not run `bd update --add-label accepted` yourself.** The hook applies it from this file, and a
+run that also applies the label does the same job twice.
 
 **This skill still closes no bead and changes no bead status.** Closing is a separate decision,
 taken after this report.

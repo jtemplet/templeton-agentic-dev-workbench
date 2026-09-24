@@ -59,8 +59,9 @@ carries the validity that decides how much the claim is worth.
 
 ### Step 3: Weigh each claim
 
-A claim's weight comes from the source page that carries it, through two frontmatter fields that
-`research-ingest` writes: `validity` and `verification`.
+A claim's weight comes from the source page that carries it, through two frontmatter fields:
+`validity`, which `research-ingest` writes, and `verification`, which records a web check for
+retractions and replications and is absent on any source nobody has checked.
 
 Start from `validity`:
 
@@ -81,9 +82,9 @@ retractions and replications:
 | `unverified` | Drop one step, so Strong becomes Moderate and Moderate becomes Weak. |
 | Field absent | Treat it as `unverified`, and say so on the page. |
 
-A source page is missing the `verification` field when it was ingested before the wiki started
-recording verification. Dropping its weight one step is deliberate: an unchecked source and a
-checked one must not read the same to a future reader.
+A source page without a `verification` field has not been checked against the web. Dropping its
+weight one step is deliberate: an unchecked source and a checked one must not read the same to a
+future reader.
 
 **Never raise a weight above what the fields say.** A claim that matches your expectation is not
 better evidence for matching it.

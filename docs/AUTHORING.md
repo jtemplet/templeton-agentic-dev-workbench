@@ -7,8 +7,10 @@ The anatomy of each component type and the templates for writing a new one.
 
 This repository follows the Claude Code plugin architecture with three main directories:
 
-- **`agents/`** - Custom agent definitions that can be invoked via the Task tool or manually followed
-- **`commands/`** - Slash commands (e.g., `/rails-code-review`) that provide quick access to workflows
+- **`agents/`** - Custom agent definitions that can be invoked via the Task tool or manually
+  followed
+- **`commands/`** - Slash commands (e.g., `/rails-code-review`) that provide quick access to
+  workflows
 - **`skills/`** - Reusable skill modules that encode best practices and systematic techniques
 
 ## Component Relationships
@@ -112,12 +114,13 @@ tools: ["Read", "Bash", "Grep", "Glob", "Skill"]
 
 ## Critical Rules
 
-[Always/Never lists]
-
-## Quality Checklist
-
-[Pre-completion verification]
+[Always/Never lists, each rule with its reason]
 ```
+
+Do not add a pre-completion "Quality Checklist" that restates the rules. Current models verify
+their own work unprompted, and an instruction to re-verify causes over-verification. A check
+belongs in the skill only when it is a real gate: a script, a test run, or an artifact that
+another step reads.
 
 ## Creating New Commands
 

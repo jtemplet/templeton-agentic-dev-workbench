@@ -6,8 +6,8 @@ file directly in a browser with no network access.
 
 ## Absolute Constraints
 
-- **One file.** All CSS in a single `<style>` tag in `<head>`; all JS in a single `<script>`
-  tag before `</body>`. No external `<link>`, `<script src>`, `@import`, or `url()` pointing off-file.
+- **One file.** All CSS in a single `<style>` tag in `<head>`; all JS in a single `<script>` tag
+  before `</body>`. No external `<link>`, `<script src>`, `@import`, or `url()` pointing off-file.
 - **No dependencies.** No Tailwind, Bootstrap, FontAwesome, Google Fonts, jQuery, D3, Chart.js,
   Mermaid, or SVG icon libraries. Diagrams are built from HTML elements styled with CSS.
 - **System fonts only.** Use a native stack:
@@ -123,10 +123,5 @@ determine gets a plain hyphen (`-`) placeholder, never a fabricated value.
 
 ## Self-Verification Before Delivery
 
-- Open the file mentally / structurally: confirm no `src=`, `href="http`, `@import`, or
-  `cdn` strings remain except in-page `#anchors`.
-- Confirm every colored status also carries a text label or glyph.
-- Confirm the completion percentage in the hero matches the rationale text and is not a bare
-  bead ratio (see `references/beads-extraction.md`).
-- Confirm every beads issue appears in exactly one Kanban column.
-- Confirm the file opens standalone (no console-visible network requests are required to render).
+Run the grep in SKILL.md step 7. The other constraints in this file are the spec; they need no
+separate pass.

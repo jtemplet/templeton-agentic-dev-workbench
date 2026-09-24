@@ -67,8 +67,8 @@ so a reader can see the routing was a decision rather than a default.
 
 Its counterweight: the probe addresses **this machine unless the caller names somewhere else**. With
 no URL given it probes `http://127.0.0.1:3000`, and it never infers a host from a config file, an
-environment variable, or a URL it found in the repository. A host that arrives by inference is a host
-nobody chose, and this gate sends DELETE.
+environment variable, or a URL it found in the repository. A host that arrives by inference is a
+host nobody chose, and this gate sends DELETE.
 
 A URL you supply is used as given, remote or not, because supplying it is you saying so. What the
 tooling guarantees instead of a refusal is that it cannot go unmentioned: the host rides the probe
@@ -418,9 +418,8 @@ A change can touch two surfaces. Grade each, and take the worst result. When two
 a row for this gate, they reduce per field, under "Reducing Two Change Coverage Rows" above. One row
 survives, and every case table both lanes produced is carried into it.
 
-The prompt-assets row is here because the table did not have it on first use, and this repository is
-one. A surface with no row does not mean the gate does not apply. It means the row is missing, so
-say so and grade what you can.
+A surface with no row in this table still gets graded: say the row is missing, and grade what you
+can.
 
 **B. Enumerate the cases the change introduces.** Number them, because a case you did not list
 cannot be graded:
@@ -432,7 +431,8 @@ cannot be graded:
 
 **C. Find what exercises each case.** Two rules, both required for CLI and API shapes:
 
-- **Unit.** Every case has a test that exercises it. Find it by symbol, run it by name, keep the output.
+- **Unit.** Every case has a test that exercises it. Find it by symbol, run it by name, keep the
+  output.
 - **End to end.** Every surface the change touches has at least one test that drives it through the
   real entry point. A test that imports the handler and calls it directly is a unit test wherever it
   lives, and does not satisfy this.
@@ -489,7 +489,8 @@ tell you that.
 **E. Stay proportionate.** The span is a map of what matters, not a demand for the cross-product.
 This gate fails work that is untested, not work that is tested less than exhaustively.
 
-- Cover each class once. Do not ask for combinations of classes without a reason to expect they interact.
+- Cover each class once. Do not ask for combinations of classes without a reason to expect they
+  interact.
 - Do not ask for a test of a branch unreachable through the public interface.
 - Do not ask for tests of code this change did not touch.
 - Do not ask for a case that an existing test already covers at another level. Say which test, and
@@ -543,11 +544,10 @@ typo in one breaks that command and prints no error, so the paths that fail most
 ones the gate never opened. A `references/` file under a skill stays out: it is prose the skill
 quotes, not a path a command depends on.
 
-**Why a script and not a method.** This gate was three prose steps until it met a real repository.
-Told to extract "tokens that look like a path", the first run reported **194 missing paths, none of
-them real**: slash commands, `<name>` placeholders, and a worked example in this file's own text. A
-gate that cries wolf gets ignored, and the real miss gets ignored with it. The script encodes the
-three rules that cut those 194 to zero, and `test_check_doc_paths.py` pins each one.
+**Why a script and not a method.** Extracting "tokens that look like a path" by hand flags slash
+commands, `<name>` placeholders, and worked examples as missing paths. A gate that cries wolf gets
+ignored, and the real miss gets ignored with it. The script encodes the rules that exclude them, and
+`test_check_doc_paths.py` pins each one.
 
 Map its exit status like this, and note that it differs from every other gate:
 
@@ -587,10 +587,8 @@ one base while this gate counted markers against another, and the report would s
 | 1 | **WARN**, with the reported markers |
 | 2 | BLOCKED. A missing, empty, or unresolvable `--base`, a root that is not a git repository, or a diff it could not parse |
 
-**Exit 0 at zero markers is the rule the script exists to hold.** The recipe it replaces piped
-`git diff` into `grep -c`, which exits 1 when it counts zero. That line needed a `|| true` to stop
-the cleanest possible result from reading as BLOCKED, and retyping it without one reports a broken
-toolchain where the truth was good news.
+**Exit 0 at zero markers is a PASS.** Do not substitute `git diff | grep -c`: it exits 1 on a count
+of zero, which reads the cleanest result as BLOCKED.
 
 `git diff` never sees an untracked file, so a new file's markers stay invisible here until it is
 added. Say so rather than reporting zero as clean when Step 2's changed set holds untracked files.
@@ -611,8 +609,8 @@ surface changed".
 
 This is the gate that sends real requests. Every other gate reads code or counts things.
 
-**A. Write the probe spec.** Author it from Step 3's endpoints, one probe per endpoint the diff changed,
-and write it beside the report artifact inside the git directory:
+**A. Write the probe spec.** Author it from Step 3's endpoints, one probe per endpoint the diff
+changed, and write it beside the report artifact inside the git directory:
 
 ```bash
 git rev-parse --git-dir    # then write <git-dir>/quality-gates-probe.json
@@ -693,8 +691,8 @@ quotes them in its error. Report what it says rather than guessing why the serve
 
 **The host defaults to this machine, and only the caller changes it.** Omitting `base_url` probes
 `http://127.0.0.1:3000`. Never fill it in from a URL you found in `AGENTS.md`, a `.env` file, a
-compose file, or a deploy config: those name hosts other people share, and this gate sends POST, PUT,
-PATCH, and DELETE. Use what the caller asked for, or the default.
+compose file, or a deploy config: those name hosts other people share, and this gate sends POST,
+PUT, PATCH, and DELETE. Use what the caller asked for, or the default.
 
 **When the caller does name a remote host, say so three times.** The script warns on stderr, marks
 the summary line `(NOT this machine)`, and you put the host in the report's probe section. A reader
@@ -891,10 +889,10 @@ Seven rules the consumer depends on:
   describes a method rather than naming a command, so its `command` is `null` and the description
   moves into `detail`. A gate that never ran is `null` too. An invented command is worse than an
   absent one.
-- **`routing` carries one key per surface Step 3 found,** with the method and owner verbatim from the
-  router's output. A consumer reads it to know whether a live check happened at all, which `verdict`
-  alone does not say: a PASS over a diff whose only surface was a handoff means much less than a PASS
-  over a probed one. Write `{}` when the changed set had no surface.
+- **`routing` carries one key per surface Step 3 found,** with the method and owner verbatim from
+  the router's output. A consumer reads it to know whether a live check happened at all, which
+  `verdict` alone does not say: a PASS over a diff whose only surface was a handoff means much less
+  than a PASS over a probed one. Write `{}` when the changed set had no surface.
 - **`base` is the ref and SHA the one Step 2 run printed.** `changed_files` comes from that run's
   saved file, so the two describe the same changed set. A SHA re-derived here could name a base
   that no gate used.
@@ -1100,7 +1098,8 @@ Before reporting completion, verify:
 - [ ] Every row traces to one owner in Step 4's table
 - [ ] No two rows share a name, and a gate with several rows names each `<Gate>: <qualifier>`
 - [ ] Exactly one Change coverage row survives, and its counts and its case table cover every numbered case
-- [ ] If lanes ran, every one of them returned, and its rows are in the report
+- [ ] If lanes ran, every returned lane's rows are in the report, and a lane that did not return is
+      a BLOCKED row
 - [ ] Every non-SKIP row carries its exact command and a real count
 - [ ] Every routed surface is accounted for: probed, graded, or on its own HANDOFF row
 - [ ] Every case the change introduces appears in the coverage table

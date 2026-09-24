@@ -5,7 +5,9 @@ description: "Comprehensive App Store Optimization audit across 10 weighted fact
 
 # ASO Audit
 
-Conduct an App Store Optimization health audit for an iOS or Google Play app. Score 10 ranking factors on a 0-10 scale, calculate a weighted ASO Score (0-100), and produce a prioritized action plan grouped by effort.
+Conduct an App Store Optimization health audit for an iOS or Google Play app. Score 10 ranking
+factors on a 0-10 scale, calculate a weighted ASO Score (0-100), and produce a prioritized action
+plan grouped by effort.
 
 ## When to Use
 
@@ -28,20 +30,28 @@ Conduct an App Store Optimization health audit for an iOS or Google Play app. Sc
    - Ask for the target country (default: US)
    - Ask for the platform: iOS, Android, or Both
 2. **Collect data**
-   - If an ASO data source is connected (e.g., Appeeky MCP, App Store Connect, Sensor Tower), fetch: app metadata (title, subtitle, description, screenshots, ratings), current keyword rankings, top 3-5 category competitors, category chart position, and review sentiment
-   - If no data source is available, ask the user to paste their current metadata and provide competitor app names
-3. **Score the 10 ranking factors** using the framework below. Each factor gets a 0-10 score with a one-line justification.
-4. **Calculate the ASO Score**
-   - `score = (sum(weight_i * factor_score_i) / sum(weight_i)) * 10`
-   - Use only the weights applicable to the platform being audited (skip Subtitle and Keyword Field for Android)
+   - If an ASO data source is connected (e.g., Appeeky MCP, App Store Connect, Sensor Tower), fetch:
+     app metadata (title, subtitle, description, screenshots, ratings), current keyword rankings,
+     top 3-5 category competitors, category chart position, and review sentiment
+   - If no data source is available, ask the user to paste their current metadata and provide
+     competitor app names
+3. **Score the 10 ranking factors** using the framework below. Each factor gets a 0-10 score with a
+   one-line justification.
+4. **Calculate the ASO Score** with code, not by hand: run a short `python3 -c` over the factor
+   scores and the platform's weights from the table below (skip Subtitle and Keyword Field for
+   Android), computing `sum(w*s)/sum(w)*10`. Report the inputs and the result.
 5. **Compare against competitors** on title, subtitle, screenshots, ratings, and category position
-6. **Produce a prioritized action plan**, grouped into Quick Wins (today), High-Impact Changes (this week), and Strategic Recommendations (this month)
+6. **Produce a prioritized action plan**, grouped into Quick Wins (today), High-Impact Changes (this
+   week), and Strategic Recommendations (this month)
 7. **Render the report** using the Output Format below
-8. **Write the report to disk** at `docs/aso-audits/<YYYY-MM-DD>-<app-slug>.md` (matching the `docs/ux-audits/` convention). Use kebab-case for `<app-slug>` (e.g., `atlas-body`). Create the `docs/aso-audits/` directory if it does not exist.
+8. **Write the report to disk** at `docs/aso-audits/<YYYY-MM-DD>-<app-slug>.md` (matching the
+   `docs/ux-audits/` convention). Use kebab-case for `<app-slug>` (e.g., `atlas-body`). Create the
+   `docs/aso-audits/` directory if it does not exist.
 
 ## Audit Framework
 
-Weights below are the relative importance of each factor. Apply only the rows applicable to the target platform; the score is normalized so weights need not sum to 100.
+Weights below are the relative importance of each factor. Apply only the rows applicable to the
+target platform; the score is normalized so weights need not sum to 100.
 
 | # | Factor | iOS Weight | Android Weight |
 |---|---|---|---|
@@ -61,7 +71,7 @@ Weights below are the relative importance of each factor. Apply only the rows ap
 | Check | What to look for |
 |---|---|
 | Keyword presence | Contains the #1 target keyword? |
-| Character usage | Close to 30 chars (iOS) / 50 chars (Google Play)? |
+| Character usage | Close to the 30-character limit (both stores)? |
 | Brand vs keyword balance | Is the brand name necessary, or wasting space? |
 | Readability | Reads naturally, not keyword-stuffed? |
 | Uniqueness | Distinct from competitors? |
@@ -215,8 +225,11 @@ Weights below are the relative importance of each factor. Apply only the rows ap
 ## Key Principles
 
 - **Score honestly**: a 5/10 with clear reasoning is more useful than an inflated 8/10
-- **Prioritize by impact, not effort**: quick wins come first only when they meaningfully move the score
+- **Prioritize by impact, not effort**: quick wins come first only when they meaningfully move the
+  score
 - **Justify every score**: one line per factor explaining the rating, so the user can act on it
-- **Platform-aware**: never penalize an Android app for lacking a subtitle, or an iOS app for keyword density patterns specific to Google Play
-- **Cite the data**: when scoring, reference the actual metadata or competitor evidence, not generic guidance
+- **Platform-aware**: never penalize an Android app for lacking a subtitle, or an iOS app for
+  keyword density patterns specific to Google Play
+- **Cite the data**: when scoring, reference the actual metadata or competitor evidence, not generic
+  guidance
 - **Recommend specifics**: say "change subtitle from X to Y" instead of "improve subtitle"

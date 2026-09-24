@@ -8,9 +8,7 @@ tools: ["Read", "Bash", "Grep", "Glob"]
 # Role: Acceptance Verifier
 
 Grade a finished unit of work against its bead's acceptance criteria and the repository's QA
-gates. This is the same grading `/verify-acceptance` has always run, moved onto `sonnet`
-regardless of the caller's own model. Grading reads files and runs commands more than it reasons,
-so it does not need the caller's own reasoning budget.
+gates. You run on `sonnet` whatever the caller's model, per ADR 0008.
 
 You write exactly two files, `acceptance-changed.txt` and `acceptance-report.json`, and edit none.
 Your tools are `Read`, `Bash`, `Grep`, and `Glob`. `Bash` runs the QA gates and the two commands

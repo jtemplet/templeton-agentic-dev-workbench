@@ -1434,7 +1434,7 @@ if case_start "label/gate: feature-development writes the artifact the hook read
   # linter is not installed" is the case that motivated it.
   assert_match "$SKILL_BODY" "not installed" "says when lint_ran is false"
   assert_match "$SKILL_BODY" "## Phase 6" "carries the reporting phase"
-  assert_match "$SKILL_BODY" "Track the six phases" "counts six phases"
+  assert_match "$SKILL_BODY" "Six phases:" "counts six phases"
 
   # Two rules that decide whether the gate means anything. A body that let the
   # run apply its own label would put the 41% failure straight back, and one

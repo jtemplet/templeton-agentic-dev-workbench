@@ -5,9 +5,15 @@ description: Writes and reviews Python in the house style. Use when writing, edi
 
 # Templeton Python Style
 
-This skill writes and reviews Python domain and application logic in the house style. It carries only the Python-specific deltas on top of the universal TRUE-code core that is injected separately into every session; it does not restate that core. Use it whenever Python style decisions are in play.
+This skill writes and reviews Python domain and application logic in the house style. It carries
+only the Python-specific deltas on top of the universal TRUE-code core that is injected separately
+into every session; it does not restate that core. Use it whenever Python style decisions are in
+play.
 
-It carries only what a linter cannot decide. Rules ruff enforces on every project live in the boreas baseline (`linting/python/ruff.toml`), not here: lazy logging, modern type-hint syntax, mutable default arguments, and bare or blind `except`. Prose that repeats an enforced rule is read by a human who was going to be told by the linter anyway, and it goes stale the moment the rule changes.
+It carries only what a linter cannot decide. Rules ruff enforces on every project live in the boreas
+baseline (`linting/python/ruff.toml`), not here: lazy logging, modern type-hint syntax, mutable
+default arguments, and bare or blind `except`. Prose that repeats an enforced rule is read by a
+human who was going to be told by the linter anyway, and it goes stale the moment the rule changes.
 
 ## When to Use / When NOT to Use
 
@@ -20,18 +26,21 @@ Use this skill when:
 Do NOT use this skill when:
 
 - The file is not Python (use `style-frontend`, `style-swift`, or the Rails skills instead).
-- The code is a throwaway script, one-off REPL snippet, or scratch experiment where style is irrelevant.
+- The code is a throwaway script, one-off REPL snippet, or scratch experiment where style is
+  irrelevant.
 - You only need the universal principles; those are already injected and apply on their own.
 
 ## Universal Core (injected)
 
-The universal TRUE-code principles (Transparent, Reasonable, Usable, Exemplary) are injected via `hooks/style-core.md` and are assumed here; this skill does not repeat them. They are: wait for duplication before abstracting; small single-purpose units; simple interfaces (<=4 params, typed param objects); inject dependencies on interfaces; tell-don't-ask; compose over inherit; fail fast with explicit errors; read top-down (step-down rule); let names document. Default posture: correctness > speed, simplicity > cleverness, explicit > magic, start simple.
+The universal TRUE-code principles (Transparent, Reasonable, Usable, Exemplary) are injected via
+`hooks/style-core.md` and are assumed here; this skill does not repeat them.
 
 ## Python Principles
 
 These are the Python-specific deltas. Each pairs the rule with a concrete BAD -> why -> GOOD fix.
 
-1. Prefer modules before classes. Introduce a class only when state, polymorphism, or lifecycle management genuinely requires it; otherwise group plain functions in a module.
+1. Prefer modules before classes. Introduce a class only when state, polymorphism, or lifecycle
+   management genuinely requires it; otherwise group plain functions in a module.
 
    ```python
    # BAD: a stateless "service object" wrapping one method
@@ -46,7 +55,8 @@ These are the Python-specific deltas. Each pairs the rule with a concrete BAD ->
        return f"${amount:,.2f}"
    ```
 
-2. Use dataclasses, TypedDict, or NamedTuple for complex parameter groups. Bundle related data instead of passing long positional argument lists.
+2. Use dataclasses, TypedDict, or NamedTuple for complex parameter groups. Bundle related data
+   instead of passing long positional argument lists.
 
    ```python
    # BAD: 5 positional params, easy to transpose
@@ -68,7 +78,8 @@ These are the Python-specific deltas. Each pairs the rule with a concrete BAD ->
        ...
    ```
 
-3. Use protocols and type hints to express contracts without coupling. Depend on what an object can do, not on a concrete class.
+3. Use protocols and type hints to express contracts without coupling. Depend on what an object can
+   do, not on a concrete class.
 
    ```python
    # BAD: coupled to a concrete implementation
@@ -103,7 +114,8 @@ These are the Python-specific deltas. Each pairs the rule with a concrete BAD ->
        return ", ".join(items)
    ```
 
-5. Use context managers for resources. Acquire and release files, locks, and connections with `with`, never by hand.
+5. Use context managers for resources. Acquire and release files, locks, and connections with
+   `with`, never by hand.
 
    ```python
    # BAD: manual open/close leaks on exceptions
@@ -122,8 +134,10 @@ These are the Python-specific deltas. Each pairs the rule with a concrete BAD ->
 
 The top Python smells to flag in review, each as bad -> why -> fix. Ruff catches the rest.
 
-- Deep inheritance: 3+ level class trees -> fragile, hard to trace behavior -> compose or use a Protocol/mixin.
-- Premature abstraction: a base class or helper with one caller -> wrong abstraction is costlier than duplication -> wait for the third occurrence.
+- Deep inheritance: 3+ level class trees -> fragile, hard to trace behavior -> compose or use a
+  Protocol/mixin.
+- Premature abstraction: a base class or helper with one caller -> wrong abstraction is costlier
+  than duplication -> wait for the third occurrence.
 
 ## Worked Examples
 
@@ -144,7 +158,9 @@ if user.has_active_subscription():
     user.process_subscription_payment()
 ```
 
-Why: the "before" couples the caller to the internal structure of `Account` and `Subscription`, so any change to those classes breaks it. The "after" moves behavior to where the data lives and sends a message to `User` instead of reaching through it.
+Why: the "before" couples the caller to the internal structure of `Account` and `Subscription`, so
+any change to those classes breaks it. The "after" moves behavior to where the data lives and sends
+a message to `User` instead of reaching through it.
 
 ### Step Down Rule
 
@@ -186,7 +202,7 @@ class OrderProcessor:
 
         total = self._calculate_total(order)
         signature = self._sign_order(order)
-        return self._save_and_return(order, total, signature)
+        return self._save(order, total, signature)
 
     # next level: orchestration
     def _order_is_empty(self, order: Order) -> bool:
@@ -198,7 +214,7 @@ class OrderProcessor:
     def _sign_order(self, order: Order) -> str:
         return self._create_signature(str(order))
 
-    def _save_and_return(self, order: Order, total: decimal.Decimal, signature: str) -> OrderResult:
+    def _save(self, order: Order, total: decimal.Decimal, signature: str) -> OrderResult:
         return self._repository.save(order, total, signature)
 
     # low-level: implementation details at the bottom
@@ -206,15 +222,20 @@ class OrderProcessor:
         return hashlib.sha256(data.encode()).hexdigest()
 ```
 
-Why: the "after" reads top-to-bottom like a story. Business intent sits at the top, orchestration in the middle, implementation details at the bottom, and each method stays at one abstraction level. Dependencies are injected, so the processor is testable and swappable.
+Why: the "after" reads top-to-bottom like a story. Business intent sits at the top, orchestration in
+the middle, implementation details at the bottom, and each method stays at one abstraction level.
+Dependencies are injected, so the processor is testable and swappable.
 
 ## Review / Apply Workflow
 
 When writing Python:
 
-1. Start with a module of plain functions; introduce a class only when state, polymorphism, or lifecycle demands it.
-2. Bundle related parameters into a dataclass/TypedDict/NamedTuple once the group passes the simple-interface threshold.
-3. Express contracts with Protocols and type hints; inject concrete dependencies through `__init__` or parameters.
+1. Start with a module of plain functions; introduce a class only when state, polymorphism, or
+   lifecycle demands it.
+2. Bundle related parameters into a dataclass/TypedDict/NamedTuple once the group passes the
+   simple-interface threshold.
+3. Express contracts with Protocols and type hints; inject concrete dependencies through `__init__`
+   or parameters.
 4. Use context managers for every resource from the first draft.
 5. Order methods by the step-down rule so the unit reads top-down.
 
@@ -223,12 +244,14 @@ When reviewing Python:
 1. Scan for the top anti-patterns: deep inheritance and single-use abstractions.
 2. Flag deep attribute chaining (`a.b.c.d`) and suggest moving behavior to where the data lives.
 3. Check that contracts use Protocols rather than coupling to a concrete class.
-4. Report each finding with a `file:line` reference, a before/after pair, and the principle it violates.
+4. Report each finding with a `file:line` reference, a before/after pair, and the principle it
+   violates.
 5. When refactoring, state what flexibility is gained and what complexity (if any) is introduced.
 
 ## Quality Checklist
 
-- [ ] Class introduced only where state/polymorphism/lifecycle justifies it; otherwise a module of functions.
+- [ ] Class introduced only where state/polymorphism/lifecycle justifies it; otherwise a module of
+      functions.
 - [ ] Complex parameter groups use a dataclass, TypedDict, or NamedTuple.
 - [ ] Contracts expressed via Protocols/type hints; dependencies injected, not hardcoded.
 - [ ] Every resource is managed with a context manager.

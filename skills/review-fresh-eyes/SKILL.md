@@ -5,7 +5,8 @@ description: "Review recently changed code as if seeing it for the first time. A
 
 # Fresh Eyes Review
 
-A conservative bug-and-correctness pass over recently changed code. Reads full files (not just diffs) to spot issues the diff view hides, then fixes genuine bugs directly.
+A conservative bug-and-correctness pass over recently changed code. Reads full files (not just
+diffs) to spot issues the diff view hides, then fixes genuine bugs directly.
 
 ## When to Use / When NOT to Use
 
@@ -25,7 +26,11 @@ Do NOT use when:
 
 ## Universal Core (injected)
 
-The universal style core (`hooks/style-core.md`) defines how code should be written, but this skill deliberately does NOT enforce it. This is a conservative bug-and-correctness pass: it flags and fixes genuine bugs only, never style, formatting, naming, or design. Treat the core as the boundary marker here, not the checklist. If something is merely a style or design deviation rather than a defect, leave it alone.
+The universal style core (`hooks/style-core.md`) defines how code should be written, but this skill
+deliberately does NOT enforce it. This is a conservative bug-and-correctness pass: it flags and
+fixes genuine bugs only, never style, formatting, naming, or design. Treat the core as the boundary
+marker here, not the checklist. If something is merely a style or design deviation rather than a
+defect, leave it alone.
 
 ## Bug Categories
 
@@ -44,26 +49,26 @@ Look for these, in priority order:
 
 ### Step 1: Identify Changed Files
 
-Try these in order until you get results:
+Run the changed-set script `quality-gates` uses. It diffs the default base against the working
+tree and adds untracked files, so committed, staged, and unstaged work land in one list.
+
+<!-- plugin-root-fallback -->
+**The command below finds its plugin script when `CLAUDE_PLUGIN_ROOT` is unset.** The `find`
+fallback searches the installed plugin cache. Claude Code uses the loaded plugin root first.
 
 ```bash
-# Unstaged + staged changes
-git diff --name-only
-git diff --cached --name-only
+python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
+  -path '*/skills/quality-gates/scripts/changed_set.py' -print -quit 2>/dev/null)" --repo-root .
 ```
 
-If both are empty:
-
-```bash
-# Branch changes vs main
-git diff main...HEAD --name-only
-```
-
-If still empty, inform the user there are no changes to review.
+An empty list means nothing to review: say so and stop. On exit 3 (no resolvable base), use
+`git diff --name-only HEAD` plus `git ls-files --others --exclude-standard`.
 
 ### Step 2: Read Full Files
 
-For every changed file, read the **entire file**, not just the diff hunks. The `bulk-reader` route below is the one exception: it narrows which files you read, and it never replaces a read of a file you edit. You need surrounding context to spot issues like:
+For every changed file, read the **entire file**, not just the diff hunks. The `bulk-reader` route
+below is the one exception: it narrows which files you read, and it never replaces a read of a file
+you edit. You need surrounding context to spot issues like:
 
 - Variables used before being defined
 - Functions called with wrong arguments
@@ -80,7 +85,8 @@ changes the wrong line. Step 4 edits files, so read every file it touches.
 
 ### Step 3: Review for Issues
 
-Scan each file against the Bug Categories above, in priority order. Assign a severity label (see Severity Scale) to every issue you find.
+Scan each file against the Bug Categories above, in priority order. Assign a severity label (see
+Severity Scale) to every issue you find.
 
 ### Step 4: Fix Issues Directly
 
@@ -136,7 +142,8 @@ Label every reported issue with one of these levels:
 - **MEDIUM** - Bug that only triggers on an edge case.
 - **LOW** - Minor or cosmetic correctness nit.
 
-This skill fixes CRITICAL, HIGH, and MEDIUM bugs directly when the fix is unambiguous. Anything ambiguous is flagged for the user instead of guessed at.
+This skill fixes CRITICAL, HIGH, and MEDIUM bugs directly when the fix is unambiguous. Anything
+ambiguous is flagged for the user instead of guessed at.
 
 ## Critical Rules
 
@@ -155,7 +162,7 @@ This skill fixes CRITICAL, HIGH, and MEDIUM bugs directly when the fix is unambi
 - Refactor working code (you are looking for bugs, not improvements)
 - Guess at fixes for ambiguous issues (flag those for the user)
 - Edit a file from `bulk-reader`'s bullets; that agent orients, and its line numbers go stale
-- Skip files because they look fine from the diff (read the whole thing)
+- Judge a file from its diff alone; a file you review, you read in full
 - Make changes that alter behavior beyond fixing the bug
 
 ## Quality Checklist

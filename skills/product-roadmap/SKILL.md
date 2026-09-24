@@ -5,7 +5,9 @@ description: "Build a prioritized product roadmap with themes, capacity modeling
 
 # Product Roadmap
 
-Build a prioritized, time-horizoned product roadmap for a software product. The output is a strategic document that aligns engineering, design, and stakeholders on what to build and in what order.
+Build a prioritized, time-horizoned product roadmap for a software product. The output is a
+strategic document that aligns engineering, design, and stakeholders on what to build and in what
+order.
 
 ## When to Use
 
@@ -16,9 +18,11 @@ Build a prioritized, time-horizoned product roadmap for a software product. The 
 
 ## When NOT to Use
 
-- When you don't have enough input to prioritize (do `product-research` or `competitive-analysis` first)
+- When you don't have enough input to prioritize (do `product-research` or `competitive-analysis`
+  first)
 - For sprint-level task breakdown (use `plan-to-beads` for that)
-- When priorities are already decided and you just need to plan implementation (use `feature-planner`)
+- When priorities are already decided and you just need to plan implementation (use
+  `feature-planner`)
 
 ## Process
 
@@ -27,28 +31,34 @@ Build a prioritized, time-horizoned product roadmap for a software product. The 
 A roadmap synthesizes multiple inputs. Gather what's available:
 
 1. **Product research** - ranked opportunities, JTBD analysis (check `docs/product/research-*`)
-2. **Competitive analysis** - gaps, threats, positioning (check `docs/product/competitive-analysis-*`)
-3. **Product briefs** - already-scoped features waiting for prioritization (check `docs/product/brief-*`)
+2. **Competitive analysis** - gaps, threats, positioning (check
+   `docs/product/competitive-analysis-*`)
+3. **Product briefs** - already-scoped features waiting for prioritization (check
+   `docs/product/brief-*`)
 4. **Business goals** - revenue targets, growth goals, strategic bets
 5. **Technical constraints** - debt that blocks features, platform migrations, infrastructure needs
 6. **Existing commitments** - features already promised, partnerships, compliance deadlines
 7. **User feedback** - top requests, pain points, churn reasons
 8. **Experiment results** - what did recent A/B tests reveal? (check `docs/experiments/`)
 
-**Explicitly link inputs to outputs.** Every item on the roadmap should trace back to an input. If an item has no supporting input, flag it as opinion-driven and ask if that's intentional.
+**Explicitly link inputs to outputs.** Every item on the roadmap should trace back to an input. If
+an item has no supporting input, flag it as opinion-driven and ask if that's intentional.
 
 If critical inputs are missing, note them as assumptions and flag them.
 
 ### Step 2: Model Capacity
 
-Before prioritizing, understand what you can actually build. A roadmap that ignores capacity is fiction.
+Before prioritizing, understand what you can actually build. A roadmap that ignores capacity is
+fiction.
 
 **Capacity inputs:**
 
 - **Team size** - how many engineers, designers, and PMs are available?
 - **Effective weeks per cycle** - subtract holidays, on-call, maintenance, support burden
-- **Typical throughput** - how many S/M/L items did the team ship last cycle? (If unknown, estimate conservatively.)
-- **Fixed costs** - what % of capacity goes to maintenance, bugs, on-call, tech debt? (Typical: 20-30%)
+- **Typical throughput** - how many S/M/L items did the team ship last cycle? (If unknown, estimate
+  conservatively.)
+- **Fixed costs** - what % of capacity goes to maintenance, bugs, on-call, tech debt? (Typical:
+  20-30%)
 
 **Capacity model:**
 
@@ -56,9 +66,12 @@ Before prioritizing, understand what you can actually build. A roadmap that igno
 Available capacity = (team size) x (effective weeks) x (1 - fixed cost %)
 ```
 
-Express capacity in "engineering weeks" or a similar unit. Then sanity-check: does the roadmap fit within capacity? If not, cut scope (never extend timelines silently).
+Express capacity in "engineering weeks" or a similar unit. Then sanity-check: does the roadmap fit
+within capacity? If not, cut scope (never extend timelines silently).
 
-**If capacity is unknown:** Ask the user. If they can't provide it, make an explicit assumption ("Assuming a team of 3 engineers, 1 designer, with 70% available capacity after maintenance") and note that the roadmap must be re-evaluated if capacity differs.
+**If capacity is unknown:** Ask the user. If they can't provide it, make an explicit assumption
+("Assuming a team of 3 engineers, 1 designer, with 70% available capacity after maintenance") and
+note that the roadmap must be re-evaluated if capacity differs.
 
 ### Step 3: Define Themes
 
@@ -83,7 +96,8 @@ Each theme should answer: "If we invest here, what do we believe will happen?"
 | **Strategic bet** | New capability or market expansion | Step-change growth (if it works) | High (may fail, that's OK) |
 | **Exploration** | Validate an assumption before committing | Learning, not shipping | Highest (most will be killed) |
 
-A healthy roadmap has a mix. All table-stakes = no growth. All strategic bets = too risky. Typical distribution:
+A healthy roadmap has a mix. All table-stakes = no growth. All strategic bets = too risky. Typical
+distribution:
 
 - 40% table-stakes + optimization
 - 40% strategic bets
@@ -105,10 +119,11 @@ ICE Score = Impact x Confidence x Ease
 
 **Scoring discipline:**
 
-- Don't mix themes when ranking. A theme's internal priority is separate from how much capacity it gets.
-- Be honest about Confidence. If you haven't validated the assumption, Confidence is 3-5 at best.
+- Don't mix themes when ranking. A theme's internal priority is separate from how much capacity it
+  gets.
+- Rate Impact, Confidence, and Ease per item with one line of evidence each; rank by the product
+  only as a tiebreaker to your judgment, and prefer higher Confidence when scores are close.
 - Ease should account for hidden complexity (integrations, migrations, cross-platform).
-- If two items have similar ICE scores, prefer the one with higher Confidence (less risky).
 
 ### Step 5: Sequence into Time Horizons
 
@@ -123,20 +138,28 @@ Map features across three horizons:
 Sequencing rules:
 
 1. **Dependencies first.** If B requires A, A goes in an earlier horizon.
-2. **Quick wins early.** High-ICE, low-effort items go in "Now" to build momentum and validate themes.
-3. **De-risk big bets.** If a "Next" item is high-impact but low-confidence, put a validation step in "Now" (prototype, experiment, user test). Never commit to a large strategic bet without validation.
-4. **Don't overcommit "Now."** Teams ship 60-70% of what they plan. If capacity model says you can do 5 items, put 3-4 in "Now."
+2. **Quick wins early.** High-ICE, low-effort items go in "Now" to build momentum and validate
+   themes.
+3. **De-risk big bets.** If a "Next" item is high-impact but low-confidence, put a validation step
+   in "Now" (prototype, experiment, user test). Never commit to a large strategic bet without
+   validation.
+4. **Don't overcommit "Now."** Teams ship 60-70% of what they plan. If capacity model says you can
+   do 5 items, put 3-4 in "Now."
 5. **"Later" is a parking lot, not a promise.** Items here will be re-evaluated next cycle.
-6. **Exploration items go in "Now" or not at all.** Exploration is about learning quickly; deferring exploration defeats its purpose.
+6. **Exploration items go in "Now" or not at all.** Exploration is about learning quickly; deferring
+   exploration defeats its purpose.
 
-**Capacity check:** After sequencing, verify that "Now" fits within available capacity. If it doesn't, move items to "Next" (don't just assume the team will work faster).
+**Capacity check:** After sequencing, verify that "Now" fits within available capacity. If it
+doesn't, move items to "Next" (don't just assume the team will work faster).
 
 ### Step 6: Identify Dependencies and Risks
 
 For each "Now" and "Next" item:
 
-- **Dependencies** - what must happen first? (other features, infrastructure, design, data pipeline, external partner)
-- **Risks** - what could derail this? (technical uncertainty, resource constraints, changing requirements, external dependency)
+- **Dependencies** - what must happen first? (other features, infrastructure, design, data pipeline,
+  external partner)
+- **Risks** - what could derail this? (technical uncertainty, resource constraints, changing
+  requirements, external dependency)
 - **Mitigation** - how will you manage the risk?
 - **Confidence level** - how likely is this to ship on time? (High/Medium/Low)
 
@@ -153,18 +176,22 @@ Equally important: what are you explicitly choosing not to build this cycle, and
 For each deferred item, state:
 
 - **What** was requested or considered
-- **Why not now** (low impact, low confidence, wrong timing, doesn't fit themes, insufficient capacity)
+- **Why not now** (low impact, low confidence, wrong timing, doesn't fit themes, insufficient
+  capacity)
 - **What would change this** (what signal or condition would move this to "Now" in a future cycle)
 
-This prevents scope creep and gives the team permission to say no to requests that don't fit the roadmap.
+This prevents scope creep and gives the team permission to say no to requests that don't fit the
+roadmap.
 
 ### Step 8: Define Success Criteria and Review Cadence
 
 A roadmap without accountability is a wish list. Define:
 
 1. **Per-theme success metrics** with targets and baselines
-2. **Review cadence** - when will you revisit this roadmap? (Recommend: lightweight check every 2 weeks, full re-evaluation every 6-8 weeks)
-3. **Kill criteria** - what would cause you to abandon a theme mid-cycle? (e.g., "If Activation experiments show <2% lift after 3 tests, pivot capacity to Retention")
+2. **Review cadence** - when will you revisit this roadmap? (Recommend: lightweight check every 2
+   weeks, full re-evaluation every 6-8 weeks)
+3. **Kill criteria** - what would cause you to abandon a theme mid-cycle? (e.g., "If Activation
+   experiments show <2% lift after 3 tests, pivot capacity to Retention")
 
 ### Step 9: Save the Document
 
@@ -276,12 +303,21 @@ At the end of this cycle, we'll evaluate:
 
 ## Key Principles
 
-- **Themes over features.** A roadmap without themes is just a prioritized backlog. Themes communicate strategy; features are tactics.
-- **Capacity is real.** A roadmap that ignores capacity is a wish list. Model it explicitly. When in doubt, under-commit.
-- **Classify your bets.** Table-stakes execution, optimization, strategic bets, and exploration all have different risk profiles and success criteria. A roadmap that's all one type is imbalanced.
-- **Horizons, not dates.** "Now/Next/Later" communicates commitment level without false precision. Dates create expectations; horizons create alignment.
-- **Dependencies drive sequencing.** The optimal build order isn't highest-priority-first; it's the order that unblocks the most work.
-- **"Not doing" is a feature.** Explicitly listing what you won't build prevents drift and gives the team confidence to push back on ad-hoc requests.
-- **Trace to inputs.** Every roadmap item should connect to evidence (research, competitive gap, user signal). If it can't, it's opinion, and that's worth flagging.
-- **Living document.** A roadmap is a snapshot of current thinking. Re-evaluate at each review cadence. Items in "Later" are hypotheses, not promises.
-- **Kill criteria up front.** Deciding when to abandon a bet is easier before you're emotionally invested. Set thresholds early.
+- **Themes over features.** A roadmap without themes is just a prioritized backlog. Themes
+  communicate strategy; features are tactics.
+- **Capacity is real.** A roadmap that ignores capacity is a wish list. Model it explicitly. When in
+  doubt, under-commit.
+- **Classify your bets.** Table-stakes execution, optimization, strategic bets, and exploration all
+  have different risk profiles and success criteria. A roadmap that's all one type is imbalanced.
+- **Horizons, not dates.** "Now/Next/Later" communicates commitment level without false precision.
+  Dates create expectations; horizons create alignment.
+- **Dependencies drive sequencing.** The optimal build order isn't highest-priority-first; it's the
+  order that unblocks the most work.
+- **"Not doing" is a feature.** Explicitly listing what you won't build prevents drift and gives the
+  team confidence to push back on ad-hoc requests.
+- **Trace to inputs.** Every roadmap item should connect to evidence (research, competitive gap,
+  user signal). If it can't, it's opinion, and that's worth flagging.
+- **Living document.** A roadmap is a snapshot of current thinking. Re-evaluate at each review
+  cadence. Items in "Later" are hypotheses, not promises.
+- **Kill criteria up front.** Deciding when to abandon a bet is easier before you're emotionally
+  invested. Set thresholds early.

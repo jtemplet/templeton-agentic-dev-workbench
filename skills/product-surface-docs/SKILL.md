@@ -297,7 +297,7 @@ for whole-backlog work. Do not run one inline pass per finding. Check every draf
 `bead-audit` before you create it, and never create a bead that fails its own audit. Write the
 created bead's identifier into the ledger row's Bead column.
 
-### Reconciling on a refresh (four outcomes, not two)
+### Reconciling on a refresh (four outcomes)
 
 On a refresh, give every finding exactly one outcome. `references/refresh-workflow.md` covers
 each in detail.

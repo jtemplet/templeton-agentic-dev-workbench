@@ -74,5 +74,5 @@ resolve is BLOCKED, and never widens to `--all`. Pass a bead id to record it in 
 The gate is proportionate by design. It asks for one test per span class, never their cross-product,
 and never for defensive code around a failure that cannot happen.
 
-`/verify-acceptance` runs the four gates that can invalidate an acceptance claim, and points here
-for the rest.
+`/verify-acceptance` runs the three gates that can invalidate an acceptance claim (tests, lint,
+type checking), and points here for the rest.

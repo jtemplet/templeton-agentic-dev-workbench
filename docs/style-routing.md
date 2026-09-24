@@ -25,7 +25,7 @@ Skill tool.
 | Extension | Style skill |
 |---|---|
 | `.py` | `style-python` |
-| `.rb`, `.erb`, `.rake` | `style-rails`, or `style-fizzy` in the Fizzy codebase |
+| `.rb`, `.erb`, `.rake` | `style-rails` |
 | `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | `style-frontend` |
 | `.swift` | `style-swift` |
 | `.go` | `style-go` |
@@ -45,9 +45,9 @@ Load these in addition to the extension match, when they apply.
 - **`style-rspec`** on top of `style-testing`, only when the suite is RSpec.
 - **A project-local style skill**, when one exists and covers what you are about to write. This is
   the difference between correct-for-the-language and correct-for-this-repo. Check the available
-  skill list for one naming this project or this surface, and load it. `style-fizzy` for the Fizzy
-  codebase and `jbuilder-style` for Loan Labs factory API views are examples of the kind. When a
-  local skill contradicts the general language skill, the local skill wins.
+  skill list for one naming this project or this surface, and load it. `jbuilder-style` for Loan
+  Labs factory API views is an example of the kind. When a local skill contradicts the general
+  language skill, the local skill wins.
 
 ## When Markdown is the deliverable
 

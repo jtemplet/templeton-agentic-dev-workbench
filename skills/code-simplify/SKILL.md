@@ -5,7 +5,9 @@ description: Simplify and refine code for clarity, consistency, and maintainabil
 
 # Code Simplification
 
-A systematic technique for improving code clarity and maintainability without changing behavior. The skill is language-agnostic at the workflow level and delegates to language-specific style skills for the actual rules.
+A systematic technique for improving code clarity and maintainability without changing behavior. The
+skill is language-agnostic at the workflow level and delegates to language-specific style skills for
+the actual rules.
 
 ## When to Use
 
@@ -17,7 +19,8 @@ A systematic technique for improving code clarity and maintainability without ch
 ## When NOT to Use
 
 - On code that is broken or failing tests (fix first, then simplify)
-- On legacy code that is working but ugly, unless explicitly asked (the bar for changing working code is high)
+- On legacy code that is working but ugly, unless explicitly asked (the bar for changing working
+  code is high)
 - On code that you do not own or that has no tests (you cannot verify behavior is preserved)
 
 ## Required Workflow
@@ -40,9 +43,13 @@ If the user specifies a path, use that instead. Never simplify the entire codeba
 that owns its rules, and names what stacks on top for test files and project-local surfaces. Read
 it, then load every skill it matches with the Skill tool.
 
-The style skill owns the language-specific rules. This skill owns the simplification *process*. Do not restate language rules here.
+The style skill owns the language-specific rules. This skill owns the simplification *process*. Do
+not restate language rules here.
 
-For a Markdown deliverable, behavior preservation means the document still gives the same instruction. There is no test to run, so the check is a reading: every rule, path, command, and number that survived the edit must still be true, and nothing the document told the reader to do may have quietly changed.
+For a Markdown deliverable, behavior preservation means the document still gives the same
+instruction. There is no test to run, so the check is a reading: every rule, path, command, and
+number that survived the edit must still be true, and nothing the document told the reader to do may
+have quietly changed.
 
 ### Step 3: Analyze for Opportunities
 
@@ -105,36 +112,11 @@ Output a structured summary:
 
 ## Universal Core (injected)
 
-The universal coding-style core (`hooks/style-core.md`) is injected into every session and
-subagent. It already defines TRUE code and the cross-language principles this skill leans on:
-wait for duplication before abstracting, keep units small, tell-don't-ask, compose over
-inherit, and let names do the documenting. Assume those; do not restate them. The deltas below
-are the ones that bear most directly on a *simplification* pass; the loaded language style
-skill owns the per-language rules.
-
-## Simplification Deltas
-
-These sharpen the injected core for the specific act of simplifying existing code:
-
-### Reduce nesting
-
-Replace deep nesting with guard clauses or early returns. Flat code is easier to scan than pyramids.
-
-### Wait for the third occurrence
-
-Do not abstract on the second duplication. Two similar pieces of code are an observation; three are a pattern. (Sandi Metz rule.)
-
-### Make names earn their length
-
-Long, descriptive names beat short cryptic ones. But unused length is just noise.
-
-### Tell, don't ask
-
-Avoid deep attribute chaining (`a.b.c.d`). If you find yourself reaching through multiple layers, the design is leaking.
-
-### Prefer composition over inheritance
-
-Shallow inheritance (1-2 levels max). Deep hierarchies are a maintenance trap.
+The universal coding-style core (`hooks/style-core.md`) is injected into every session and subagent.
+It already defines TRUE code and the cross-language principles this skill leans on: wait for
+duplication before abstracting, keep units small, tell-don't-ask, compose over inherit, and let
+names do the documenting. Assume those; do not restate them. The loaded language style skill owns
+the per-language rules.
 
 ## What NOT to Simplify
 
@@ -143,8 +125,10 @@ These are anti-patterns disguised as simplification:
 - **Nested ternaries**: `a ? (b ? c : d) : e` is not clever, it is hostile.
 - **Dense one-liners**: a line you cannot read at a glance is not simpler than three you can.
 - **Premature abstractions**: a base class for two uses is technical debt.
-- **Removing helpful comments**: architecture decisions, complex algorithms, and "why this and not that" notes earn their place.
-- **Combining unrelated concerns**: reducing line count by jamming things together is not simplification.
+- **Removing helpful comments**: architecture decisions, complex algorithms, and "why this and not
+  that" notes earn their place.
+- **Combining unrelated concerns**: reducing line count by jamming things together is not
+  simplification.
 
 ## Critical Rules
 
@@ -166,13 +150,5 @@ These are anti-patterns disguised as simplification:
 
 ## Quality Checklist
 
-Before declaring the simplification complete:
-
-- [ ] All tests pass (if tests exist)
-- [ ] Functionality is preserved
-- [ ] Code is more readable than before
-- [ ] Language-specific style skill was loaded and applied
-- [ ] No premature abstractions introduced
-- [ ] Variable/method names are clear
-- [ ] Nesting is reduced where appropriate
-- [ ] Comments explain "why" not "what"
+- [ ] The tests covering the changed code ran after the last edit and pass, or the report says
+  none exist

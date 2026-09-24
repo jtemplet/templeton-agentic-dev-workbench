@@ -7,7 +7,7 @@ description: Ingest a new source document into the Research wiki. Reads the sour
 
 A systematic technique for adding a new source to a Research wiki. Reads the source, evaluates
 methodological rigor, discusses with the user, creates structured wiki pages with calibrated
-validity context, cross-references aggressively, and updates the index and log.
+validity context, cross-references it to related pages, and updates the index and log.
 
 Follows the
 [Karpathy LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f):
@@ -367,8 +367,8 @@ Obsidian resolves a `[[wikilink]]` written with any listed alias to this page, s
 stops a second page for the same idea. Leave the list empty only when the name has exactly one
 form, and say so in the page's Overview section.
 
-**Cross-reference aggressively.** Every wiki page should link to related pages using
-`[[wikilinks]]`. Also link to relevant notes elsewhere in the vault when connections exist.
+**Cross-reference related pages.** Link each page to every wiki page it discusses or depends on
+using `[[wikilinks]]`, and to notes elsewhere in the vault when a real connection exists.
 
 **Create a Map of Content page once a theme reaches eight pages.** A Map of Content page, written
 MOC, is a hub page that lists every page on one theme, so the reader has one place to start

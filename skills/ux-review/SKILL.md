@@ -5,7 +5,8 @@ description: Conduct a comprehensive UX review of a running web app via Playwrig
 
 # UX Audit (Web)
 
-A systematic technique for evaluating a running web app across seven UX dimensions. Produces a severity-ranked report with screenshot evidence and concrete recommendations.
+A systematic technique for evaluating a running web app across seven UX dimensions. Produces a
+severity-ranked report with screenshot evidence and concrete recommendations.
 
 ## Core Evaluation Dimensions
 
@@ -31,18 +32,26 @@ Every audit assesses all seven dimensions. Skipping any produces an incomplete a
    - Target user (who they are, what they know, what they need)
    - Primary workflows / jobs-to-be-done
    - Any stated design principles or brand values
-3. If neither file exists or context is too thin to evaluate against, **stop and ask the user** for: product purpose, primary user, and the top 1 to 3 workflows to evaluate. Do not proceed in a vacuum.
-4. Form a **design hypothesis**: given this user and this goal, what should the ideal experience feel like? Fast and confident? Calm and guided? Playful and exploratory? This hypothesis frames every finding below.
+3. If neither file exists or context is too thin to evaluate against, **stop and ask the user** for:
+   product purpose, primary user, and the top 1 to 3 workflows to evaluate. Do not proceed in a
+   vacuum.
+4. Form a **design hypothesis**: given this user and this goal, what should the ideal experience
+   feel like? Fast and confident? Calm and guided? Playful and exploratory? This hypothesis frames
+   every finding below.
 
 ### Step 1: Parse Input
 
-`$ARGUMENTS` should contain the app URL. If missing, ask for it. Optionally accept extra hints (credentials, specific flows to focus on, known pain points).
+`$ARGUMENTS` should contain the app URL. If missing, ask for it. Optionally accept extra hints
+(credentials, specific flows to focus on, known pain points).
 
-Create the output directory: `docs/ux-audits/`. Determine an audit slug: `<YYYY-MM-DD>-<app-host-or-name>`. Screenshots will live under `docs/ux-audits/<slug>/screenshots/`.
+Create the output directory: `docs/ux-audits/`. Determine an audit slug:
+`<YYYY-MM-DD>-<app-host-or-name>`. Screenshots will live under `docs/ux-audits/<slug>/screenshots/`.
 
 ### Step 2: Explore the App (via Playwright)
 
-Use the Playwright MCP tools to systematically walk the experience. Snapshots (`browser_snapshot`) are for understanding the DOM and accessibility tree. Screenshots (`browser_take_screenshot`) are evidence for the report.
+Use the Playwright MCP tools to systematically walk the experience. Snapshots (`browser_snapshot`)
+are for understanding the DOM and accessibility tree. Screenshots (`browser_take_screenshot`) are
+evidence for the report.
 
 ## 2a. First impression (5-second test)
 
@@ -60,7 +69,8 @@ Walk the primary workflow from AGENTS.md end-to-end:
 
 1. Identify the entry point
 2. At each step, take a snapshot (for navigation) and a screenshot (for evidence)
-3. Note: time-to-action (how many clicks/steps to reach the goal), clarity of progress, confidence level at each step
+3. Note: time-to-action (how many clicks/steps to reach the goal), clarity of progress, confidence
+   level at each step
 4. Complete the flow successfully at least once
 
 ## 2c. Edge cases and error states
@@ -118,15 +128,19 @@ Capture `browser_console_messages` and `browser_network_requests`. Flag:
 - Mixed content warnings
 - Performance-related signals (very slow requests)
 
-Save all screenshots into `docs/ux-audits/<slug>/screenshots/` with descriptive, numbered filenames (e.g., `01-landing-desktop.png`, `02-signup-form.png`, `03-validation-error.png`, `04-landing-tablet.png`).
+Save all screenshots into `docs/ux-audits/<slug>/screenshots/` with descriptive, numbered filenames
+(e.g., `01-landing-desktop.png`, `02-signup-form.png`, `03-validation-error.png`,
+`04-landing-tablet.png`).
 
-Keep a running log of (screenshot filename, what it shows, which flow step, which viewport). You will cite these in the report.
+Keep a running log of (screenshot filename, what it shows, which flow step, which viewport). You
+will cite these in the report.
 
 When all exploration is complete, call `browser_close`.
 
 ### Step 3: Evaluate Against All Seven Dimensions
 
-For each dimension, evaluate every screen and flow you explored. This is the analytical core of the audit.
+For each dimension, evaluate every screen and flow you explored. This is the analytical core of the
+audit.
 
 ## Dimension 1: Accessibility & Inclusivity
 
@@ -140,9 +154,11 @@ For each dimension, evaluate every screen and flow you explored. This is the ana
 
 ## Dimension 2: Design System Coherence
 
-- Typography: how many distinct font sizes, weights, and families? Is there a clear scale (e.g., 12/14/16/20/24/32)?
+- Typography: how many distinct font sizes, weights, and families? Is there a clear scale (e.g.,
+  12/14/16/20/24/32)?
 - Spacing: consistent rhythm or ad-hoc padding/margins?
-- Color: intentional palette or drift? Do colors carry consistent meaning (primary, destructive, muted)?
+- Color: intentional palette or drift? Do colors carry consistent meaning (primary, destructive,
+  muted)?
 - Components: are similar elements (buttons, cards, inputs) rendered consistently across screens?
 - Iconography: consistent style, size, and meaning?
 - Overall: would a designer say this comes from one coherent system, or several stitched together?
@@ -158,7 +174,8 @@ For each dimension, evaluate every screen and flow you explored. This is the ana
 ## Dimension 4: Interaction Design
 
 - Feedback: does every user action produce a clear response? (Click, submit, toggle, delete)
-- State communication: can you always tell what state the system is in? (Loading, empty, error, success)
+- State communication: can you always tell what state the system is in? (Loading, empty, error,
+  success)
 - Transitions: do they serve a purpose (orienting, connecting, confirming) or are they decorative?
 - Error recovery: when something goes wrong, is the path back obvious and short?
 - Undo/reversibility: can destructive actions be undone or at least confirmed?
@@ -170,7 +187,8 @@ For each dimension, evaluate every screen and flow you explored. This is the ana
 - Labels: specific action verbs ("Save draft" vs. "Submit") or vague ("OK", "Continue")?
 - Error messages: do they explain what happened, why, and how to fix it?
 - Empty states: helpful guidance or dead ends?
-- Tone: consistent with brand? Appropriate to the moment? (Error messages shouldn't be playful if the user might lose data.)
+- Tone: consistent with brand? Appropriate to the moment? (Error messages shouldn't be playful if
+  the user might lose data.)
 - Jargon: does copy assume knowledge the target user may not have?
 - Scannability: can users get the gist without reading every word?
 
@@ -180,8 +198,10 @@ For each dimension, evaluate every screen and flow you explored. This is the ana
 - Critical moments: during payment, data entry, account creation, is there adequate reassurance?
 - Delight: are there small moments of polish that signal craft? (But not at the cost of usability.)
 - Trust signals: social proof, security indicators, clear privacy communication where expected
-- Dark patterns: forced continuity, confirmshaming, hidden costs, trick questions, roach motels, misdirection, bait-and-switch. Flag ANY instance of these.
-- Brand personality: does the experience feel like it was made by people who care, or assembled from templates?
+- Dark patterns: forced continuity, confirmshaming, hidden costs, trick questions, roach motels,
+  misdirection, bait-and-switch. Flag every instance.
+- Brand personality: does the experience feel like it was made by people who care, or assembled from
+  templates?
 
 ## Dimension 7: Cognitive Load & Clarity
 
@@ -197,7 +217,8 @@ This remains the most important dimension. Every screen gets this assessment:
 
 ### Step 4: Write the Report
 
-Save to `docs/ux-audits/<slug>.md`. Reference screenshots with relative paths (e.g., `![Landing](./<slug>/screenshots/01-landing-desktop.png)`).
+Save to `docs/ux-audits/<slug>.md`. Reference screenshots with relative paths (e.g.,
+`![Landing](./<slug>/screenshots/01-landing-desktop.png)`).
 
 ```markdown
 # UX Audit: <App Name>
@@ -341,7 +362,7 @@ Report the file path back to the user.
 
 - Read AGENTS.md before evaluating. Context is non-negotiable.
 - Form a design hypothesis before evaluating. Without one, findings lack a frame.
-- Evaluate all seven dimensions explicitly. Partial audits are rejected.
+- Evaluate all seven dimensions explicitly.
 - Tie every finding back to a user goal from AGENTS.md.
 - Cite screenshots as evidence for every issue.
 - Prefer subtraction over addition in recommendations.
@@ -362,29 +383,5 @@ Report the file path back to the user.
 - Skip the accessibility assessment. It is the second most important section.
 - Fabricate findings. Every issue needs a screenshot or interaction trace.
 - Praise things that are merely adequate. Reserve positive callouts for genuinely exceptional craft.
-- Ignore dark patterns. If you see confirmshaming, hidden costs, forced continuity, or trick questions, flag them as Critical regardless of visual polish.
-
-## Quality Checklist
-
-Before delivering:
-
-- [ ] AGENTS.md (or fallback context) was read and summarized in section 1
-- [ ] Design hypothesis formed and stated
-- [ ] Five-second test performed and documented
-- [ ] Primary workflow walked end-to-end
-- [ ] At least one form exercised (empty submit, invalid input, valid input)
-- [ ] Error states and empty states exercised
-- [ ] At least one alternate path explored
-- [ ] Keyboard accessibility pass completed (Tab through primary flow)
-- [ ] Heading hierarchy and form labels checked via snapshot
-- [ ] Three viewports tested (desktop, tablet, mobile)
-- [ ] Console errors and network failures checked
-- [ ] Screenshots saved under `docs/ux-audits/<slug>/screenshots/`
-- [ ] Every issue in section 3 cites a screenshot and names a dimension
-- [ ] All seven dimension scorecards completed
-- [ ] Clutter and cognitive load deep-dive completed (not skipped, not hand-waved)
-- [ ] Accessibility summary completed with pass/fail per criterion
-- [ ] Dark pattern check explicitly performed and documented
-- [ ] Recommendations are concrete, typed, and effort-rated
-- [ ] Quick Wins are genuinely low-effort and developer-actionable
-- [ ] Browser closed
+- Ignore dark patterns. If you see confirmshaming, hidden costs, forced continuity, or trick
+  questions, flag them as Critical regardless of visual polish.

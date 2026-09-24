@@ -5,7 +5,9 @@ description: "Synthesize user signals by segment, size opportunities using JTBD 
 
 # Product Research
 
-Synthesize available signals (user feedback, analytics, market data, support tickets) into ranked product opportunities. Uses Jobs-to-Be-Done framing and opportunity scoring to produce a prioritized list of what to build next, segmented by user type.
+Synthesize available signals (user feedback, analytics, market data, support tickets) into ranked
+product opportunities. Uses Jobs-to-Be-Done framing and opportunity scoring to produce a prioritized
+list of what to build next, segmented by user type.
 
 ## When to Use
 
@@ -17,14 +19,16 @@ Synthesize available signals (user feedback, analytics, market data, support tic
 ## When NOT to Use
 
 - When priorities are already decided and you just need to execute
-- When you have zero user signal (no feedback, no analytics, no support data); you need inputs to synthesize
+- When you have zero user signal (no feedback, no analytics, no support data); you need inputs to
+  synthesize
 - For quick feature validation (use `ab-test-design` instead)
 
 ## Process
 
 ### Step 1: Define User Segments
 
-Before gathering signals, establish who you're researching for. Different segments have different jobs.
+Before gathering signals, establish who you're researching for. Different segments have different
+jobs.
 
 Identify 2-4 distinct user segments based on:
 
@@ -40,11 +44,13 @@ Identify 2-4 distinct user segments based on:
 - **Size estimate** - % of user base (if knowable)
 - **Strategic importance** - why this segment matters (revenue, growth, retention)
 
-This segmentation informs everything downstream: different segments may have different jobs, different satisfaction levels, and different priorities.
+This segmentation informs everything downstream: different segments may have different jobs,
+different satisfaction levels, and different priorities.
 
 ### Step 2: Gather Signals
 
-Collect inputs from every available source. Don't skip sources because they seem minor; weak signals compound.
+Collect inputs from every available source. Don't skip sources because they seem minor; weak signals
+compound.
 
 **Internal sources (check the codebase and docs):**
 
@@ -65,7 +71,8 @@ Collect inputs from every available source. Don't skip sources because they seem
 - Social media mentions, Twitter/X discussions
 - Hacker News threads about the category
 
-**Cross-reference:** Check `docs/product/` for prior competitive analysis. Gaps found there are signal.
+**Cross-reference:** Check `docs/product/` for prior competitive analysis. Gaps found there are
+signal.
 
 For each signal, note:
 
@@ -91,29 +98,36 @@ Not all signals are equal. Weight evidence by reliability:
 | Stakeholder opinions without data | Low | Capture but label explicitly as opinion |
 | Your own intuition | Label only | Note it honestly, but don't weight it as evidence |
 
-When scoring opportunities later, note the evidence quality supporting each job. An opportunity with high evidence quality and medium importance may warrant action before an opportunity with low evidence quality and high importance.
+When scoring opportunities later, note the evidence quality supporting each job. An opportunity with
+high evidence quality and medium importance may warrant action before an opportunity with low
+evidence quality and high importance.
 
 ### Step 4: Identify Jobs-to-Be-Done
 
-Group signals into Jobs-to-Be-Done (JTBD). A job is progress a user is trying to make in a specific circumstance.
+Group signals into Jobs-to-Be-Done (JTBD). A job is progress a user is trying to make in a specific
+circumstance.
 
 **Job format:** "When [situation], I want to [motivation], so I can [expected outcome]."
 
 Examples:
 
 - "When I'm commuting, I want to review my daily tasks, so I can arrive at work ready to start."
-- "When I receive a payment, I want to immediately see it in my dashboard, so I can confirm the transaction went through."
+- "When I receive a payment, I want to immediately see it in my dashboard, so I can confirm the
+  transaction went through."
 
 **Also identify Anti-Jobs** (things users are trying to avoid):
 
-**Anti-job format:** "When [situation], I want to avoid [negative outcome], so I don't [consequence]."
+**Anti-job format:** "When [situation], I want to avoid [negative outcome], so I don't
+[consequence]."
 
 Examples:
 
-- "When I'm setting up the app, I want to avoid entering redundant information, so I don't abandon onboarding."
+- "When I'm setting up the app, I want to avoid entering redundant information, so I don't abandon
+  onboarding."
 - "When I'm in a meeting, I want to avoid notification noise, so I don't lose focus."
 
-Anti-jobs often reveal opportunities that pure "what do users want?" thinking misses. Removing friction is often higher-leverage than adding features.
+Anti-jobs often reveal opportunities that pure "what do users want?" thinking misses. Removing
+friction is often higher-leverage than adding features.
 
 For each job (and anti-job), assess:
 
@@ -137,9 +151,11 @@ Opportunity Score = Importance + max(Importance - Satisfaction, 0)
 - Score 12-15: Worth investigating
 - Score < 12: Adequately served or low importance
 
-**Adjusted scoring:** When evidence quality is Low, discount the score by 20-30% (note the adjustment). High-confidence opportunities should rank above same-score low-confidence ones.
+**Adjusted scoring:** When evidence quality is Low, rank the job below every same-score job with
+higher evidence, and say so.
 
-Rank all jobs by opportunity score. The highest-scoring jobs represent the biggest gaps between what users need and what they currently have.
+Rank all jobs by opportunity score. The highest-scoring jobs represent the biggest gaps between what
+users need and what they currently have.
 
 ### Step 6: Size the Opportunities
 
@@ -148,7 +164,8 @@ For the top 5-7 opportunities, estimate:
 1. **Addressable users** - what % of your user base has this job? (Segment-specific.)
 2. **Impact if solved** - what metric would improve? By roughly how much?
 3. **Build cost** - rough effort to address this job (S/M/L)
-4. **Competitive pressure** - are competitors solving this already? (From competitive analysis if available.)
+4. **Competitive pressure** - are competitors solving this already? (From competitive analysis if
+   available.)
 5. **Evidence confidence** - how confident are you in the scoring? (High/Medium/Low)
 
 Produce an opportunity ranking:
@@ -166,7 +183,8 @@ For the top 3-5 opportunities, generate 1-2 concrete feature concepts per job:
 - **How it addresses the job** - connect it back to the JTBD
 - **Target segment** - which segment benefits most
 - **Key assumption** - what must be true for this to work? (this becomes your experiment hypothesis)
-- **Validation approach** - how would you test this before building the full thing? (prototype, fake door test, Wizard of Oz, survey, A/B test)
+- **Validation approach** - how would you test this before building the full thing? (prototype, fake
+  door test, Wizard of Oz, survey, A/B test)
 - **Risk** - what could go wrong?
 
 ### Step 8: Save the Document
@@ -290,12 +308,21 @@ Write to `docs/product/research-<topic-slug>-<date>.md` (create directory if nee
 
 ## Key Principles
 
-- **Segment before synthesizing.** "Users want X" is almost always wrong; specific users in specific contexts want X. Unsegmented research produces features that delight no one fully.
-- **Jobs, not features.** Think about what users are trying to accomplish, not what buttons to add. Features are hypotheses about how to serve jobs.
-- **Anti-jobs are underrated.** Removing friction is often higher-leverage than adding capabilities. Users switching FROM something tells you as much as users asking FOR something.
-- **Frequency x severity = urgency.** A daily annoyance matters more than a rare catastrophe, and a rare catastrophe matters more than a daily non-issue.
-- **Satisfaction is relative.** A job that's 8/10 important but 7/10 satisfied is low opportunity. A job that's 6/10 important but 2/10 satisfied is high opportunity.
-- **Weight your evidence.** 5 vocal Slack users are not the same as 2000 app store reviews showing a pattern. Make evidence quality explicit in your scoring.
-- **Inputs over opinions.** If you catch yourself generating "insights" without citing evidence, stop. That's opinion dressed as research.
-- **Validation before commitment.** The output of research is hypotheses to test, not features to build. The cheapest way to learn is rarely "build the whole thing."
-- **Acknowledge gaps.** If you have weak signal in an area, say so. Manufactured confidence is worse than honest uncertainty.
+- **Segment before synthesizing.** "Users want X" is almost always wrong; specific users in specific
+  contexts want X. Unsegmented research produces features that delight no one fully.
+- **Jobs, not features.** Think about what users are trying to accomplish, not what buttons to add.
+  Features are hypotheses about how to serve jobs.
+- **Anti-jobs are underrated.** Removing friction is often higher-leverage than adding capabilities.
+  Users switching FROM something tells you as much as users asking FOR something.
+- **Frequency x severity = urgency.** A daily annoyance matters more than a rare catastrophe, and a
+  rare catastrophe matters more than a daily non-issue.
+- **Satisfaction is relative.** A job that's 8/10 important but 7/10 satisfied is low opportunity. A
+  job that's 6/10 important but 2/10 satisfied is high opportunity.
+- **Weight your evidence.** 5 vocal Slack users are not the same as 2000 app store reviews showing a
+  pattern. Make evidence quality explicit in your scoring.
+- **Inputs over opinions.** If you catch yourself generating "insights" without citing evidence,
+  stop. That's opinion dressed as research.
+- **Validation before commitment.** The output of research is hypotheses to test, not features to
+  build. The cheapest way to learn is rarely "build the whole thing."
+- **Acknowledge gaps.** If you have weak signal in an area, say so. Manufactured confidence is worse
+  than honest uncertainty.

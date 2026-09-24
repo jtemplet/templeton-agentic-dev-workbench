@@ -6,10 +6,11 @@ description: "Land a reviewed bead's feature branch on main locally: rebase onto
 # Ship
 
 Lands an accepted bead's feature branch on main and closes the bead. There is no pull request and no
-GitHub CI. **The repository's own check suite, run on the exact tree that lands, is the whole gate.**
+GitHub CI.
+**The repository's own check suite, run on the exact tree that lands, is the whole gate.**
 
-Use it when a bead passed `/quality-gates` and `/verify-acceptance`, or when an orchestrator needs an
-unattended ship step. Do not use it when the repository merges through pull requests, when the
+Use it when a bead passed `/quality-gates` and `/verify-acceptance`, or when an orchestrator needs
+an unattended ship step. Do not use it when the repository merges through pull requests, when the
 work is not graded yet, when you want a readiness report instead of an action, or when the branch
 carries two beads.
 
@@ -19,8 +20,8 @@ Four rules govern every step:
    run. "No check command found" is not evidence that the code is good.
 2. **Every stop names the state on disk and the next human action.** Never leave a rebase in
    progress, and never force-push main.
-3. **Tracker tooling merges `.beads/issues.jsonl`.** A hand edit writes a state the database does not
-   hold, and the next export reverts it.
+3. **Tracker tooling merges `.beads/issues.jsonl`.** A hand edit writes a state the database does
+   not hold, and the next export reverts it.
 4. **Report, never ask.** A question inside an orchestrator hangs the loop.
 
 ## Invocation
@@ -42,9 +43,8 @@ Work the six steps in order. On a stop, go straight to Step 6 and report.
 **Steps 1, 2, and 5 call a plugin script.** Each command below finds it when `CLAUDE_PLUGIN_ROOT`
 is unset; the `find` fallback searches the installed plugin cache, and Claude Code uses the loaded
 plugin root first. All four scripts share one exit-code contract: **0 is the clean answer, 1 is a
-condition the report must name, and 2 is operator error, which stops the run with `internal`.** Each
-one holds a mechanism this file used to spend a paragraph guarding, so run it rather than rebuilding
-what it does.
+condition the report must name, and 2 is operator error, which stops the run with `internal`.**
+Run each script rather than rebuilding what it does.
 
 ### Step 1: Resolve the ground and the bead
 
@@ -88,9 +88,9 @@ still runs. Say "bead-free" in the report header and again in the summary, and n
 causes applied.
 
 **In a linked worktree, confirm the database.** `is_linked_worktree` says whether this is one. `bd`
-finds one database per repository through `git_common_dir`, so a worktree shares the main checkout's.
-If `bd where` names a database under `repo_root` instead, stop with `tracker`; closing a bead in a
-throwaway database leaves the real one open.
+finds one database per repository through `git_common_dir`, so a worktree shares the main
+checkout's. If `bd where` names a database under `repo_root` instead, stop with `tracker`; closing a
+bead in a throwaway database leaves the real one open.
 
 ### Step 2: Bring the branch current
 
@@ -167,8 +167,8 @@ Detect the gate command in this order, stop at the first source that yields one,
 source; the report names it.
 
 1. **`TADW_SHIP_CHECK`**, run verbatim through the shell.
-2. **What `AGENTS.md` or `CLAUDE.md` declares**: a "Commands for This Repo" section, a check list, or
-   a named check script. Every command in a declared list must exit 0.
+2. **What `AGENTS.md` or `CLAUDE.md` declares**: a "Commands for This Repo" section, a check list,
+   or a named check script. Every command in a declared list must exit 0.
 3. **A `check` target in a task runner**: `make check`, `just check`, a `check` task in
    `Taskfile.yml`, or a `check` script in `package.json`.
 4. **The stack's conventional test command**, detected by config file and never by binary:
@@ -187,15 +187,16 @@ timed out, exited 127, or could not find its runner, and print failing output tr
 lines.
 
 The branch stays rebased after a gate stop, and the report says so, because the fix then goes on top
-of a current branch. Never report the gate as "green", "clean", or "passing". Report the command, the
-exit code, and the numbers it printed.
+of a current branch. Never report the gate as "green", "clean", or "passing". Report the command,
+the exit code, and the numbers it printed.
 
 ### Step 4: Land
 
-**Get onto the default branch.** Then run **every command that acts on it, here and in Step 5, with
-`git -C <that-path>`**, because Step 5's `git reset --hard origin/main` resets the feature branch when
-it runs from that branch's worktree, and the feature branch holds the one copy of unlanded work.
-Step 1's `default_branch_worktree` names the path, or is `null` when no worktree holds it.
+**Get onto the default branch.** Then run
+**every command that acts on it, here and in Step 5, with `git -C <that-path>`**, because Step 5's
+`git reset --hard origin/main` resets the feature branch when it runs from that branch's worktree,
+and the feature branch holds the one copy of unlanded work. Step 1's `default_branch_worktree` names
+the path, or is `null` when no worktree holds it.
 
 | State | What to do |
 |---|---|
@@ -224,14 +225,14 @@ it. Record each hash and subject for the report, and **do not stop for them**: t
 operator's own finished commits on their own default branch, and any push of that branch was always
 going to publish them. When the range prints nothing, write no line and no "none" placeholder.
 
-**With no origin, run neither command.** `origin/main` does not resolve there, so `git log` exits 128
-with `fatal: ambiguous argument`, which an unattended run reads as a stop. Step 5 pushes nothing in
-that state, so the report line is omitted.
+**With no origin, run neither command.** `origin/main` does not resolve there, so `git log` exits
+128 with `fatal: ambiguous argument`, which an unattended run reads as a stop. Step 5 pushes nothing
+in that state, so the report line is omitted.
 
 **Check that the base has not moved** since Step 2. If `origin/main` is now ahead of the SHA you
-rebased onto, the gate result no longer describes what lands. Switch back to the feature branch, then
-re-run Steps 2 and 3 against the new base; re-running them from the default branch would rebase main
-onto itself. If the base moves a second time, stop with `git-state`.
+rebased onto, the gate result no longer describes what lands. Switch back to the feature branch,
+then re-run Steps 2 and 3 against the new base; re-running them from the default branch would rebase
+main onto itself. If the base moves a second time, stop with `git-state`.
 
 ```bash
 git merge --squash <branch>          # stages the whole diff; writes no commit
@@ -242,13 +243,14 @@ git status --porcelain               # staged entries, and no `U` path
 `Squash commit -- not updating HEAD`. The landing commit comes at the end of this step, once the
 tracker export has joined the same staged tree, so it is written once and its hash never moves.
 
-**Clear a squash merge with `git reset --hard HEAD`, never `git merge --abort`.** A squash records no
-`MERGE_HEAD`, so the abort exits 128 with `fatal: There is no merge to abort (MERGE_HEAD missing)`,
-after a clean squash and a conflicted one alike.
+**Clear a squash merge with `git reset --hard HEAD`, never `git merge --abort`.** A squash records
+no `MERGE_HEAD`, so the abort exits 128 with
+`fatal: There is no merge to abort (MERGE_HEAD missing)`, after a clean squash and a conflicted one
+alike.
 
 A conflict at `git merge --squash` means the base moved between the pull and the merge. Reset, and
-treat it as a moved base. Any other non-zero exit stops the run with `git-state`: reset, and say that
-you ran it.
+treat it as a moved base. Any other non-zero exit stops the run with `git-state`: reset, and say
+that you ran it.
 
 **Then close the bead and stage its export into that same tree.** Skip this block on a bead-free
 ship, and go straight to the commit:
@@ -261,8 +263,8 @@ git add .beads/                    # stage whatever that reported, not issues.js
 ```
 
 **`--suggest-next` prints the beads this close released from their blocker**, under a
-`Newly unblocked:` heading it prints only when the close released at least one. Each line carries the
-id, the title, and the priority. Keep that list; Step 6 puts it in the report.
+`Newly unblocked:` heading it prints only when the close released at least one. Each line carries
+the id, the title, and the priority. Keep that list; Step 6 puts it in the report.
 
 Stage the whole of `.beads/`, because a repository may also track `interactions.jsonl` and `bd`
 auto-stages only `export.path`. **An empty `git status --porcelain .beads/` is a normal outcome, not
@@ -319,10 +321,10 @@ commits Step 4 recorded are such commits, so they stop this reset too. When the 
 back to the feature branch and re-run Steps 2 through 5 once. If the second push is rejected too,
 stop with `git-state` and say what is on disk.
 
-**Then run `bd dolt push`**, unless the ship is bead-free. `git push` does not cover it: issue history
-travels under `refs/dolt/data`, and the committed export is no substitute, because JSONL import is
-upsert-only and cannot express a deletion. A failure here is a warning, not a stop, because running
-it again recovers. Name it in the report and carry on.
+**Then run `bd dolt push`**, unless the ship is bead-free. `git push` does not cover it: issue
+history travels under `refs/dolt/data`, and the committed export is no substitute, because JSONL
+import is upsert-only and cannot express a deletion. A failure here is a warning, not a stop,
+because running it again recovers. Name it in the report and carry on.
 
 **Then record what follows the shipped bead, before cleanup**, because removing a worktree can move
 the shell out of the repository and `bd` finds its database through the git common directory.
@@ -331,10 +333,10 @@ the shell out of the repository and `bd` finds its database through the git comm
 bd ready -n 1 --json
 ```
 
-Read the array it prints, never its exit code, which is 0 whether the array holds a bead or is empty.
-Keep that output verbatim: Step 6 pastes it into the form the Output format table below specifies,
-and derives nothing of its own. **This lookup never stops the run**, because it reads the tracker
-after the push, when the ship is already complete.
+Read the array it prints, never its exit code, which is 0 whether the array holds a bead or is
+empty. Keep that output verbatim: Step 6 pastes it into the form the Output format table below
+specifies, and derives nothing of its own. **This lookup never stops the run**, because it reads the
+tracker after the push, when the ship is already complete.
 
 **Then clean up.** Verify the content landed before you delete anything, with the same script
 Step 2 ran and the base this run rebased onto:
@@ -352,8 +354,8 @@ authored. Exit 1 lists the files that still differ, so keep the branch, say whic
 human decide. The check ignores `.beads/`, because Step 4's own commit rewrites the export on every
 ship that has a bead, and without that exclusion this check fires on every such ship.
 
-**When a worktree holds the branch, remove the worktree first**, because `git branch -D` refuses while
-one does. `worktrees` from Step 1 says which path holds it:
+**When a worktree holds the branch, remove the worktree first**, because `git branch -D` refuses
+while one does. `worktrees` from Step 1 says which path holds it:
 
 ```bash
 python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
@@ -372,20 +374,21 @@ git -C <main-checkout> branch -D <branch>
   goes quiet rather than failing, so nobody tells its owner. End it, or restart it somewhere that
   still exists.
 - **Report the occupants, then remove anyway.** `check_worktree_occupants.py` exits 0 when nobody
-  stands there; exit 1 lists each pid and its command, and that list goes in the report. Exit 2 means
-  it could not measure, which is not the same as nobody being there, so say that instead of claiming
-  the worktree was clear. **It kills nothing and removes nothing**, and neither do you: a live pid is
-  a warning, never a refusal, because the session it would refuse for is usually this run's caller.
+  stands there; exit 1 lists each pid and its command, and that list goes in the report. Exit 2
+  means it could not measure, which is not the same as nobody being there, so say that instead of
+  claiming the worktree was clear. **It kills nothing and removes nothing**, and neither do you: a
+  live pid is a warning, never a refusal, because the session it would refuse for is usually this
+  run's caller.
 - **Never remove the worktree holding the default branch.** Match on the branch you are shipping,
   never on position in `git worktree list --porcelain`.
-- **A dirty worktree stops the removal, and that is correct.** Report it as left behind, with the path
-  and the reason, and still count the run as shipped: the code landed, and only cleanup is
+- **A dirty worktree stops the removal, and that is correct.** Report it as left behind, with the
+  path and the reason, and still count the run as shipped: the code landed, and only cleanup is
   outstanding.
 
 ### Step 6: Report
 
-On a stop, run `bd update <id> --add-label needs-human` first, when Step 1 resolved a bead. Some stops
-happen before that; the report then says nothing was labeled.
+On a stop, run `bd update <id> --add-label needs-human` first, when Step 1 resolved a bead. Some
+stops happen before that; the report then says nothing was labeled.
 
 **The Next row comes from Step 5, and from nowhere else.** Paste what those commands printed. Do not
 re-run them here, and never write the row from memory. A run that names a bead it did not read has
@@ -394,8 +397,8 @@ invented one, and the reader cannot tell the difference.
 `bd ready` orders by priority, which is not a ranking by value. The row names a starting point, and
 `/triage-beads` is what ranks the backlog.
 
-**A stop carries no Next row.** Nothing shipped, so nothing follows; the bead this run just attempted
-is still the next thing to work on.
+**A stop carries no Next row.** Nothing shipped, so nothing follows; the bead this run just
+attempted is still the next thing to work on.
 
 Emit the report, then the machine line, then stop.
 
@@ -474,8 +477,8 @@ which is what an orchestrator checks against main.
   `TADW_SHIP_CHECK_TIMEOUT` rather than narrowing a slow gate.
 - Force-push main, or pass `--force` or `--force-with-lease` to any push
 - Hand-edit `.beads/issues.jsonl`, or resolve its conflict with `git checkout --ours/--theirs` alone
-- Run `git reset --hard`, `git switch`, or `git pull` against the default branch from a worktree that
-  holds the feature branch
+- Run `git reset --hard`, `git switch`, or `git pull` against the default branch from a worktree
+  that holds the feature branch
 - Reset local main when it carries a commit this run did not create
 - Remove the worktree holding the default branch, or force-remove a dirty one
 - Kill a process standing in a worktree, or refuse the removal because one is. Report the pid

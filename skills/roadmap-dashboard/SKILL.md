@@ -28,20 +28,20 @@ Technical Project Manager: assess the true state of the system, then present it.
 Do the analysis before rendering. Rendering a pretty dashboard over a shallow assessment is
 the primary failure mode. Detailed guidance lives in the reference files; load them as needed.
 
-1. **Collect the tracker data.** Run the bundled script from the repo root, then read the
-   JSON it writes (`<skill>` is this skill's own directory):
+1. **Collect the tracker data.** Run the bundled script from the repo root, then read the JSON it
+   writes (`<skill>` is this skill's own directory):
 
    ```bash
    python3 <skill>/scripts/collect_beads.py --out /tmp/roadmap-beads.json
    ```
 
-   It refreshes the JSONL (`bd export -o .beads/issues.jsonl` when `bd` is present), parses it, skips
-   tombstones, normalizes priorities, filters dependency edges to the blocking ones, and
+   It refreshes the JSONL (`bd export -o .beads/issues.jsonl` when `bd` is present), parses it,
+   skips tombstones, normalizes priorities, filters dependency edges to the blocking ones, and
    annotates each issue with `ready`/`blocked`/`blocked_by`. It always exits 0 and writes the
    `--out` file. When no `.beads/` exists (or the tracker is empty) it emits an empty shape
-   (`summary.total == 0`, `source: null`); in that case say so in the dashboard and fall back
-   to `TODO`s and code gaps, marked `[Inference]`. See `references/beads-extraction.md` for
-   the full field map.
+   (`summary.total == 0`, `source: null`); in that case say so in the dashboard and fall back to
+   `TODO`s and code gaps, marked `[Inference]`. See `references/beads-extraction.md` for the full
+   field map.
 
 2. **Assess the engineering state.** Inspect entry points, service boundaries, DB schema, API
    routes, CI/CD, and the test suite. Gather implicit signals (`TODO`/`FIXME`, ADRs, issue IDs
@@ -66,9 +66,9 @@ the primary failure mode. Detailed guidance lives in the reference files; load t
 6. **Version and write the file.** Write to `docs/roadmap.html`. If a versioned file already
    exists (see next section), bump the version instead of overwriting. Create `docs/` if needed.
 
-7. **Self-verify.** Run the checklist in `references/html-blueprint.md` (no external
-   references, color never used alone, every bead in exactly one Kanban column, completion
-   figure matches its rationale). Report the written file path back to the user.
+7. **Check for external references.** Run
+   `grep -nE 'src=|href="http|@import|cdn' <written-file>`; any hit other than an in-page
+   `#anchor` is a defect to fix. Report the written file path back to the user.
 
 ## File Versioning
 
@@ -109,7 +109,8 @@ summary so the user knows which version was produced.
 **Always:**
 
 - Collect beads via the bundled script, never by hand-parsing JSONL.
-- Ground every claim in a file, endpoint, schema, test, or bead; label everything else `[Inference]`.
+- Ground every claim in a file, endpoint, schema, test, or bead; label everything else
+  `[Inference]`.
 - Keep the output a single file that renders offline with no network requests.
 - Map every beads issue into exactly one Kanban column; surface unknown statuses verbatim.
 - Blend three signals for the completion figure and show the rationale.
@@ -129,6 +130,6 @@ summary so the user knows which version was produced.
 - **`references/analysis-guide.md`**: how to inspect the codebase, cross-reference against
   beads, compute the completion %, identify risks, and sequence the roadmap.
 - **`references/html-blueprint.md`**: the full no-dependency HTML/CSS/JS spec (palette,
-  every diagram, the Kanban board, print CSS, and the pre-delivery verification checklist).
+  every diagram, the Kanban board, print CSS, and the external-reference check).
 - **`references/beads-extraction.md`**: field-by-field mapping from the script's output onto
   dashboard elements, Kanban routing, and dependency-tier layout.
