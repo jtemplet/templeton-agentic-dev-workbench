@@ -27,10 +27,16 @@ An untracked file is usually build output, and a gate that writes one is normal,
 so refusing over it would make the ship skill unusable in those repositories.
 Both lists are reported; only one sets `stop`.
 
+A STATUS THAT COULD NOT BE READ IS NOT A CLEAN TREE. `git status` fails on a
+corrupt index, and reading that failure as "no changed files" would let a
+mutation run over work nobody could see. It is its own stop,
+`status-unreadable`, and `mutation_guard` asks the same question for every later
+boundary that is about to change the repository.
+
 THE STOP CONDITIONS ARE ORDERED, and the first one found is the one named, so a
 report never has to choose between two true answers. In order: no repository, no
 resolvable default branch, an operation already in progress, HEAD already on the
-default branch, a detached HEAD, a changed tracked file.
+default branch, a detached HEAD, an unreadable status, a changed tracked file.
 
 AN OPERATION IN PROGRESS OUTRANKS THE TWO CONDITIONS IT CAUSES. A rebase stopped
 on a conflict detaches HEAD and leaves the conflicted file modified, so both
@@ -107,8 +113,11 @@ def resolve_ground(directory: Path) -> dict:
     ground["has_origin"] = ground["origin_url"] is not None
     ground["worktrees"] = read_worktrees(root)
 
-    ground["dirty_tracked"] = read_status(root, untracked=False)
-    ground["untracked"] = read_status(root, untracked=True, only_untracked=True)
+    tracked = read_status(root, untracked=False)
+    untracked = read_status(root, untracked=True, only_untracked=True)
+    ground["status_unreadable"] = tracked is None or untracked is None
+    ground["dirty_tracked"] = tracked or []
+    ground["untracked"] = untracked or []
     ground["in_progress"] = first_in_progress_operation(root, ground["git_dir"])
 
     branch = read_git(root, "branch", "--show-current")
@@ -139,7 +148,24 @@ def first_stop_condition(ground: dict) -> str | None:
         return "on-default-branch"
     if ground["branch"] is None:
         return "detached-head"
+    if ground["status_unreadable"]:
+        return "status-unreadable"
     if ground["dirty_tracked"]:
+        return "dirty-tracked"
+    return None
+
+
+def mutation_guard(directory: Path) -> str | None:
+    """The stop that forbids changing this checkout now, or None when it may change.
+
+    Every boundary that is about to mutate asks this, so each one applies the
+    same rule: untracked files never block, changed tracked files do, and a
+    status that could not be read blocks as well.
+    """
+    tracked = read_status(directory, untracked=False)
+    if tracked is None:
+        return "status-unreadable"
+    if tracked:
         return "dirty-tracked"
     return None
 
@@ -157,6 +183,7 @@ def blank_ground() -> dict:
         "default_branch_worktree": None,
         "has_origin": False,
         "origin_url": None,
+        "status_unreadable": False,
         "dirty_tracked": [],
         "untracked": [],
         "in_progress": None,
@@ -224,8 +251,9 @@ def worktree_holding(worktrees: list[dict], branch: str | None) -> str | None:
     return None
 
 
-def read_status(root: Path, *, untracked: bool, only_untracked: bool = False) -> list[str]:
-    """Paths from `git status --porcelain -z`, split on NUL rather than on space.
+def read_status(root: Path, *, untracked: bool, only_untracked: bool = False) -> list[str] | None:
+    """Paths from `git status --porcelain -z`, split on NUL rather than on space,
+    or None when git could not report a status at all.
 
     A rename emits its original path as a second NUL-separated field, which a
     line-oriented parser reads as a second changed file. Only the new path is
@@ -234,7 +262,7 @@ def read_status(root: Path, *, untracked: bool, only_untracked: bool = False) ->
     mode = "all" if untracked else "no"
     stdout = read_git_raw(root, "status", "--porcelain=v1", "-z", f"--untracked-files={mode}")
     if stdout is None:
-        return []
+        return None
     fields = stdout.split("\0")
     paths: list[str] = []
     index = 0

@@ -64,6 +64,7 @@ and quote the field that shows it.
 | `operation-in-progress` | `in_progress` names the rebase, merge, or cherry-pick already running |
 | `on-default-branch` | HEAD is already on the default branch |
 | `detached-head` | HEAD is detached |
+| `status-unreadable` | `git status` failed, so nothing shows whether a tracked file changed |
 | `dirty-tracked` | `dirty_tracked` lists the changed tracked files |
 
 **Never hardcode `main` in a command you run.** Use `default_branch`; this file writes `main` for

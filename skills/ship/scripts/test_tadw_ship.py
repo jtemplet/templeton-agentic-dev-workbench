@@ -26,6 +26,10 @@ Stdlib only, no install. Run with:
   case_run_gate_stops_on_one_failed_gate, case_run_gate_stops_on_a_missing_tool,
   case_run_gate_stops_on_a_timeout, case_run_gate_runs_the_override, and
   case_run_gate_keeps_the_log_of_a_failed_gate.
+
+  tadw-a7r criterion 5: a failed gate's full output stays in its log, and the
+  runner prints only a bounded excerpt, pinned by
+  case_run_gate_prints_a_bounded_excerpt and case_run_gate_log_keeps_every_line.
 """
 
 from __future__ import annotations
@@ -351,6 +355,23 @@ def case_run_gate_keeps_the_log_of_a_failed_gate() -> None:
     shutil.rmtree(log.parent, ignore_errors=True)
 
 
+NOISY_GATE = "for n in range(500): print(f'noise {n}')\nraise SystemExit(1)"
+
+
+def case_run_gate_prints_a_bounded_excerpt() -> None:
+    result = run_in_empty_repo("--run-gate", config=gate_config(python_gate("noisy", NOISY_GATE)))
+    shutil.rmtree(Path(re.search(r"\(log: (.+)\)", result.stderr).group(1)).parent)
+    shown = ("noise 0\n" in result.stderr, "noise 499" in result.stderr)
+    assert shown == (False, True), f"expected only the tail of the output: {shown}"
+
+
+def case_run_gate_log_keeps_every_line() -> None:
+    result = run_in_empty_repo("--run-gate", config=gate_config(python_gate("noisy", NOISY_GATE)))
+    log = Path(re.search(r"\(log: (.+)\)", result.stderr).group(1))
+    assert "noise 0\n" in log.read_text(), f"the log must keep every line: {log}"
+    shutil.rmtree(log.parent, ignore_errors=True)
+
+
 def case_run_gate_runs_the_override() -> None:
     result = run_in_empty_repo("--run-gate", env={"TADW_SHIP_CHECK": "exit 4"})
     assert_ship_stopped(result)
@@ -385,6 +406,8 @@ for name, fn in [
     ("--run-gate stops on a timeout", case_run_gate_stops_on_a_timeout),
     ("--run-gate runs the override through a shell", case_run_gate_runs_the_override),
     ("--run-gate keeps the log of a failed gate", case_run_gate_keeps_the_log_of_a_failed_gate),
+    ("--run-gate prints a bounded excerpt of a failure", case_run_gate_prints_a_bounded_excerpt),
+    ("--run-gate keeps every line of a failure in its log", case_run_gate_log_keeps_every_line),
 ]:  # fmt: skip
     check(name, fn)
 

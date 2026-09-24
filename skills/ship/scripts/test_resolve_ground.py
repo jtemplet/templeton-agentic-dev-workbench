@@ -17,6 +17,13 @@ RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds
   A dirty tracked file is named                   case_dirty_tracked_stops
   An in-progress rebase is named                  case_rebase_in_progress_stops
 
+  tadw-a7r criterion 3                            Pinned by
+  ------------------------------------------------------------------------------
+  Untracked files stay reportable at a guard      case_guard_allows_untracked_files
+  A failed status blocks mutation                 case_unreadable_status_stops
+  ... at every later boundary too                 case_guard_blocks_unreadable_status
+  A changed tracked file blocks at a guard        case_guard_blocks_dirty_tracked
+
   Design decisions in the script's docstring
   ------------------------------------------------------------------------------
   A clean repository is fit, exit 0               case_clean_branch_is_fit
@@ -40,6 +47,7 @@ RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
@@ -49,6 +57,9 @@ import tempfile
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent / "resolve_ground.py"
+spec = importlib.util.spec_from_file_location("resolve_ground", SCRIPT)
+resolve_ground = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(resolve_ground)
 
 passed = 0
 failed = 0
@@ -145,6 +156,43 @@ def case_untracked_alone_is_fit() -> None:
         assert code == 0, f"an untracked file must not stop the run: {ground.get('stop')}"
         assert ground["untracked"] == ["artifacts/output.js"], ground["untracked"]
         assert ground["dirty_tracked"] == [], ground["dirty_tracked"]
+
+
+def corrupt_index(repo: Path) -> None:
+    """A truncated index makes every `git status` fail, as a real corruption does."""
+    (repo / ".git" / "index").write_bytes(b"not an index")
+
+
+def case_unreadable_status_stops() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repo = new_repo(Path(directory))
+        on_feature_branch(repo)
+        corrupt_index(repo)
+        code, ground = resolve(repo)
+        assert (code, ground["stop"]) == (1, "status-unreadable"), (code, ground["stop"])
+
+
+def case_guard_allows_untracked_files() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repo = new_repo(Path(directory))
+        write(repo, "artifacts/output.js", "generated\n")
+        assert resolve_ground.mutation_guard(repo) is None
+
+
+def case_guard_blocks_unreadable_status() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repo = new_repo(Path(directory))
+        corrupt_index(repo)
+        verdict = resolve_ground.mutation_guard(repo)
+        assert verdict == "status-unreadable", verdict
+
+
+def case_guard_blocks_dirty_tracked() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repo = new_repo(Path(directory))
+        write(repo, "README.md", "changed\n")
+        verdict = resolve_ground.mutation_guard(repo)
+        assert verdict == "dirty-tracked", verdict
 
 
 def case_dirty_tracked_stops() -> None:
@@ -356,7 +404,7 @@ def case_git_missing_exits_2() -> None:
 def case_no_third_party_imports() -> None:
     stdlib = {
         "__future__", "argparse", "json", "os", "re", "subprocess", "sys",
-        "tempfile", "pathlib",
+        "tempfile", "pathlib", "importlib",
     }
     for path in (SCRIPT, Path(__file__).resolve()):
         source = path.read_text(encoding="utf-8")
@@ -369,6 +417,10 @@ for name, fn in [
     ("a clean feature branch is fit to ship from", case_clean_branch_is_fit),
     ("an untracked file alone does not stop the run", case_untracked_alone_is_fit),
     ("a changed tracked file stops the run", case_dirty_tracked_stops),
+    ("a status git could not read stops the run", case_unreadable_status_stops),
+    ("the mutation guard lets untracked files through", case_guard_allows_untracked_files),
+    ("the mutation guard blocks an unreadable status", case_guard_blocks_unreadable_status),
+    ("the mutation guard blocks a changed tracked file", case_guard_blocks_dirty_tracked),
     ("a detached HEAD stops the run", case_detached_head_stops),
     ("HEAD on the default branch stops the run", case_on_default_branch_stops),
     ("a rebase already in progress stops the run", case_rebase_in_progress_stops),

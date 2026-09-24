@@ -59,6 +59,7 @@ def load_sibling(name: str) -> ModuleType:
 
 read_gate_config = load_sibling("read_gate_config")
 run_checks = load_sibling("run_checks")
+ship_report = load_sibling("ship_report")
 
 EXIT_OK = 0
 EXIT_BLOCKED = 1
@@ -215,9 +216,12 @@ def run_gate_with_kept_failure_logs(gate: OverrideGate | ConfiguredGate, repo: P
 
 def run_gate(checks: list[run_checks.Check], workers: int) -> int:
     outcome = run_checks.run_checks(checks, workers)
-    for result in outcome.results:
-        where = "" if result.status is run_checks.Status.PASSED else f" (log: {result.log})"
-        print(f"tadw_ship: {result.status.value} {result.name}{where}", file=sys.stderr)
+    reports = [
+        ship_report.report_check(result.name, result.status.value, result.log)
+        for result in outcome.results
+    ]
+    for line in ship_report.check_lines(reports):
+        print(line, file=sys.stderr)
     if gate_passed(outcome):
         print(f"tadw_ship: every gate passed, {len(outcome.results)} of {len(outcome.results)}")
         return EXIT_OK
