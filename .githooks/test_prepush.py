@@ -199,7 +199,6 @@ FIXTURE_ROOT = "/tmp" if os.access("/tmp", os.W_OK) else None
 # a stale exclusion cannot sit here unnoticed.
 NOT_IN_HOOK = {
     "python3 evals/run.py": "every case is a real model call, too slow and too costly for a push",
-    "python3 evals/test_run.py": "author direction: nothing under evals/ is tied to a git hook",
     "python3 .githooks/test_prepush.py": "this suite pushes into a fixture wired to the hook, so it would recurse",
     "claude plugin validate .": "reference-transaction already gates this at the tag, and it is the slowest check",
 }

@@ -41,11 +41,11 @@
     {"name": "rebase-conflict-suite", "command": ["python3", "skills/ship/scripts/test_resolve_rebase_conflict.py"]},
     {"name": "select-bead-suite", "command": ["python3", "skills/ship/scripts/test_select_bead.py"]},
     {"name": "ship-report-suite", "command": ["python3", "skills/ship/scripts/test_ship_report.py"]},
+    {"name": "candidate-suite", "command": ["python3", "skills/ship/scripts/test_candidate.py"]},
     {"name": "acceptance-findings-suite", "command": ["python3", "skills/reconcile-acceptance/scripts/test_load_findings.py"]},
     {"name": "quality-gates-findings-suite", "command": ["python3", "skills/reconcile-quality-gates/scripts/test_load_findings.py"]},
     {"name": "acceptance-report-suite", "command": ["python3", "skills/verify-acceptance/scripts/test_write_acceptance_report.py"]},
     {"name": "prepush-suite", "command": ["python3", ".githooks/test_prepush.py"]},
-    {"name": "plugin-validate", "command": ["claude", "plugin", "validate", "."]},
-    {"name": "eval-harness-suite", "command": ["python3", "evals/test_run.py"]}
+    {"name": "plugin-validate", "command": ["claude", "plugin", "validate", "."]}
   ]
 }

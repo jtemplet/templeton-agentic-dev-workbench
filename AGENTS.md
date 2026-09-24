@@ -17,7 +17,7 @@ CI (`.github/workflows/lint.yml`) runs seven of them on every push and pull requ
 `rumdl fmt --check .`, `rumdl check . --extend-disable MD013`, `node hooks/test-hooks.js`, both
 framework-leak checks, and both refine-round format checks. It skips
 `bash hooks/test-claude-scripts.sh`, so only the local hook enforces that suite.
-`.githooks/pre-push` runs all of them except the last four. See "Git hooks" below.
+`.githooks/pre-push` runs all of them except the last three. See "Git hooks" below.
 
 ```bash
 rumdl fmt --check .                                          # what CI runs; ./lint.sh formats in place
@@ -52,12 +52,12 @@ python3 skills/ship/scripts/test_run_checks.py               # regression suite 
 python3 skills/ship/scripts/test_resolve_rebase_conflict.py    # regression suite for ship's conflict resolver
 python3 skills/ship/scripts/test_select_bead.py              # regression suite for ship's bead selection
 python3 skills/ship/scripts/test_ship_report.py              # regression suite for ship's report and counts
+python3 skills/ship/scripts/test_candidate.py               # regression suite for ship's checked candidate
 python3 skills/reconcile-acceptance/scripts/test_load_findings.py   # regression suite for the acceptance findings loader
 python3 skills/reconcile-quality-gates/scripts/test_load_findings.py   # regression suite for the quality-gates findings loader
 python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py   # regression suite for the acceptance report writer
 python3 .githooks/test_prepush.py                             # regression suite for the pre-push hook
 claude plugin validate .                                      # parses every SKILL.md frontmatter
-python3 evals/test_run.py                                     # regression suite for the eval harness; calls no model
 python3 evals/run.py                                          # response-style evals
 ```
 
@@ -88,7 +88,7 @@ bd hooks list                      # five hooks, each "installed"
 One command serves them all. `pre-push` and `reference-transaction` carry this repository's own
 gates; the other four are beads shims that call `bd hooks run <hook>`.
 
-**`pre-push` runs the check list above, minus the last four.** Every check runs even after one
+**`pre-push` runs the check list above, minus the last three.** Every check runs even after one
 fails, and all failures report together. A missing tool warns by name and allows the push.
 
 **`pre-push` then refuses the push only when `/quality-gates` recorded a `FAIL` verdict.** A

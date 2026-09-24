@@ -74,8 +74,13 @@ gate on.
 discoverable, and stays out of the ship gate, which is defined as that list minus this one
 command. No git hook runs anything under `evals/`.
 
-`python3 evals/test_run.py` stays in the check list. It tests the harness, calls no model, and is
-deterministic, so it has none of the properties that disqualify the other one.
+`python3 evals/test_run.py` stayed in the check list when this was written. It tests the harness,
+calls no model, and is deterministic, so it has none of the properties that disqualify the other
+one.
+
+**Amended 2026-09-24:** the author removed `python3 evals/test_run.py` from the check list and
+from the ship gate as well. Nothing under `evals/` runs in a gate or a hook now. Run
+`python3 evals/test_run.py` by hand after you change the harness.
 
 **Read the delta between the two arms, not a pass or a fail.** The question the harness answers
 is whether the style rules still change what the model does, and that question has a magnitude

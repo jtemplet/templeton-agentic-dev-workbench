@@ -25,15 +25,12 @@
 #   3. TADW_PREPUSH=off is a documented escape, the way TADW_STYLE_CORE=off is.
 #      An undocumented workaround is one people invent under deadline anyway.
 #
-# FOUR CHECKS FROM THE AGENTS.md BLOCK ARE DELIBERATELY ABSENT.
+# THREE CHECKS FROM THE AGENTS.md BLOCK ARE DELIBERATELY ABSENT.
 #
-#   NOTHING UNDER evals/ IS TIED TO A GIT HOOK. Author direction, 2026-08-23, and
-#   it covers both eval commands. `python3 evals/run.py` is every case a real model
-#   call: far too slow and too expensive to sit on a push. `python3
-#   evals/test_run.py` calls no model and costs about 2 seconds, so cost is not why
-#   it went: the evals are a measurement you run deliberately, and the hook is not
-#   where they belong. They stay in the AGENTS.md list, so the ship gate still runs
-#   the harness suite.
+#   NOTHING UNDER evals/ IS TIED TO A GIT HOOK. `python3 evals/run.py` is every case
+#   a real model call: far too slow and too expensive to sit on a push. The evals
+#   are a measurement you run deliberately, and the hook is not where they belong.
+#   `python3 evals/test_run.py` left the AGENTS.md list too, by author direction.
 #
 #   `python3 .githooks/test_prepush.py` is this hook's own suite, and it pushes
 #   inside a throwaway fixture whose core.hooksPath points back here. Running it
@@ -235,6 +232,7 @@ check python3 skills/ship/scripts/test_run_checks.py
 check python3 skills/ship/scripts/test_resolve_rebase_conflict.py
 check python3 skills/ship/scripts/test_select_bead.py
 check python3 skills/ship/scripts/test_ship_report.py
+check python3 skills/ship/scripts/test_candidate.py
 check python3 skills/reconcile-acceptance/scripts/test_load_findings.py
 check python3 skills/reconcile-quality-gates/scripts/test_load_findings.py
 check python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py

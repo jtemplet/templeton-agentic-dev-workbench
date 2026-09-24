@@ -23,13 +23,12 @@ Each command the root `AGENTS.md` list excludes from the hook has its own reason
   the CLI is the slowest check.
 - `python3 .githooks/test_prepush.py`: it pushes inside a fixture wired to this hook, so running
   it here would recurse.
-- Both eval commands: see the next paragraph.
+- `python3 evals/run.py`: see the next paragraph.
 
-**No git hook runs anything under `evals/`.** `python3 evals/run.py` makes a real model call for
-every case, which is too slow and too costly for a push. `python3 evals/test_run.py` calls no
-model and costs about 2 seconds, so cost is not why it left the hook. The evals are a measurement
-you run deliberately. Both stay in the root `AGENTS.md` check list, so the ship gate still runs
-the harness suite.
+**No git hook and no ship gate runs anything under `evals/`.** `python3 evals/run.py` makes a real
+model call for every case, which is too slow and too costly for a push. The evals are a
+measurement you run deliberately. `python3 evals/test_run.py` calls no model, and it left the
+root `AGENTS.md` check list by author direction, so run it by hand after you change `evals/`.
 
 Derive the number of checks with `grep -c '^check ' .githooks/pre-push`.
 
