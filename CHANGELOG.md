@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [4.6.5] - 2026-09-23
+
+### Changed
+
+- **Remove style-fizzy and apply the Opus 5.5 prompt audit.** (`14c68d0`)
+
 ## [4.6.4] - 2026-09-23
 
 ### Added
@@ -2711,7 +2717,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.4...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.5...HEAD
+[4.6.5]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.4...v4.6.5
 [4.6.4]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.3...v4.6.4
 [4.6.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.2...v4.6.3
 [4.6.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.1...v4.6.2
