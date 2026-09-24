@@ -37,6 +37,7 @@
     {"name": "gate-config-suite", "command": ["python3", "skills/ship/scripts/test_read_gate_config.py"]},
     {"name": "gate-baseline-suite", "command": ["python3", "skills/ship/scripts/test_measure_gate_baseline.py"]},
     {"name": "ship-runner-suite", "command": ["python3", "skills/ship/scripts/test_tadw_ship.py"]},
+    {"name": "check-executor-suite", "command": ["python3", "skills/ship/scripts/test_run_checks.py"]},
     {"name": "rebase-conflict-suite", "command": ["python3", "skills/ship/scripts/test_resolve_rebase_conflict.py"]},
     {"name": "acceptance-findings-suite", "command": ["python3", "skills/reconcile-acceptance/scripts/test_load_findings.py"]},
     {"name": "quality-gates-findings-suite", "command": ["python3", "skills/reconcile-quality-gates/scripts/test_load_findings.py"]},

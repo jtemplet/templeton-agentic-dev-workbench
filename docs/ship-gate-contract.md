@@ -88,6 +88,15 @@ selects the gate before it runs any `git` or `bd` command, so that stop changes 
 name and its output are provisional: `tadw-kgql` settles the terminal interface, so do not build
 a script on them yet.
 
+`tadw_ship.py --repo-root <path> --run-gate` selects the same gate and runs it through
+`skills/ship/scripts/run_checks.py`, the executor the pre-push hook shares. It honors each gate's
+`timeout`, `depends_on`, and `resources`, and runs no more gates at once than the machine has
+processors. Ship's policy stays strict: a gate that fails, times out, cannot start, or is
+interrupted stops the run with `SHIP_BLOCKED gate`, and a missing tool is never skipped. A gate
+that can never start, because it depends on a later gate that shares one of its resources, is
+recorded as not run, so it stops the run too rather than waiting forever. The flag is provisional
+for the same reason as `--check-gate`.
+
 A blank `TADW_SHIP_CHECK` counts as unset, because an empty command would pass every ship.
 `TADW_SHIP_CHECK_TIMEOUT` bounds the override command alone. A gate from the file uses its own
 `timeout` key and ignores the variable, so raise that key for a slow configured gate. A value

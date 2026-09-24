@@ -48,6 +48,7 @@ python3 skills/ship/scripts/test_landed_check.py               # regression suit
 python3 skills/ship/scripts/test_read_gate_config.py         # regression suite for the ship gate configuration reader
 python3 skills/ship/scripts/test_measure_gate_baseline.py   # regression suite for the gate baseline measurer
 python3 skills/ship/scripts/test_tadw_ship.py                # regression suite for the ship runner
+python3 skills/ship/scripts/test_run_checks.py               # regression suite for the check executor ship and pre-push share
 python3 skills/ship/scripts/test_resolve_rebase_conflict.py    # regression suite for ship's conflict resolver
 python3 skills/reconcile-acceptance/scripts/test_load_findings.py   # regression suite for the acceptance findings loader
 python3 skills/reconcile-quality-gates/scripts/test_load_findings.py   # regression suite for the quality-gates findings loader

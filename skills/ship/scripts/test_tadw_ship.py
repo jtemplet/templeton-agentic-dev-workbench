@@ -20,6 +20,12 @@ Stdlib only, no install. Run with:
                                                     case_unreadable_configuration_stops,
                                                     case_blank_override_counts_as_unset,
                                                     case_invalid_override_timeout_names_its_own_fix
+
+  tadw-7raw: ship runs its gate through the executor pre-push shares, and keeps
+  its own strict policy, pinned by case_run_gate_passes_when_every_gate_passes,
+  case_run_gate_stops_on_one_failed_gate, case_run_gate_stops_on_a_missing_tool,
+  case_run_gate_stops_on_a_timeout, case_run_gate_runs_the_override, and
+  case_run_gate_keeps_the_log_of_a_failed_gate.
 """
 
 from __future__ import annotations
@@ -295,6 +301,62 @@ def case_start_without_check_gate_does_not_claim_a_ship() -> None:
     assert "SHIP_DONE" not in result.stdout, result.stdout
 
 
+def gate_config(*gates: dict) -> dict:
+    return {"version": 1, "gates": list(gates)}
+
+
+def python_gate(name: str, body: str, **options) -> dict:
+    return {"name": name, "command": [sys.executable, "-c", body], **options}
+
+
+def assert_ship_stopped(result: subprocess.CompletedProcess) -> None:
+    assert result.returncode == 1, f"expected exit 1, got {result.returncode}: {result.stderr}"
+    assert result.stdout.splitlines()[-1] == "SHIP_BLOCKED gate", result.stdout
+
+
+def case_run_gate_passes_when_every_gate_passes() -> None:
+    config = gate_config(python_gate("one", "pass"), python_gate("two", "pass"))
+    result = run_in_empty_repo("--run-gate", config=config)
+    assert result.returncode == 0, f"every gate passed, so the run continues: {result.stderr}"
+    assert "2 of 2" in result.stdout, result.stdout
+
+
+def case_run_gate_stops_on_one_failed_gate() -> None:
+    config = gate_config(python_gate("good", "pass"), python_gate("bad", "raise SystemExit(3)"))
+    result = run_in_empty_repo("--run-gate", config=config)
+    assert_ship_stopped(result)
+    assert "failed bad" in result.stderr, f"the failed gate must be named: {result.stderr}"
+
+
+def case_run_gate_stops_on_a_missing_tool() -> None:
+    config = gate_config({"name": "absent", "command": ["tadw-no-such-tool"]})
+    result = run_in_empty_repo("--run-gate", config=config)
+    assert_ship_stopped(result)
+
+
+def case_run_gate_stops_on_a_timeout() -> None:
+    config = gate_config(python_gate("slow", "import time; time.sleep(60)", timeout=1))
+    result = run_in_empty_repo("--run-gate", config=config)
+    assert_ship_stopped(result)
+    assert "timed_out slow" in result.stderr, f"the timeout must be named: {result.stderr}"
+
+
+def case_run_gate_keeps_the_log_of_a_failed_gate() -> None:
+    config = gate_config(python_gate("bad", "print('the gate said why'); raise SystemExit(1)"))
+    result = run_in_empty_repo("--run-gate", config=config)
+    logged = re.search(r"\(log: (.+)\)", result.stderr)
+    assert logged, f"the failed gate must name its log: {result.stderr}"
+    log = Path(logged.group(1))
+    assert "the gate said why" in log.read_text(), f"the log must hold the gate's output: {log}"
+    shutil.rmtree(log.parent, ignore_errors=True)
+
+
+def case_run_gate_runs_the_override() -> None:
+    result = run_in_empty_repo("--run-gate", env={"TADW_SHIP_CHECK": "exit 4"})
+    assert_ship_stopped(result)
+    assert "failed TADW_SHIP_CHECK" in result.stderr, result.stderr
+
+
 for name, fn in [
     ("the gates are the AGENTS.md list, in order, except the model eval",
      case_configured_gate_matches_agents_md),
@@ -317,6 +379,12 @@ for name, fn in [
      case_missing_repository_is_operator_error),
     ("a start without --check-gate does not claim a ship",
      case_start_without_check_gate_does_not_claim_a_ship),
+    ("--run-gate passes when every gate passes", case_run_gate_passes_when_every_gate_passes),
+    ("--run-gate stops on one failed gate", case_run_gate_stops_on_one_failed_gate),
+    ("--run-gate stops on a missing tool, never skips it", case_run_gate_stops_on_a_missing_tool),
+    ("--run-gate stops on a timeout", case_run_gate_stops_on_a_timeout),
+    ("--run-gate runs the override through a shell", case_run_gate_runs_the_override),
+    ("--run-gate keeps the log of a failed gate", case_run_gate_keeps_the_log_of_a_failed_gate),
 ]:  # fmt: skip
     check(name, fn)
 

@@ -59,24 +59,25 @@ RULE-TO-TEST MAPPING. A rule with no test here is a rule nothing holds.
     also deletes a ref
   POSIX sh, executable                          case_hook_is_executable_posix_sh
 
-PARALLEL RUNS (tadw-94w). Every check starts as a background job.
+PARALLEL RUNS (tadw-94w, tadw-7raw). skills/ship/scripts/run_checks.py, the
+executor /tadw:ship shares, runs every planned check; the hook keeps the policy.
 
   Rule                                            Pinned by
   ------------------------------------------------------------------------------
   HUP, INT, and TERM each refuse the push with    interrupted_hook_case, once per signal
     their own exit code, let a Python check
     clean up, and stop it and its children
-  A process started while the hook looks for     case_a_process_started_during_the_interrupt_is_stopped
-    processes to stop is stopped too
-  The check under after_previous=yes runs in      case_paired_check_runs_in_the_job_of_the_one_above
-    the job of the check above it
+  A process a check starts during the interrupt   case_a_process_started_during_the_interrupt_is_stopped
+    is stopped too
+  The check under after_previous=yes starts       case_paired_check_runs_after_the_one_above
+    only once the check above it ends
   The flag applies to one check, even when that   case_after_previous_does_not_outlive_a_skipped_check
     check is skipped
-  No more jobs run than there are processors      case_jobs_never_exceed_the_processor_count
+  No more checks run than there are processors    case_workers_never_exceed_the_processor_count
   A check that left no exit status counts as      case_check_killed_before_its_status_counts_as_failed
     failed, never as a skipped tool
-  A check ended by a signal starts no later       case_a_check_ended_by_a_signal_ends_its_job
-    check in its job
+  A check ended by a signal starts no check       case_a_check_ended_by_a_signal_starts_no_dependent
+    that waits for it
   A signal after the checks ends the hook         case_a_signal_during_the_tracker_export_commits_nothing
     before stage 3 commits
 
@@ -168,6 +169,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 HOOK = REPO / ".githooks" / "pre-push"
+EXECUTOR = REPO / "skills" / "ship" / "scripts" / "run_checks.py"
 AGENTS = REPO / "AGENTS.md"
 QUALITY_GATES_SKILL = REPO / "skills" / "quality-gates" / "SKILL.md"
 QUALITY_GATES_SCRIPTS = REPO / "skills" / "quality-gates" / "scripts"
@@ -506,6 +508,9 @@ def build(*, stub_checks: bool = True, extra_branch: str | None = None) -> Fixtu
     hook.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(HOOK, hook)
     hook.chmod(0o755)
+    # The executor the hook runs its checks through, from the working tree for the
+    # same reason as the hook: an uncommitted change to it is what gets tested.
+    shutil.copy2(EXECUTOR, work / EXECUTOR.relative_to(REPO))
 
     # Sibling of `work`, never inside it: stage 3 finds it only through PATH,
     # the same way it would find a real `bd` installed on the machine.
@@ -1184,7 +1189,7 @@ print("\n  [the checks run in parallel, tadw-94w]")
 # timed out early would blame the hook for the machine.
 PROCESS_DEADLINE_SECONDS = 15
 
-# Two checks that sit next to each other in the hook and share no job, for the
+# Two checks that sit next to each other in the hook and have no ordering between them, for the
 # cases that need a pair of stubs outside the after_previous pair.
 NEIGHBOR_ABOVE = "skills/quality-gates/scripts/test_check_hygiene.py"
 NEIGHBOR_BELOW = "skills/quality-gates/scripts/test_route_qa.py"
@@ -1206,7 +1211,7 @@ def process_is_alive(pid: int) -> bool:
     """
     try:
         os.kill(pid, 0)
-    except (ProcessLookupError, PermissionError):
+    except ProcessLookupError, PermissionError:
         return False
     return True
 
@@ -1274,13 +1279,13 @@ def start_hook_directly(fixture: Fixture, path_prefix: str = "") -> subprocess.P
 def stop_hook_tree(hook: subprocess.Popen[str]) -> None:
     try:
         os.killpg(hook.pid, signal.SIGKILL)
-    except (ProcessLookupError, PermissionError):
+    except ProcessLookupError, PermissionError:
         pass
     hook.wait()
 
 
 def output_after(hook: subprocess.Popen[str], what: str) -> str:
-    """The hook's output once it exits. A timeout rather than a bare read: a job
+    """The hook's output once it exits. A timeout rather than a bare read: a process
     the hook failed to stop keeps the output pipe open, and the case would hang
     instead of failing."""
     try:
@@ -1301,8 +1306,9 @@ def interrupted_hook_case(signum: signal.Signals, expected_code: int):
         A trap that only deleted the work directory let the script fall through:
         it read no status files, printed "checks passed", and exited 0. The check
         here starts a child, records both pids, and sleeps inside a `finally`
-        that leaves a mark. The mark proves the check got SIGINT, which a
-        background job would otherwise ignore, before anything forced it to stop.
+        that leaves a mark. The mark proves the check got SIGINT, which a check
+        started from a background shell would otherwise ignore, before anything
+        forced it to stop.
         """
         fixture = build()
         pid_file = fixture.work.parent / "slow-check.pid"
@@ -1384,33 +1390,31 @@ def case_a_process_started_during_the_interrupt_is_stopped() -> None:
                 os.kill(pid, signal.SIGKILL)
 
 
-def case_paired_check_runs_in_the_job_of_the_one_above() -> None:
-    """The check under `after_previous=yes` runs in the same job, after the one above.
+def case_paired_check_runs_after_the_one_above() -> None:
+    """The check under `after_previous=yes` starts only once the check above it ends.
 
-    Each stub compares its parent, the job shell, so the case needs no timing:
-    only a shared job gives the second check the parent the first one recorded.
+    The first check holds its slot, then leaves a mark as it ends. The second
+    fails unless the mark is already there when it starts, which only waiting
+    can guarantee: started together, the second would find no mark.
     """
     first, second = paired_checks()
     assert all("documented_bd_commands" in command for command in (first, second)), (
         f"the pair exists for the two checks that open the bd database: {first!r}, {second!r}"
     )
     fixture = build()
-    mark = fixture.work.parent / "first-check-job"
+    mark = fixture.work.parent / "first-check-ended"
     fixture.write(
         script_of(first),
-        f"import os, pathlib\npathlib.Path({str(mark)!r}).write_text(str(os.getppid()))\n",
+        f"import pathlib, time\ntime.sleep(0.5)\npathlib.Path({str(mark)!r}).touch()\n",
     )
     fixture.write(
         script_of(second),
-        f"import os, pathlib, sys\nmark = pathlib.Path({str(mark)!r})\n"
-        "sys.exit(0 if mark.exists() and mark.read_text() == str(os.getppid()) else 1)\n",
+        f"import pathlib, sys\nsys.exit(0 if pathlib.Path({str(mark)!r}).exists() else 1)\n",
     )
-    fixture.commit_all("a pair that fails unless it shares a job")
+    fixture.commit_all("a pair that fails unless the second waits")
     result = fixture.push()
     output = result.stdout + result.stderr
-    assert result.returncode == 0, (
-        f"the second check must run after the first, in its job: {output}"
-    )
+    assert result.returncode == 0, f"the second check must run after the first ends: {output}"
 
 
 def case_after_previous_does_not_outlive_a_skipped_check() -> None:
@@ -1418,8 +1422,8 @@ def case_after_previous_does_not_outlive_a_skipped_check() -> None:
 
     The fixture's own hook gets `after_previous=yes` above a check whose tool
     does not exist, between two neighbors. If the flag outlived the skipped
-    check, the neighbor below would join the job of the neighbor above, and
-    its stub fails when it finds that check's job shell as its own parent.
+    check, the neighbor below would wait for the neighbor above, and its stub
+    fails when it finds the mark the neighbor above leaves as it ends.
     """
     assert_neighbors_are_adjacent()
     fixture = build()
@@ -1431,15 +1435,14 @@ def case_after_previous_does_not_outlive_a_skipped_check() -> None:
         body.replace(above_line, f"{above_line}after_previous=yes\ncheck tadw-no-such-tool\n"),
         encoding="utf-8",
     )
-    mark = fixture.work.parent / "above-check-job"
+    mark = fixture.work.parent / "above-check-ended"
     fixture.write(
         NEIGHBOR_ABOVE,
-        f"import os, pathlib\npathlib.Path({str(mark)!r}).write_text(str(os.getppid()))\n",
+        f"import pathlib, time\ntime.sleep(0.5)\npathlib.Path({str(mark)!r}).touch()\n",
     )
     fixture.write(
         NEIGHBOR_BELOW,
-        f"import os, pathlib, sys\nmark = pathlib.Path({str(mark)!r})\n"
-        "sys.exit(1 if mark.exists() and mark.read_text() == str(os.getppid()) else 0)\n",
+        f"import pathlib, sys\nsys.exit(1 if pathlib.Path({str(mark)!r}).exists() else 0)\n",
     )
     fixture.commit_all("a flag above a skipped check")
     result = fixture.push()
@@ -1447,10 +1450,10 @@ def case_after_previous_does_not_outlive_a_skipped_check() -> None:
     assert "tadw-no-such-tool" in output, (
         f"the control: the inserted check must be skipped: {output}"
     )
-    assert result.returncode == 0, f"the check below must get a job of its own: {output}"
+    assert result.returncode == 0, f"the check below must not wait for the one above: {output}"
 
 
-def case_jobs_never_exceed_the_processor_count() -> None:
+def case_workers_never_exceed_the_processor_count() -> None:
     """With one processor reported, no two checks overlap.
 
     A `getconf` shim reports one processor. Two neighbors record when they
@@ -1488,18 +1491,18 @@ def case_jobs_never_exceed_the_processor_count() -> None:
 
 
 def case_check_killed_before_its_status_counts_as_failed() -> None:
-    """A check whose job dies before it records an exit status has verified nothing.
+    """A check whose executor dies before it records an exit status has verified nothing.
 
-    The stub kills the background job that runs it, which is the process that
-    would have written the status file. Read as a skipped tool, that silence
-    would pass the push.
+    The stub kills the executor that runs it, which is the process that would
+    have written the status file. Read as a skipped tool, that silence would
+    pass the push.
     """
     fixture = build()
     fixture.write(
         BREAKABLE_CHECK,
         "import os, signal\nos.kill(os.getppid(), signal.SIGKILL)\n",
     )
-    fixture.commit_all("a check whose job dies")
+    fixture.commit_all("a check whose executor dies")
     result = fixture.push()
     output = result.stdout + result.stderr
     assert result.returncode != 0, f"a check with no status must refuse the push: {output}"
@@ -1507,11 +1510,11 @@ def case_check_killed_before_its_status_counts_as_failed() -> None:
     assert "recorded no exit status" in output, f"and say why: {output}"
 
 
-def case_a_check_ended_by_a_signal_ends_its_job() -> None:
+def case_a_check_ended_by_a_signal_starts_no_dependent() -> None:
     """When the first check of a pair dies from a signal, the second never starts.
 
-    The signal comes from outside the hook, so no trap runs, and only the job
-    itself can stop the next check. The second check leaves a mark if it runs,
+    The signal comes from outside the hook, so no trap runs, and only the
+    executor can stop the next check. The second check leaves a mark if it runs,
     and is reported as unfinished if it does not.
     """
     first, second = paired_checks()
@@ -1526,7 +1529,7 @@ def case_a_check_ended_by_a_signal_ends_its_job() -> None:
     result = fixture.push()
     output = result.stdout + result.stderr
     assert result.returncode != 0, f"a check ended by a signal must refuse the push: {output}"
-    assert not mark.exists(), f"the second check of the job must not start: {output}"
+    assert not mark.exists(), f"the check that waits for the first must not start: {output}"
     assert f"FAILED: {second}" in output, f"the second check must be reported: {output}"
     assert "recorded no exit status" in output, f"as unfinished: {output}"
 
@@ -1583,19 +1586,25 @@ for name, fn in [
         case_a_process_started_during_the_interrupt_is_stopped,
     ),
     (
-        "the paired check runs in the job of the check above it",
-        case_paired_check_runs_in_the_job_of_the_one_above,
+        "the paired check runs after the check above it ends",
+        case_paired_check_runs_after_the_one_above,
     ),
     (
         "after_previous does not outlive a skipped check",
         case_after_previous_does_not_outlive_a_skipped_check,
     ),
-    ("jobs never exceed the processor count", case_jobs_never_exceed_the_processor_count),
+    (
+        "checks at once never exceed the processor count",
+        case_workers_never_exceed_the_processor_count,
+    ),
     (
         "a check killed before its status counts as failed",
         case_check_killed_before_its_status_counts_as_failed,
     ),
-    ("a check ended by a signal ends its job", case_a_check_ended_by_a_signal_ends_its_job),
+    (
+        "a check ended by a signal starts no check that waits for it",
+        case_a_check_ended_by_a_signal_starts_no_dependent,
+    ),
     (
         "a signal during the tracker export commits nothing",
         case_a_signal_during_the_tracker_export_commits_nothing,

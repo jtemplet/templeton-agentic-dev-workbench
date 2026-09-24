@@ -33,33 +33,39 @@ the harness suite.
 
 Derive the number of checks with `grep -c '^check ' .githooks/pre-push`.
 
-**The checks run at the same time.** Each `check` line assigns its check to a background job, and
-the jobs start after the last line. A push waits for the slowest check rather than for the sum. A
-passing push prints how many seconds the checks took on its summary line. The report still lists
-failures in the order of the `check` lines, because each check writes to its own numbered files.
+**The checks run at the same time.** Each `check` line writes its command to a numbered plan
+file, and `skills/ship/scripts/run_checks.py` runs the plan after the last line. `/tadw:ship` runs
+its gate through the same executor. The executor owns the running; the hook keeps its own policy:
+which tool is missing, what a failure means, and whether the push goes ahead. A push waits for the
+slowest check rather than for the sum. A passing push prints how many seconds the checks took on
+its summary line. The report still lists failures in the order of the `check` lines, because each
+check writes to its own numbered files.
 
-**No more jobs run at once than `getconf _NPROCESSORS_ONLN` reports processors.** Past that, the
+**`python3` runs the executor, so without it no check runs.** The hook then names `python3` as the
+skipped tool, reports that 0 checks ran, and allows the push, as it does for any missing tool.
+
+**No more checks run at once than `getconf _NPROCESSORS_ONLN` reports processors.** Past that, the
 checks compete for the CPU, and a check that waits on a timeout or a race can fail a clean push.
 
 `test_probe_api.py` cannot be made much faster. It starts real servers and waits on real sockets,
 which is the only way to check which host it addresses, and that it leaks no process.
 
-**`after_previous=yes` above a `check` line puts that check in the job of the check on the line
+**`after_previous=yes` above a `check` line makes that check wait for the check on the line
 above.** The two then run one after the other. The flag applies to that one line. When the check
-above was skipped for a missing tool, the flagged check gets a job of its own. The two
-`bd`-command checks are paired this way, because `bd` opens its embedded Dolt database inside each
-process.
+above was skipped for a missing tool, the flagged check does not wait. When the check above did
+not finish, because a signal ended it, the flagged check never starts. The two `bd`-command checks
+are paired this way, because `bd` opens its embedded Dolt database inside each process.
 
 **An interrupted push is refused, never passed.** On HUP, INT, or TERM during the checks, the hook
-does three things, then exits 129, 130, or 143:
+passes the signal to the executor, waits for it, then exits 129, 130, or 143. The executor starts
+each check in a process group of its own, then does two things:
 
-1. **It freezes every process under it** with SIGSTOP, and looks again until nothing new turns up.
-   A stopped process cannot start another one.
-2. **It sends SIGINT to the checks**, so a Python check runs its own cleanup. A background job
-   starts with SIGINT ignored, and `sh` cannot undo that, so the hook starts each check through
-   `python3`, which resets SIGINT and then becomes the check.
-3. **It sends SIGTERM to whatever still runs after a grace period,** after freezing it again with
-   every process it started in the meantime.
+1. **It sends SIGINT to every running check's process group**, so a Python check runs its own
+   cleanup. sh starts the executor with SIGINT ignored; the executor installs its own handler,
+   and a handled signal is reset to its default in each check it starts.
+2. **It sends SIGKILL to each group that still has a process after a grace period.** One signal
+   to the group reaches every process in it, including those a check started during the grace
+   period.
 
 A check that started but recorded no exit status counts as failed. Once the checks finish, a signal
 only ends the hook.
