@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [4.6.8] - 2026-09-25
+
+### Changed
+
+- **Remove the publish plugin skill.** (`089d579`)
+- **Remove the publish plugin skill.** (`00d5ed5`)
+
 ## [4.6.7] - 2026-09-24
 
 ### Added
@@ -2747,7 +2754,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.7...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.8...HEAD
+[4.6.8]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.7...v4.6.8
 [4.6.7]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.6...v4.6.7
 [4.6.6]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.5...v4.6.6
 [4.6.5]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.4...v4.6.5
