@@ -104,8 +104,7 @@ The per-hook mechanism is in [.githooks/AGENTS.md](.githooks/AGENTS.md), which l
 work under `.githooks/`.
 
 **`reference-transaction` refuses to create a `v*` tag when `claude plugin validate` fails.**
-`/publish-plugin` is what creates those tags, so that skill treats this refusal as a stop rather
-than something to route around. See "Releasing" below.
+Treat that refusal as a stop rather than something to route around. See "Releasing" below.
 
 ## Architecture
 
@@ -143,7 +142,6 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Grade work against its bead | `/verify-acceptance` | `acceptance-verifier` agent, running `verify-acceptance` |
 | Fix what a NOT ACCEPTED verdict found | `/tadw:reconcile-acceptance` (the skill itself) | `reconcile-acceptance` |
 | Land a finished bead's branch on main | `/tadw:ship` (the skill itself) | `ship` |
-| Cut and publish a plugin release | `/publish-plugin` (the skill itself) | `publish-plugin` |
 | Align before planning or building | - | `mattpocock-skills:grilling` (external) |
 | Sharpen the project's vocabulary | - | `mattpocock-skills:domain-modeling` (external) |
 | Write the plan a conversation just decided | `/write-plan` | `write-plan` |
@@ -175,7 +173,7 @@ and by task. Not every command has an entry there yet; `tadw-routing-gaps-9wq` t
 
 ```text
 A  Business Planning:  /business-ideas → mattpocock-skills:grilling → /write-plan → /plan-review → /plan-to-beads → /bead-audit-all
-B  Code Quality:       /build → /fresh-eyes-cr → /quality-gates → /verify-acceptance → /tadw:ship → /publish-plugin
+B  Code Quality:       /build → /fresh-eyes-cr → /quality-gates → /verify-acceptance → /tadw:ship
 C  Product Strategy:   /competitive-analysis → /product-research → /product-roadmap → /product-brief → /ab-test-design
 D  Bug on-ramp:        /diagnose → /bead-create → pipeline B
 ```
@@ -244,15 +242,14 @@ separate `jtemplet/templeton-agentic-marketplace` repository, and it pins `tadw`
 branch. There is no publish workflow and no upload step. The `version` field and the `vX.Y.Z` tag do
 not gate distribution; they are how a person tells which published state they are running.
 
-**Use `/publish-plugin`.** It derives the semver bump from the diff since the last tag, writes the
-`CHANGELOG.md` section, bumps the manifest, commits `chore(release): X.Y.Z` touching exactly those
-two files, then tags and pushes main before the tag. Its bump rubric and stop conditions are in
-`skills/publish-plugin/SKILL.md`, and `docs/ROUTING.md` summarizes them.
+**Releases are manual.** Write the `CHANGELOG.md` section, bump `version` in
+`.claude-plugin/plugin.json`, commit `chore(release): X.Y.Z` touching exactly those two files, then
+tag `vX.Y.Z` and push main before the tag.
 
 Read the last tag with `git tag --list 'v*' --sort=-v:refname`, because lexical order puts
 `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
-**Registered Skills** (43). One-line descriptions live in the `README.md` skills
+**Registered Skills** (42). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
@@ -261,7 +258,7 @@ reads when deciding what to invoke.
 `feature-development` `house-response-style` `idea-wizard` `plan-review`
 `plan-to-beads`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
-`publish-plugin` `quality-gates` `reconcile-acceptance` `reconcile-quality-gates`
+`quality-gates` `reconcile-acceptance` `reconcile-quality-gates`
 `research-ingest` `research-synthesize` `review-fresh-eyes`
 `roadmap-dashboard` `ship` `style-frontend` `style-go` `style-markdown`
 `style-python` `style-rails` `style-rspec` `style-swift` `style-testing` `terraform-iac-expert`
@@ -384,16 +381,16 @@ command wins. So a command body that says "Use the `<name>` skill" resolves back
 fixes: rename the command, delete it so the skill takes the slash name, or have it **Read**
 `${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md`.
 
-**Six skills are accepted orphans.** `/validate-plugin` reports `business-ideas`,
-`idea-wizard`, `publish-plugin`, `reconcile-acceptance`, `reconcile-quality-gates`, and `ship` as
-orphans, because no agent and no command references them. You invoke all six directly as
+**Five skills are accepted orphans.** `/validate-plugin` reports `business-ideas`,
+`idea-wizard`, `reconcile-acceptance`, `reconcile-quality-gates`, and `ship` as
+orphans, because no agent and no command references them. You invoke all five directly as
 `/<name>`, so a referrer would add nothing. `reconcile-acceptance` and `reconcile-quality-gates`
 join this set for the same reason: the reconcile skills plan deliberately gives neither an agent
 or a command, and names an agent, if one comes later, differently from the skill.
 
-The check follows agent and command references alone, so it misses one live path: `publish-plugin`
-invokes `ship` to land a branch. It also matches on the skill's name, so `commands/adr.md` counts
-as a referrer of `architecture-decision-record` even though it writes the name without backticks.
+The check follows agent and command references alone. It also matches on the skill's name, so
+`commands/adr.md` counts as a referrer of `architecture-decision-record` even though it writes the
+name without backticks.
 Read the orphan rule as a prompt to check that a skill is still reachable, not as a defect list.
 
 ## Issue Tracking (bd + bv)
@@ -473,7 +470,7 @@ step, and what that costs.
 
 **Publishing is a separate decision, not step 9.** The push in step 5 already put the change in
 front of every consumer, because the marketplace follows this repository's default branch.
-Numbering and tagging that state is `/publish-plugin`. Several landings usually batch into one
+Numbering and tagging that state is a manual release. Several landings usually batch into one
 release. See "Releasing" above.
 
 **Rules:**

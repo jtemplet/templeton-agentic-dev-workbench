@@ -773,9 +773,8 @@ def case_failing_gate_leaves_the_bead_open() -> None:
 
 
 SKILL = REPO / "skills" / "ship" / "SKILL.md"
-PUBLISH_PLUGIN = REPO / "skills" / "publish-plugin" / "SKILL.md"
 SETUP_INSTRUCTIONS = REPO / "docs" / "ship-gate-contract.md"
-# The categories the skill promised before it called the runner; publish-plugin passes them on.
+# The categories the skill promised before it called the runner.
 EXISTING_STOP_SLUGS = {"gate", "conflict", "tracker", "git-state", "internal"}
 MAX_SKILL_WORDS = 500
 
@@ -840,13 +839,7 @@ def case_skill_lists_every_existing_stop_category() -> None:
 
 def case_runner_emits_only_existing_stop_categories() -> None:
     unknown = runner_stop_slugs() - EXISTING_STOP_SLUGS
-    assert not unknown, f"publish-plugin does not know these categories: {unknown}"
-
-
-def case_publish_plugin_accepts_the_unchanged_machine_line() -> None:
-    text = PUBLISH_PLUGIN.read_text()
-    for line in ("`SHIP_DONE <hash>`", "`SHIP_BLOCKED <reason>`"):
-        assert line in text, f"publish-plugin no longer reads {line}"
+    assert not unknown, f"the skill does not know these categories: {unknown}"
 
 
 def case_setup_instructions_name_the_setup_action() -> None:
@@ -925,8 +918,6 @@ for name, fn in [
      case_skill_lists_every_existing_stop_category),
     ("the runner emits only existing stop categories",
      case_runner_emits_only_existing_stop_categories),
-    ("publish-plugin accepts the unchanged machine line",
-     case_publish_plugin_accepts_the_unchanged_machine_line),
     ("the setup instructions name the setup action", case_setup_instructions_name_the_setup_action),
     ("the skill links the setup instructions", case_skill_links_the_setup_instructions),
 ]:  # fmt: skip

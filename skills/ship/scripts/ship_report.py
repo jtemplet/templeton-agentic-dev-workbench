@@ -18,7 +18,7 @@ names the log that holds all of it. A model caller then reads a fixed amount,
 however much the check printed.
 
 THE MACHINE LINE IS LAST, ALWAYS. `render` builds every line from the one
-result, and puts the machine line after all of them, because `publish-plugin`
+result, and puts the machine line after all of them, because a caller
 reads the last line and nothing else.
 
 A SHORTENED SUBJECT KEEPS ITS BEAD ID. `commit_subject` cuts the title at a word

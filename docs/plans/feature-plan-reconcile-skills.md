@@ -106,7 +106,7 @@ bead to a person. A person working by hand calls the same fixer as `/tadw:<name>
 - A test that pins the guardrail wording of the reconcile skills. Only the tokens a machine reads
   are pinned.
 - `docs/ROUTING.md`, whose missing entries `tadw-routing-gaps-9wq` tracks, and `CHANGELOG.md`,
-  which `/publish-plugin` writes at release time.
+  which is written at release time.
 
 ## Technical Approach
 

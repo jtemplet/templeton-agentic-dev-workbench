@@ -8,7 +8,8 @@
 This plugin has no publish step, and that surprises people who look for one.
 
 The marketplace entry lives in the separate `jtemplet/templeton-agentic-marketplace`
-repository. Its marketplace manifest, which lives in that repository and not this one, names this plugin as:
+repository. Its marketplace manifest, which lives in that repository and not this one, names this plugin
+as:
 
 ```json
 {
@@ -77,10 +78,10 @@ label on a state consumers already have, not a gate in front of it.
 
 Two things follow from that, and they are the whole point of writing this down:
 
-**`/publish-plugin` owns the numbering.** It derives the semver bump from the diff since the last
-tag, writes the CHANGELOG section, bumps the manifest, commits `chore(release): X.Y.Z` touching
-exactly those two files, then pushes `main` before the tag. Doing it by hand is what caused both
-drift incidents, so the skill exists to remove the hand.
+**Numbering is a manual release.** Write the CHANGELOG section, bump the manifest, commit
+`chore(release): X.Y.Z` touching exactly those two files, then push `main` before the tag. A
+`/publish-plugin` skill once automated this, because doing it by hand caused both drift incidents.
+The skill was later removed, so the manual steps are the process again.
 
 **The pre-push hook is the only gate there is.** With no release step between a merge and a
 consumer, the check that runs at push time is doing the job a staging environment would do
