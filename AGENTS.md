@@ -144,7 +144,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Fix what a NOT ACCEPTED verdict found | `/tadw:reconcile-acceptance` (the skill itself) | `reconcile-acceptance` |
 | Land a finished bead's branch on main | `/tadw:ship` (the skill itself) | `ship` |
 | Cut and publish a plugin release | `/publish-plugin` (the skill itself) | `publish-plugin` |
-| Align before planning or building | `/grill-me` | `grilling` |
+| Align before planning or building | `/grill-me` | `mattpocock-skills:grilling` (external) |
 | Sharpen the project's vocabulary | - | `mattpocock-skills:domain-modeling` (external) |
 | Write the plan a conversation just decided | `/write-plan` | `write-plan` |
 | Plan a feature from one sentence | `/plan-from-idea`, `/plan-review` | `feature-planner` agent, `plan-review` |
@@ -252,13 +252,13 @@ two files, then tags and pushes main before the tag. Its bump rubric and stop co
 Read the last tag with `git tag --list 'v*' --sort=-v:refname`, because lexical order puts
 `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
-**Registered Skills** (46). One-line descriptions live in the `README.md` skills
+**Registered Skills** (45). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
 `ab-test-design` `agentic-clean-code` `architecture-decision-record` `aso-review` `bead-audit`
 `bead-create` `bead-refine` `business-ideas` `code-simplify` `competitive-analysis`
-`feature-development` `grilling` `house-response-style` `idea-wizard` `plan-review`
+`feature-development` `house-response-style` `idea-wizard` `plan-review`
 `plan-to-beads`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `publish-plugin` `quality-gates` `reconcile-acceptance` `reconcile-quality-gates`
@@ -361,7 +361,7 @@ already is. `docs/adr/0001-native-tracker-fields-are-canonical.md` is the model 
 components obey rather than a record of a past argument. An ADR that nothing cites is a diary
 entry, and it makes the ones that do carry rules harder to find.
 
-**Write them at two moments, not as a habit.** When `grilling` resolves a choice that is hard to
+**Write them at two moments, not as a habit.** When `/grill-me` resolves a choice that is hard to
 reverse, `mattpocock-skills:domain-modeling` offers an ADR; accept when reversal is expensive. When
 `/plan-review` returns Needs Revision over a contested design choice, the argument just made is
 already the Context section.
@@ -508,10 +508,10 @@ Single-context: one `CONTEXT.md` at the root, plus `docs/adr/`. Both exist. See
 
 **Where a tadw skill and a `mattpocock-skills` skill answer the same question, use the tadw
 one.** It writes bd beads with the native fields ADR 0001 makes canonical, grounds its claims
-against `main`, and emits the lines the pipelines read. Two skills are the deliberate exception
-and stay his: `domain-modeling`, which tadw deleted its own in favor of, and `grill-with-docs`,
-which `/write-plan` names as a valid predecessor. The full mapping, including the partial
-overlaps, is in
+against `main`, and emits the lines the pipelines read. Three skills are the deliberate exception
+and stay his: `domain-modeling` and `grilling`, which tadw deleted its own in favor of, and
+`grill-with-docs`, which `/write-plan` names as a valid predecessor. The full mapping, including
+the partial overlaps, is in
 [docs/agents/skill-precedence.md](docs/agents/skill-precedence.md), and the reasoning is in
 [ADR 0007](docs/adr/0007-a-tadw-skill-wins-over-an-overlapping-external-skill.md).
 

@@ -1,7 +1,7 @@
 # 0007. A tadw skill wins over an overlapping external skill
 
 **Date:** 2026-09-01
-**Status:** Accepted
+**Status:** Accepted, amended 2026-09-24
 
 ## Context
 
@@ -23,7 +23,7 @@ Two of them share a bare name: `code-review` and `grilling` exist in both plugin
 invocation is unambiguous, but a model choosing a skill from its description alone sees two
 plausible candidates and nothing that ranks them.
 
-The overlap is not accidental. `skills/grilling/SKILL.md` records that it was adapted from Matt
+The overlap is not accidental. tadw's grilling skill recorded that it was adapted from Matt
 Pocock's skill under MIT, and the beads that created it and the deleted `domain-modeling` skill
 both cite the source.
 
@@ -37,9 +37,9 @@ Two skills run the other way. This plugin **deleted** its own `domain-modeling` 
 favor of `mattpocock-skills:domain-modeling`, and renamed its records directory from
 docs/decisions to `docs/adr/` so that skill, which cannot be told where to write, lands records
 where everything here reads. Five files named it before this decision: AGENTS.md, `README.md`,
-`docs/ROUTING.md`, `skills/architecture-decision-record/SKILL.md`, and `skills/grilling/SKILL.md`. Separately, `/write-plan` names
-`mattpocock-skills:grill-with-docs` as a valid predecessor, in its frontmatter, its body, and
-`docs/ROUTING.md`.
+`docs/ROUTING.md`, `skills/architecture-decision-record/SKILL.md`, and tadw's grilling skill.
+Separately, `/write-plan` names `mattpocock-skills:grill-with-docs` as a valid predecessor, in its
+frontmatter, its body, and `docs/ROUTING.md`.
 
 ## Options Considered
 
@@ -117,3 +117,9 @@ skills to resolve ambiguity in ten.
   trade for the contract it protects.
 - The exception list has to be maintained. If this plugin ever ships its own `domain-modeling`
   again, this record and four other files need updating together.
+
+## Amendment, 2026-09-24
+
+tadw deleted its own `grilling` skill. `/grill-me` now runs `mattpocock-skills:grilling`, so
+`grilling` joins `domain-modeling` among the skills that stay external, and the bare-name
+collision this record describes for `grilling` no longer exists. The rule itself is unchanged.

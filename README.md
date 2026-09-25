@@ -142,7 +142,7 @@ A bug does not arrive as a plan, so it needs its own route onto Pipeline B.
 
 | Command | Description |
 |---|---|
-| `/grill-me [topic]` | Get interviewed until every branch of the design tree is resolved: one numbered round of questions per frontier, a recommended answer for each, facts found by the agent rather than asked of you |
+| `/grill-me [topic]` | Get interviewed until every branch of the design tree is resolved. Runs the external `mattpocock-skills:grilling`, so it needs that plugin installed |
 | `/build <bead-id>` | Implement a bead's spec: read the bead, learn the repo's conventions, code criterion by criterion with a test each, simplify, lint. Accepts a free-text description when no bead exists |
 | `/write-plan` | Write the design this conversation settled to `docs/plans/`; synthesis, not an interview |
 | `/plan-from-idea <idea>` | Cold start: hand one sentence to a subagent that explores the codebase and drafts the plan. Use `/write-plan` instead when the design is already decided here |
@@ -197,7 +197,6 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `idea-wizard` | Structured ideation: generate, evaluate, distill | Reviewing a codebase for improvements, or stuck and needing options |
 | `architecture-decision-record` | ADR format with context, options, and rationale | You made a non-obvious choice future-you will question |
 | `business-ideas` | Revenue-focused feature ideation with "who pays and why" thesis | A project needs to justify its investment or find revenue angles |
-| `grilling` | Relentless interview that resolves a design tree branch by branch: computes the **frontier** (the questions whose prerequisites are settled), asks the whole frontier in one numbered round with a recommended answer each, finds every fact itself (dispatching subagents) and asks you only for decisions, then recomputes the frontier from your answers; stops when the frontier is empty and waits for you to confirm alignment | Before `/write-plan`, `/bead-create`, or `/build`, whenever you want the agent to interview you first |
 | `plan-review` | Acceptance-criteria gate + codebase grounding + 7-dimension plan evaluation (completeness, feasibility, scope, risks, deps, MECE, actionability); report-only, drafts missing criteria/test plan | After writing a plan, as the gate before decomposing it |
 | `aso-review` | App Store Optimization audit across 10 weighted factors, ASO Score Card, prioritized action plan | Before an app launch, or when organic installs are low |
 | `ux-review` | Web UX review via Playwright; 7-dimension evaluation with severity-ranked report | Auditing the UX of a running web app |

@@ -45,9 +45,12 @@ destination itself is unclear.
 
 **`mattpocock-skills:domain-modeling`.** tadw had its own and deleted it on 2026-08-28 in favor
 of this one. The records directory was renamed from docs/decisions to `docs/adr/` so that this
-skill, which cannot be told where to write, lands them where everything here reads. It is named in the AGENTS.md
-routing table, in `docs/ROUTING.md`, in `skills/architecture-decision-record/SKILL.md`, and in
-`skills/grilling/SKILL.md`.
+skill, which cannot be told where to write, lands them where everything here reads. It is named
+in the AGENTS.md routing table, in `docs/ROUTING.md`, and in
+`skills/architecture-decision-record/SKILL.md`.
+
+**`mattpocock-skills:grilling`.** tadw had its own, adapted from this one, and deleted it on
+2026-09-24. `/grill-me` now runs this skill.
 
 **`mattpocock-skills:grill-with-docs`.** `/write-plan` names it, alongside `/grill-me`, as a
 valid step to follow. Reach for it over `/grill-me` when the interview should also produce ADRs
