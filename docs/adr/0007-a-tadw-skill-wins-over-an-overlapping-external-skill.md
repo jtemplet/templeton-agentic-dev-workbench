@@ -120,6 +120,7 @@ skills to resolve ambiguity in ten.
 
 ## Amendment, 2026-09-24
 
-tadw deleted its own `grilling` skill. `/grill-me` now runs `mattpocock-skills:grilling`, so
+tadw deleted its own `grilling` skill, then its `/grill-me` command. Grilling is now invoked
+directly as `mattpocock-skills:grilling`, so
 `grilling` joins `domain-modeling` among the skills that stay external, and the bare-name
 collision this record describes for `grilling` no longer exists. The rule itself is unchanged.

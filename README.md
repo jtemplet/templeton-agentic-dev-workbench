@@ -30,13 +30,13 @@ published state you have; `/publish-plugin` is what creates them.
 
 ### Pipeline A: Business Planning
 
-`/business-ideas` → `/grill-me` → `/write-plan` → `/plan-review` → `/plan-to-beads` →
-`/bead-audit-all`
+`/business-ideas` → `mattpocock-skills:grilling` → `/write-plan` → `/plan-review` →
+`/plan-to-beads` → `/bead-audit-all`
 
 | Command | What it does |
 |---|---|
 | `/business-ideas` | Analyze business model, surface 10 revenue-focused feature ideas |
-| `/grill-me [topic]` | Interview you until the design tree is resolved, so the plan is drafted against your decisions rather than the agent's assumptions |
+| `mattpocock-skills:grilling` | Interview you until the design tree is resolved, so the plan is drafted against your decisions rather than the agent's assumptions. It belongs to the `mattpocock-skills` plugin, not this one |
 | `/write-plan` | Write what this conversation decided to `docs/plans/`, in the canonical 11-section shape; no interview, and it confirms the test seams before writing |
 | `/plan-review <path>` | Gate on acceptance criteria, ground claims in the codebase, evaluate 7 dimensions (incl. MECE check), render verdict; drafts missing criteria/test plan |
 | `/plan-to-beads <path>` | Decompose plan into `bd` issues; each bead audited for Why, How, and Done when |
@@ -46,7 +46,7 @@ published state you have; `/publish-plugin` is what creates them.
 `/plan-from-idea` runs in its own context window and cannot see the interview, so it re-explores
 the codebase and can re-ask questions you already answered. Reach for it only on a cold start.
 
-`/grill-me` is optional only when the idea is already sharp. `/bead-audit-all` is not: `/build`
+Grilling is optional only when the idea is already sharp. `/bead-audit-all` is not: `/build`
 refuses a bead whose criteria are vague or whose `design` field is empty, and catching that here
 costs seconds because the plan is still in the window.
 
@@ -142,7 +142,6 @@ A bug does not arrive as a plan, so it needs its own route onto Pipeline B.
 
 | Command | Description |
 |---|---|
-| `/grill-me [topic]` | Get interviewed until every branch of the design tree is resolved. Runs the external `mattpocock-skills:grilling`, so it needs that plugin installed |
 | `/build <bead-id>` | Implement a bead's spec: read the bead, learn the repo's conventions, code criterion by criterion with a test each, simplify, lint. Accepts a free-text description when no bead exists |
 | `/write-plan` | Write the design this conversation settled to `docs/plans/`; synthesis, not an interview |
 | `/plan-from-idea <idea>` | Cold start: hand one sentence to a subagent that explores the codebase and drafts the plan. Use `/write-plan` instead when the design is already decided here |
@@ -226,7 +225,7 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 | `agentic-clean-code` | Clean Code + POODR principles for agentic systems: tool design, prompt architecture, orchestration, naming, testability | Designing or reviewing tools, prompts, or agent orchestration |
 | `roadmap-dashboard` | Synthesize the codebase and the `beads` tracker into one self-contained, zero-dependency interactive HTML dashboard at `docs/roadmap.html` (executive KPIs, pure HTML/CSS diagrams, Kanban board, prioritized roadmap); ships a `collect_beads.py` collector and versions the output | Showing project maturity and remaining work to a stakeholder |
 | `production-ops` | Safely operate production Docker Compose apps on a single Hetzner VPS over SSH (two-hop `root` -> `su - deploy`); service ops and PostgreSQL data ops under strong guardrails: read-only by default, secret-free `hetzner-prod` alias, mandatory `pg_dump` before any data mutation, transactional one-off writes, verify-after, written rollback, and hard-stops on volume wipes / `prune` / `DROP` / `TRUNCATE` / `WHERE`-less writes | Checking, restarting, or changing data on the production VPS |
-| `write-plan` | Turn a design this conversation already settled into `docs/plans/feature-plan-<name>.md`: synthesize rather than interview, verify every path it names, pick and confirm the test seams, honor the ADRs, and write the canonical 11-section template that `/plan-review` grades. Owns that template | Right after `/grill-me` or `/grill-with-docs`, or any time a settled design needs to become a document |
+| `write-plan` | Turn a design this conversation already settled into `docs/plans/feature-plan-<name>.md`: synthesize rather than interview, verify every path it names, pick and confirm the test seams, honor the ADRs, and write the canonical 11-section template that `/plan-review` grades. Owns that template | Right after `mattpocock-skills:grilling` or `/grill-with-docs`, or any time a settled design needs to become a document |
 | `house-response-style` | The always-on response style, single-sourced for both the `SessionStart` hook and `/response-style`: lead with the answer, cut narration, write in Simplified Technical English (ASD-STE100 writing rules, not its licensed dictionary), put multi-factor choices in a decision matrix, and end open work with an owner-split "Next actions" section | Never chosen: injected into every session by the hook |
 
 ## Agents
@@ -278,8 +277,8 @@ current bead as an ADR candidate, so a choice worth keeping does not die in the 
 
 **Write one only when reversing the decision would cost more than a day, and somebody would
 otherwise argue it again.** Everything smaller belongs in the bead's `design` field. Two moments
-produce most of the ones worth having: when `/grill-me` resolves a hard-to-reverse choice, and when
-`/plan-review` returns Needs Revision over a contested design choice.
+produce most of the ones worth having: when a grilling session resolves a hard-to-reverse choice,
+and when `/plan-review` returns Needs Revision over a contested design choice.
 
 The working example in this repository is `docs/adr/0001-native-tracker-fields-are-canonical.md`.
 The `plan-to-beads` skill cites it by name five times, including in its own checklist, so it is a

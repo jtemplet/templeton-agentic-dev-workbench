@@ -169,7 +169,7 @@ uses RSpec
 
 ### Ideation & Planning
 
-**Alignment Before Planning:** Use `/grill-me [topic]` or the `mattpocock-skills:grilling` skill
+**Alignment Before Planning:** Use the `mattpocock-skills:grilling` skill
 
 - Interviews you until every branch of the design tree is resolved, so a plan is drafted against
   decisions you made rather than assumptions the agent invented
@@ -184,7 +184,8 @@ uses RSpec
 
 **Write the Plan a Conversation Decided:** Use `/write-plan` or the `write-plan` skill
 
-- The step after `/grill-me` or `/grill-with-docs`, and the one that runs in the same context window
+- The step after `mattpocock-skills:grilling` or `/grill-with-docs`, and the one that runs in the
+  same context window
 - Synthesizes what this conversation settled and never re-interviews you; a decision it cannot find
   goes to Open Questions rather than back to you as a question
 - Verifies every file path, module, and API before naming it, because `/plan-review` checks each one
@@ -230,7 +231,7 @@ uses RSpec
   term down as it crystallizes rather than batching
 - Offers an ADR only when all three hold: hard to reverse, surprising without context, and the
   result of a real trade-off. It writes that ADR itself, to `docs/adr/`, in its own lighter format
-- Pairs with `/grill-me` when an interview is also teaching you the project's vocabulary
+- Pairs with `mattpocock-skills:grilling` when an interview is also teaching you the project's vocabulary
 - **It is another plugin's skill.** Nothing here works without `mattpocock-skills` installed, and
   an update to that plugin can change this behavior without a change in this repository
 

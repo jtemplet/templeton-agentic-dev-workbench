@@ -144,7 +144,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Fix what a NOT ACCEPTED verdict found | `/tadw:reconcile-acceptance` (the skill itself) | `reconcile-acceptance` |
 | Land a finished bead's branch on main | `/tadw:ship` (the skill itself) | `ship` |
 | Cut and publish a plugin release | `/publish-plugin` (the skill itself) | `publish-plugin` |
-| Align before planning or building | `/grill-me` | `mattpocock-skills:grilling` (external) |
+| Align before planning or building | - | `mattpocock-skills:grilling` (external) |
 | Sharpen the project's vocabulary | - | `mattpocock-skills:domain-modeling` (external) |
 | Write the plan a conversation just decided | `/write-plan` | `write-plan` |
 | Plan a feature from one sentence | `/plan-from-idea`, `/plan-review` | `feature-planner` agent, `plan-review` |
@@ -174,7 +174,7 @@ and by task. Not every command has an entry there yet; `tadw-routing-gaps-9wq` t
 **Pipelines.** Each step feeds the next. The per-step detail is in `README.md`.
 
 ```text
-A  Business Planning:  /business-ideas → /grill-me → /write-plan → /plan-review → /plan-to-beads → /bead-audit-all
+A  Business Planning:  /business-ideas → mattpocock-skills:grilling → /write-plan → /plan-review → /plan-to-beads → /bead-audit-all
 B  Code Quality:       /build → /fresh-eyes-cr → /quality-gates → /verify-acceptance → /tadw:ship → /publish-plugin
 C  Product Strategy:   /competitive-analysis → /product-research → /product-roadmap → /product-brief → /ab-test-design
 D  Bug on-ramp:        /diagnose → /bead-create → pipeline B
@@ -275,11 +275,11 @@ each `agents/<name>.md` frontmatter.
 `product-cartographer` `product-manager` `project-manager` `quality-gates-orchestrator`
 `research-librarian` `software-engineer` `ux-product-designer`
 
-**Registered Commands** (31). Descriptions live in the `README.md` command tables
+**Registered Commands** (30). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
 `/adr` `/agentic-clean-code` `/aso-review` `/bead-audit-all` `/bead-refine` `/build` `/code-review`
-`/diagnose` `/fresh-eyes-cr` `/frontend-code-review` `/grill-me` `/plan-from-idea` `/plan-review`
+`/diagnose` `/fresh-eyes-cr` `/frontend-code-review` `/plan-from-idea` `/plan-review`
 `/plan-to-beads` `/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
 `/quality-gates` `/rails-code-review` `/research-ingest` `/research-synthesize` `/response-style`
 `/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-review`
@@ -361,10 +361,10 @@ already is. `docs/adr/0001-native-tracker-fields-are-canonical.md` is the model 
 components obey rather than a record of a past argument. An ADR that nothing cites is a diary
 entry, and it makes the ones that do carry rules harder to find.
 
-**Write them at two moments, not as a habit.** When `/grill-me` resolves a choice that is hard to
-reverse, `mattpocock-skills:domain-modeling` offers an ADR; accept when reversal is expensive. When
-`/plan-review` returns Needs Revision over a contested design choice, the argument just made is
-already the Context section.
+**Write them at two moments, not as a habit.** When a `mattpocock-skills:grilling` session
+resolves a choice that is hard to reverse, `mattpocock-skills:domain-modeling` offers an ADR;
+accept when reversal is expensive. When `/plan-review` returns Needs Revision over a contested
+design choice, the argument just made is already the Context section.
 
 **They are read at build time, which is what makes writing one worthwhile.** `/build` Phase 2
 reads this directory before the first edit and reports which records bind the change, and Phase 3
