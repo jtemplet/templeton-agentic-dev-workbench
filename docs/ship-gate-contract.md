@@ -81,12 +81,13 @@ only after this repository has finished step 4 and these instructions are publis
 After the switch, a repository with no file and no override stops with `SHIP_BLOCKED gate` and the
 setup action. That stop is deliberate: a repository cannot be migrated from here.
 
-`skills/ship/scripts/tadw_ship.py --repo-root <path> --check-gate` shows which gate a ship run
-would select, and stops there. It prints the gate as JSON and exits 0. With no usable gate, it
-names each problem and the setup action on stderr, prints `SHIP_BLOCKED gate`, and exits 1. It
-selects the gate before it runs any `git` or `bd` command, so that stop changes nothing. The flag
-name and its output are provisional: `tadw-kgql` settles the terminal interface, so do not build
-a script on them yet.
+`tadw-ship --repo-root <path> --check-gate` shows which gate a ship run would select, and stops
+there. `tadw-ship` is `bin/tadw-ship`, and `skills/ship/scripts/tadw_ship.py` takes the same
+flags. It prints `{"source": ..., "gates": [...]}` and exits 0. `source` is `TADW_SHIP_CHECK` or
+`.tadw/ship-gates.json`, and each gate has every default filled in. The override appears as one
+gate named `TADW_SHIP_CHECK` whose command is `["sh", "-c", <the value>]`. With no usable gate,
+it names each problem and the setup action on stderr, prints `SHIP_BLOCKED gate`, and exits 1. It
+selects the gate before it runs any `git` or `bd` command, so that stop changes nothing.
 
 `tadw_ship.py --repo-root <path> --run-gate` selects the same gate and runs it through
 `skills/ship/scripts/run_checks.py`, the executor the pre-push hook shares. It honors each gate's
@@ -94,8 +95,7 @@ a script on them yet.
 processors. Ship's policy stays strict: a gate that fails, times out, cannot start, or is
 interrupted stops the run with `SHIP_BLOCKED gate`, and a missing tool is never skipped. A gate
 that can never start, because it depends on a later gate that shares one of its resources, is
-recorded as not run, so it stops the run too rather than waiting forever. The flag is provisional
-for the same reason as `--check-gate`.
+recorded as not run, so it stops the run too rather than waiting forever.
 
 A blank `TADW_SHIP_CHECK` counts as unset, because an empty command would pass every ship.
 `TADW_SHIP_CHECK_TIMEOUT` bounds the override command alone. A gate from the file uses its own

@@ -20,7 +20,18 @@ extend = ".boreas/ruff.toml"
 "skills/style-testing/scripts/*.py" = ["S603", "S607", "PLR0915", "C901", "E501"]
 "skills/product-surface-docs/scripts/*.py" = ["S603", "S607", "PLR0915"]
 "skills/roadmap-dashboard/scripts/*.py" = ["S603", "S607", "PLR0915"]
-"skills/ship/scripts/*.py" = ["S603", "S607", "PLR0915", "C901", "E501"]
+"skills/ship/scripts/*.py" = ["S603", "S607", "E501"]
+# Ship scripts still over the size limits. Remove a line when a bead rewrites that
+# script to fit them; never add one (tadw-1cvz tracks the list).
+"skills/ship/scripts/candidate.py" = ["PLR0915", "C901"]
+"skills/ship/scripts/check_worktree_occupants.py" = ["PLR0915", "C901"]
+"skills/ship/scripts/landed_check.py" = ["PLR0915", "C901"]
+"skills/ship/scripts/measure_gate_baseline.py" = ["PLR0915", "C901"]
+"skills/ship/scripts/read_gate_config.py" = ["PLR0915", "C901"]
+"skills/ship/scripts/resolve_ground.py" = ["PLR0915", "C901"]
+"skills/ship/scripts/resolve_rebase_conflict.py" = ["PLR0915", "C901"]
+"skills/ship/scripts/run_checks.py" = ["PLR0915", "C901"]
+"skills/ship/scripts/select_bead.py" = ["PLR0915", "C901"]
 "evals/*.py" = ["PLR0915", "C901", "S104", "S108", "E501"]
 ".githooks/pre-push" = ["S104", "PLR0915", "C901", "PLR0913", "SIM117", "SIM105", "S603", "S607"]
 

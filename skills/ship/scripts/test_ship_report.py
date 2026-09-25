@@ -33,6 +33,12 @@ RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds
   A long subject fits the limit                     case_long_subject_fits_the_limit
   A long subject is cut at a word boundary          case_long_subject_cuts_at_a_word
   A bead id longer than the limit is still kept     case_oversized_bead_id_is_kept
+
+  tadw-kgql criterion                               Pinned by
+  ------------------------------------------------------------------------------
+  1. The `cd` line comes before the machine line    case_cd_line_precedes_the_machine_line,
+                                                    case_cd_line_quotes_a_path_with_spaces
+  2. No removed start directory, no `cd` line       case_no_cd_target_prints_no_cd_line
 """
 
 from __future__ import annotations
@@ -119,6 +125,20 @@ def case_short_failure_is_quoted_whole():
     assert check_report_for(UNKNOWN_OUTPUT).excerpt == UNKNOWN_OUTPUT.rstrip("\n")
 
 
+def rendered_check_lines(output: str, status: str) -> list[str]:
+    return ship_report.check_lines([check_report_for(output, status=status)])
+
+
+def case_passed_check_line_names_no_log():
+    lines = rendered_check_lines(PYTEST_OUTPUT, "passed")
+    assert lines == ["tadw_ship: passed suite [3 passed, 1 failed]"], lines
+
+
+def case_failed_check_with_an_empty_log_prints_only_its_header():
+    lines = rendered_check_lines("", "failed")
+    assert len(lines) == 1 and "(log: " in lines[0], lines
+
+
 def case_passed_check_has_no_excerpt():
     assert check_report_for(PYTEST_OUTPUT, status="passed").excerpt is None
 
@@ -146,6 +166,25 @@ def case_unrecognized_output_has_no_counts():
 
 def case_machine_line_is_last():
     assert rendered(None, UNKNOWN_OUTPUT)[-1] == BLOCKED
+
+
+def rendered_with_cd(target: Path | None) -> list[str]:
+    return ship_report.render(ship_report.ShipResult("tadw-kgql", (), BLOCKED, target))
+
+
+def case_cd_line_precedes_the_machine_line():
+    lines = rendered_with_cd(Path("/work/repo"))
+    assert lines[-2:] == ["cd /work/repo", BLOCKED], lines
+
+
+def case_cd_line_quotes_a_path_with_spaces():
+    lines = rendered_with_cd(Path("/work/my repo"))
+    assert lines[-2] == "cd '/work/my repo'", lines
+
+
+def case_no_cd_target_prints_no_cd_line():
+    lines = rendered_with_cd(None)
+    assert not [line for line in lines if line.startswith("cd ")], lines
 
 
 def case_short_subject_is_unchanged():
@@ -183,6 +222,11 @@ for name, fn in [
     ("a long failure is bounded in characters", case_long_failure_is_bounded_in_characters),
     ("a short failure is quoted whole", case_short_failure_is_quoted_whole),
     ("a passed check carries no excerpt", case_passed_check_has_no_excerpt),
+    ("a passed check's line names no log", case_passed_check_line_names_no_log),
+    (
+        "a failed check with an empty log prints only its header",
+        case_failed_check_with_an_empty_log_prints_only_its_header,
+    ),
     ("pytest's summary supplies the counts", case_pytest_counts_are_parsed),
     ("unittest's summary supplies the counts", case_unittest_counts_are_parsed),
     ("this repository's suite summary supplies the counts", case_house_suite_counts_are_parsed),
@@ -190,6 +234,9 @@ for name, fn in [
     ("pytest errors count as failures", case_pytest_errors_count_as_failed),
     ("a bead id longer than the limit is still kept", case_oversized_bead_id_is_kept),
     ("the machine line is the last line", case_machine_line_is_last),
+    ("the cd line comes right before the machine line", case_cd_line_precedes_the_machine_line),
+    ("the cd line quotes a path with spaces", case_cd_line_quotes_a_path_with_spaces),
+    ("no cd target prints no cd line", case_no_cd_target_prints_no_cd_line),
     ("a short subject is left alone", case_short_subject_is_unchanged),
     ("a long subject keeps its bead id", case_long_subject_keeps_the_bead_id),
     ("a long subject fits the limit", case_long_subject_fits_the_limit),

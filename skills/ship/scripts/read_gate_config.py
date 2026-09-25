@@ -12,8 +12,8 @@ inputs are what a later result-reuse rule will compare, so a gate that leaves
 them empty declares "I cannot say", and its result is never reused.
 
 Exit status: 0 when the file is valid, 1 when it is invalid (each problem is
-printed to stderr, all of them at once), 2 on operator error, such as a missing
-file or a repository path that does not exist.
+printed to stderr, all of them at once), 2 when there is no configuration file,
+including when the repository path does not exist.
 """
 
 from __future__ import annotations
@@ -50,29 +50,56 @@ class NormalizedGate(TypedDict):
     reuse: bool
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    repo = Path(args.repo_root)
-    if not repo.is_dir():
-        print(f"read_gate_config: not a directory: {repo}", file=sys.stderr)
-        return EXIT_OPERATOR_ERROR
-    path = repo / CONFIG_PATH
-    if not path.is_file():
-        print(f"read_gate_config: no gate configuration at {path}", file=sys.stderr)
-        return EXIT_OPERATOR_ERROR
-    try:
-        document = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as error:
-        print(f"read_gate_config: {path} is not valid JSON: {error}", file=sys.stderr)
-        return EXIT_INVALID
+class GateConfigError(Exception):
+    """The configuration is invalid; `problems` names every one of them."""
 
+    exit_code = EXIT_INVALID
+
+    def __init__(self, problems: list[str]) -> None:
+        super().__init__("; ".join(problems))
+        self.problems = problems
+
+
+class MissingGateConfig(GateConfigError):
+    exit_code = EXIT_OPERATOR_ERROR
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        gates = load_gates(Path(parse_args(argv).repo_root))
+    except GateConfigError as error:
+        return report_problems(error)
+    print(json.dumps({"version": SUPPORTED_VERSION, "gates": gates}, indent=2))
+    return EXIT_VALID
+
+
+def load_gates(repo: Path) -> list[NormalizedGate]:
+    """The configured gates with every default filled in, or a `GateConfigError`."""
+    path = repo / CONFIG_PATH
+    document = read_document(path)
+    require_valid(path, document)
+    return normalize(document)["gates"]
+
+
+def read_document(path: Path) -> object:
+    if not path.is_file():
+        raise MissingGateConfig([f"no gate configuration at {path}"])
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise GateConfigError([f"{path} could not be read as JSON: {error}"]) from error
+
+
+def require_valid(path: Path, document: object) -> None:
     problems = validate(document)
     if problems:
-        for problem in problems:
-            print(f"read_gate_config: {problem}", file=sys.stderr)
-        return EXIT_INVALID
-    print(json.dumps(normalize(document), indent=2))
-    return EXIT_VALID
+        raise GateConfigError([f"{path}: {problem}" for problem in problems])
+
+
+def report_problems(error: GateConfigError) -> int:
+    for problem in error.problems:
+        print(f"read_gate_config: {problem}", file=sys.stderr)
+    return error.exit_code
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -149,7 +176,7 @@ def find_cycle(gates: list[NormalizedGate]) -> list[str]:
 
     def visit(name: str, path: list[str]) -> list[str]:
         if name in path:
-            return path[path.index(name):] + [name]
+            return path[path.index(name) :] + [name]
         if name in finished:
             return []
         for dependency in graph.get(name, []):

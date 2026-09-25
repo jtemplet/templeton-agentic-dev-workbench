@@ -53,6 +53,7 @@ python3 skills/ship/scripts/test_resolve_rebase_conflict.py    # regression suit
 python3 skills/ship/scripts/test_select_bead.py              # regression suite for ship's bead selection
 python3 skills/ship/scripts/test_ship_report.py              # regression suite for ship's report and counts
 python3 skills/ship/scripts/test_candidate.py               # regression suite for ship's checked candidate
+python3 skills/ship/scripts/test_worktree_cleanup.py        # regression suite for ship's worktree cleanup and cd guidance
 python3 skills/reconcile-acceptance/scripts/test_load_findings.py   # regression suite for the acceptance findings loader
 python3 skills/reconcile-quality-gates/scripts/test_load_findings.py   # regression suite for the quality-gates findings loader
 python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py   # regression suite for the acceptance report writer
@@ -143,7 +144,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Fix what a NOT ACCEPTED verdict found | `/tadw:reconcile-acceptance` (the skill itself) | `reconcile-acceptance` |
 | Land a finished bead's branch on main | `/tadw:ship` (the skill itself) | `ship` |
 | Cut and publish a plugin release | `/publish-plugin` (the skill itself) | `publish-plugin` |
-| Align before planning or building | `/grill-me` | `grilling` |
+| Align before planning or building | - | `mattpocock-skills:grilling` (external) |
 | Sharpen the project's vocabulary | - | `mattpocock-skills:domain-modeling` (external) |
 | Write the plan a conversation just decided | `/write-plan` | `write-plan` |
 | Plan a feature from one sentence | `/plan-from-idea`, `/plan-review` | `feature-planner` agent, `plan-review` |
@@ -173,7 +174,7 @@ and by task. Not every command has an entry there yet; `tadw-routing-gaps-9wq` t
 **Pipelines.** Each step feeds the next. The per-step detail is in `README.md`.
 
 ```text
-A  Business Planning:  /business-ideas → /grill-me → /write-plan → /plan-review → /plan-to-beads → /bead-audit-all
+A  Business Planning:  /business-ideas → mattpocock-skills:grilling → /write-plan → /plan-review → /plan-to-beads → /bead-audit-all
 B  Code Quality:       /build → /fresh-eyes-cr → /quality-gates → /verify-acceptance → /tadw:ship → /publish-plugin
 C  Product Strategy:   /competitive-analysis → /product-research → /product-roadmap → /product-brief → /ab-test-design
 D  Bug on-ramp:        /diagnose → /bead-create → pipeline B
@@ -251,13 +252,13 @@ two files, then tags and pushes main before the tag. Its bump rubric and stop co
 Read the last tag with `git tag --list 'v*' --sort=-v:refname`, because lexical order puts
 `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
-**Registered Skills** (46). One-line descriptions live in the `README.md` skills
+**Registered Skills** (45). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
 `ab-test-design` `agentic-clean-code` `architecture-decision-record` `aso-review` `bead-audit`
 `bead-create` `bead-refine` `business-ideas` `code-simplify` `competitive-analysis`
-`feature-development` `grilling` `house-response-style` `idea-wizard` `plan-review`
+`feature-development` `house-response-style` `idea-wizard` `plan-review`
 `plan-to-beads`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `publish-plugin` `quality-gates` `reconcile-acceptance` `reconcile-quality-gates`
@@ -274,11 +275,11 @@ each `agents/<name>.md` frontmatter.
 `product-cartographer` `product-manager` `project-manager` `quality-gates-orchestrator`
 `research-librarian` `software-engineer` `ux-product-designer`
 
-**Registered Commands** (31). Descriptions live in the `README.md` command tables
+**Registered Commands** (30). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
 `/adr` `/agentic-clean-code` `/aso-review` `/bead-audit-all` `/bead-refine` `/build` `/code-review`
-`/diagnose` `/fresh-eyes-cr` `/frontend-code-review` `/grill-me` `/plan-from-idea` `/plan-review`
+`/diagnose` `/fresh-eyes-cr` `/frontend-code-review` `/plan-from-idea` `/plan-review`
 `/plan-to-beads` `/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
 `/quality-gates` `/rails-code-review` `/research-ingest` `/research-synthesize` `/response-style`
 `/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-review`
@@ -360,10 +361,10 @@ already is. `docs/adr/0001-native-tracker-fields-are-canonical.md` is the model 
 components obey rather than a record of a past argument. An ADR that nothing cites is a diary
 entry, and it makes the ones that do carry rules harder to find.
 
-**Write them at two moments, not as a habit.** When `grilling` resolves a choice that is hard to
-reverse, `mattpocock-skills:domain-modeling` offers an ADR; accept when reversal is expensive. When
-`/plan-review` returns Needs Revision over a contested design choice, the argument just made is
-already the Context section.
+**Write them at two moments, not as a habit.** When a `mattpocock-skills:grilling` session
+resolves a choice that is hard to reverse, `mattpocock-skills:domain-modeling` offers an ADR;
+accept when reversal is expensive. When `/plan-review` returns Needs Revision over a contested
+design choice, the argument just made is already the Context section.
 
 **They are read at build time, which is what makes writing one worthwhile.** `/build` Phase 2
 reads this directory before the first edit and reports which records bind the change, and Phase 3
@@ -507,10 +508,10 @@ Single-context: one `CONTEXT.md` at the root, plus `docs/adr/`. Both exist. See
 
 **Where a tadw skill and a `mattpocock-skills` skill answer the same question, use the tadw
 one.** It writes bd beads with the native fields ADR 0001 makes canonical, grounds its claims
-against `main`, and emits the lines the pipelines read. Two skills are the deliberate exception
-and stay his: `domain-modeling`, which tadw deleted its own in favor of, and `grill-with-docs`,
-which `/write-plan` names as a valid predecessor. The full mapping, including the partial
-overlaps, is in
+against `main`, and emits the lines the pipelines read. Three skills are the deliberate exception
+and stay his: `domain-modeling` and `grilling`, which tadw deleted its own in favor of, and
+`grill-with-docs`, which `/write-plan` names as a valid predecessor. The full mapping, including
+the partial overlaps, is in
 [docs/agents/skill-precedence.md](docs/agents/skill-precedence.md), and the reasoning is in
 [ADR 0007](docs/adr/0007-a-tadw-skill-wins-over-an-overlapping-external-skill.md).
 

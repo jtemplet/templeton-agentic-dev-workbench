@@ -1,6 +1,6 @@
 ---
 name: write-plan
-description: "Write up the plan, design, or approach this conversation has already worked out, and save it to docs/plans/feature-plan-<name>.md. Use whenever someone says write the plan, write this up, turn this into a plan, document what we decided, save this as a plan, write the spec, put this in a plan file, or make a plan doc, and as the step that follows /grill-me or /grill-with-docs once the interview is finished. Synthesizes what the current window settled rather than interviewing again: collects every decision that was made and the option it beat, verifies each file path, module, and API it is about to name against the codebase, picks the test seams and confirms them, reads docs/adr/ so no ADR is contradicted, then fills the canonical plan template it owns, which /plan-review grades for completeness and /plan-to-beads decomposes into beads. Not for a cold start where nothing has been decided yet: that is /plan-from-idea, which explores from one sentence in its own context and cannot see this conversation. Not for judging a plan that already exists (/plan-review), not for breaking a reviewed plan into issues (/plan-to-beads), and not for work small enough to fit one bead (/bead-create)."
+description: "Write up the plan, design, or approach this conversation has already worked out, and save it to docs/plans/feature-plan-<name>.md. Use whenever someone says write the plan, write this up, turn this into a plan, document what we decided, save this as a plan, write the spec, put this in a plan file, or make a plan doc, and as the step that follows mattpocock-skills:grilling or /grill-with-docs once the interview is finished. Synthesizes what the current window settled rather than interviewing again: collects every decision that was made and the option it beat, verifies each file path, module, and API it is about to name against the codebase, picks the test seams and confirms them, reads docs/adr/ so no ADR is contradicted, then fills the canonical plan template it owns, which /plan-review grades for completeness and /plan-to-beads decomposes into beads. Not for a cold start where nothing has been decided yet: that is /plan-from-idea, which explores from one sentence in its own context and cannot see this conversation. Not for judging a plan that already exists (/plan-review), not for breaking a reviewed plan into issues (/plan-to-beads), and not for work small enough to fit one bead (/bead-create)."
 ---
 
 # Write Plan
@@ -27,7 +27,7 @@ not made, and it is cheap to confirm and expensive to get wrong.
 
 Use when:
 
-- `/grill-me` or `/grill-with-docs` just finished and the design tree is resolved.
+- `mattpocock-skills:grilling` or `/grill-with-docs` just finished and the design tree is resolved.
 - A design was settled in conversation and now needs to become a document.
 - A prototype answered its question and the answer needs recording.
 
@@ -237,7 +237,8 @@ Before writing the file:
 - [ ] Every decision in the file traces to something the conversation actually settled
 - [ ] No question was asked that the conversation had already answered
 - [ ] Every file path, module, and API named in the plan was verified to exist
-- [ ] Test Seams is filled, the seams were confirmed with the user, and the count is as low as the behavior allows
+- [ ] Test Seams is filled, the seams were confirmed with the user, and the count is as low as the
+      behavior allows
 - [ ] `docs/adr/` was read, and any ADR the plan touches appears in Decisions That Bind This Plan
 - [ ] `CONTEXT.md` was read, and every domain term in the plan uses the glossary's word
 - [ ] Acceptance Criteria is present and every criterion is testable, with no "works well" or "is fast"
@@ -252,7 +253,7 @@ Before writing the file:
 
 | Before | After |
 |---|---|
-| `/grill-me` or `/grill-with-docs` resolves the design tree | `/plan-review` grades the file this skill wrote |
+| `mattpocock-skills:grilling` or `/grill-with-docs` resolves the design tree | `/plan-review` grades the file this skill wrote |
 | A prototype answers its design question | `/plan-to-beads` decomposes the reviewed plan |
 
 `/plan-from-idea` is the alternative entry point, for when there is nothing in the window to

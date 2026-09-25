@@ -28,7 +28,6 @@ produces work the rest of the pipeline cannot consume.
 | `mattpocock-skills:implement` | `/build` | Reads the bead from `bd` rather than the transcript, implements criterion by criterion with a test each, then simplifies and lints |
 | `mattpocock-skills:tdd` | `style-testing` | One behavior per test, hoisted setup, deterministic clocks, and a list of what not to test |
 | `mattpocock-skills:research` | `/research-ingest`, `/research-synthesize` | Weighs each claim by the source's recorded validity, and keeps the wiki and its index current |
-| `mattpocock-skills:grilling` | `/grill-me` | tadw's own `grilling` skill, adapted from his under MIT and since diverged |
 
 ## Where the overlap is partial
 
@@ -45,13 +44,16 @@ destination itself is unclear.
 
 **`mattpocock-skills:domain-modeling`.** tadw had its own and deleted it on 2026-08-28 in favor
 of this one. The records directory was renamed from docs/decisions to `docs/adr/` so that this
-skill, which cannot be told where to write, lands them where everything here reads. It is named in the AGENTS.md
-routing table, in `docs/ROUTING.md`, in `skills/architecture-decision-record/SKILL.md`, and in
-`skills/grilling/SKILL.md`.
+skill, which cannot be told where to write, lands them where everything here reads. It is named
+in the AGENTS.md routing table, in `docs/ROUTING.md`, and in
+`skills/architecture-decision-record/SKILL.md`.
 
-**`mattpocock-skills:grill-with-docs`.** `/write-plan` names it, alongside `/grill-me`, as a
-valid step to follow. Reach for it over `/grill-me` when the interview should also produce ADRs
-and glossary entries as it goes.
+**`mattpocock-skills:grilling`.** tadw had its own, adapted from this one, and deleted it on
+2026-09-24, and its `/grill-me` command with it. Invoke this skill directly.
+
+**`mattpocock-skills:grill-with-docs`.** `/write-plan` names it, alongside
+`mattpocock-skills:grilling`, as a valid step to follow. Reach for it over `grilling` when the
+interview should also produce ADRs and glossary entries as it goes.
 
 ## No tadw equivalent exists
 
