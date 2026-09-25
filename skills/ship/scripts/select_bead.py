@@ -16,8 +16,12 @@ is not read here until that is settled.
 
 WHAT STOPS AND WHAT SHIPS BEAD-FREE. An explicit id that does not resolve
 stops, whatever the reason, because the caller named a bead and a typo is the
-likely cause: it never becomes a bead-free ship. Two distinct canonical ids
-from the branch stop, because closing the wrong bead is silent. A closed bead
+likely cause: it never becomes a bead-free ship. A branch candidate counts only
+when it names its bead exactly, as the full id or the hash after the last
+hyphen, because `bd show` also resolves a partial id: `ios` in a branch name
+once resolved to hdw-ios-send-birth-year-wynj and closed it (tadw-7lxr). An
+explicit id keeps partial resolution, because a person typed it. Two distinct
+canonical ids from the branch stop, because closing the wrong bead is silent. A closed bead
 stops, because something landed this work already. The branch naming no bead,
 or no tracker existing at all, ships bead-free. Any other tracker failure stops:
 a `bd` that crashed has not said the bead is missing, and shipping bead-free on
@@ -113,7 +117,14 @@ def select_from_branch(candidates: Sequence[str], lookup: Lookup) -> Selection:
 
 
 def resolved(candidates: Sequence[str], lookup: Lookup) -> list[Bead]:
-    return [bead for bead in map(lookup, candidates) if bead is not None]
+    """Only beads the candidate names exactly: `bd show` also resolves a partial id."""
+    found = ((candidate, lookup(candidate)) for candidate in candidates)
+    return [bead for candidate, bead in found if bead is not None and names(candidate, bead)]
+
+
+def names(candidate: str, bead: Bead) -> bool:
+    """The full id, or the hash after its last hyphen, as `a7r` names `tadw-a7r`."""
+    return candidate in (bead.id, bead.id.rsplit("-", 1)[-1])
 
 
 def open_bead(bead: Bead) -> Bead:

@@ -47,6 +47,11 @@ spec = importlib.util.spec_from_file_location("select_bead", SCRIPT)
 select_bead = importlib.util.module_from_spec(spec)
 sys.modules["select_bead"] = select_bead
 spec.loader.exec_module(select_bead)
+ground_spec = importlib.util.spec_from_file_location(
+    "resolve_ground", SCRIPT.parent / "resolve_ground.py"
+)
+resolve_ground = importlib.util.module_from_spec(ground_spec)
+ground_spec.loader.exec_module(resolve_ground)
 
 passed = 0
 failed = 0
@@ -138,6 +143,45 @@ def case_no_candidate_ships_bead_free():
     assert selection.bead_free_reason == "no-candidate", selection
 
 
+# tadw-7lxr: `bd show` resolves a partial id, so `bd show ios` returned
+# hdw-ios-send-birth-year-wynj and a branch naming no bead closed it.
+UNRELATED = select_bead.Bead("hdw-ios-send-birth-year-wynj", "Send birth year", "feature", "open")
+
+
+def partial_match_lookup(beads: list) -> RecordingLookup:
+    """Every substring of an id resolves to its bead, the way `bd show` resolves one."""
+    tracker = {}
+    for bead in beads:
+        for start in range(len(bead.id)):
+            for end in range(start + 1, len(bead.id) + 1):
+                tracker.setdefault(bead.id[start:end], bead)
+    return RecordingLookup(tracker)
+
+
+def case_a_branch_word_inside_an_id_ships_bead_free():
+    branch = "fix/ios/wrap-snapshot-stat-label"
+    candidates = resolve_ground.bead_candidates(branch)
+    selection = select_bead.select_bead(None, candidates, partial_match_lookup([UNRELATED]))
+    assert selection.bead is None, f"{branch} selected {selection.bead}"
+
+
+def case_a_full_id_on_the_branch_selects_its_bead():
+    candidates = ["fix", "hdw-ios-send-birth-year-wynj"]
+    selection = select_bead.select_bead(None, candidates, partial_match_lookup([UNRELATED]))
+    assert selection.bead == UNRELATED, selection
+
+
+def case_a_hash_alone_on_the_branch_selects_its_bead():
+    selection = select_bead.select_bead(None, ["a7r"], partial_match_lookup([OPEN]))
+    assert selection.bead == OPEN, selection
+
+
+def case_a_prefix_of_a_hash_is_not_a_bead():
+    awsr = select_bead.Bead("tadw-awsr", "Gate on the hooks", "bug", "open")
+    selection = select_bead.select_bead(None, ["aws"], partial_match_lookup([awsr]))
+    assert selection.bead is None, selection
+
+
 def case_no_tracker_ships_bead_free():
     lookup = raising(select_bead.TrackerMissing("no db"))
     selection = select_bead.select_bead(None, ["tadw-a7r"], lookup)
@@ -211,6 +255,13 @@ for name, fn in [
     ),
     ("an explicit id is the only lookup made", case_explicit_id_is_the_only_lookup),
     ("a branch naming no bead ships bead-free", case_no_candidate_ships_bead_free),
+    ("a branch word inside an id ships bead-free", case_a_branch_word_inside_an_id_ships_bead_free),
+    ("a full id on the branch selects its bead", case_a_full_id_on_the_branch_selects_its_bead),
+    (
+        "a hash alone on the branch selects its bead",
+        case_a_hash_alone_on_the_branch_selects_its_bead,
+    ),
+    ("a prefix of a hash is not a bead", case_a_prefix_of_a_hash_is_not_a_bead),
     ("no tracker at all ships bead-free", case_no_tracker_ships_bead_free),
     ("a tracker that fails stops the run", case_failing_tracker_stops),
     ("a closed bead stops the run", case_closed_bead_stops),
