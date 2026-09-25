@@ -45,6 +45,7 @@ import itertools
 import json
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 ASK_PREFIX = "**Ask:**"
@@ -149,20 +150,33 @@ def prose_blocks(description: str) -> list[str]:
     Headings and fenced code are not prose, so neither reaches a block.
     """
     blocks: list[list[str]] = [[]]
+    for line in lines_outside_fences(description):
+        add_prose_line(blocks, line)
+    return [" ".join(lines) for lines in blocks if lines]
+
+
+def lines_outside_fences(description: str) -> Iterator[str]:
+    """Each line outside fenced code, with every fence line turned into a blank line.
+
+    A blank line ends the current block, which is what a fence line must do too.
+    """
     fenced = False
     for line in description.splitlines():
         if FENCE.match(line):
             fenced = not fenced
-            blocks.append([])
-        elif fenced:
-            continue
-        elif not line.strip() or HEADING.match(line) or TABLE_DIVIDER.match(line):
-            blocks.append([])
-        elif LIST_ITEM.match(line) or TABLE_ROW.match(line):
-            blocks.append([line])
-        else:
-            blocks[-1].append(line)
-    return [" ".join(lines) for lines in blocks if lines]
+            yield ""
+        elif not fenced:
+            yield line
+
+
+def add_prose_line(blocks: list[list[str]], line: str) -> None:
+    """End the current block, open a new one with the line, or extend the current one."""
+    if not line.strip() or HEADING.match(line) or TABLE_DIVIDER.match(line):
+        blocks.append([])
+    elif LIST_ITEM.match(line) or TABLE_ROW.match(line):
+        blocks.append([line])
+    else:
+        blocks[-1].append(line)
 
 
 def without_code(block: str) -> str:

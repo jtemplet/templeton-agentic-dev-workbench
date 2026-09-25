@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import re
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 DEFAULT_SKILL = Path(__file__).resolve().parent.parent / "SKILL.md"
@@ -120,36 +121,40 @@ def find_regions(lines: list[str], kind: str) -> tuple[list[tuple[int, int]], li
     and yields no regions, so a mangled marker fails loudly rather than
     shrinking what the check covers.
     """
-    start_marker, end_marker = MARKERS[kind]
-    events = [
-        (index, line.strip())
-        for index, line in enumerate(lines)
-        if line.strip() in (start_marker, end_marker)
+    markers = MARKERS[kind]
+    events = [(index, line.strip()) for index, line in enumerate(lines) if line.strip() in markers]
+    problems = alternation_problems(events, markers)
+    if problems:
+        return [], problems
+    starts, ends = events[0::2], events[1::2]
+    return [(start, end) for (start, _), (end, _) in zip(starts, ends, strict=True)], []
+
+
+def alternation_problems(events: list[tuple[int, str]], markers: tuple[str, str]) -> list[str]:
+    """Report the first marker out of start, end order, or a last start left open."""
+    for position, (_, marker) in enumerate(events):
+        if marker != markers[position % 2]:
+            return out_of_order_problems(events, position, markers)
+    if len(events) % 2:
+        last_start, _ = events[-1]
+        return [f"line {last_start + 1}: `{markers[0]}` is never closed"]
+    return []
+
+
+def out_of_order_problems(
+    events: list[tuple[int, str]], position: int, markers: tuple[str, str]
+) -> list[str]:
+    """Describe the marker at `position`, which arrived where the other kind belonged."""
+    start_marker, end_marker = markers
+    index, marker = events[position]
+    if marker == end_marker:
+        return [f"line {index + 1}: `{end_marker}` with no matching start"]
+    open_at, _ = events[position - 1]
+    return [
+        f"line {index + 1}: `{start_marker}` opened again "
+        f"before the one on line {open_at + 1} was closed",
+        f"line {open_at + 1}: `{start_marker}` is never closed",
     ]
-
-    regions: list[tuple[int, int]] = []
-    problems: list[str] = []
-    open_at: int | None = None
-    for index, marker in events:
-        if marker == start_marker:
-            if open_at is not None:
-                problems.append(
-                    f"line {index + 1}: `{start_marker}` opened again "
-                    f"before the one on line {open_at + 1} was closed"
-                )
-                break
-            open_at = index
-        else:
-            if open_at is None:
-                problems.append(f"line {index + 1}: `{end_marker}` with no matching start")
-                break
-            regions.append((open_at, index))
-            open_at = None
-
-    if open_at is not None:
-        problems.append(f"line {open_at + 1}: `{start_marker}` is never closed")
-
-    return ([], problems) if problems else (regions, [])
 
 
 def require_region_count(kind: str, regions: list[tuple[int, int]], minimum: int) -> list[str]:
@@ -183,48 +188,49 @@ def tables_in(lines: list[str], start: int, end: int) -> list[tuple[int, list[st
 
 def check_round(lines: list[str], start: int, end: int) -> list[str]:
     """Check one Step 6 round template: its table, then its Detail list."""
-    problems: list[str] = []
     tables = tables_in(lines, start, end)
-
     if len(tables) != 1:
         return [f"line {start + 1}: a round region must hold exactly 1 table, found {len(tables)}"]
 
     header_index, rows = tables[0]
     header = cells(lines[header_index])
     if tuple(header) != ROUND_COLUMNS:
-        problems.append(
+        # Every cell check indexes by column, so a wrong header makes them
+        # meaningless rather than merely noisy.
+        return [
             f"line {header_index + 1}: the round table must hold exactly these 6 columns "
             f"in this order: {' | '.join(ROUND_COLUMNS)}. Found: {' | '.join(header)}"
-        )
-        # Every cell check below indexes by column, so a wrong header makes them
-        # meaningless rather than merely noisy.
-        return problems
+        ]
 
-    for offset, row in enumerate(rows):
-        number = header_index + 3 + offset
-        values = cells(row)
-        if len(values) != len(ROUND_COLUMNS):
-            problems.append(
-                f"line {number}: row has {len(values)} cells, expected {len(ROUND_COLUMNS)}"
-            )
-            continue
+    row_problems = [
+        problem
+        for offset, row in enumerate(rows)
+        for problem in check_round_row(header_index + 3 + offset, row)
+    ]
+    return row_problems + check_detail(lines, start, end)
 
-        route = values[ROUND_COLUMNS.index("Route")]
-        if route not in ROUTE_VALUES:
-            problems.append(
-                f"line {number}: Route cell is `{route}`, "
-                f"expected one of: {', '.join(ROUTE_VALUES)}"
-            )
 
-        why = values[ROUND_COLUMNS.index("Why")]
-        words = len(why.split())
-        if words > WHY_WORD_LIMIT:
-            problems.append(
-                f"line {number}: Why cell is {words} words, the limit is {WHY_WORD_LIMIT}: `{why}`"
-            )
+def check_round_row(number: int, row: str) -> list[str]:
+    """Check one round table row, reported against its 1-based line `number`."""
+    values = cells(row)
+    if len(values) != len(ROUND_COLUMNS):
+        return [f"line {number}: row has {len(values)} cells, expected {len(ROUND_COLUMNS)}"]
+    route = values[ROUND_COLUMNS.index("Route")]
+    why = values[ROUND_COLUMNS.index("Why")]
+    return check_route_cell(number, route) + check_why_cell(number, why)
 
-    problems.extend(check_detail(lines, start, end))
-    return problems
+
+def check_route_cell(number: int, route: str) -> list[str]:
+    if route in ROUTE_VALUES:
+        return []
+    return [f"line {number}: Route cell is `{route}`, expected one of: {', '.join(ROUTE_VALUES)}"]
+
+
+def check_why_cell(number: int, why: str) -> list[str]:
+    words = len(why.split())
+    if words <= WHY_WORD_LIMIT:
+        return []
+    return [f"line {number}: Why cell is {words} words, the limit is {WHY_WORD_LIMIT}: `{why}`"]
 
 
 def check_detail(lines: list[str], start: int, end: int) -> list[str]:
@@ -304,36 +310,50 @@ def check_step_parity(skill_lines: list[str], command_path: Path) -> list[str]:
     while the command's list stays as it was, which is the drift that happens.
     """
     numbers = [int(match.group(1)) for line in skill_lines if (match := SKILL_STEP.match(line))]
+    problems = skill_numbering_problems(numbers)
+    if problems:
+        return problems
+    return command_step_problems(command_path, list(range(1, len(numbers) + 1)))
+
+
+def skill_numbering_problems(numbers: list[int]) -> list[str]:
+    """The skill's step headings must exist and count 1, 2, 3 with no gap."""
     if not numbers:
         return ["structure: the skill defines no `### Step N:` heading"]
-
     expected = list(range(1, len(numbers) + 1))
     if numbers != expected:
         return [f"structure: the skill's step numbers are {numbers}, expected {expected}"]
+    return []
 
+
+def command_step_problems(command_path: Path, expected: list[int]) -> list[str]:
+    """The command file's steps region must list exactly the `expected` step numbers."""
     if not command_path.is_file():
         return [f"structure: no command file at {command_path}"]
-
     command_lines = command_path.read_text(encoding="utf-8").splitlines()
-    regions, problems = find_regions(command_lines, "steps")
+    listed, problems = listed_steps(command_lines)
     if problems:
         return problems
-    problems = require_region_count("steps", regions, 1)
-    if problems:
-        return problems
-
-    start, end = regions[0]
-    listed = [
-        int(match.group(1))
-        for line in command_lines[start : end + 1]
-        if (match := COMMAND_STEP.match(line))
-    ]
     if listed != expected:
         return [
             f"{command_path.name}: its numbered list is {listed}, but the skill defines "
             f"{expected}. The command no longer names every step"
         ]
     return []
+
+
+def listed_steps(command_lines: list[str]) -> tuple[list[int], list[str]]:
+    """The step numbers inside the command's one steps region, plus any marker problems."""
+    regions, problems = find_regions(command_lines, "steps")
+    problems = problems or require_region_count("steps", regions, 1)
+    if problems:
+        return [], problems
+    start, end = regions[0]
+    return [
+        int(match.group(1))
+        for line in command_lines[start : end + 1]
+        if (match := COMMAND_STEP.match(line))
+    ], []
 
 
 def main() -> int:
@@ -344,31 +364,49 @@ def main() -> int:
         return 2
 
     lines = skill_path.read_text(encoding="utf-8").splitlines()
+    problems = check_skill(lines, command_path)
+    if problems:
+        return report_failure(skill_path, problems)
+    return report_success(skill_path, command_path, lines)
 
-    rounds, problems = find_regions(lines, "round")
+
+def check_skill(lines: list[str], command_path: Path) -> list[str]:
+    """Every problem in the skill's regions and in its step parity with the command."""
+    rounds, round_problems = find_regions(lines, "round")
     themes, themes_problems = find_regions(lines, "themes")
     closings, closing_problems = find_regions(lines, "closing")
-    problems += themes_problems + closing_problems
+    return (
+        round_problems
+        + themes_problems
+        + closing_problems
+        + require_region_count("round", rounds, 2)
+        + require_region_count("themes", themes, 1)
+        + require_region_count("closing", closings, 1)
+        + check_each(check_round, lines, rounds)
+        + check_each(check_themes, lines, themes)
+        + check_each(check_closing, lines, closings)
+        + check_table_precedes_widget(lines, themes)
+        + check_step_parity(lines, command_path)
+    )
 
-    problems += require_region_count("round", rounds, 2)
-    problems += require_region_count("themes", themes, 1)
-    problems += require_region_count("closing", closings, 1)
 
-    for start, end in rounds:
-        problems += check_round(lines, start, end)
-    for start, end in themes:
-        problems += check_themes(lines, start, end)
-    for start, end in closings:
-        problems += check_closing(lines, start, end)
-    problems += check_table_precedes_widget(lines, themes)
-    problems += check_step_parity(lines, command_path)
+def check_each(
+    check: Callable[[list[str], int, int], list[str]],
+    lines: list[str],
+    regions: list[tuple[int, int]],
+) -> list[str]:
+    return [problem for start, end in regions for problem in check(lines, start, end)]
 
-    if problems:
-        print(f"FAIL: {len(problems)} problem(s) in {skill_path.name}\n")
-        for problem in problems:
-            print(f"  {problem}")
-        return 1
 
+def report_failure(skill_path: Path, problems: list[str]) -> int:
+    print(f"FAIL: {len(problems)} problem(s) in {skill_path.name}\n")
+    for problem in problems:
+        print(f"  {problem}")
+    return 1
+
+
+def report_success(skill_path: Path, command_path: Path, lines: list[str]) -> int:
+    rounds, _ = find_regions(lines, "round")
     steps = sum(1 for line in lines if SKILL_STEP.match(line))
     print(
         f"OK: {skill_path.name} prints {len(rounds)} well-formed round(s), "

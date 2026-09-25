@@ -928,6 +928,7 @@ def case_no_third_party_imports() -> None:
         "__future__",
         "argparse",
         "collections",
+        "contextlib",
         "dataclasses",
         "importlib",
         "io",

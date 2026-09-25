@@ -205,6 +205,14 @@ def summarize(issues: list[dict]) -> dict:
 
 
 def main() -> int:
+    args = parse_args()
+    jsonl_path = resolve_jsonl_path(args)
+    result = build_result(jsonl_path, read_raw_issues(jsonl_path))
+    emit(json.dumps(result, indent=2, default=str), args.out, len(result["issues"]))
+    return 0
+
+
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--dir",
@@ -222,45 +230,50 @@ def main() -> int:
     parser.add_argument(
         "--no-refresh", action="store_true", help="Do not run `bd export` before reading the JSONL"
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+def resolve_jsonl_path(args: argparse.Namespace) -> Path | None:
+    """The explicit `--jsonl`, else the discovered workspace's export, refreshed by default."""
     if args.jsonl is not None:
-        jsonl_path = args.jsonl
-    else:
-        beads_dir = find_beads_dir(args.dir.resolve())
-        if beads_dir is None:
-            # No tracker in this repo. Emit the empty shape (exit 0) so the dashboard's
-            # documented "no beads data" fallback path works instead of aborting.
-            print("warning: no .beads/ workspace found; emitting empty result", file=sys.stderr)
-            jsonl_path = None
-        else:
-            if not args.no_refresh:
-                refresh_jsonl(beads_dir)
-            jsonl_path = beads_dir / "issues.jsonl"
+        return args.jsonl
+    beads_dir = find_beads_dir(args.dir.resolve())
+    if beads_dir is None:
+        # No tracker in this repo. Emit the empty shape (exit 0) so the dashboard's
+        # documented "no beads data" fallback path works instead of aborting.
+        print("warning: no .beads/ workspace found; emitting empty result", file=sys.stderr)
+        return None
+    if not args.no_refresh:
+        refresh_jsonl(beads_dir)
+    return beads_dir / "issues.jsonl"
 
+
+def read_raw_issues(jsonl_path: Path | None) -> list[dict]:
     if jsonl_path is None:
-        raw = []
-    elif not jsonl_path.exists():
+        return []
+    if not jsonl_path.exists():
         print(f"warning: {jsonl_path} does not exist; emitting empty result", file=sys.stderr)
-        raw = []
-    else:
-        raw = load_issues(jsonl_path)
+        return []
+    return load_issues(jsonl_path)
 
+
+def build_result(jsonl_path: Path | None, raw: list[dict]) -> dict:
     issues = [normalize(r) for r in raw if r.get("id")]
     annotate_readiness(issues)
-    result = {
+    return {
         "source": str(jsonl_path) if jsonl_path is not None else None,
         "summary": summarize(issues),
         "issues": issues,
     }
 
-    payload = json.dumps(result, indent=2, default=str)
-    if args.out is not None:
-        args.out.write_text(payload, encoding="utf-8")
-        print(f"wrote {len(issues)} issues to {args.out}", file=sys.stderr)
-    else:
+
+def emit(payload: str, out: Path | None, issue_count: int) -> None:
+    """Write the payload to `out`, noting the count on stderr, or print it to stdout."""
+    if out is None:
         print(payload)
-    return 0
+        return
+    out.write_text(payload, encoding="utf-8")
+    print(f"wrote {issue_count} issues to {out}", file=sys.stderr)
 
 
 if __name__ == "__main__":
