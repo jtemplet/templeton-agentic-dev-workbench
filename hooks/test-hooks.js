@@ -525,15 +525,32 @@ const COMPONENTS = [
   { label: 'Commands', dir: 'commands', prefix: '/', names: (root) => componentNames(root, 'commands', false) },
 ];
 
+// A skill directory counts only once it holds SKILL.md, which is what Claude
+// Code discovers. A bead can ship a skill's reference file before the skill.
 function componentNames(root, dir, isDirectory) {
-  const entries = fs.readdirSync(path.join(root, dir), { withFileTypes: true });
+  const base = path.join(root, dir);
+  const entries = fs.readdirSync(base, { withFileTypes: true });
   return entries
-    .filter((e) => (isDirectory ? e.isDirectory() : e.isFile() && e.name.endsWith('.md')))
+    .filter((e) =>
+      isDirectory
+        ? e.isDirectory() && fs.existsSync(path.join(base, e.name, 'SKILL.md'))
+        : e.isFile() && e.name.endsWith('.md')
+    )
     .map((e) => (isDirectory ? e.name : e.name.slice(0, -3)))
     .sort();
 }
 
 check('AGENTS.md registers every component on disk, with matching counts', () => {
+  const fixture = tmpDir('skills-');
+  fs.mkdirSync(path.join(fixture, 'skills', 'built'), { recursive: true });
+  fs.writeFileSync(path.join(fixture, 'skills', 'built', 'SKILL.md'), '');
+  fs.mkdirSync(path.join(fixture, 'skills', 'unbuilt', 'references'), { recursive: true });
+  assert.deepStrictEqual(
+    componentNames(fixture, 'skills', true),
+    ['built'],
+    'a skills/ directory without SKILL.md must not count as a registered skill'
+  );
+
   const root = path.join(HOOKS_DIR, '..');
   const doc = fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8');
 
