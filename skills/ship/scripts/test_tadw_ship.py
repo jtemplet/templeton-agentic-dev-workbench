@@ -240,11 +240,10 @@ def case_repository_gate_is_valid() -> None:
 def case_override_is_selected() -> None:
     result = run_in_empty_repo("--check-gate", env={"TADW_SHIP_CHECK": "make check"})
     assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout) == {
-        "source": "TADW_SHIP_CHECK",
-        "command": "make check",
-        "timeout": 900,
-    }
+    selected = json.loads(result.stdout)
+    assert selected["source"] == "TADW_SHIP_CHECK", selected
+    assert [gate["command"] for gate in selected["gates"]] == [["sh", "-c", "make check"]]
+    assert selected["gates"][0]["timeout"] == 900, selected
 
 
 def case_override_outranks_configuration() -> None:
@@ -259,7 +258,7 @@ def case_override_timeout_is_read() -> None:
     result = run_in_empty_repo(
         "--check-gate", env={"TADW_SHIP_CHECK": "make check", "TADW_SHIP_CHECK_TIMEOUT": "60"}
     )
-    assert json.loads(result.stdout)["timeout"] == 60, result.stdout
+    assert json.loads(result.stdout)["gates"][0]["timeout"] == 60, result.stdout
 
 
 def case_missing_configuration_stops() -> None:
