@@ -172,15 +172,23 @@ def trusted_report(inputs: LoaderInputs) -> dict[str, Any]:
     if inputs.report_text is None:
         raise UntrustedReport(REPORT_MISSING, "No quality-gates report exists at --report.")
     report = parse_report(inputs.report_text)
-    if report["head"] != inputs.head:
-        raise UntrustedReport(
-            REPORT_STALE, f"The report checked {report['head']}, and HEAD is {inputs.head}."
-        )
-    if inputs.bead is not None and inputs.bead != report["bead"]:
-        raise UntrustedReport(
-            BEAD_MISMATCH, f"The report checked bead {report['bead']}, not {inputs.bead}."
-        )
+    check_checked_commit(report, inputs.head)
+    check_checked_bead(report, inputs.bead)
     return report
+
+
+def check_checked_commit(report: dict[str, Any], head: str) -> None:
+    if report["head"] != head:
+        raise UntrustedReport(
+            REPORT_STALE, f"The report checked {report['head']}, and HEAD is {head}."
+        )
+
+
+def check_checked_bead(report: dict[str, Any], bead: str | None) -> None:
+    if bead is not None and bead != report["bead"]:
+        raise UntrustedReport(
+            BEAD_MISMATCH, f"The report checked bead {report['bead']}, not {bead}."
+        )
 
 
 def parse_report(text: str) -> dict[str, Any]:
@@ -255,15 +263,25 @@ def scope_findings(report: dict[str, Any], dirty_paths: frozenset[str]) -> Outco
 
 def split_by_scope(report: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     gates = {gate["name"]: gate for gate in report["gates"]}
-    in_scope: list[dict[str, Any]] = []
-    out_of_scope: list[dict[str, Any]] = []
-    for finding in report["findings"]:
-        gate = gates[finding["gate"]]
-        if gate["status"] == FAIL and in_changed_set(finding["file"], report["changed_files"]):
-            in_scope.append({**finding, "command": gate["command"]})
-        else:
-            out_of_scope.append({key: finding[key] for key in ("gate", "file", "problem")})
+    changed_files = report["changed_files"]
+    findings = report["findings"]
+    in_scope = [
+        {**finding, "command": gates[finding["gate"]]["command"]}
+        for finding in findings
+        if is_in_scope(finding, gates[finding["gate"]], changed_files)
+    ]
+    out_of_scope = [
+        {key: finding[key] for key in ("gate", "file", "problem")}
+        for finding in findings
+        if not is_in_scope(finding, gates[finding["gate"]], changed_files)
+    ]
     return in_scope, out_of_scope
+
+
+def is_in_scope(
+    finding: dict[str, Any], gate: dict[str, Any], changed_files: list[str] | None
+) -> bool:
+    return gate["status"] == FAIL and in_changed_set(finding["file"], changed_files)
 
 
 def in_changed_set(path: str | None, changed_files: list[str] | None) -> bool:

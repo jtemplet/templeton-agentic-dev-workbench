@@ -151,34 +151,76 @@ class UnreadableReport(ValueError):
     """The report file will not open, or is not a version 2 acceptance report."""
 
 
+class UntrustedReport(ValueError):
+    """The report cannot be trusted to describe this run; `reason` names why."""
+
+    def __init__(self, reason: str, detail: str) -> None:
+        super().__init__(detail)
+        self.reason = reason
+
+
+class UsageError(ValueError):
+    """An argument is malformed or unreadable."""
+
+
 def load_findings(inputs: LoaderInputs) -> Outcome:
     """The scoped findings, or the first BLOCKED reason that holds."""
-    if inputs.report_text is None:
-        return Blocked(REPORT_MISSING, "No acceptance report exists at --report.")
     try:
-        report = parse_report(inputs.report_text)
-    except UnreadableReport as exc:
-        return Blocked(REPORT_UNREADABLE, str(exc))
-    if report["head"] != inputs.head:
-        return Blocked(
-            REPORT_STALE,
-            f"The report graded {report['head']}, and HEAD is {inputs.head}.",
-        )
-    if inputs.bead is not None and inputs.bead != report["bead"]:
-        return Blocked(
-            BEAD_MISMATCH,
-            f"The report graded bead {report['bead']}, not {inputs.bead}.",
-        )
+        report = trusted_report(inputs)
+    except UntrustedReport as exc:
+        return Blocked(exc.reason, str(exc))
     if is_accepted(report):
         return NothingToFix()
     return scope_findings(report, inputs.dirty_paths)
 
 
-def parse_report(text: str) -> dict[str, Any]:
+def trusted_report(inputs: LoaderInputs) -> dict[str, Any]:
+    if inputs.report_text is None:
+        raise UntrustedReport(REPORT_MISSING, "No acceptance report exists at --report.")
+    report = readable_report(inputs.report_text)
+    check_graded_commit(report, inputs.head)
+    check_graded_bead(report, inputs.bead)
+    return report
+
+
+def readable_report(text: str) -> dict[str, Any]:
     try:
-        report = json.loads(text)
+        return parse_report(text)
+    except UnreadableReport as exc:
+        raise UntrustedReport(REPORT_UNREADABLE, str(exc)) from exc
+
+
+def check_graded_commit(report: dict[str, Any], head: str) -> None:
+    if report["head"] != head:
+        raise UntrustedReport(
+            REPORT_STALE, f"The report graded {report['head']}, and HEAD is {head}."
+        )
+
+
+def check_graded_bead(report: dict[str, Any], bead: str | None) -> None:
+    if bead is not None and bead != report["bead"]:
+        raise UntrustedReport(
+            BEAD_MISMATCH, f"The report graded bead {report['bead']}, not {bead}."
+        )
+
+
+def parse_report(text: str) -> dict[str, Any]:
+    report = decoded(text)
+    check_version(report)
+    check_top_level(report)
+    check_rows(report)
+    check_counts_match_rows(report)
+    return report
+
+
+def decoded(text: str) -> Any:
+    try:
+        return json.loads(text)
     except json.JSONDecodeError as exc:
         raise UnreadableReport(f"The report does not parse as JSON: {exc}") from exc
+
+
+def check_version(report: Any) -> None:
     if not isinstance(report, dict):
         raise UnreadableReport("The report is not a JSON object.")
     version = report.get("version", "absent")
@@ -186,13 +228,13 @@ def parse_report(text: str) -> dict[str, Any]:
         raise UnreadableReport(
             f"The report's version is {version}, and this loader reads version 2."
         )
-    check_top_level(report)
+
+
+def check_rows(report: dict[str, Any]) -> None:
     for criterion in report["criteria"]:
         check_criterion(criterion)
     for gate in report["gates"]:
         check_gate(gate)
-    check_counts_match_rows(report)
-    return report
 
 
 def check_top_level(report: dict[str, Any]) -> None:
@@ -339,37 +381,73 @@ def is_optional_base(value: Any) -> bool:
 
 
 def main(argv: list[str] | None = None, out: TextIO = sys.stdout, err: TextIO = sys.stderr) -> int:
+    try:
+        arguments = parse_arguments(argv)
+    except UsageError as exc:
+        print(f"ERROR: {exc}", file=err)
+        return EXIT_USAGE
+    outcome = outcome_for(arguments)
+    outcome.emit(out, err)
+    return outcome.exit_code
+
+
+@dataclass(frozen=True)
+class Arguments:
+    report: str
+    head: str
+    bead: str | None
+    dirty_raw: str
+
+
+def outcome_for(arguments: Arguments) -> Outcome:
+    try:
+        report_text = read_report(arguments.report)
+    except UnreadableReport as exc:
+        return Blocked(REPORT_UNREADABLE, str(exc))
+    dirty_paths = parse_porcelain_z(arguments.dirty_raw)
+    return load_findings(LoaderInputs(report_text, arguments.head, dirty_paths, arguments.bead))
+
+
+def parse_arguments(argv: list[str] | None) -> Arguments:
+    """The checked arguments, validated in the order their errors report."""
+    args = argument_parser().parse_args(argv)
+    return Arguments(
+        report=args.report,
+        head=required_head(args.head),
+        bead=optional_bead(args.bead),
+        dirty_raw=read_dirty_files(args.dirty_files),
+    )
+
+
+def argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--report", required=True, metavar="PATH")
     parser.add_argument("--head", required=True, metavar="SHA")
     parser.add_argument("--dirty-files", required=True, metavar="PATH")
     parser.add_argument("--bead", metavar="ID")
-    args = parser.parse_args(argv)
+    return parser
 
-    head = args.head.strip()
+
+def required_head(value: str) -> str:
+    head = value.strip()
     if not head:
-        print("ERROR: --head must name a commit", file=err)
-        return EXIT_USAGE
-    bead = None if args.bead is None else args.bead.strip()
-    if bead == "":
-        print("ERROR: --bead, when given, must name a bead", file=err)
-        return EXIT_USAGE
-    try:
-        with open(args.dirty_files, "rb") as handle:
-            dirty_raw = handle.read().decode("utf-8", errors="surrogateescape")
-    except OSError as exc:
-        print(f"ERROR: --dirty-files could not be read: {exc}", file=err)
-        return EXIT_USAGE
+        raise UsageError("--head must name a commit")
+    return head
 
+
+def optional_bead(value: str | None) -> str | None:
+    bead = None if value is None else value.strip()
+    if bead == "":
+        raise UsageError("--bead, when given, must name a bead")
+    return bead
+
+
+def read_dirty_files(path: str) -> str:
     try:
-        report_text = read_report(args.report)
-    except UnreadableReport as exc:
-        outcome: Outcome = Blocked(REPORT_UNREADABLE, str(exc))
-    else:
-        dirty_paths = parse_porcelain_z(dirty_raw)
-        outcome = load_findings(LoaderInputs(report_text, head, dirty_paths, bead))
-    outcome.emit(out, err)
-    return outcome.exit_code
+        with open(path, "rb") as handle:
+            return handle.read().decode("utf-8", errors="surrogateescape")
+    except OSError as exc:
+        raise UsageError(f"--dirty-files could not be read: {exc}") from exc
 
 
 def read_report(path: str) -> str | None:

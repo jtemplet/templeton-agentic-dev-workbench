@@ -62,7 +62,8 @@ import json
 import os
 import re
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn, TextIO
@@ -349,13 +350,16 @@ def main(
     try:
         written = write_report(argv, stdin)
     except UsageError as exc:
-        print(f"ERROR: {exc}", file=err)
-        return EXIT_USAGE
+        return failed(f"ERROR: {exc}", EXIT_USAGE, err)
     except InvalidReport as exc:
-        print(f"REFUSED, nothing written: {exc}", file=err)
-        return EXIT_REFUSED
+        return failed(f"REFUSED, nothing written: {exc}", EXIT_REFUSED, err)
     print(written, file=out)
     return EXIT_WRITTEN
+
+
+def failed(message: str, exit_code: int, err: TextIO) -> int:
+    print(message, file=err)
+    return exit_code
 
 
 def write_report(argv: list[str] | None, stdin: TextIO) -> Path:
@@ -431,11 +435,17 @@ def write_to(path: Path, report: dict[str, Any]) -> None:
 def write_atomically(path: Path, report: dict[str, Any]) -> None:
     """Write beside `path`, then rename onto it, so no reader sees a partial file."""
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    try:
+    with deleted_on_failure(temporary):
         dump_json(temporary, report)
         temporary.replace(path)
+
+
+@contextmanager
+def deleted_on_failure(path: Path) -> Iterator[None]:
+    try:
+        yield
     except BaseException:
-        temporary.unlink(missing_ok=True)
+        path.unlink(missing_ok=True)
         raise
 
 

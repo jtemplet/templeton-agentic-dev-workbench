@@ -170,21 +170,32 @@ def main(argv):
     named = bool(args)
     docs_dir = Path(args[0]) if named else Path("docs/products")
     if not docs_dir.exists():
-        if named:
-            print(f"docs dir not found: {docs_dir}", file=sys.stderr)
-            return 2
-        if as_json:
-            print(json.dumps([], indent=2))
-        else:
-            print(f"OK: no {docs_dir} tree in this repository, so there is nothing to check")
-        return 0
+        return report_missing_tree(docs_dir, named=named, as_json=as_json)
 
     results = evaluate_tree(docs_dir)
-
     if as_json:
-        print(json.dumps(results, indent=2))
-        return 1 if any(r["outcome"] not in PASSING for r in results) else 0
+        return report_json(results)
+    return report_text(results)
 
+
+def report_missing_tree(docs_dir, *, named, as_json):
+    """A named tree that is missing is an operator error; the default one is simply absent."""
+    if named:
+        print(f"docs dir not found: {docs_dir}", file=sys.stderr)
+        return 2
+    if as_json:
+        print(json.dumps([], indent=2))
+    else:
+        print(f"OK: no {docs_dir} tree in this repository, so there is nothing to check")
+    return 0
+
+
+def report_json(results):
+    print(json.dumps(results, indent=2))
+    return 1 if any(r["outcome"] not in PASSING for r in results) else 0
+
+
+def report_text(results):
     failing = report(results)
     if failing:
         carry = "leaf document carries" if failing == 1 else "leaf documents carry"

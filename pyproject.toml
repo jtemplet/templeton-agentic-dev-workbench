@@ -6,6 +6,16 @@ requires-python = ">=3.14"
 [tool.ruff]
 extend = ".boreas/ruff.toml"
 
+# The size limits boreas now sets, applied here ahead of a full reinstall of
+# .boreas/ruff.toml, which would also bring in rule groups this repo has not
+# adopted yet (PT, N, FBT, DTZ, RET). Remove these two tables after that reinstall.
+[tool.ruff.lint.mccabe]
+max-complexity = 5
+
+[tool.ruff.lint.pylint]
+max-args = 4
+max-statements = 6
+
 [tool.ruff.lint.per-file-ignores]
 # Test files: assert is the whole point, subprocess/complexity/length often needed for setup
 "**/test_*.py" = ["S101", "S603", "S607", "PLR0915", "C901", "E501"]
