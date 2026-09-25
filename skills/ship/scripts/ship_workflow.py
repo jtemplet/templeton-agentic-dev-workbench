@@ -167,7 +167,9 @@ def catch_up(repo: Path, default: str) -> None:
 def fast_forward(repo: Path, default: str, local: str, remote: str) -> None:
     if not is_ancestor(repo, local, remote):
         raise ShipStop("git-state", f"{default} and origin/{default} have diverged", NOT_LANDED)
-    candidate.advance_default_branch(repo, default, local, remote)
+    restored_export_in = candidate.advance_default_branch(repo, default, local, remote)
+    if restored_export_in is not None:
+        emit([candidate.restored_export_line(restored_export_in)])
     say(f"fast-forwarded {default} to origin/{default} at {remote[:12]}")
 
 

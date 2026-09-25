@@ -29,6 +29,17 @@ checkout holding `main`, and a linked worktree holding the feature branch.
      lines bd wrote in the temporary worktree are      case_audit_lines_written_in_the_temporary_worktree_are_kept,
                                                        case_appended_audit_lines_never_join_an_unterminated_line
      kept, each on its own line
+
+  tadw-lndi criterion                                  Pinned by
+  ------------------------------------------------------------------------------
+  1. A default checkout whose only changed tracked     case_export_only_dirty_default_checkout_lands
+     file is the export takes the landing
+  2. Any other changed tracked file stops it           case_export_and_another_change_stop_the_landing,
+                                                       case_dirty_default_checkout_is_left_alone
+  3. A restored export is reported                     case_restored_export_is_reported,
+                                                       case_clean_landing_reports_no_restore
+
+  The same three run end to end through bin/tadw-ship in test_tadw_ship.py.
 """
 
 from __future__ import annotations
@@ -271,6 +282,71 @@ def case_dirty_default_checkout_is_left_alone() -> None:
     with_fixture(test)
 
 
+def track_stale_export(fixture: Fixture) -> Path:
+    """Commit an export on main, then rewrite it in the main checkout, as `bd` auto-export does."""
+    (fixture.main / ".beads").mkdir()
+    fixture.commit_on_main(candidate.EXPORT_PATH, '{"id":"old"}\n', "chore: export")
+    stale = fixture.main / candidate.EXPORT_PATH
+    stale.write_text('{"id":"rewritten by bd"}\n', encoding="utf-8")
+    return stale
+
+
+def case_export_only_dirty_default_checkout_lands() -> None:
+    def test(fixture: Fixture) -> None:
+        exported = track_stale_export(fixture)
+        landing = fixture.land()
+        assert fixture.main_tip() == landing.commit, "main did not move"
+        assert exported.read_text(encoding="utf-8") == TRACKER_EXPORT, "main holds a stale export"
+        assert git(fixture.main, "status", "--porcelain", "--untracked-files=no") == ""
+        assert landing.restored_export_in == fixture.main.resolve(), landing
+
+    with_fixture(test)
+
+
+def case_staged_export_in_default_checkout_lands() -> None:
+    def test(fixture: Fixture) -> None:
+        exported = track_stale_export(fixture)
+        git(fixture.main, "add", candidate.EXPORT_PATH)
+        landing = fixture.land()
+        assert fixture.main_tip() == landing.commit, "main did not move"
+        assert exported.read_text(encoding="utf-8") == TRACKER_EXPORT, "main holds a stale export"
+        assert git(fixture.main, "status", "--porcelain", "--untracked-files=no") == ""
+
+    with_fixture(test)
+
+
+def case_export_and_another_change_stop_the_landing() -> None:
+    def test(fixture: Fixture) -> None:
+        exported = track_stale_export(fixture)
+        (fixture.main / "base.txt").write_text("unrelated edit\n", encoding="utf-8")
+        before = fixture.main_tip()
+        assert stopped(fixture).reason == "default-checkout-dirty"
+        assert fixture.main_tip() == before
+        assert exported.read_text(encoding="utf-8") == '{"id":"rewritten by bd"}\n', "restored"
+        assert (fixture.main / "base.txt").read_text(encoding="utf-8") == "unrelated edit\n"
+
+    with_fixture(test)
+
+
+def case_restored_export_is_reported() -> None:
+    def test(fixture: Fixture) -> None:
+        track_stale_export(fixture)
+        lines = fixture.land().report_lines()
+        restored = [line for line in lines if f"restored {candidate.EXPORT_PATH}" in line]
+        assert len(restored) == 1 and str(fixture.main.resolve()) in restored[0], lines
+
+    with_fixture(test)
+
+
+def case_clean_landing_reports_no_restore() -> None:
+    def test(fixture: Fixture) -> None:
+        landing = fixture.land()
+        assert landing.restored_export_in is None, landing
+        assert not any("restored" in line for line in landing.report_lines())
+
+    with_fixture(test)
+
+
 def case_cleanup_removes_only_the_temporary_worktree() -> None:
     def test(fixture: Fixture) -> None:
         fixture.land()
@@ -377,6 +453,14 @@ for name, fn in [
     ("a dirty feature checkout stops", case_dirty_feature_checkout_stops),
     ("the export rides the candidate commit", case_export_rides_the_candidate_commit),
     ("a dirty default checkout is left alone", case_dirty_default_checkout_is_left_alone),
+    ("a default checkout dirty only in the export lands",
+     case_export_only_dirty_default_checkout_lands),
+    ("a default checkout with the export staged lands",
+     case_staged_export_in_default_checkout_lands),
+    ("the export and another change stop the landing",
+     case_export_and_another_change_stop_the_landing),
+    ("a restored export is reported", case_restored_export_is_reported),
+    ("a clean landing reports no restore", case_clean_landing_reports_no_restore),
     ("cleanup removes only the temporary worktree",
      case_cleanup_removes_only_the_temporary_worktree),
     ("a later local commit is reported unpushed", case_later_commit_is_reported_unpushed),

@@ -76,6 +76,14 @@ Stdlib only, no install. Run with:
   6. With no hook, the run stops, names adding a    case_no_hook_names_adding_a_pre_push_hook,
      pre-push hook, and changes nothing             case_non_executable_hook_is_not_a_gate,
                                                     case_missing_configuration_changes_nothing
+
+  tadw-lndi criterion                               Pinned by, all through bin/tadw-ship
+  ------------------------------------------------------------------------------
+  1. A main checkout dirty only in the export       case_rewritten_export_in_main_still_ships
+     ends SHIP_DONE with the candidate landed
+  2. Any other changed tracked file ends            case_another_changed_file_in_main_stops_with_git_state
+     SHIP_BLOCKED git-state, main unchanged
+  3. The output says the export was restored        case_restored_export_is_reported_by_the_run
 """
 
 from __future__ import annotations
@@ -658,7 +666,11 @@ class ShipRepository:
         subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
         self.git("config", "user.name", "t")
         self.git("config", "user.email", "t@t")
-        self.git("commit", "-q", "--allow-empty", "-m", "base")
+        (self.main / ".beads").mkdir()
+        (self.main / ".beads" / "issues.jsonl").write_text("{}\n")
+        (self.main / "base.txt").write_text("base\n")
+        self.git("add", ".beads/issues.jsonl", "base.txt")
+        self.git("commit", "-q", "-m", "base")
         self.git("remote", "add", "origin", str(origin))
         self.git("push", "-q", "-u", "origin", "main")
 
@@ -821,6 +833,37 @@ FAILING_PRE_COMMIT = (("pre-commit", "echo 'lint failed' >&2; exit 1"),)
 
 def shipped_through_pre_push() -> ShipRun:
     return ship_run(None, True, PASSING_PRE_PUSH)
+
+
+# tadw-lndi: `bd` auto-export rewrites the main checkout's export from any worktree,
+# so the candidate commit's own pre-commit hook dirties the default checkout.
+REWRITE_MAIN_EXPORT = "printf 'rewritten by bd\\n' > {root}/main/.beads/issues.jsonl"
+EXPORT_REWRITTEN_IN_MAIN = (("pre-commit", REWRITE_MAIN_EXPORT),)
+EXPORT_AND_SOURCE_DIRTY_IN_MAIN = (
+    ("pre-commit", f"{REWRITE_MAIN_EXPORT}; printf 'edit\\n' > {{root}}/main/base.txt"),
+)
+
+
+def shipped_over_a_rewritten_export() -> ShipRun:
+    return ship_run("true", True, EXPORT_REWRITTEN_IN_MAIN)
+
+
+def case_rewritten_export_in_main_still_ships() -> None:
+    run = shipped_over_a_rewritten_export()
+    assert run.result.returncode == 0, run.result.stderr
+    assert re.fullmatch(r"SHIP_DONE [0-9a-f]{40}", run.last_line()), run.result.stdout
+    assert run.default_after == run.shipped_hash(), "the default branch lacks the candidate"
+
+
+def case_another_changed_file_in_main_stops_with_git_state() -> None:
+    run = ship_run("true", True, EXPORT_AND_SOURCE_DIRTY_IN_MAIN)
+    assert run.last_line() == "SHIP_BLOCKED git-state", run.result.stdout
+    assert run.default_after == run.default_before, "the default branch moved"
+
+
+def case_restored_export_is_reported_by_the_run() -> None:
+    stderr = shipped_over_a_rewritten_export().result.stderr
+    assert "restored .beads/issues.jsonl" in stderr, stderr
 
 
 def case_ship_gates_on_the_pre_push_hook() -> None:
@@ -1072,6 +1115,10 @@ for name, fn in [
     ("a failing gate leaves the default branch unchanged",
      case_failing_gate_leaves_the_default_branch_unchanged),
     ("a failing gate leaves the bead open", case_failing_gate_leaves_the_bead_open),
+    ("a rewritten export in main still ships", case_rewritten_export_in_main_still_ships),
+    ("another changed file in main stops with git-state",
+     case_another_changed_file_in_main_stops_with_git_state),
+    ("the run reports the restored export", case_restored_export_is_reported_by_the_run),
     ("ship gates on the pre-push hook", case_ship_gates_on_the_pre_push_hook),
     ("the pre-push hook sees the candidate pushed to the default branch",
      case_pre_push_hook_sees_the_candidate_pushed_to_the_default_branch),
