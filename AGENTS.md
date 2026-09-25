@@ -126,8 +126,8 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Task | Command | Skill or agent |
 |---|---|---|
 | Review any change, auto-detect language | `/code-review` | `code-reviewer` agent |
-| Review Python | `/python-code-review` | `review-python` |
-| Review Rails | `/rails-code-review` | `review-rails` |
+| Review Python | - | `style-python` |
+| Review Rails | - | `style-rails` |
 | Review Swift/iOS | `/swift-code-review` | `style-swift` |
 | Review JS/TS/React/Vue | `/frontend-code-review` | `style-frontend` |
 | Write or review Go | - | `style-go` |
@@ -252,7 +252,7 @@ two files, then tags and pushes main before the tag. Its bump rubric and stop co
 Read the last tag with `git tag --list 'v*' --sort=-v:refname`, because lexical order puts
 `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
-**Registered Skills** (45). One-line descriptions live in the `README.md` skills
+**Registered Skills** (43). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
@@ -262,7 +262,7 @@ reads when deciding what to invoke.
 `plan-to-beads`
 `product-brief` `product-research` `product-roadmap` `product-surface-docs` `production-ops`
 `publish-plugin` `quality-gates` `reconcile-acceptance` `reconcile-quality-gates`
-`research-ingest` `research-synthesize` `review-fresh-eyes` `review-python` `review-rails`
+`research-ingest` `research-synthesize` `review-fresh-eyes`
 `roadmap-dashboard` `ship` `style-frontend` `style-go` `style-markdown`
 `style-python` `style-rails` `style-rspec` `style-swift` `style-testing` `terraform-iac-expert`
 `triage-beads` `ux-review` `ux-review-ios` `verify-acceptance` `write-plan`
@@ -275,13 +275,13 @@ each `agents/<name>.md` frontmatter.
 `product-cartographer` `product-manager` `project-manager` `quality-gates-orchestrator`
 `research-librarian` `software-engineer` `ux-product-designer`
 
-**Registered Commands** (30). Descriptions live in the `README.md` command tables
+**Registered Commands** (28). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
 `/adr` `/agentic-clean-code` `/aso-review` `/bead-audit-all` `/bead-refine` `/build` `/code-review`
 `/diagnose` `/fresh-eyes-cr` `/frontend-code-review` `/plan-from-idea` `/plan-review`
-`/plan-to-beads` `/prod-ops` `/product-analysis` `/product-surface-docs` `/python-code-review`
-`/quality-gates` `/rails-code-review` `/research-ingest` `/research-synthesize` `/response-style`
+`/plan-to-beads` `/prod-ops` `/product-analysis` `/product-surface-docs`
+`/quality-gates` `/research-ingest` `/research-synthesize` `/response-style`
 `/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-review`
 `/ux-review-ios` `/validate-plugin` `/verify-acceptance`
 

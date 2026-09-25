@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Language-detecting code review agent. Analyzes changed files, identifies the language/framework, and dispatches to the appropriate review skill (review-python, review-rails, style-swift, terraform-iac-expert, style-frontend). Use when reviewing mixed-language changes or when you want auto-detection instead of picking a language-specific review.
+description: Language-detecting code review agent. Analyzes changed files, identifies the language/framework, and dispatches to the appropriate review skill (style-python, style-rails, style-swift, terraform-iac-expert, style-frontend). Use when reviewing mixed-language changes or when you want auto-detection instead of picking a language-specific review.
 model: inherit
 tools: ["Read", "Bash", "Grep", "Glob", "Skill"]
 ---
@@ -34,8 +34,8 @@ Map each file to its language/framework:
 
 | Extension / Pattern | Language | Review Skill |
 |---|---|---|
-| `.py` | Python | `review-python` |
-| `.rb`, `.erb`, `Gemfile`, Rails structure (`app/`, `config/routes.rb`) | Ruby/Rails | `review-rails` |
+| `.py` | Python | `style-python` |
+| `.rb`, `.erb`, `Gemfile`, Rails structure (`app/`, `config/routes.rb`) | Ruby/Rails | `style-rails` |
 | `.swift` | Swift/iOS | `style-swift` |
 | `.tf`, `.tfvars` | Terraform | `terraform-iac-expert` |
 | `.js`, `.jsx`, `.ts`, `.tsx`, `.vue` | JavaScript/TypeScript/React/Vue | `style-frontend` |

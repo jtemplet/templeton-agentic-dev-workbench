@@ -9,7 +9,7 @@ This repository follows the Claude Code plugin architecture with three main dire
 
 - **`agents/`** - Custom agent definitions that can be invoked via the Task tool or manually
   followed
-- **`commands/`** - Slash commands (e.g., `/rails-code-review`) that provide quick access to
+- **`commands/`** - Slash commands (e.g., `/swift-code-review`) that provide quick access to
   workflows
 - **`skills/`** - Reusable skill modules that encode best practices and systematic techniques
 
@@ -23,8 +23,8 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 
 **Example Flow:**
 
-1. User invokes `/rails-code-review` command
-2. Command loads `review-rails` skill via the Skill tool
+1. User invokes `/swift-code-review` command
+2. Command loads `style-swift` skill via the Skill tool
 3. Skill defines the systematic review technique
 4. Output follows the skill's specified format
 
@@ -50,8 +50,8 @@ Skills are located in `skills/*/SKILL.md` and contain:
 
 Skills can be invoked:
 
-1. Directly: "Use the review-rails skill"
-2. Via commands: `/rails-code-review`
+1. Directly: "Use the style-swift skill"
+2. Via commands: `/swift-code-review`
 3. Via agent workflows: Task tool with custom agent
 
 ## Development Patterns

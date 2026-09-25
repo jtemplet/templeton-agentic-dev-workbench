@@ -23,7 +23,7 @@ produces work the rest of the pipeline cannot consume.
 | `mattpocock-skills:to-spec` | `/write-plan`, then `/plan-to-beads` | Writes the canonical 11-section plan template that `/plan-review` grades and `/plan-to-beads` decomposes |
 | `mattpocock-skills:to-spec`, for work that fits one bead | `/bead-create` | Searches for a duplicate first, grounds every claim against `main`, self-audits the draft, and reads the bead back to prove it landed |
 | `mattpocock-skills:triage` | `/triage-beads` | Ranks by value over effort with evidence cited per point, is deterministic on the same tracker state, and never edits a bead |
-| `mattpocock-skills:code-review` | `/code-review` | Detects the language and dispatches to `review-python`, `review-rails`, `style-swift`, `style-frontend`, or `terraform-iac-expert` |
+| `mattpocock-skills:code-review` | `/code-review` | Detects the language and dispatches to `style-python`, `style-rails`, `style-swift`, `style-frontend`, or `terraform-iac-expert` |
 | `mattpocock-skills:diagnosing-bugs` | `/diagnose` | The `diagnostician` agent has no Edit or Write access, so it cannot start fixing before it has explained |
 | `mattpocock-skills:implement` | `/build` | Reads the bead from `bd` rather than the transcript, implements criterion by criterion with a test each, then simplifies and lints |
 | `mattpocock-skills:tdd` | `style-testing` | One behavior per test, hoisted setup, deterministic clocks, and a list of what not to test |

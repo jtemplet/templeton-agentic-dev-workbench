@@ -3,17 +3,14 @@
 The long form of the routing table in `AGENTS.md`: which command, skill, or agent to
 reach for per task, and what each one does. The workflow pipelines live in `README.md`.
 
-This covers 18 of the 30 commands. The twelve without a section here are named in the
+This covers 16 of the 28 commands. The twelve without a section here are named in the
 `AGENTS.md` pointer, and each has a one-line description in `README.md`.
 
 ## Language-Specific Workflows
 
 ### Python Development
 
-**Code Review:** Use `/python-code-review` or the `review-python` skill
-
-- Checks PEP 8 and Google Python Style Guide compliance
-- Reviews security, performance, and maintainability
+**Code Review:** Use `/code-review`, which reviews Python through the `style-python` skill
 
 **Feature Development:** Use `/build <bead-id>` or the `software-engineer` agent +
 `feature-development` skill
@@ -32,11 +29,7 @@ This covers 18 of the 30 commands. The twelve without a section here are named i
 
 ### Rails Development
 
-**Code Review:** Use `/rails-code-review` or `/code-review` (auto-detects Rails)
-
-- Rails 8-aware with modern Hotwire/Turbo patterns
-- Security-first approach with pragmatic severity assessment
-- Understands `where.missing`, `broadcast_refresh_to`, Solid Stack patterns
+**Code Review:** Use `/code-review`, which reviews Rails through the `style-rails` skill
 
 **Testing:** Use the `style-testing` skill (language-agnostic), plus `style-rspec` if the project
 uses RSpec

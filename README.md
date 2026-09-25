@@ -131,8 +131,6 @@ A bug does not arrive as a plan, so it needs its own route onto Pipeline B.
 | Command | Description |
 |---|---|
 | `/code-review` | Auto-detect languages and apply correct review skill per file |
-| `/python-code-review` | Python review (PEP 8, Google Style Guide) |
-| `/rails-code-review` | Rails 8 review (security, conventions, Hotwire) |
 | `/swift-code-review` | Swift/iOS review (Sandi Metz, protocol-oriented design) |
 | `/frontend-code-review` | Frontend review (JS/TS/React/Vue, component design, patterns) |
 | `/terraform-review` | Terraform/IaC review (security, best practices, modules) |
@@ -182,8 +180,6 @@ reason: they shadowed the skill they pointed at. See "Commands and skills share 
 
 | Skill | What it does | When to use |
 |---|---|---|
-| `review-python` | PEP 8 and Google Style Guide review technique | Reviewing a Python file, diff, or PR |
-| `review-rails` | Rails 8 systematic review (security, conventions, performance) | Reviewing Rails code before a merge or deploy |
 | `style-testing` | Universal test style, framework-independent (any language) | Writing tests in any language, or diagnosing a flaky one |
 | `style-rspec` | RSpec/Rails delta on `style-testing` | Writing RSpec specs, or converting controller specs to request specs |
 | `style-rails` | Rails 8 Way conventions and best practices | Generating Rails code, or deciding whether to add a gem |
@@ -256,8 +252,8 @@ commands/*.md → agents/*.md → skills/*/SKILL.md
 
 **Example flow:**
 
-1. User invokes `/rails-code-review` command
-2. Command loads `review-rails` skill via the Skill tool
+1. User invokes `/swift-code-review` command
+2. Command loads `style-swift` skill via the Skill tool
 3. Skill defines the systematic review technique
 4. Output follows the skill's specified format
 
