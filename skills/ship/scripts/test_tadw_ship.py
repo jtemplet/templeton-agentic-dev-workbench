@@ -59,6 +59,23 @@ Stdlib only, no install. Run with:
   5. A failing gate ends `SHIP_BLOCKED gate` and    case_failing_gate_ends_with_ship_blocked_gate,
      leaves the default branch unchanged            case_failing_gate_leaves_the_default_branch_unchanged,
                                                     case_failing_gate_leaves_the_bead_open
+
+  tadw-awsr criterion                               Pinned by
+  ------------------------------------------------------------------------------
+  1. With no override and no file, an executable    case_pre_push_hook_is_selected,
+     pre-push hook is the gate                      case_ship_gates_on_the_pre_push_hook,
+                                                    case_configuration_outranks_the_hooks
+  2. The hook sees `origin` and the candidate       case_pre_push_hook_sees_the_candidate_pushed_to_the_default_branch,
+     pushed to the default branch                   case_run_gate_feeds_the_pre_push_hook_a_push_of_head
+  3. A failing hook ends `SHIP_BLOCKED gate` with   case_failing_pre_push_hook_ends_with_ship_blocked_gate,
+     the default branch unchanged                   case_run_gate_stops_on_a_failing_pre_push_hook
+  4. core.hooksPath is honored                      case_hooks_path_is_honored
+  5. Without a pre-push hook, the pre-commit hook   case_pre_commit_hook_is_selected_without_a_pre_push_hook,
+     is the gate, and a refused commit stops        case_pre_commit_hook_is_the_gate_without_a_pre_push_hook,
+                                                    case_refused_candidate_commit_ends_with_ship_blocked_gate
+  6. With no hook, the run stops, names adding a    case_no_hook_names_adding_a_pre_push_hook,
+     pre-push hook, and changes nothing             case_non_executable_hook_is_not_a_gate,
+                                                    case_missing_configuration_changes_nothing
 """
 
 from __future__ import annotations
@@ -84,6 +101,8 @@ CONFIG = Path(".tadw") / "ship-gates.json"
 
 # The one AGENTS.md command that is deliberately not a gate: ADR 0005.
 NOT_A_GATE = "python3 evals/run.py"
+
+READ_ONLY_CALL = re.compile(r"git -C \S+ rev-parse ")
 
 passed = 0
 failed = 0
@@ -216,7 +235,9 @@ class Stop:
             assert text in result.stderr, f"expected {text!r} in:\n{result.stderr}"
 
     def assert_changed_nothing(self) -> None:
-        assert self.calls == "", f"no git or bd call may run before the gate:\n{self.calls}"
+        """Finding the hooks reads with `git rev-parse`; nothing else may run before the gate."""
+        other = [call for call in self.calls.splitlines() if not READ_ONLY_CALL.match(call)]
+        assert not other, f"no git or bd call may run before the gate:\n{other}"
         assert not self.state_changed, "the refs or the working tree changed"
 
 
@@ -606,6 +627,7 @@ class ShipRun(NamedTuple):
     bead_status: str
     worktree_removed: bool
     branch_deleted: bool
+    pushes: str = ""
 
     def last_line(self) -> str:
         return self.result.stdout.splitlines()[-1]
@@ -652,12 +674,19 @@ class ShipRepository:
         )
         return completed.stdout.strip()
 
-    def ship(self, gate: str, cwd: Path) -> subprocess.CompletedProcess:
+    def install_hook(self, name: str, body: str) -> None:
+        hook = self.main / ".git" / "hooks" / name
+        hook.write_text(f"#!/bin/sh\n{body}\n")
+        hook.chmod(0o755)
+
+    def ship(self, gate: str | None, cwd: Path) -> subprocess.CompletedProcess:
+        """A `gate` of None leaves TADW_SHIP_CHECK unset, so the hooks are the gate."""
         environment = {
             key: value for key, value in os.environ.items() if not key.startswith("TADW_SHIP")
         }
         environment["PATH"] = f"{self.shims}{os.pathsep}{os.environ['PATH']}"
-        environment["TADW_SHIP_CHECK"] = gate
+        if gate is not None:
+            environment["TADW_SHIP_CHECK"] = gate
         return subprocess.run(
             [str(EXECUTABLE), BEAD, "--repo-root", str(self.worktree)],
             capture_output=True,
@@ -669,9 +698,13 @@ class ShipRepository:
 
 
 @functools.cache
-def ship_run(gate: str, start_in_worktree: bool) -> ShipRun:
+def ship_run(
+    gate: str | None, start_in_worktree: bool, hooks: tuple[tuple[str, str], ...] = ()
+) -> ShipRun:
     with tempfile.TemporaryDirectory() as directory:
         repository = ShipRepository(Path(directory).resolve())
+        for name, body in hooks:
+            repository.install_hook(name, body.replace("{root}", directory))
         before = repository.git("rev-parse", "main")
         start = repository.worktree if start_in_worktree else repository.main
         result = repository.ship(gate, start)
@@ -685,7 +718,12 @@ def ship_run(gate: str, start_in_worktree: bool) -> ShipRun:
             bead_status=(repository.shims / "status").read_text().strip(),
             worktree_removed=not repository.worktree.exists(),
             branch_deleted=not repository.git("branch", "--list", BRANCH),
+            pushes=read_if_present(Path(directory) / "pushes.log"),
         )
+
+
+def read_if_present(path: Path) -> str:
+    return path.read_text() if path.exists() else ""
 
 
 def remove_kept_gate_logs(stderr: str) -> None:
@@ -770,6 +808,129 @@ def case_failing_gate_leaves_the_default_branch_unchanged() -> None:
 
 def case_failing_gate_leaves_the_bead_open() -> None:
     assert blocked_by_gate().bead_status == "open"
+
+
+# tadw-awsr: with no override and no configuration file, the repository's own
+# hooks are the gate. Each hook body may write to {root}, the fixture's directory.
+LOGGING_PRE_PUSH = 'printf "%s " "$1" >> "{root}/pushes.log"; cat >> "{root}/pushes.log"'
+PASSING_PRE_PUSH = (("pre-push", LOGGING_PRE_PUSH),)
+FAILING_PRE_PUSH = (("pre-push", f"{LOGGING_PRE_PUSH}; exit 1"),)
+PASSING_PRE_COMMIT = (("pre-commit", "exit 0"),)
+FAILING_PRE_COMMIT = (("pre-commit", "echo 'lint failed' >&2; exit 1"),)
+
+
+def shipped_through_pre_push() -> ShipRun:
+    return ship_run(None, True, PASSING_PRE_PUSH)
+
+
+def case_ship_gates_on_the_pre_push_hook() -> None:
+    run = shipped_through_pre_push()
+    assert run.result.returncode == 0, run.result.stderr
+    assert run.pushes, "the pre-push hook never ran"
+
+
+def case_pre_push_hook_sees_the_candidate_pushed_to_the_default_branch() -> None:
+    run = shipped_through_pre_push()
+    runs = run.pushes.splitlines()
+    assert runs, "the pre-push hook never ran"
+    remote, local_ref, local_sha, remote_ref = runs[0].split()[:4]
+    assert (remote, local_ref, remote_ref) == ("origin", "refs/heads/main", "refs/heads/main")
+    assert local_sha == run.shipped_hash(), f"the hook checked {local_sha}, not the landed commit"
+
+
+def case_failing_pre_push_hook_ends_with_ship_blocked_gate() -> None:
+    run = ship_run(None, True, FAILING_PRE_PUSH)
+    assert run.last_line() == "SHIP_BLOCKED gate", run.result.stdout
+    assert run.default_after == run.default_before, "the default branch moved on a failed hook"
+
+
+def case_pre_commit_hook_is_the_gate_without_a_pre_push_hook() -> None:
+    run = ship_run(None, True, PASSING_PRE_COMMIT)
+    assert run.result.returncode == 0, run.result.stderr
+
+
+def case_refused_candidate_commit_ends_with_ship_blocked_gate() -> None:
+    run = ship_run(None, True, FAILING_PRE_COMMIT)
+    assert run.last_line() == "SHIP_BLOCKED gate", run.result.stdout
+    assert run.default_after == run.default_before, "the default branch moved on a refused commit"
+    assert "lint failed" in run.result.stderr, run.result.stderr
+
+
+def install_hook(directory: Path, name: str, body: str, mode: int = 0o755) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / name).write_text(f"#!/bin/sh\n{body}\n")
+    (directory / name).chmod(mode)
+
+
+def selected_source(prepare) -> str:
+    with tempfile.TemporaryDirectory() as directory:
+        fixture = Fixture(Path(directory))
+        prepare(fixture.repo)
+        result = fixture.start("--check-gate")
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)["source"]
+
+
+def case_pre_push_hook_is_selected() -> None:
+    source = selected_source(lambda repo: install_hook(repo / ".git" / "hooks", "pre-push", ""))
+    assert source == "pre-push hook", source
+
+
+def case_hooks_path_is_honored() -> None:
+    def prepare(repo: Path) -> None:
+        install_hook(repo / ".githooks", "pre-push", "")
+        subprocess.run(
+            ["git", "-C", str(repo), "config", "core.hooksPath", ".githooks"], check=True
+        )
+
+    assert selected_source(prepare) == "pre-push hook"
+
+
+def case_pre_commit_hook_is_selected_without_a_pre_push_hook() -> None:
+    source = selected_source(lambda repo: install_hook(repo / ".git" / "hooks", "pre-commit", ""))
+    assert source == "pre-commit hook", source
+
+
+def case_configuration_outranks_the_hooks() -> None:
+    def prepare(repo: Path) -> None:
+        install_hook(repo / ".git" / "hooks", "pre-push", "")
+        write_config(repo, valid_config())
+
+    assert selected_source(prepare) == str(CONFIG)
+
+
+def non_executable_hook(repo: Path) -> None:
+    install_hook(repo / ".git" / "hooks", "pre-push", "", mode=0o644)
+
+
+def case_non_executable_hook_is_not_a_gate() -> None:
+    Stop(non_executable_hook).assert_blocked()
+
+
+def case_no_hook_names_adding_a_pre_push_hook() -> None:
+    Stop(no_configuration).assert_said("pre-push hook")
+
+
+def run_gate_with_pre_push(body: str) -> tuple[subprocess.CompletedProcess, str, str]:
+    """Run --run-gate in a fixture whose pre-push hook runs `body`; return what it logged."""
+    with tempfile.TemporaryDirectory() as directory:
+        fixture = Fixture(Path(directory))
+        log = Path(directory) / "pushes.log"
+        install_hook(fixture.repo / ".git" / "hooks", "pre-push", body.replace("{root}", directory))
+        result = fixture.start("--run-gate")
+        head = fixture.git("rev-parse", "HEAD").strip()
+        return result, read_if_present(log), head
+
+
+def case_run_gate_feeds_the_pre_push_hook_a_push_of_head() -> None:
+    result, pushes, head = run_gate_with_pre_push(LOGGING_PRE_PUSH)
+    assert result.returncode == 0, result.stderr
+    assert pushes.split() == ["origin", "refs/heads/main", head, "refs/heads/main", "0" * 40]
+
+
+def case_run_gate_stops_on_a_failing_pre_push_hook() -> None:
+    result, _, _ = run_gate_with_pre_push("exit 1")
+    assert result.stdout.splitlines()[-1] == "SHIP_BLOCKED gate", result.stdout
 
 
 SKILL = REPO / "skills" / "ship" / "SKILL.md"
@@ -911,6 +1072,26 @@ for name, fn in [
     ("a failing gate leaves the default branch unchanged",
      case_failing_gate_leaves_the_default_branch_unchanged),
     ("a failing gate leaves the bead open", case_failing_gate_leaves_the_bead_open),
+    ("ship gates on the pre-push hook", case_ship_gates_on_the_pre_push_hook),
+    ("the pre-push hook sees the candidate pushed to the default branch",
+     case_pre_push_hook_sees_the_candidate_pushed_to_the_default_branch),
+    ("a failing pre-push hook ends with SHIP_BLOCKED gate",
+     case_failing_pre_push_hook_ends_with_ship_blocked_gate),
+    ("the pre-commit hook is the gate without a pre-push hook",
+     case_pre_commit_hook_is_the_gate_without_a_pre_push_hook),
+    ("a refused candidate commit ends with SHIP_BLOCKED gate",
+     case_refused_candidate_commit_ends_with_ship_blocked_gate),
+    ("a pre-push hook is selected", case_pre_push_hook_is_selected),
+    ("core.hooksPath is honored", case_hooks_path_is_honored),
+    ("a pre-commit hook is selected without a pre-push hook",
+     case_pre_commit_hook_is_selected_without_a_pre_push_hook),
+    ("the configuration outranks the hooks", case_configuration_outranks_the_hooks),
+    ("a non-executable hook is not a gate", case_non_executable_hook_is_not_a_gate),
+    ("no hook names adding a pre-push hook", case_no_hook_names_adding_a_pre_push_hook),
+    ("--run-gate feeds the pre-push hook a push of HEAD",
+     case_run_gate_feeds_the_pre_push_hook_a_push_of_head),
+    ("--run-gate stops on a failing pre-push hook",
+     case_run_gate_stops_on_a_failing_pre_push_hook),
     ("the skill ends with the runner's machine line", case_skill_ends_with_the_runner_machine_line),
     ("the skill invokes the runner once", case_skill_invokes_the_runner_once),
     ("the skill has at most 500 words", case_skill_has_at_most_500_words),

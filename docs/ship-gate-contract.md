@@ -5,6 +5,28 @@ This document fixes three things the deterministic ship plan
 implementation: the gate configuration format, the steps that move a repository onto it, and the
 method that measures the current workflow so a later run can be compared to it.
 
+## Where the gate comes from
+
+The runner takes the first of these that exists, and reads no other source:
+
+1. `TADW_SHIP_CHECK`, one shell command.
+2. `.tadw/ship-gates.json`, in the format below.
+3. The repository's executable pre-push hook. The runner finds it with
+   `git rev-parse --git-path hooks/pre-push`, so `core.hooksPath` is honored. It runs in the
+   candidate worktree with the arguments and stdin line git gives a push of the candidate to the
+   default branch. A hook given an empty stdin reads it as a delete-only push, and many hooks then
+   check nothing.
+4. The repository's executable pre-commit hook. It already runs when the runner commits the
+   candidate, so a commit it refuses stops the run with `SHIP_BLOCKED gate`.
+
+With none of the four, the run stops with `SHIP_BLOCKED gate` and names adding a pre-push hook.
+
+Sources 3 and 4 need no setup, because a repository's hooks are the bar a person's push already
+clears (`tadw-awsr`). A thin hook makes a thin gate. The fix for that is a stronger hook, which also
+protects a push made without ship. Use source 1 or 2 only when ship needs a different gate from a
+plain push. The real push runs the pre-push hook a second time, on the same commit; the runner
+never pushes with `--no-verify`.
+
 ## The gate configuration format
 
 A repository declares its ship gate in `.tadw/ship-gates.json`, version 1. The file is plain JSON.
@@ -64,8 +86,9 @@ stdout. It exits 0 when valid, 1 when invalid, and 2 when the file is missing.
 
 <!-- ship-setup:start -->
 
-Migration is one-time and per repository. `/tadw:ship` runs the Python command, so a repository
-needs this setup before its first ship. This repository finished step 4 before the skill switched.
+Migration is optional, one-time, and per repository. A repository whose hooks run its checks needs
+none of it. Follow it only when ship's gate must differ from the hooks. This repository finished
+step 4 before the skill switched.
 
 1. **Choose a route.** Set `TADW_SHIP_CHECK` to one command that runs the whole gate, or write
    `.tadw/ship-gates.json`. The override needs no file, and it outranks the file when both exist.
@@ -80,8 +103,8 @@ needs this setup before its first ship. This repository finished step 4 before t
 5. **Measure both versions** with the baseline method below, so the speed comparison starts from
    numbers.
 
-After the switch, a repository with no file and no override stops with `SHIP_BLOCKED gate` and the
-setup action. That stop is deliberate: a repository cannot be migrated from here.
+A repository with no file, no override, and no hook stops with `SHIP_BLOCKED gate` and the setup
+action. That stop is deliberate: the runner never guesses a check the repository does not run.
 
 <!-- ship-setup:end -->
 
@@ -102,7 +125,8 @@ that can never start, because it depends on a later gate that shares one of its 
 recorded as not run, so it stops the run too rather than waiting forever.
 
 A blank `TADW_SHIP_CHECK` counts as unset, because an empty command would pass every ship.
-`TADW_SHIP_CHECK_TIMEOUT` bounds the override command alone. A gate from the file uses its own
+`TADW_SHIP_CHECK_TIMEOUT` bounds the override command and the pre-push hook, with a default of 900
+seconds. Raise it for a hook that runs a long test suite. A gate from the file uses its own
 `timeout` key and ignores the variable, so raise that key for a slow configured gate. A value
 that is not a positive whole number stops the run and names that variable as the fix.
 

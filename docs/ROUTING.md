@@ -312,9 +312,9 @@ uses RSpec
   terminal with no model
 - Lands entirely locally: no pull request and no GitHub CI, so the repository's own check suite is
   the entire gate
-- Reads the gate from `TADW_SHIP_CHECK`, then `.tadw/ship-gates.json`; with neither it stops with
-  `SHIP_BLOCKED gate` and names both. [docs/ship-gate-contract.md](ship-gate-contract.md) gives the
-  one-time setup
+- Reads the gate from `TADW_SHIP_CHECK`, then `.tadw/ship-gates.json`, then the repository's own
+  pre-push hook, then its pre-commit hook; with none it stops with `SHIP_BLOCKED gate`.
+  [docs/ship-gate-contract.md](ship-gate-contract.md) gives the order
 - Refuses to start on the default branch, on a dirty tree, or with a rebase or merge already running
 - Resolves the bead from the argument or the branch name, verifying every candidate against `bd`
   and refusing when two real beads resolve, when a bead id given as an argument does not exist, or

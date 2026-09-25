@@ -11,9 +11,10 @@ when the branch carries two beads.
 
 ## Setup
 
-The runner needs a gate: `TADW_SHIP_CHECK`, one shell command, or `.tadw/ship-gates.json`, one gate
-per check. With neither, the run stops with `SHIP_BLOCKED gate`.
-[docs/ship-gate-contract.md](../../docs/ship-gate-contract.md) gives the one-time setup steps.
+None. The runner gates on the repository's own pre-push hook, or its pre-commit hook when it has no
+pre-push hook. `TADW_SHIP_CHECK` or `.tadw/ship-gates.json` replaces the hooks when a repository
+wants a different gate. With no hook and neither of those, the run stops with `SHIP_BLOCKED gate`.
+[docs/ship-gate-contract.md](../../docs/ship-gate-contract.md) gives the order.
 
 ## Run
 

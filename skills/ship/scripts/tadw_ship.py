@@ -9,6 +9,11 @@ these that is set, and no other source is read:
    command would pass every ship.
 2. `.tadw/ship-gates.json`, as docs/ship-gate-contract.md specifies. Each gate
    there carries its own `timeout`.
+3. The repository's own hooks, so a repository needs no ship-only setup. An
+   executable pre-push hook runs on the candidate as a push of it to the
+   default branch would run it, bounded by `TADW_SHIP_CHECK_TIMEOUT`. Without
+   one, an executable pre-commit hook is the gate: it already runs when the
+   candidate is committed. With neither, the run stops.
 
 `--check-gate` prints the selected gate as JSON. `--run-gate` runs it through
 run_checks.py, the executor the pre-push hook shares, and every gate must pass:
@@ -49,6 +54,7 @@ def load_sibling(name: str) -> ModuleType:
 
 
 read_gate_config = load_sibling("read_gate_config")
+resolve_ground = load_sibling("resolve_ground")
 run_checks = load_sibling("run_checks")
 ship_report = load_sibling("ship_report")
 worktree_cleanup = load_sibling("worktree_cleanup")
@@ -64,6 +70,29 @@ SETUP_ACTION = (
     f"Set {OVERRIDE_VARIABLE} to one command that runs the whole gate, or write "
     f"{read_gate_config.CONFIG_PATH} as docs/ship-gate-contract.md describes, then re-run."
 )
+HOOK_ACTION = (
+    f"Add a pre-push hook that runs the repository's checks, set {OVERRIDE_VARIABLE} to one "
+    f"command that runs them, or write {read_gate_config.CONFIG_PATH} as "
+    "docs/ship-gate-contract.md describes, then re-run."
+)
+NO_HOOK_PROBLEM = (
+    f"no gate configuration at {read_gate_config.CONFIG_PATH}, {OVERRIDE_VARIABLE} is unset, and "
+    "the repository has no executable pre-push or pre-commit hook"
+)
+PRE_PUSH_SOURCE = "pre-push hook"
+PRE_COMMIT_SOURCE = "pre-commit hook"
+# Git gives a pre-push hook the remote as arguments and one stdin line per ref. An empty stdin
+# reads as a delete-only push, which many hooks pass without checking anything. The hook is
+# found again inside the candidate, so a hooks directory in the tree is the candidate's own copy.
+PRE_PUSH_SCRIPT = """\
+hook=$(git rev-parse --git-path hooks/pre-push) || exit 1
+[ -x "$hook" ] || { echo "no executable pre-push hook at $hook" >&2; exit 1; }
+local_sha=$(git rev-parse HEAD) || exit 1
+remote_sha=$(git rev-parse --verify --quiet "refs/remotes/origin/$1") || remote_sha=%s
+url=$(git remote get-url origin 2>/dev/null) || url=origin
+printf 'refs/heads/%%s %%s refs/heads/%%s %%s\\n' "$1" "$local_sha" "$1" "$remote_sha" |
+  "$hook" origin "$url"
+""" % ("0" * 40)
 TIMEOUT_ACTION = (
     f"Set {TIMEOUT_VARIABLE} to a positive whole number of seconds, or unset it for the "
     f"default of {read_gate_config.DEFAULT_TIMEOUT_SECONDS}, then re-run."
@@ -190,7 +219,9 @@ def select_gate(repo: Path, environ: Mapping[str, str]) -> ShipGate:
     command = environ.get(OVERRIDE_VARIABLE, "")
     if command.strip():
         return override_gate(command, override_timeout(environ.get(TIMEOUT_VARIABLE)))
-    return configured_gate(repo)
+    if os.path.lexists(repo / read_gate_config.CONFIG_PATH):
+        return configured_gate(repo)
+    return hook_gate(repo, environ)
 
 
 def override_timeout(value: str | None) -> int:
@@ -225,12 +256,59 @@ def configured_gate(repo: Path) -> ShipGate:
     return ShipGate(str(read_gate_config.CONFIG_PATH), tuple(gates))
 
 
+def hook_gate(repo: Path, environ: Mapping[str, str]) -> ShipGate:
+    """The repository's own hooks, the bar a person's push already has to clear."""
+    if executable_hook(repo, "pre-push"):
+        timeout = override_timeout(environ.get(TIMEOUT_VARIABLE))
+        return pre_push_gate(default_branch(repo), timeout)
+    if executable_hook(repo, "pre-commit"):
+        return ShipGate(PRE_COMMIT_SOURCE, ())
+    raise GateBlocked([NO_HOOK_PROBLEM], HOOK_ACTION)
+
+
+def executable_hook(repo: Path, name: str) -> bool:
+    """Git's own lookup, so `core.hooksPath` and a linked worktree resolve as git resolves them."""
+    try:
+        location = resolve_ground.read_git(repo, "rev-parse", "--git-path", f"hooks/{name}")
+    except resolve_ground.GitError:
+        return False
+    if not location:
+        return False
+    hook = repo / location  # an absolute location replaces `repo`
+    return hook.is_file() and os.access(hook, os.X_OK)
+
+
+def default_branch(repo: Path) -> str:
+    branch, _ = resolve_ground.resolve_default_branch(repo)
+    if branch is None:
+        problem = "the default branch a push would name to the pre-push hook could not be resolved"
+        raise GateBlocked([problem], "Set origin/HEAD or create a local main, then re-run.")
+    return branch
+
+
+def pre_push_gate(branch: str, timeout: int) -> ShipGate:
+    gate = read_gate_config.NormalizedGate(
+        name=PRE_PUSH_SOURCE.replace(" ", "-"),
+        command=["sh", "-c", PRE_PUSH_SCRIPT, "tadw-ship-pre-push", branch],
+        inputs=[],
+        cwd=".",
+        timeout=timeout,
+        depends_on=[],
+        resources=[],
+        reuse=False,
+    )
+    return ShipGate(PRE_PUSH_SOURCE, (gate,))
+
+
 def show_gate(gate: ShipGate) -> int:
     print(json.dumps(gate.as_json(), indent=2))
     return EXIT_OK
 
 
 def run_gate(gate: ShipGate, repo: Path) -> int:
+    if gate.source == PRE_COMMIT_SOURCE:
+        print("tadw_ship: the pre-commit hook is the gate, and it runs when ship commits")
+        return EXIT_OK
     run = CandidateGate(gate)
     passed = run(repo)
     print_check_lines(run.reports)

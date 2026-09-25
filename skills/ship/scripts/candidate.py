@@ -157,8 +157,16 @@ def commit_candidate(worktree: Path, plan: Plan, export: ExportRunner) -> str:
         stage_export(worktree)
     if not git(worktree, "diff", "--cached", "--name-only"):
         raise CandidateStop("empty", f"{plan.branch} adds nothing to the default branch")
-    git(worktree, "commit", "--quiet", "-m", plan.subject)
+    commit_through_hook(worktree, plan.subject)
     return resolve_commit(worktree, "HEAD")
+
+
+def commit_through_hook(worktree: Path, subject: str) -> None:
+    """The pre-commit hook runs here, so a commit it refuses is a failed gate."""
+    completed = run_git(worktree, ("commit", "--quiet", "-m", subject))
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip()
+        raise CandidateStop("gate", f"the candidate commit was refused: {detail}")
 
 
 def squash_merge(worktree: Path, branch: str) -> bool:
