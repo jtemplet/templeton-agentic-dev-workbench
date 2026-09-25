@@ -19,7 +19,8 @@ because its result is immutable.
      worktree gets no `cd` line                     case_start_in_a_kept_worktree_gets_no_cd
   3. No stable checkout: named reason, raised       case_bare_main_worktree_has_no_stable_checkout,
      before any mutation (the runner's stop is      case_non_repository_has_no_stable_checkout,
-     pinned in test_tadw_ship.py)                   case_main_inside_a_linked_worktree_is_not_stable
+     pinned in test_tadw_ship.py)                   case_main_inside_a_linked_worktree_is_not_stable,
+                                                    case_deleted_separate_git_dir_main_is_not_stable
 
   Design decisions in the module docstring
   ------------------------------------------------------------------------------
@@ -39,6 +40,7 @@ import contextlib
 import functools
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -215,6 +217,19 @@ def case_main_inside_a_linked_worktree_is_not_stable() -> None:
         assert_no_stable_checkout(nested, "sits inside the linked worktree")
 
 
+def case_deleted_separate_git_dir_main_is_not_stable() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory).resolve()
+        main = root / "main"
+        subprocess.run(["git", "init", "-q", "--separate-git-dir", str(root / "gitdir"), str(main)],
+                       check=True)  # fmt: skip
+        git(main, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty",
+            "-m", "base")  # fmt: skip
+        linked = add_worktree(main, "linked")
+        shutil.rmtree(main)
+        assert_no_stable_checkout(linked, "the main checkout was deleted")
+
+
 def case_occupant_is_reported_and_removed() -> None:
     with repository() as main:
         feature = add_worktree(main, "feature")
@@ -277,6 +292,8 @@ for name, fn in [
      case_non_repository_has_no_stable_checkout),
     ("a main worktree inside a linked worktree is not stable",
      case_main_inside_a_linked_worktree_is_not_stable),
+    ("a deleted main checkout under a separate git directory is not stable",
+     case_deleted_separate_git_dir_main_is_not_stable),
     ("a relative start directory still gets a cd target", case_relative_start_still_gets_a_cd),
     ("a relative worktree path is removed", case_relative_worktree_path_is_removed),
     ("an occupant is reported, and the worktree is removed anyway",

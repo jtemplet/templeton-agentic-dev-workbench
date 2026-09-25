@@ -125,6 +125,20 @@ def case_short_failure_is_quoted_whole():
     assert check_report_for(UNKNOWN_OUTPUT).excerpt == UNKNOWN_OUTPUT.rstrip("\n")
 
 
+def rendered_check_lines(output: str, status: str) -> list[str]:
+    return ship_report.check_lines([check_report_for(output, status=status)])
+
+
+def case_passed_check_line_names_no_log():
+    lines = rendered_check_lines(PYTEST_OUTPUT, "passed")
+    assert lines == ["tadw_ship: passed suite [3 passed, 1 failed]"], lines
+
+
+def case_failed_check_with_an_empty_log_prints_only_its_header():
+    lines = rendered_check_lines("", "failed")
+    assert len(lines) == 1 and "(log: " in lines[0], lines
+
+
 def case_passed_check_has_no_excerpt():
     assert check_report_for(PYTEST_OUTPUT, status="passed").excerpt is None
 
@@ -208,6 +222,11 @@ for name, fn in [
     ("a long failure is bounded in characters", case_long_failure_is_bounded_in_characters),
     ("a short failure is quoted whole", case_short_failure_is_quoted_whole),
     ("a passed check carries no excerpt", case_passed_check_has_no_excerpt),
+    ("a passed check's line names no log", case_passed_check_line_names_no_log),
+    (
+        "a failed check with an empty log prints only its header",
+        case_failed_check_with_an_empty_log_prints_only_its_header,
+    ),
     ("pytest's summary supplies the counts", case_pytest_counts_are_parsed),
     ("unittest's summary supplies the counts", case_unittest_counts_are_parsed),
     ("this repository's suite summary supplies the counts", case_house_suite_counts_are_parsed),

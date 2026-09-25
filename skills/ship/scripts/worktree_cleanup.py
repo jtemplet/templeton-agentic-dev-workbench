@@ -70,7 +70,7 @@ def stable_checkout(repo: Path) -> Path:
     worktrees = resolve_ground.read_worktrees(repo)
     require_repository(repo, worktrees)
     main_path = Path(worktrees[0]["path"]).resolve()
-    require_usable_main(worktrees[0], main_path)
+    require_usable_main(repo, worktrees[0], main_path)
     require_outside_linked_worktrees(main_path, linked_worktree_paths(worktrees))
     return main_path
 
@@ -98,14 +98,17 @@ def require_repository(repo: Path, worktrees: list[dict]) -> None:
         raise NoStableCheckout(f"git lists no worktree for {repo}, so it is not a repository")
 
 
-def require_usable_main(main: dict, main_path: Path) -> None:
-    """The main worktree must be a checkout on disk, because the caller is sent there."""
+def require_usable_main(repo: Path, main: dict, main_path: Path) -> None:
+    """The main worktree must be a checkout, because the caller is sent there."""
     if main["bare"]:
         raise NoStableCheckout(
             f"the main worktree {main_path} is bare, so no checkout outlives the worktree removal"
         )
-    if not main_path.is_dir():
-        raise NoStableCheckout(f"the main worktree {main_path} does not exist on disk")
+    # With --separate-git-dir, a deleted main checkout is listed as its git directory.
+    if str(main_path) == resolve_ground.absolute_git_path(repo, "rev-parse", "--git-common-dir"):
+        raise NoStableCheckout(
+            f"the main checkout was deleted, and git lists its git directory {main_path} instead"
+        )
 
 
 def linked_worktree_paths(worktrees: list[dict]) -> list[Path]:

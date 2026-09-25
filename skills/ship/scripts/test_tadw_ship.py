@@ -309,6 +309,26 @@ def case_invalid_override_timeout_names_its_own_fix() -> None:
         assert ".tadw/ship-gates.json" not in result.stderr, "the override is set already"
 
 
+def rejected_override_timeout(value: str) -> None:
+    result = run_in_empty_repo(
+        "--check-gate", env={"TADW_SHIP_CHECK": "make check", "TADW_SHIP_CHECK_TIMEOUT": value}
+    )
+    assert_ship_stopped(result)
+    assert "positive whole number" in result.stderr, result.stderr
+
+
+def case_zero_override_timeout_is_rejected() -> None:
+    rejected_override_timeout("0")
+
+
+def case_negative_override_timeout_is_rejected() -> None:
+    rejected_override_timeout("-5")
+
+
+def case_signed_override_timeout_is_rejected() -> None:
+    rejected_override_timeout("+60")
+
+
 def case_missing_repository_is_operator_error() -> None:
     with tempfile.TemporaryDirectory() as directory:
         result = run(Path(directory) / "absent", "--check-gate")
@@ -558,6 +578,9 @@ for name, fn in [
     ("a blank override counts as unset", case_blank_override_counts_as_unset),
     ("an invalid override timeout names its own fix",
      case_invalid_override_timeout_names_its_own_fix),
+    ("a zero override timeout is rejected", case_zero_override_timeout_is_rejected),
+    ("a negative override timeout is rejected", case_negative_override_timeout_is_rejected),
+    ("a signed override timeout is rejected", case_signed_override_timeout_is_rejected),
     ("a missing repository is operator error, not a ship stop",
      case_missing_repository_is_operator_error),
     ("a start without --check-gate does not claim a ship",
