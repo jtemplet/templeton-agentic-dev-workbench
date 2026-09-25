@@ -69,10 +69,8 @@ class Removal:
 def stable_checkout(repo: Path) -> Path:
     worktrees = resolve_ground.read_worktrees(repo)
     require_repository(repo, worktrees)
-    main = worktrees[0]
-    main_path = Path(main["path"]).resolve()
-    require_not_bare(main, main_path)
-    require_on_disk(main_path)
+    main_path = Path(worktrees[0]["path"]).resolve()
+    require_usable_main(worktrees[0], main_path)
     require_outside_linked_worktrees(main_path, linked_worktree_paths(worktrees))
     return main_path
 
@@ -100,16 +98,14 @@ def require_repository(repo: Path, worktrees: list[dict]) -> None:
         raise NoStableCheckout(f"git lists no worktree for {repo}, so it is not a repository")
 
 
-def require_not_bare(main: dict, main_path: Path) -> None:
+def require_usable_main(main: dict, main_path: Path) -> None:
+    """The main worktree must be a checkout on disk, because the caller is sent there."""
     if main["bare"]:
         raise NoStableCheckout(
             f"the main worktree {main_path} is bare, so no checkout outlives the worktree removal"
         )
-
-
-def require_on_disk(main: Path) -> None:
-    if not main.is_dir():
-        raise NoStableCheckout(f"the main worktree {main} does not exist on disk")
+    if not main_path.is_dir():
+        raise NoStableCheckout(f"the main worktree {main_path} does not exist on disk")
 
 
 def linked_worktree_paths(worktrees: list[dict]) -> list[Path]:

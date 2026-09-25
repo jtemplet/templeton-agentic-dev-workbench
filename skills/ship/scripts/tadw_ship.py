@@ -112,8 +112,7 @@ def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None
     if args.run_gate:
         return run_gate(gate, args.repo_root)
     if args.check_gate:
-        print(json.dumps(gate.as_json(), indent=2))
-        return EXIT_OK
+        return show_gate(gate)
     return start_workflow(args.repo_root)
 
 
@@ -160,13 +159,8 @@ def existing_directory(value: str) -> Path:
 def select_gate(repo: Path, environ: Mapping[str, str]) -> ShipGate:
     command = environ.get(OVERRIDE_VARIABLE, "")
     if command.strip():
-        timeout = override_timeout(environ.get(TIMEOUT_VARIABLE))
-        return ShipGate(OVERRIDE_VARIABLE, (override_gate(command, timeout),))
-    try:
-        gates = read_gate_config.load_gates(repo)
-    except read_gate_config.GateConfigError as error:
-        raise GateBlocked(error.problems) from error
-    return ShipGate(str(read_gate_config.CONFIG_PATH), tuple(gates))
+        return override_gate(command, override_timeout(environ.get(TIMEOUT_VARIABLE)))
+    return configured_gate(repo)
 
 
 def override_timeout(value: str | None) -> int:
@@ -178,9 +172,9 @@ def override_timeout(value: str | None) -> int:
     return int(value)
 
 
-def override_gate(command: str, timeout: int) -> read_gate_config.NormalizedGate:
+def override_gate(command: str, timeout: int) -> ShipGate:
     """The override is one documented shell string, so a shell runs it."""
-    return read_gate_config.NormalizedGate(
+    gate = read_gate_config.NormalizedGate(
         name=OVERRIDE_VARIABLE,
         command=["sh", "-c", command],
         inputs=[],
@@ -190,6 +184,20 @@ def override_gate(command: str, timeout: int) -> read_gate_config.NormalizedGate
         resources=[],
         reuse=False,
     )
+    return ShipGate(OVERRIDE_VARIABLE, (gate,))
+
+
+def configured_gate(repo: Path) -> ShipGate:
+    try:
+        gates = read_gate_config.load_gates(repo)
+    except read_gate_config.GateConfigError as error:
+        raise GateBlocked(error.problems) from error
+    return ShipGate(str(read_gate_config.CONFIG_PATH), tuple(gates))
+
+
+def show_gate(gate: ShipGate) -> int:
+    print(json.dumps(gate.as_json(), indent=2))
+    return EXIT_OK
 
 
 def run_gate(gate: ShipGate, repo: Path) -> int:

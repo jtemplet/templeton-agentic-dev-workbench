@@ -101,16 +101,15 @@ def check_lines(checks: Sequence[CheckReport]) -> list[str]:
 
     A passed check names no log, because a passing gate's logs are removed.
     """
-    lines = []
-    for check in checks:
-        counts = check.counts.describe() if check.counts else COUNTS_UNAVAILABLE
-        if check.excerpt is None:
-            lines.append(f"tadw_ship: {check.status} {check.name} [{counts}]")
-            continue
-        lines.append(f"tadw_ship: {check.status} {check.name} (log: {check.log}) [{counts}]")
-        if check.excerpt:
-            lines.append(check.excerpt)
-    return lines
+    return [line for check in checks for line in lines_for_check(check)]
+
+
+def lines_for_check(check: CheckReport) -> list[str]:
+    counts = check.counts.describe() if check.counts else COUNTS_UNAVAILABLE
+    if check.excerpt is None:
+        return [f"tadw_ship: {check.status} {check.name} [{counts}]"]
+    header = f"tadw_ship: {check.status} {check.name} (log: {check.log}) [{counts}]"
+    return [header, check.excerpt] if check.excerpt else [header]
 
 
 def parse_counts(output: str) -> Counts | None:
