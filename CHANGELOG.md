@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [4.6.7] - 2026-09-24
+
+### Added
+
+- **Switch the ship skill to the runner.** (`dd2bdc7`, tadw-1c37)
+
+### Changed
+
+- **Remove the Python and Rails review skills and commands.** (`f068d3f`, tadw-pjid)
+
 ## [4.6.6] - 2026-09-24
 
 ### Added
@@ -2737,7 +2747,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.6...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.7...HEAD
+[4.6.7]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.6...v4.6.7
 [4.6.6]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.5...v4.6.6
 [4.6.5]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.4...v4.6.5
 [4.6.4]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.3...v4.6.4
