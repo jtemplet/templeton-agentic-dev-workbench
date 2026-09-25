@@ -66,7 +66,7 @@ An empty list means nothing to review: say so and stop. On exit 3 (no resolvable
 
 ### Step 2: Read Full Files
 
-For every changed file, read the **entire file**, not just the diff hunks. The `bulk-reader` route
+For every changed file, read the **entire file**, not just the diff hunks. The `Explore` route
 below is the one exception: it narrows which files you read, and it never replaces a read of a file
 you edit. You need surrounding context to spot issues like:
 
@@ -75,12 +75,12 @@ you edit. You need surrounding context to spot issues like:
 - Missing imports or broken references
 - Logic that contradicts code elsewhere in the file
 
-**When the change touches more files than you want to read, dispatch `tadw:bulk-reader` first.**
-It reads many files in its own context and returns bullets, so those files never enter yours. Ask
-it which of the changed files carry the risky logic. Then read those files here, in full.
+**When the change touches more files than you want to read, dispatch the `Explore` agent first.**
+It reads many files in its own context and returns a summary, so those files never enter yours.
+Ask it which of the changed files carry the risky logic. Then read those files here, in full.
 
-**Read every file you are about to edit, yourself.** `bulk-reader` orients, and never supplies the
-text an edit is based on. Its answer carries no reliable line numbers, so an edit built on it
+**Read every file you are about to edit, yourself.** `Explore` orients, and never supplies the text
+an edit is based on. Its answer carries no reliable line numbers, so an edit built on it
 changes the wrong line. Step 4 edits files, so read every file it touches.
 
 ### Step 3: Review for Issues
@@ -150,7 +150,7 @@ ambiguous is flagged for the user instead of guessed at.
 **Always:**
 
 - Read the full file, not just the diff
-- Read a file yourself before you edit it, even when `bulk-reader` already described it
+- Read a file yourself before you edit it, even when `Explore` already described it
 - Fix bugs directly via Edit, do not just report them
 - Explain every fix clearly
 - Be conservative, only fix clear problems
@@ -161,7 +161,7 @@ ambiguous is flagged for the user instead of guessed at.
 - Fix style or formatting (that is a different review)
 - Refactor working code (you are looking for bugs, not improvements)
 - Guess at fixes for ambiguous issues (flag those for the user)
-- Edit a file from `bulk-reader`'s bullets; that agent orients, and its line numbers go stale
+- Edit a file from `Explore`'s summary; that agent orients, and its line numbers go stale
 - Judge a file from its diff alone; a file you review, you read in full
 - Make changes that alter behavior beyond fixing the bug
 
@@ -170,7 +170,7 @@ ambiguous is flagged for the user instead of guessed at.
 Before reporting completion, verify:
 
 - [ ] Every file you reviewed or edited was read in full (not just its diff)
-- [ ] Every edited file was read here, not taken from `bulk-reader`'s bullets
+- [ ] Every edited file was read here, not taken from `Explore`'s summary
 - [ ] Every fix is genuinely a bug, not a style preference
 - [ ] Every fix is explained with before/after reasoning
 - [ ] Every reported issue carries a severity label

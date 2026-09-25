@@ -11,7 +11,7 @@ Both cost the same as reasoning when they run on the largest model.
 Most files in `agents/` set `model: inherit`, so a subagent runs on whatever the parent runs on.
 Derive both counts rather than reading them here: `grep -l '^model: inherit' agents/*.md | wc -l`
 against `ls agents/*.md | wc -l`. When this was decided it was twelve of fourteen, and only
-`agents/product-analyst.md` and `agents/bulk-reader.md` named a model of their own.
+`agents/product-analyst.md` and the `bulk-reader` agent named a model of their own.
 `agents/acceptance-verifier.md` joined them on 2026-09-07, under `tadw-lqj`.
 
 The clearest case is `agents/quality-gates-orchestrator.md`.
@@ -110,6 +110,14 @@ reliable line numbers, so an edit built on it edits the wrong line. Every skill 
 through it reads the specific file it is about to change. Its tools are `Read`, `Grep`, and `Glob`
 alone: the tools list, not the prompt, is what stops it writing a file, because an agent cannot
 call a tool it was never given.
+
+**Amended 2026-09-24:** `bulk-reader` is retired, under `tadw-99rc`. The two skills that routed to
+it now name the `Explore` agent that Claude Code ships. The model rarely chose `bulk-reader`: the
+owner's transcripts held 9 dispatches of it and 141 of `Explore`. Derive both with
+`grep -rhoa '"subagent_type":"[^"]*"' ~/.claude-personal/projects | sort | uniq -c`. Only a
+`PreToolUse` hook could have forced the routing, and the owner chose not to build one. The
+orientation rule above still holds for `Explore`: it orients, and an edit reads its own file. The
+model-per-job rule still holds for the quality-gates lanes and for `acceptance-verifier`.
 
 **A `code-writer` worker is rejected for tests.** The idea was a cheap agent that writes a test
 file from a specification, straight to disk, without the parent reading it.

@@ -323,10 +323,10 @@ security vulnerability, not a style choice.
 
 Apply this guidance throughout:
 
-- **Orient with `bulk-reader`, and read what you edit yourself.** When the review spans more files
-  than you want to read, dispatch `tadw:bulk-reader` to find which ones matter, then read those
-  here. It reads in its own context, so the files it opens never enter yours. `bulk-reader` orients,
-  and never supplies the text an edit is based on. Its answer carries no reliable line numbers, so
+- **Orient with `Explore`, and read what you edit yourself.** When the review spans more files than
+  you want to read, dispatch the `Explore` agent to find which ones matter, then read those here.
+  It reads in its own context, so the files it opens never enter yours. `Explore` orients, and
+  never supplies the text an edit is based on. Its answer carries no reliable line numbers, so
   an edit built on it changes the wrong line.
 - **Scope.** Review the changed code, suggest incremental improvements rather than a rewrite, and
   match the project's existing conventions.
@@ -446,7 +446,7 @@ tests simply do not exercise; those remain CRITICAL even when the suite is green
 Before completing the review, verify:
 
 - [ ] Read the entire file (not just the diff) for purpose, structure, and surrounding conventions.
-- [ ] Read every file an edit touched, rather than relying on `bulk-reader`'s bullets for it.
+- [ ] Read every file an edit touched, rather than relying on `Explore`'s summary for it.
 - [ ] Verified each claim (Python version, framework patterns, whether tests pass) before flagging
       it.
 - [ ] Reviewed security and correctness first, then quality, then maintainability, then style.

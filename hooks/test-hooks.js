@@ -70,19 +70,13 @@
 //      that file says which one to pass. ADR 0002 Finding 4 measured what a
 //      dropped orchestrator rule costs: every lane succeeded, the aggregate line
 //      was never written, and the run read as a short report rather than a bug.
-//  17. agents/bulk-reader.md can never write a file. The agent exists so a
-//      caller can ask about many files without those files entering its
-//      context, and the prompt tells it not to write. A prompt is not the
-//      guarantee; the tools list is, because an agent cannot call a tool it was
-//      never given. So the list must stay exactly Read, Grep, and Glob, and
-//      adding Write or Edit has to fail here rather than in review.
-//  18. agents/acceptance-verifier.md runs on sonnet with exactly Read, Bash,
+//  17. agents/acceptance-verifier.md runs on sonnet with exactly Read, Bash,
 //      Grep, and Glob. tadw-lqj moved /verify-acceptance's grading off the
 //      parent's model per ADR 0008, and grading is a judgment nobody
 //      downstream re-checks, so a silent drop to a cheaper model or a
 //      widened tools list would ship a weaker grader that still looks like
 //      a working one.
-//  19. The response style injects only what sits ABOVE its always-on marker, and
+//  18. The response style injects only what sits ABOVE its always-on marker, and
 //      every rule stays above it. The skill is one file on purpose so the hook and
 //      /response-style cannot drift, which means a heading can be moved below the
 //      marker by an ordinary edit and stop being injected, with no other signal.
@@ -1100,38 +1094,12 @@ check('the orchestrator states its lane model in the workflow and in the Always 
   );
 });
 
-// --- 13. The bulk-reader agent holds no tool that can write ---------------
-// The orientation-not-editing rule rests on the tools list, not on the prompt.
-// An agent cannot call a tool it was never given, so Read, Grep, and Glob is
-// the whole guarantee. Adding Write or Edit would keep every word of the prompt
-// true and still let the agent rewrite a file it was asked to describe.
-check('the bulk-reader agent holds only Read, Grep, and Glob', () => {
-  const doc = fs.readFileSync(
-    path.join(HOOKS_DIR, '..', 'agents', 'bulk-reader.md'),
-    'utf8'
-  );
-  const frontmatter = doc.match(/^---\n([\s\S]*?)\n---\n/);
-  assert.ok(frontmatter, 'agents/bulk-reader.md must open with YAML frontmatter');
-
-  const tools = frontmatter[1].match(/^tools:\s*\[(.*)\]\s*$/m);
-  assert.ok(tools, 'agents/bulk-reader.md must declare a tools list in its frontmatter');
-
-  const declared = [...tools[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
-  assert.deepStrictEqual(
-    declared,
-    ['Glob', 'Grep', 'Read'],
-    `agents/bulk-reader.md declares [${declared.join(', ')}]. It must hold Read, Grep, and Glob ` +
-      'and nothing else, because the tools list is what stops it writing a file, not the prompt.'
-  );
-});
-
-// --- 14. The acceptance-verifier agent runs on sonnet with the right tools -
+// --- 13. The acceptance-verifier agent runs on sonnet with the right tools -
 // tadw-lqj moved /verify-acceptance's grading off the parent's model, per
 // ADR 0008: a job whose output nobody downstream checks keeps its judgment,
 // so it runs on sonnet rather than haiku. Bash is required to run the QA
-// gates, and it can write a file and change a bead too, so unlike bulk-reader
-// above, the prompt rather than the tools list is what keeps this grader from
-// fixing what it grades. A silently dropped model or a widened tools list
+// gates, and it can write a file and change a bead too, so the prompt rather
+// than the tools list is what keeps this grader from fixing what it grades. A silently dropped model or a widened tools list
 // would still read as a working agent, so both are pinned here rather than
 // trusted to review.
 check('the acceptance-verifier agent runs on sonnet with Read, Bash, Grep, and Glob', () => {
@@ -1165,7 +1133,7 @@ check('the acceptance-verifier agent runs on sonnet with Read, Bash, Grep, and G
   );
 });
 
-// --- 19. The always-on marker splits the response style, and loses no rule ----
+// --- 18. The always-on marker splits the response style, and loses no rule ----
 check('the response style injects everything above its always-on marker', () => {
   const skillPath = path.join(HOOKS_DIR, '..', 'skills', 'house-response-style', 'SKILL.md');
   const body = fs.readFileSync(skillPath, 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');

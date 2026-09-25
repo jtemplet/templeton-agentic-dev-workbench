@@ -267,10 +267,10 @@ reads when deciding what to invoke.
 `style-python` `style-rails` `style-rspec` `style-swift` `style-testing` `terraform-iac-expert`
 `triage-beads` `ux-review` `ux-review-ios` `verify-acceptance` `write-plan`
 
-**Registered Agents** (14). Descriptions live in the `README.md` agents table and in
+**Registered Agents** (13). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.
 
-`acceptance-verifier` `bulk-reader` `claude-md-reviewer` `code-reviewer` `diagnostician`
+`acceptance-verifier` `claude-md-reviewer` `code-reviewer` `diagnostician`
 `feature-planner` `product-analyst`
 `product-cartographer` `product-manager` `project-manager` `quality-gates-orchestrator`
 `research-librarian` `software-engineer` `ux-product-designer`
