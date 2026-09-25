@@ -1,5 +1,25 @@
 ## [Unreleased]
 
+## [4.6.6] - 2026-09-24
+
+### Added
+
+- **Check the final candidate commit before landing.** (`6ad47f1`, tadw-9ed)
+- **Add the terminal interface and caller cd guidance (tadw-kgql) (#28).** (`29dc7f3`)
+- **Run the ship workflow end to end in the runner.** (`862011f`, tadw-0jz2)
+
+### Changed
+
+- **Drop the fish function from the deterministic ship plan.** (`e64ed3e`, tadw-kgql)
+- **Re-audit tadw-kgql and add its tadw-9ed dependency.** (`c0551aa`)
+- **Export tracker state after building tadw-a7r.** (`b6e9faa`)
+- **Merge branch 'feature/tadw-a7r/bead-selection-guards' into main.** (`22437e0`)
+- **Export tracker state after the tadw-kgql session.** (`feffcea`)
+- **Apply the Boreas Python size limits ahead of a full reinstall (#29).** (`5fd0743`)
+- **Export tracker state after closing tadw-kgql.** (`f0a4e2f`)
+- **Export tracker state after the tadw-0jz2 session.** (`40edd86`)
+- **Retire the bulk-reader agent.** (`402ada4`, tadw-99rc)
+
 ## [4.6.5] - 2026-09-23
 
 ### Changed
@@ -2717,7 +2737,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.5...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.6...HEAD
+[4.6.6]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.5...v4.6.6
 [4.6.5]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.4...v4.6.5
 [4.6.4]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.3...v4.6.4
 [4.6.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.2...v4.6.3
