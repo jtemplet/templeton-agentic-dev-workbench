@@ -12,11 +12,12 @@ these that is set, and no other source is read:
 
 `--check-gate` prints the selected gate as JSON. `--run-gate` runs it through
 run_checks.py, the executor the pre-push hook shares, and every gate must pass:
-a missing tool stops the ship rather than being skipped. The landing steps come
-later (tadw-0jz2).
+a missing tool stops the ship rather than being skipped. With neither flag the
+runner ships the bead end to end through ship_workflow.py, running the same
+gate on the candidate commit it lands.
 
-Exit status: 0 on success, 1 on a ship stop (the last stdout line is the
-machine line), 2 on operator error.
+Exit status: 0 on success (the last stdout line is `SHIP_DONE <hash>`), 1 on a
+ship stop (the last stdout line is `SHIP_BLOCKED <slug>`), 2 on operator error.
 """
 
 from __future__ import annotations
@@ -51,10 +52,10 @@ read_gate_config = load_sibling("read_gate_config")
 run_checks = load_sibling("run_checks")
 ship_report = load_sibling("ship_report")
 worktree_cleanup = load_sibling("worktree_cleanup")
+ship_workflow = load_sibling("ship_workflow")
 
 EXIT_OK = 0
 EXIT_BLOCKED = 1
-EXIT_OPERATOR_ERROR = 2
 
 OVERRIDE_VARIABLE = "TADW_SHIP_CHECK"
 TIMEOUT_VARIABLE = "TADW_SHIP_CHECK_TIMEOUT"
@@ -103,17 +104,46 @@ class ShipGate:
         ]
 
 
+class CandidateGate:
+    """The gate a landing runs on its candidate tree; it keeps each check's report."""
+
+    def __init__(self, gate: ShipGate) -> None:
+        self.gate = gate
+        self.outcome: run_checks.Outcome | None = None
+        self.reports: tuple[ship_report.CheckReport, ...] = ()
+
+    def __call__(self, directory: Path) -> bool:
+        """Logs go to a fresh temporary directory, kept only when a gate did not pass."""
+        log_dir = Path(tempfile.mkdtemp(prefix="tadw-ship-gate-"))
+        self.outcome = run_checks.run_checks(
+            self.gate.checks(directory, log_dir), os.cpu_count() or 1
+        )
+        self.reports = check_reports(self.outcome)
+        if self.passed():
+            shutil.rmtree(log_dir, ignore_errors=True)
+        return self.passed()
+
+    def passed(self) -> bool:
+        return self.outcome is not None and gate_passed(self.outcome)
+
+
 def main(argv: list[str] | None = None, environ: Mapping[str, str] | None = None) -> int:
+    # First, before anything can chdir: the caller's directory decides the `cd` line.
+    start = Path.cwd()
     args = parse_args(argv)
     try:
         gate = select_gate(args.repo_root, os.environ if environ is None else environ)
     except GateBlocked as blocked:
         return stop("gate", *blocked.problems, f"nothing was changed. {blocked.action}")
+    return dispatch(args, gate, start)
+
+
+def dispatch(args: argparse.Namespace, gate: ShipGate, start: Path) -> int:
     if args.run_gate:
         return run_gate(gate, args.repo_root)
     if args.check_gate:
         return show_gate(gate)
-    return start_workflow(args.repo_root)
+    return start_workflow(args, gate, start)
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -201,21 +231,22 @@ def show_gate(gate: ShipGate) -> int:
 
 
 def run_gate(gate: ShipGate, repo: Path) -> int:
-    """Logs go to a fresh temporary directory, kept only when a gate did not pass."""
-    log_dir = Path(tempfile.mkdtemp(prefix="tadw-ship-gate-"))
-    outcome = run_checks.run_checks(gate.checks(repo, log_dir), os.cpu_count() or 1)
-    print_check_lines(outcome)
-    if not gate_passed(outcome):
-        return stop("gate", *interruption(outcome))
-    shutil.rmtree(log_dir, ignore_errors=True)
-    return report_gate_passed(outcome)
+    run = CandidateGate(gate)
+    passed = run(repo)
+    print_check_lines(run.reports)
+    if not passed:
+        return stop("gate", *interruption(run.outcome))
+    return report_gate_passed(len(run.reports))
 
 
-def print_check_lines(outcome: run_checks.Outcome) -> None:
-    reports = [
+def check_reports(outcome: run_checks.Outcome) -> tuple[ship_report.CheckReport, ...]:
+    return tuple(
         ship_report.report_check(result.name, result.status.value, result.log)
         for result in outcome.results
-    ]
+    )
+
+
+def print_check_lines(reports: tuple[ship_report.CheckReport, ...]) -> None:
     for line in ship_report.check_lines(reports):
         print(line, file=sys.stderr)
 
@@ -233,15 +264,15 @@ def interruption(outcome: run_checks.Outcome) -> list[str]:
     return [f"the gate was interrupted by {outcome.stopped_by.name}"]
 
 
-def report_gate_passed(outcome: run_checks.Outcome) -> int:
-    count = len(outcome.results)
+def report_gate_passed(count: int) -> int:
     print(f"tadw_ship: every gate passed, {count} of {count}")
     return EXIT_OK
 
 
-def start_workflow(repo: Path) -> int:
+def start_workflow(args: argparse.Namespace, gate: ShipGate, start: Path) -> int:
+    """Resolve the stable checkout before the first mutation, and keep that one path."""
     try:
-        worktree_cleanup.stable_checkout(repo)
+        stable = worktree_cleanup.stable_checkout(args.repo_root)
     except worktree_cleanup.NoStableCheckout as missing:
         return stop(
             "git-state",
@@ -249,8 +280,27 @@ def start_workflow(repo: Path) -> int:
             "nothing was changed. Ship from a repository with a main checkout, "
             "because ship moves there before it removes any worktree.",
         )
-    print("tadw_ship: the landing steps are not built yet (tadw-0jz2)", file=sys.stderr)
-    return EXIT_OPERATOR_ERROR
+    request = ship_workflow.Request(args.repo_root.resolve(), start, stable, args.bead_id)
+    return ship(request, CandidateGate(gate))
+
+
+def ship(request: ship_workflow.Request, gate: CandidateGate) -> int:
+    try:
+        shipped = ship_workflow.ship(request, gate)
+    except ship_workflow.ShipStop as stopped:
+        print_check_lines(gate.reports)
+        return stop(stopped.slug, *stopped.explanation)
+    return report_shipped(shipped, gate.reports)
+
+
+def report_shipped(
+    shipped: ship_workflow.Shipped, checks: tuple[ship_report.CheckReport, ...]
+) -> int:
+    """One result, rendered once, so the `cd` line always sits right above the machine line."""
+    machine_line = f"SHIP_DONE {shipped.commit}"
+    result = ship_report.ShipResult(shipped.bead_id, checks, machine_line, shipped.cd_target)
+    print("\n".join(ship_report.render(result)))
+    return EXIT_OK
 
 
 def stop(reason: str, *explanation: str) -> int:

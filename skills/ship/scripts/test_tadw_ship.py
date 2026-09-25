@@ -43,6 +43,22 @@ Stdlib only, no install. Run with:
      provisional                                    case_no_flag_is_called_provisional
 
   Criteria 1 and 2 are pinned in test_worktree_cleanup.py and test_ship_report.py.
+
+  tadw-0jz2 criterion                               Pinned by, all through bin/tadw-ship
+  ------------------------------------------------------------------------------
+  1. Exit 0 with `SHIP_DONE <hash>` or 1 with       case_ship_exits_0_with_ship_done_last,
+     `SHIP_BLOCKED <slug>` as the last line         case_stop_exits_1_with_ship_blocked_last
+  2. The default branch carries the checked         case_default_branch_carries_the_shipped_commit,
+     candidate, and the bead is closed              case_shipped_commit_is_the_checked_candidate,
+                                                    case_shipped_commit_is_pushed,
+                                                    case_ship_closes_the_bead,
+                                                    case_ship_removes_the_worktree_and_branch
+  3. A caller inside the removed worktree gets      case_caller_in_removed_worktree_gets_cd_line,
+     `cd <stable-path>` before the machine line     case_cd_line_sits_above_the_machine_line
+  4. A caller outside it gets no `cd` line          case_caller_outside_removed_worktree_gets_no_cd_line
+  5. A failing gate ends `SHIP_BLOCKED gate` and    case_failing_gate_ends_with_ship_blocked_gate,
+     leaves the default branch unchanged            case_failing_gate_leaves_the_default_branch_unchanged,
+                                                    case_failing_gate_leaves_the_bead_open
 """
 
 from __future__ import annotations
@@ -335,13 +351,13 @@ def case_missing_repository_is_operator_error() -> None:
     assert result.returncode == 2, f"expected exit 2, got {result.returncode}"
 
 
-def case_start_without_check_gate_does_not_claim_a_ship() -> None:
+def case_start_on_the_default_branch_stops_with_git_state() -> None:
     with tempfile.TemporaryDirectory() as directory:
         fixture = Fixture(Path(directory))
         write_config(fixture.repo, valid_config())
         result = fixture.start()
-    assert result.returncode == 2, f"expected exit 2, got {result.returncode}"
-    assert "SHIP_DONE" not in result.stdout, result.stdout
+    assert result.returncode == 1, f"expected exit 1, got {result.returncode}"
+    assert result.stdout.splitlines()[-1] == "SHIP_BLOCKED git-state", result.stdout
 
 
 def case_bead_with_a_gate_flag_is_operator_error() -> None:
@@ -560,6 +576,202 @@ def case_run_gate_runs_the_override() -> None:
     assert "failed TADW_SHIP_CHECK" in result.stderr, result.stderr
 
 
+BEAD = "tadw-e2e"
+BRANCH = f"feature/{BEAD}/add-thing"
+# A tracker holding one bead, whose status lives in a file beside the script.
+FAKE_BD = """#!/bin/sh
+status="$(dirname "$0")/status"
+case "$1" in
+  show)
+    if [ "$2" = "BEAD" ]; then
+      printf '[{"id":"BEAD","title":"Add the thing","issue_type":"feature","status":"%s"}]' "$(cat "$status")"
+    else
+      printf '{"error":"no issue found"}'
+    fi ;;
+  close) echo closed > "$status" ;;
+  export) mkdir -p "$(dirname "$3")"; printf '{"id":"BEAD","status":"%s"}\\n' "$(cat "$status")" > "$3" ;;
+  ready) printf '[]' ;;
+esac
+""".replace("BEAD", BEAD)
+
+
+class ShipRun(NamedTuple):
+    """One `tadw-ship <bead-id>` run through the executable, and the state it left."""
+
+    result: subprocess.CompletedProcess
+    main: Path
+    default_before: str
+    default_after: str
+    origin_after: str
+    bead_status: str
+    worktree_removed: bool
+    branch_deleted: bool
+
+    def last_line(self) -> str:
+        return self.result.stdout.splitlines()[-1]
+
+    def shipped_hash(self) -> str:
+        return self.last_line().removeprefix("SHIP_DONE ")
+
+    def cd_lines(self) -> list[str]:
+        return [line for line in self.result.stdout.splitlines() if line.startswith("cd ")]
+
+
+class ShipRepository:
+    """A main checkout with an origin, and a linked worktree whose branch adds one file."""
+
+    def __init__(self, root: Path) -> None:
+        self.main = root / "main"
+        self.worktree = root / "worktrees" / "add-thing"
+        self.shims = root / "shims"
+        self.create_main(root / "origin.git")
+        self.git("worktree", "add", "-q", "-b", BRANCH, str(self.worktree), "main")
+        (self.worktree / "thing.txt").write_text("the thing\n")
+        self.git("-C", str(self.worktree), "add", "thing.txt")
+        self.git("-C", str(self.worktree), "commit", "-q", "-m", "Add the thing")
+        self.install_bd()
+
+    def create_main(self, origin: Path) -> None:
+        subprocess.run(["git", "init", "-q", "-b", "main", str(self.main)], check=True)
+        subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
+        self.git("config", "user.name", "t")
+        self.git("config", "user.email", "t@t")
+        self.git("commit", "-q", "--allow-empty", "-m", "base")
+        self.git("remote", "add", "origin", str(origin))
+        self.git("push", "-q", "-u", "origin", "main")
+
+    def install_bd(self) -> None:
+        self.shims.mkdir()
+        (self.shims / "status").write_text("open\n")
+        (self.shims / "bd").write_text(FAKE_BD)
+        (self.shims / "bd").chmod(0o755)
+
+    def git(self, *args: str) -> str:
+        completed = subprocess.run(
+            ["git", "-C", str(self.main), *args], capture_output=True, text=True, check=True
+        )
+        return completed.stdout.strip()
+
+    def ship(self, gate: str, cwd: Path) -> subprocess.CompletedProcess:
+        environment = {
+            key: value for key, value in os.environ.items() if not key.startswith("TADW_SHIP")
+        }
+        environment["PATH"] = f"{self.shims}{os.pathsep}{os.environ['PATH']}"
+        environment["TADW_SHIP_CHECK"] = gate
+        return subprocess.run(
+            [str(EXECUTABLE), BEAD, "--repo-root", str(self.worktree)],
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=cwd,
+            env=environment,
+        )
+
+
+@functools.cache
+def ship_run(gate: str, start_in_worktree: bool) -> ShipRun:
+    with tempfile.TemporaryDirectory() as directory:
+        repository = ShipRepository(Path(directory).resolve())
+        before = repository.git("rev-parse", "main")
+        start = repository.worktree if start_in_worktree else repository.main
+        result = repository.ship(gate, start)
+        remove_kept_gate_logs(result.stderr)
+        return ShipRun(
+            result=result,
+            main=repository.main,
+            default_before=before,
+            default_after=repository.git("rev-parse", "main"),
+            origin_after=repository.git("rev-parse", "origin/main"),
+            bead_status=(repository.shims / "status").read_text().strip(),
+            worktree_removed=not repository.worktree.exists(),
+            branch_deleted=not repository.git("branch", "--list", BRANCH),
+        )
+
+
+def remove_kept_gate_logs(stderr: str) -> None:
+    """A failed gate keeps its logs for the operator; a test has no operator to read them."""
+    for log in re.findall(r"\(log: (.+)\)", stderr):
+        shutil.rmtree(Path(log).parent, ignore_errors=True)
+
+
+def shipped_from_worktree() -> ShipRun:
+    return ship_run("true", start_in_worktree=True)
+
+
+def shipped_from_main() -> ShipRun:
+    return ship_run("true", start_in_worktree=False)
+
+
+def blocked_by_gate() -> ShipRun:
+    return ship_run("false", start_in_worktree=True)
+
+
+def case_ship_exits_0_with_ship_done_last() -> None:
+    run = shipped_from_worktree()
+    assert run.result.returncode == 0, f"expected exit 0:\n{run.result.stderr}"
+    assert re.fullmatch(r"SHIP_DONE [0-9a-f]{40}", run.last_line()), run.result.stdout
+
+
+def case_stop_exits_1_with_ship_blocked_last() -> None:
+    run = blocked_by_gate()
+    assert run.result.returncode == 1, f"expected exit 1:\n{run.result.stderr}"
+    assert re.fullmatch(r"SHIP_BLOCKED [a-z-]+", run.last_line()), run.result.stdout
+
+
+def case_default_branch_carries_the_shipped_commit() -> None:
+    run = shipped_from_worktree()
+    assert run.default_after == run.shipped_hash(), run.result.stdout
+
+
+def case_shipped_commit_is_the_checked_candidate() -> None:
+    run = shipped_from_worktree()
+    checked = f"checked candidate {run.shipped_hash()[:12]}"
+    assert checked in run.result.stderr, run.result.stderr
+
+
+def case_shipped_commit_is_pushed() -> None:
+    run = shipped_from_worktree()
+    assert run.origin_after == run.shipped_hash(), "origin/main must carry the landed commit"
+
+
+def case_ship_closes_the_bead() -> None:
+    assert shipped_from_worktree().bead_status == "closed"
+
+
+def case_ship_removes_the_worktree_and_branch() -> None:
+    run = shipped_from_worktree()
+    assert (run.worktree_removed, run.branch_deleted) == (True, True), run.result.stderr
+
+
+def case_caller_in_removed_worktree_gets_cd_line() -> None:
+    run = shipped_from_worktree()
+    assert run.cd_lines() == [f"cd {shlex.quote(str(run.main))}"], run.result.stdout
+
+
+def case_cd_line_sits_above_the_machine_line() -> None:
+    lines = shipped_from_worktree().result.stdout.splitlines()
+    assert lines[-2].startswith("cd "), lines
+
+
+def case_caller_outside_removed_worktree_gets_no_cd_line() -> None:
+    run = shipped_from_main()
+    assert run.result.returncode == 0, run.result.stderr
+    assert run.cd_lines() == [], run.result.stdout
+
+
+def case_failing_gate_ends_with_ship_blocked_gate() -> None:
+    assert blocked_by_gate().last_line() == "SHIP_BLOCKED gate"
+
+
+def case_failing_gate_leaves_the_default_branch_unchanged() -> None:
+    run = blocked_by_gate()
+    assert run.default_after == run.default_before, "the default branch moved on a failed gate"
+
+
+def case_failing_gate_leaves_the_bead_open() -> None:
+    assert blocked_by_gate().bead_status == "open"
+
+
 for name, fn in [
     ("the gates are the AGENTS.md list, in order, except the model eval",
      case_configured_gate_matches_agents_md),
@@ -583,8 +795,8 @@ for name, fn in [
     ("a signed override timeout is rejected", case_signed_override_timeout_is_rejected),
     ("a missing repository is operator error, not a ship stop",
      case_missing_repository_is_operator_error),
-    ("a start without --check-gate does not claim a ship",
-     case_start_without_check_gate_does_not_claim_a_ship),
+    ("a start on the default branch stops with git-state",
+     case_start_on_the_default_branch_stops_with_git_state),
     ("a bead-id with a gate flag is operator error", case_bead_with_a_gate_flag_is_operator_error),
     ("no stable checkout stops with git-state", case_no_stable_checkout_stops_with_git_state),
     ("no stable checkout names the reason", case_no_stable_checkout_names_the_reason),
@@ -602,6 +814,23 @@ for name, fn in [
     ("--run-gate keeps the log of a failed gate", case_run_gate_keeps_the_log_of_a_failed_gate),
     ("--run-gate prints a bounded excerpt of a failure", case_run_gate_prints_a_bounded_excerpt),
     ("--run-gate keeps every line of a failure in its log", case_run_gate_log_keeps_every_line),
+    ("a ship exits 0 with SHIP_DONE <hash> last", case_ship_exits_0_with_ship_done_last),
+    ("a stop exits 1 with SHIP_BLOCKED <slug> last", case_stop_exits_1_with_ship_blocked_last),
+    ("the default branch carries the shipped commit",
+     case_default_branch_carries_the_shipped_commit),
+    ("the shipped commit is the checked candidate", case_shipped_commit_is_the_checked_candidate),
+    ("the shipped commit is pushed", case_shipped_commit_is_pushed),
+    ("a ship closes the bead", case_ship_closes_the_bead),
+    ("a ship removes the worktree and the branch", case_ship_removes_the_worktree_and_branch),
+    ("a caller in the removed worktree gets the exact cd line",
+     case_caller_in_removed_worktree_gets_cd_line),
+    ("the cd line sits right above the machine line", case_cd_line_sits_above_the_machine_line),
+    ("a caller outside every removed worktree gets no cd line",
+     case_caller_outside_removed_worktree_gets_no_cd_line),
+    ("a failing gate ends with SHIP_BLOCKED gate", case_failing_gate_ends_with_ship_blocked_gate),
+    ("a failing gate leaves the default branch unchanged",
+     case_failing_gate_leaves_the_default_branch_unchanged),
+    ("a failing gate leaves the bead open", case_failing_gate_leaves_the_bead_open),
 ]:  # fmt: skip
     check(name, fn)
 
