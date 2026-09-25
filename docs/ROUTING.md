@@ -315,34 +315,26 @@ uses RSpec
 
 **Land the accepted branch:** Use `/tadw:ship` (the `ship` skill directly; there is no command file)
 
-- Lands entirely locally: no pull request and no GitHub CI, so the repository's own
-  check suite, run locally on the rebased tip, is the entire gate
+- Runs `bin/tadw-ship` once, and the Python runner takes every step; the same command runs from any
+  terminal with no model
+- Lands entirely locally: no pull request and no GitHub CI, so the repository's own check suite is
+  the entire gate
+- Reads the gate from `TADW_SHIP_CHECK`, then `.tadw/ship-gates.json`; with neither it stops with
+  `SHIP_BLOCKED gate` and names both. [docs/ship-gate-contract.md](ship-gate-contract.md) gives the
+  one-time setup
 - Refuses to start on the default branch, on a dirty tree, or with a rebase or merge already running
-- Resolves the bead from the argument or the `outrigger/<short-id>/<slug>` branch name, verifying
-  every candidate against `bd` and refusing when two real beads resolve, when a bead id given as an
-  argument does not exist, or when the bead is already closed
-- Ships **bead-free** when the branch names no bead, or when the repository has no tracker: it skips
-  the close, `bd dolt push`, the bead id in the subject, and the `Closes` line, and says so twice in
-  the report. Every gate, guard, and cleanup step still runs
-- Rebases onto `origin/main` before gating, so the gate grades the tree the squash-merge produces
-- Resolves a `.beads/issues.jsonl` conflict by re-exporting from the database with `bd export`,
-  verifies the result parses, and aborts on any other conflict rather than judging code someone else
-  wrote
-- Detects the gate from `TADW_SHIP_CHECK`, then what `AGENTS.md`/`CLAUDE.md` declares, then a task
-  runner `check` target, then the stack's conventional runner; an undetected gate is a stop, not a
-  skip, and a non-zero exit stops the run before any merge
-- Squash-merges as `<type>: <title> (<bead-id>)` with a `Closes <bead-id>` body, closes the bead,
-  and folds the tracker export into the landing commit
-- Lists every commit already sitting unpushed on the default branch before it merges, and names each
-  one in the report, because the push publishes those commits too
-- Pushes main without ever forcing; a rejected push refetches, re-rebases, and re-gates once, and it
-  resets local main only after proving it carries nothing this run did not create
-- Deletes the local branch and its remote ref only after checking that main holds the branch's
-  version of every file the branch touched
-- Ends the report by naming which bead to pick up next: the beads the close released from their
-  blocker, from `bd close --suggest-next`, or the top of `bd ready` when the close released none.
-  The lookup runs after the push, so a failure omits the row and never stops the run, and the skill
-  never claims the bead it names
+- Resolves the bead from the argument or the branch name, verifying every candidate against `bd`
+  and refusing when two real beads resolve, when a bead id given as an argument does not exist, or
+  when the bead is already closed. It ships **bead-free** when the branch names no bead
+- Rebases onto the default branch, regenerating a conflicted `.beads/issues.jsonl` with
+  `bd export` and keeping both sides of a `CHANGELOG.md` conflict; any other conflict aborts
+- Squashes the branch into a candidate commit, runs the gate on that exact commit, and moves the
+  default branch only when the gate passed, so a failed gate leaves the default branch unchanged
+- Closes the bead after the landing, never before, then pushes without forcing. A rejected push
+  stops with `git-state` and leaves the landed commit local
+- Removes the branch's worktree and deletes the branch only after checking that the default branch
+  holds every file the branch touched. When the caller stood in the removed worktree, it prints the
+  `cd` line to a checkout that still exists
 - Unattended by design: it never asks a question, and it ends with exactly one machine-readable
   `SHIP_DONE <hash>` or `SHIP_BLOCKED <slug>` line. The hash is what an orchestrator checks against
   main; the slug is one of five categories (`gate`, `conflict`, `tracker`, `git-state`, `internal`)

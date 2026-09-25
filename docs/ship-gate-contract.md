@@ -62,8 +62,10 @@ stdout. It exits 0 when valid, 1 when invalid, and 2 when the file is missing.
 
 ## Migration procedure
 
-Migration is one-time and per repository. The plugin switches `/tadw:ship` to the Python command
-only after this repository has finished step 4 and these instructions are published.
+<!-- ship-setup:start -->
+
+Migration is one-time and per repository. `/tadw:ship` runs the Python command, so a repository
+needs this setup before its first ship. This repository finished step 4 before the skill switched.
 
 1. **Choose a route.** Set `TADW_SHIP_CHECK` to one command that runs the whole gate, or write
    `.tadw/ship-gates.json`. The override needs no file, and it outranks the file when both exist.
@@ -80,6 +82,8 @@ only after this repository has finished step 4 and these instructions are publis
 
 After the switch, a repository with no file and no override stops with `SHIP_BLOCKED gate` and the
 setup action. That stop is deliberate: a repository cannot be migrated from here.
+
+<!-- ship-setup:end -->
 
 `tadw-ship --repo-root <path> --check-gate` shows which gate a ship run would select, and stops
 there. `tadw-ship` is `bin/tadw-ship`, and `skills/ship/scripts/tadw_ship.py` takes the same

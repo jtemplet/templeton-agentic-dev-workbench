@@ -772,6 +772,93 @@ def case_failing_gate_leaves_the_bead_open() -> None:
     assert blocked_by_gate().bead_status == "open"
 
 
+SKILL = REPO / "skills" / "ship" / "SKILL.md"
+PUBLISH_PLUGIN = REPO / "skills" / "publish-plugin" / "SKILL.md"
+SETUP_INSTRUCTIONS = REPO / "docs" / "ship-gate-contract.md"
+# The categories the skill promised before it called the runner; publish-plugin passes them on.
+EXISTING_STOP_SLUGS = {"gate", "conflict", "tracker", "git-state", "internal"}
+MAX_SKILL_WORDS = 500
+
+
+def fenced_lines(text: str) -> list[str]:
+    lines, fenced = [], False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        elif fenced:
+            lines.append(line)
+    return lines
+
+
+def marked_region(text: str, name: str) -> str:
+    start, end = f"<!-- {name}:start -->", f"<!-- {name}:end -->"
+    assert start in text and end in text, f"the document must mark its {name} region"
+    return text.split(start, 1)[1].split(end, 1)[0]
+
+
+def skill_stop_slugs() -> set[str]:
+    return set(
+        re.findall(r"^\| `([a-z-]+)` \|", marked_region(SKILL.read_text(), "stop-slugs"), re.M)
+    )
+
+
+def runner_stop_slugs() -> set[str]:
+    """Every slug the runner's own code names, plus each helper stop it translates."""
+    sources = "".join(
+        (SCRIPT.parent / name).read_text() for name in ("tadw_ship.py", "ship_workflow.py")
+    )
+    literal = set(re.findall(r"(?:ShipStop|stop)\(\s*\"([a-z-]+)\"", sources))
+    table = re.search(r"CANDIDATE_SLUGS = \{(.*?)\}", sources, re.S)
+    assert table, "ship_workflow.py must keep its CANDIDATE_SLUGS table"
+    translated = set(re.findall(r"\"[a-z-]+\": \"([a-z-]+)\"", table.group(1)))
+    # resolve_rebase_conflict.py reports its own stop, and the workflow passes it through.
+    return literal | translated | {"conflict", "tracker"}
+
+
+def case_skill_ends_with_the_runner_machine_line() -> None:
+    text = SKILL.read_text()
+    for required in ("SHIP_DONE <hash>", "SHIP_BLOCKED <slug>", "machine line, copied exactly"):
+        assert required in text, f"the skill must say {required!r}"
+
+
+def case_skill_invokes_the_runner_once() -> None:
+    commands = [line for line in fenced_lines(SKILL.read_text()) if line.strip()]
+    runner = [line for line in commands if "bin/tadw-ship" in line]
+    assert len(runner) == 1, f"expected one runner command, found {runner}"
+    helpers = [line for line in commands if "skills/ship/scripts/" in line]
+    assert not helpers, f"the skill must not run a helper itself: {helpers}"
+
+
+def case_skill_has_at_most_500_words() -> None:
+    words = len(SKILL.read_text().split())  # the count `wc -w` prints
+    assert words <= MAX_SKILL_WORDS, f"the skill has {words} words"
+
+
+def case_skill_lists_every_existing_stop_category() -> None:
+    assert skill_stop_slugs() == EXISTING_STOP_SLUGS, skill_stop_slugs()
+
+
+def case_runner_emits_only_existing_stop_categories() -> None:
+    unknown = runner_stop_slugs() - EXISTING_STOP_SLUGS
+    assert not unknown, f"publish-plugin does not know these categories: {unknown}"
+
+
+def case_publish_plugin_accepts_the_unchanged_machine_line() -> None:
+    text = PUBLISH_PLUGIN.read_text()
+    for line in ("`SHIP_DONE <hash>`", "`SHIP_BLOCKED <reason>`"):
+        assert line in text, f"publish-plugin no longer reads {line}"
+
+
+def case_setup_instructions_name_the_setup_action() -> None:
+    migration = marked_region(SETUP_INSTRUCTIONS.read_text(), "ship-setup")
+    for action in ("TADW_SHIP_CHECK", ".tadw/ship-gates.json"):
+        assert action in migration, f"the setup instructions must name {action}"
+
+
+def case_skill_links_the_setup_instructions() -> None:
+    assert "docs/ship-gate-contract.md" in SKILL.read_text()
+
+
 for name, fn in [
     ("the gates are the AGENTS.md list, in order, except the model eval",
      case_configured_gate_matches_agents_md),
@@ -831,6 +918,17 @@ for name, fn in [
     ("a failing gate leaves the default branch unchanged",
      case_failing_gate_leaves_the_default_branch_unchanged),
     ("a failing gate leaves the bead open", case_failing_gate_leaves_the_bead_open),
+    ("the skill ends with the runner's machine line", case_skill_ends_with_the_runner_machine_line),
+    ("the skill invokes the runner once", case_skill_invokes_the_runner_once),
+    ("the skill has at most 500 words", case_skill_has_at_most_500_words),
+    ("the skill lists every existing stop category",
+     case_skill_lists_every_existing_stop_category),
+    ("the runner emits only existing stop categories",
+     case_runner_emits_only_existing_stop_categories),
+    ("publish-plugin accepts the unchanged machine line",
+     case_publish_plugin_accepts_the_unchanged_machine_line),
+    ("the setup instructions name the setup action", case_setup_instructions_name_the_setup_action),
+    ("the skill links the setup instructions", case_skill_links_the_setup_instructions),
 ]:  # fmt: skip
     check(name, fn)
 

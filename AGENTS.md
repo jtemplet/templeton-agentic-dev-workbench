@@ -64,8 +64,8 @@ python3 evals/run.py                                          # response-style e
 
 Run `/validate-plugin` after you add, rename, or remove a component.
 
-**The ship gate is this list minus `python3 evals/run.py`.** `/tadw:ship` takes its gate from
-this block.
+**The ship gate is this list minus `python3 evals/run.py`.** `/tadw:ship` reads its gate from
+`.tadw/ship-gates.json`, and `skills/ship/scripts/test_tadw_ship.py` fails when the two differ.
 
 The response-style evals are the wrong shape for a gate. They are graded against model prose, so
 they are not deterministic. `plain-sentences` measures sentence length against a 35-word ceiling,
