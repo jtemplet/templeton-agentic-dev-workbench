@@ -84,6 +84,16 @@ Stdlib only, no install. Run with:
   2. Any other changed tracked file ends            case_another_changed_file_in_main_stops_with_git_state
      SHIP_BLOCKED git-state, main unchanged
   3. The output says the export was restored        case_restored_export_is_reported_by_the_run
+
+  tadw-8tax criterion                               Pinned by, all through bin/tadw-ship
+  ------------------------------------------------------------------------------
+  1. Staged and unstaged changes in main are        case_dirty_main_ships_and_gets_its_changes_back
+     stashed, the ship lands, and the changes
+     come back with the staged state kept
+  2. The tracker export is never stashed           case_stale_export_stays_out_of_the_stash
+  3. A failed ship restores them too                case_blocked_ship_still_restores_main_changes
+  4. A restore that conflicts warns, keeps the      case_conflicting_restore_keeps_the_stash
+     stash, and does not undo the landing
 """
 
 from __future__ import annotations
@@ -866,6 +876,80 @@ def case_restored_export_is_reported_by_the_run() -> None:
     assert "restored .beads/issues.jsonl" in stderr, stderr
 
 
+# tadw-8tax: changes the operator left in the main checkout are stashed for the ship.
+def dirty_main_ship(gate: str, prepare) -> tuple[ShipRepository, subprocess.CompletedProcess]:
+    """Ship from the worktree after `prepare` changed the main checkout; the repository is kept."""
+    directory = tempfile.mkdtemp()
+    repository = ShipRepository(Path(directory).resolve())
+    prepare(repository.main)
+    result = repository.ship(gate, repository.worktree)
+    remove_kept_gate_logs(result.stderr)
+    return repository, result
+
+
+def stage_and_edit(main: Path) -> None:
+    (main / "base.txt").write_text("edited\n")
+    (main / "staged.txt").write_text("staged\n")
+    subprocess.run(["git", "-C", str(main), "add", "staged.txt"], check=True)
+
+
+def porcelain(repository: ShipRepository) -> str:
+    return repository.git("status", "--porcelain")
+
+
+def case_dirty_main_ships_and_gets_its_changes_back() -> None:
+    repository, result = dirty_main_ship("true", stage_and_edit)
+    try:
+        assert result.returncode == 0, result.stderr
+        assert (repository.main / "base.txt").read_text() == "edited\n"
+        assert (repository.main / "thing.txt").exists(), "main lacks the landed file"
+        assert porcelain(repository) == "M base.txt\nA  staged.txt", porcelain(repository)
+        assert not repository.git("stash", "list"), "the stash was left behind"
+    finally:
+        shutil.rmtree(repository.main.parent, ignore_errors=True)
+
+
+def edit_export_and_a_source_file(main: Path) -> None:
+    (main / ".beads" / "issues.jsonl").write_text("stale\n")
+    (main / "base.txt").write_text("edited\n")
+
+
+def case_stale_export_stays_out_of_the_stash() -> None:
+    repository, result = dirty_main_ship("true", edit_export_and_a_source_file)
+    try:
+        assert result.returncode == 0, result.stderr
+        assert porcelain(repository) == "M base.txt", porcelain(repository)
+        assert "stashed 1 changed file(s)" in result.stderr, result.stderr
+    finally:
+        shutil.rmtree(repository.main.parent, ignore_errors=True)
+
+
+def case_blocked_ship_still_restores_main_changes() -> None:
+    repository, result = dirty_main_ship("false", stage_and_edit)
+    try:
+        assert result.stdout.splitlines()[-1] == "SHIP_BLOCKED gate", result.stdout
+        assert porcelain(repository) == "M base.txt\nA  staged.txt", porcelain(repository)
+        assert not repository.git("stash", "list"), "the stash was left behind"
+    finally:
+        shutil.rmtree(repository.main.parent, ignore_errors=True)
+
+
+def stage_the_file_the_ship_adds(main: Path) -> None:
+    (main / "thing.txt").write_text("mine\n")
+    subprocess.run(["git", "-C", str(main), "add", "thing.txt"], check=True)
+
+
+def case_conflicting_restore_keeps_the_stash() -> None:
+    repository, result = dirty_main_ship("true", stage_the_file_the_ship_adds)
+    try:
+        assert re.fullmatch(r"SHIP_DONE [0-9a-f]{40}", result.stdout.splitlines()[-1]), result.stdout
+        assert "warning: could not restore the changes stashed" in result.stderr, result.stderr
+        assert repository.git("stash", "list"), "the stash was dropped"
+        assert repository.git("rev-parse", "main") == repository.git("rev-parse", "origin/main")
+    finally:
+        shutil.rmtree(repository.main.parent, ignore_errors=True)
+
+
 def case_ship_gates_on_the_pre_push_hook() -> None:
     run = shipped_through_pre_push()
     assert run.result.returncode == 0, run.result.stderr
@@ -1119,6 +1203,13 @@ for name, fn in [
     ("another changed file in main stops with git-state",
      case_another_changed_file_in_main_stops_with_git_state),
     ("the run reports the restored export", case_restored_export_is_reported_by_the_run),
+    ("a dirty main is stashed for the ship and restored after",
+     case_dirty_main_ships_and_gets_its_changes_back),
+    ("the tracker export stays out of the stash", case_stale_export_stays_out_of_the_stash),
+    ("a blocked ship still restores the changes in main",
+     case_blocked_ship_still_restores_main_changes),
+    ("a conflicting restore keeps the stash and warns",
+     case_conflicting_restore_keeps_the_stash),
     ("ship gates on the pre-push hook", case_ship_gates_on_the_pre_push_hook),
     ("the pre-push hook sees the candidate pushed to the default branch",
      case_pre_push_hook_sees_the_candidate_pushed_to_the_default_branch),

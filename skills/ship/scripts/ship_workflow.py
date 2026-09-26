@@ -54,6 +54,7 @@ candidate = load_sibling("candidate")
 landed_check = load_sibling("landed_check")
 ship_report = load_sibling("ship_report")
 worktree_cleanup = load_sibling("worktree_cleanup")
+default_checkout_stash = load_sibling("default_checkout_stash")
 
 # Every other `CandidateStop` reason is a repository that was not fit to land on.
 CANDIDATE_SLUGS = {
@@ -116,6 +117,14 @@ def run_steps_without_git_errors(request: Request, gate: candidate.Gate) -> Ship
 def run_steps(request: Request, gate: candidate.Gate) -> Shipped:
     ground = read_ground(request.repo)
     bead = choose_bead(request, ground)
+    holder = ground["default_branch_worktree"]
+    with default_checkout_stash.default_checkout_set_aside(holder, ground["default_branch"], say):
+        return land_and_publish(request, ground, bead, gate)
+
+
+def land_and_publish(
+    request: Request, ground: dict, bead: select_bead.Bead | None, gate: candidate.Gate
+) -> Shipped:
     bring_current(request.repo, ground)
     landing = land(request.repo, ground, bead, gate)
     publish(request.repo, ground, bead, landing.commit)
