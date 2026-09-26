@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [4.6.10] - 2026-09-25
+
+### Added
+
+- **Ship stashes changes in the default checkout, then...** (`51469a1`, tadw-8tax)
+
 ## [4.6.9] - 2026-09-25
 
 ### Changed
@@ -2767,7 +2773,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.9...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.10...HEAD
+[4.6.10]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.9...v4.6.10
 [4.6.9]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.8...v4.6.9
 [4.6.8]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.7...v4.6.8
 [4.6.7]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.6...v4.6.7
