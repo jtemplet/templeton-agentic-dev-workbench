@@ -942,6 +942,16 @@ report_after() {
   esac
 }
 
+# The bead a report was written for. Only /build records one, so every other
+# report is taken to describe the marker's own bead ($3), as it always was.
+report_bead() {
+  local report="$1" skill="$2" marker_bead="$3"
+  case "$skill" in
+    feature-development|tadw:feature-development) jq -r '.bead // empty' "$report" 2>/dev/null ;;
+    *) echo "$marker_bead" ;;
+  esac
+}
+
 report_passes() {
   local report="$1" skill="$2"
   case "$skill" in
@@ -1003,7 +1013,8 @@ handle_stop() {
   init_repo
   [[ -d "$MARKER_DIR" ]] || quiet_exit
 
-  local marker basename_marker marker_label created bead_id skill mode report now branch bad_field
+  local marker basename_marker marker_label created bead_id skill mode report named now branch
+  local bad_field
   now="$(date +%s)"
   branch="$(git branch --show-current 2>/dev/null || true)"
   for marker in "$MARKER_DIR"/*; do
@@ -1064,6 +1075,16 @@ handle_stop() {
     # Only a report written after the marker can describe this run.
     report="$(report_after "$marker" "$skill")"
     [[ -z "$report" ]] && continue   # run still in progress
+
+    # Markers are shared by every worktree; reports are not. A sibling's report
+    # must leave this marker for the report of its own run (tadw-34bo).
+    named="$(report_bead "$report" "$skill" "$bead_id")"
+    if [[ "$named" != "$bead_id" ]]; then
+      log "report $report names ${named:-no bead}, not $bead_id; leaving the marker pending"
+      log_outcome Stop "$skill" "$branch" "$bead_id" \
+        "left $marker_label pending, the report names ${named:-no bead}"
+      continue
+    fi
 
     if report_passes "$report" "$skill"; then
       if add_label "$bead_id" "$marker_label"; then

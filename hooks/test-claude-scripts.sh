@@ -1012,6 +1012,49 @@ if case_start "label/stop: a build marker ignores a quality-gates report"; then
   [[ -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "kept the marker" || nope "kept the marker"
 fi
 
+# tadw-34bo. Pending markers live in the common git dir, shared by every
+# worktree, while each worktree writes its own build report. A sibling
+# worktree's passing report labeled tadw-kgql, whose build had written nothing.
+if case_start "label/stop: a build report naming another bead leaves the marker pending"; then
+  R="$(new_repo bn1 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  age_artifacts "$R"
+  jq -n '{bead:"tadw-beta-two", criteria_met:4, criteria_total:4,
+          tests_passed:14, tests_failed:0, lint_ran:true, lint_violations:0}' \
+    > "$R/.git/build-report.json"
+  export BD_KNOWN="tadw-alpha-one tadw-beta-two" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "labeled no bead"
+  if [[ -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]]; then
+    ok "kept the marker"
+  else
+    nope "kept the marker"
+  fi
+  assert_match "$R/.git/bead-label.log" "names tadw-beta-two" "the log names the mismatch"
+fi
+
+if case_start "label/stop: a build report naming the marker's bead labels it"; then
+  R="$(new_repo bn2 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  age_artifacts "$R"; write_build_report "$R" 4 4 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "update tadw-alpha-one --add-label implemented" "labeled the named bead"
+fi
+
+if case_start "label/stop: a build report naming no bead labels nothing"; then
+  R="$(new_repo bn3 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  age_artifacts "$R"
+  jq -n '{criteria_met:4, criteria_total:4,
+          tests_passed:14, tests_failed:0, lint_ran:true, lint_violations:0}' \
+    > "$R/.git/build-report.json"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "labeled no bead"
+  assert_match "$R/.git/bead-label.log" "names no bead" "the log says the report named none"
+fi
+
 if case_start "label/inject: no skill is left on inject mode"; then
   # tadw-av7. verify-acceptance was the last one, at 5 of 15 decided runs, and
   # it moved to gate here. The mode's code stays, because markers written before
