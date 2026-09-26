@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [4.6.9] - 2026-09-25
+
+### Changed
+
+- **Write the verification control document template.** (`c4378c2`, tadw-agv)
+
+### Fixed
+
+- **Ship selects a bead from a branch word that only...** (`462d624`, tadw-7lxr)
+- **Ship gates on the repository's own git hooks when no...** (`8f64066`, tadw-awsr)
+- **The ship runner stops with git-state whenever the...** (`cdf8aec`, tadw-lndi)
+- **Label hook credits one worktree's build report to...** (`95184e9`, tadw-34bo)
+
 ## [4.6.8] - 2026-09-25
 
 ### Changed
@@ -2754,7 +2767,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.8...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.9...HEAD
+[4.6.9]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.8...v4.6.9
 [4.6.8]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.7...v4.6.8
 [4.6.7]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.6...v4.6.7
 [4.6.6]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.5...v4.6.6
