@@ -142,11 +142,11 @@ failures, and these four gates have no lane. So when one of them FAILs, say whet
 looks new, in the same sentence form Step 5 of the skill requires. Skip this and a FAIL you found
 reaches the report with no attribution, while every lane's FAIL carries one.
 
-You also own five report rows that no single lane can produce, because no lane sees the union of
-routed surfaces:
+You also own five kinds of report row that no single lane can produce, because no lane sees the
+union of routed surfaces:
 
 - the `Handoff: mobile-ui` row, naming `agent-device`
-- the **Project checks** row, when Step 1 found a command that maps to no gate
+- the **Project checks** rows, one per command Step 1's rule sent there
 - Gate 2's own HANDOFF status, when every routed surface is a handoff
 - Gate 2's SKIP row, carrying the router's reason, when every routed surface is `docs`
 - **any row for a surface the ownership table does not name.** A surface added to `route_qa.py`
@@ -196,7 +196,7 @@ PASS, FAIL, WARN, SKIP, BLOCKED, and HANDOFF.
 
 Give every gate the skill defines its own row. A gate that did not run gets a row too, with SKIP,
 BLOCKED, or HANDOFF and a stated reason. Add one `Handoff: <surface>` row per handoff surface, and
-the Project checks row when Step 1 found an unmapped command.
+one Project checks row per command Step 1's rule sent there.
 
 Write the JSON artifact before you emit the report, so the **Artifact** line can state what the
 write did. Resolve its path with `git rev-parse --git-dir`, never a literal `.git/` and never

@@ -31,6 +31,8 @@
     {"name": "drive-blocks", "command": ["python3", "skills/product-surface-docs/scripts/check_drive_blocks.py"]},
     {"name": "round-format-suite", "command": ["python3", "skills/bead-refine/scripts/test_check_round_format.py"]},
     {"name": "round-format", "command": ["python3", "skills/bead-refine/scripts/check_round_format.py"]},
+    {"name": "gate-rules-suite", "command": ["python3", "skills/quality-gates/scripts/test_check_gate_rules.py"]},
+    {"name": "gate-rules", "command": ["python3", "skills/quality-gates/scripts/check_gate_rules.py"]},
     {"name": "worktree-occupants-suite", "command": ["python3", "skills/ship/scripts/test_check_worktree_occupants.py"]},
     {"name": "resolve-ground-suite", "command": ["python3", "skills/ship/scripts/test_resolve_ground.py"]},
     {"name": "landed-check-suite", "command": ["python3", "skills/ship/scripts/test_landed_check.py"]},

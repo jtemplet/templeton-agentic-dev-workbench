@@ -671,33 +671,35 @@ print("\n  [this suite is a measurement, not a merge gate]")
 AGENTS = harness.REPO_ROOT / "AGENTS.md"
 
 
-def case_agents_md_takes_the_evals_out_of_the_ship_gate() -> None:
-    """`/tadw:ship` reads the AGENTS.md command block and treats the whole list as its gate.
+def commands_for_this_repo() -> tuple[str, str]:
+    """The AGENTS.md "Commands for This Repo" section, as (its command block, its prose)."""
+    section = AGENTS.read_text(encoding="utf-8").split("## Commands for This Repo", 1)[1]
+    section = section.split("\n## ", 1)[0]
+    before, block, after = section.split("```", 2)
+    return block, before + after
 
-    That put a non-deterministic, paid suite in front of every merge. Two finished
-    branches were blocked by it in one session, neither for a reason they caused.
-    The exclusion lives in prose beside the list, the way the three pre-push
-    exclusions do, so this asserts the sentence is still there and still names
-    this command.
+
+def case_agents_md_takes_the_evals_out_of_the_ship_gate() -> None:
+    """`/tadw:ship` and `/quality-gates` both read the command block as their gate.
+
+    A non-deterministic, paid suite in that block sat in front of every merge. Two
+    finished branches were blocked by it in one session, neither for a reason they
+    caused. An exclusion written in prose beside the block left each reader to
+    honor it by judgment, so the command sits outside the block instead.
     """
-    text = AGENTS.read_text(encoding="utf-8")
-    assert "The ship gate is this list minus `python3 evals/run.py`." in text, (
-        "AGENTS.md must state the ship-gate exclusion verbatim, or /tadw:ship reads the "
-        "whole block as its gate again and every merge waits on twelve model calls"
+    block, _ = commands_for_this_repo()
+    assert "evals/run.py" not in block, (
+        "the evals must stay out of the command block, or every gate that reads it runs "
+        "twelve model calls on every merge"
     )
 
 
 def case_the_evals_command_is_still_documented() -> None:
-    """Excluded from the gate, not hidden from the reader.
-
-    Deleting the line would also break `.githooks/test_prepush.py`, which asserts
-    every command it documents as excluded from the hook is still in AGENTS.md.
-    """
-    text = AGENTS.read_text(encoding="utf-8")
-    block = text.split("## Commands for This Repo", 1)[1].split("```", 2)[1]
-    assert "python3 evals/run.py" in block, (
-        "the command must stay in the block; the exclusion is about when it runs, not whether "
-        "anyone can find it"
+    """Out of the gate, not hidden from the reader: the section's prose still names it."""
+    _, prose = commands_for_this_repo()
+    assert "python3 evals/run.py" in prose, (
+        "the section must still name the command; the exclusion is about when it runs, not "
+        "whether anyone can find it"
     )
 
 
@@ -707,7 +709,7 @@ for name, fn in [
         case_agents_md_takes_the_evals_out_of_the_ship_gate,
     ),
     (
-        "the evals command is still in the command block [criterion 2]",
+        "the evals command is still named beside the command block [criterion 2]",
         case_the_evals_command_is_still_documented,
     ),
 ]:

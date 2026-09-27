@@ -13,11 +13,11 @@ Terraform.
 
 These checks run against this repository itself.
 
-CI (`.github/workflows/lint.yml`) runs seven of them on every push and pull request:
+CI (`.github/workflows/lint.yml`) runs nine of them on every push and pull request:
 `rumdl fmt --check .`, `rumdl check . --extend-disable MD013`, `node hooks/test-hooks.js`, both
-framework-leak checks, and both refine-round format checks. It skips
+framework-leak checks, both refine-round format checks, and both gate-rules checks. It skips
 `bash hooks/test-claude-scripts.sh`, so only the local hook enforces that suite.
-`.githooks/pre-push` runs all of them except the last three. See "Git hooks" below.
+`.githooks/pre-push` runs all of them except the last two. See "Git hooks" below.
 
 ```bash
 rumdl fmt --check .                                          # what CI runs; ./lint.sh formats in place
@@ -42,6 +42,8 @@ python3 skills/product-surface-docs/scripts/test_check_drive_blocks.py      # re
 python3 skills/product-surface-docs/scripts/check_drive_blocks.py           # assert every leaf document carries a drive block
 python3 skills/bead-refine/scripts/test_check_round_format.py               # regression suite for the refine-round format checker
 python3 skills/bead-refine/scripts/check_round_format.py                    # assert the refine round table keeps its 6 columns
+python3 skills/quality-gates/scripts/test_check_gate_rules.py               # regression suite for the gate-rules checker
+python3 skills/quality-gates/scripts/check_gate_rules.py                    # assert quality-gates keeps the rules that make runs agree
 python3 skills/ship/scripts/test_check_worktree_occupants.py   # regression suite for the worktree occupant check
 python3 skills/ship/scripts/test_resolve_ground.py             # regression suite for ship's ground resolver
 python3 skills/ship/scripts/test_landed_check.py               # regression suite for ship's landed check
@@ -59,20 +61,20 @@ python3 skills/reconcile-quality-gates/scripts/test_load_findings.py   # regress
 python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py   # regression suite for the acceptance report writer
 python3 .githooks/test_prepush.py                             # regression suite for the pre-push hook
 claude plugin validate .                                      # parses every SKILL.md frontmatter
-python3 evals/run.py                                          # response-style evals
 ```
 
 Run `/validate-plugin` after you add, rename, or remove a component.
 
-**The ship gate is this list minus `python3 evals/run.py`.** `/tadw:ship` reads its gate from
-`.tadw/ship-gates.json`, and `skills/ship/scripts/test_tadw_ship.py` fails when the two differ.
+**The ship gate is this list.** `/tadw:ship` reads its gate from `.tadw/ship-gates.json`, and
+`skills/ship/scripts/test_tadw_ship.py` fails when the two differ.
 
 The response-style evals are the wrong shape for a gate. They are graded against model prose, so
 they are not deterministic. `plain-sentences` measures sentence length against a 35-word ceiling,
 and the model lands on both sides of it. Derive the case count with `ls -d evals/cases/*/ | wc -l`,
 then double it for the number of model calls a run makes.
 
-Run the evals deliberately, to measure whether the style rules still change the model's behavior.
+Run the evals deliberately, by hand, with `python3 evals/run.py`, to measure whether the style
+rules still change the model's behavior.
 Read the delta between the two arms, not a pass or a fail.
 [ADR 0005](docs/adr/0005-the-evals-are-a-measurement-not-a-gate.md) records the options that lost.
 
@@ -89,7 +91,7 @@ bd hooks list                      # five hooks, each "installed"
 One command serves them all. `pre-push` and `reference-transaction` carry this repository's own
 gates; the other four are beads shims that call `bd hooks run <hook>`.
 
-**`pre-push` runs the check list above, minus the last three.** Every check runs even after one
+**`pre-push` runs the check list above, minus the last two.** Every check runs even after one
 fails, and all failures report together. A missing tool warns by name and allows the push.
 
 **`pre-push` then refuses the push only when `/quality-gates` recorded a `FAIL` verdict.** A

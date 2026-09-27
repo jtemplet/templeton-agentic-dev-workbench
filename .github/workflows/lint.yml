@@ -79,3 +79,9 @@ jobs:
 
       - name: Refine-round format check on the shipped skill
         run: python3 skills/bead-refine/scripts/check_round_format.py
+
+      - name: Quality-gates rule checker tests
+        run: python3 skills/quality-gates/scripts/test_check_gate_rules.py
+
+      - name: Quality-gates rule check on the shipped skill
+        run: python3 skills/quality-gates/scripts/check_gate_rules.py

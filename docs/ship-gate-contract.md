@@ -131,8 +131,8 @@ seconds. Raise it for a hook that runs a long test suite. A gate from the file u
 that is not a positive whole number stops the run and names that variable as the fix.
 
 This repository finished step 4 with `.tadw/ship-gates.json`.
-`skills/ship/scripts/test_tadw_ship.py` checks that its commands match the `AGENTS.md` block
-minus `python3 evals/run.py`, so a check added to one and not the other fails that suite.
+`skills/ship/scripts/test_tadw_ship.py` checks that its commands match the `AGENTS.md` block, so
+a check added to one and not the other fails that suite.
 
 ## Baseline method
 
@@ -146,7 +146,7 @@ To measure the current workflow:
 
 1. Check out a fixed commit, with a clean working tree.
 2. Take the command string the current ship run executes, from `TADW_SHIP_CHECK` or the
-   `AGENTS.md` block minus `python3 evals/run.py`.
+   `AGENTS.md` block.
 3. Cold: clear the caches you care about, then run
    `measure_gate_baseline.py --repo-root <repo> --warmup 0 --runs 3 --command "<gate>"`.
 4. Warm: run the same command with `--warmup 1 --runs 3`.

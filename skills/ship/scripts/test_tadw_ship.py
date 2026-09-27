@@ -7,7 +7,7 @@ Stdlib only, no install. Run with:
   tadw-8j8 criterion                                Pinned by
   ------------------------------------------------------------------------------
   1. This repository's configured gate matches      case_configured_gate_matches_agents_md,
-     AGENTS.md, except python3 evals/run.py         case_configured_gates_run_from_the_root,
+     AGENTS.md                                      case_configured_gates_run_from_the_root,
                                                     case_repository_gate_is_valid
   2. A command override is selected                 case_override_is_selected,
                                                     case_override_outranks_configuration,
@@ -116,9 +116,6 @@ EXECUTABLE = REPO / "bin" / "tadw-ship"
 TERMINAL_FLAGS = ("bead-id", "--repo-root", "--check-gate", "--run-gate")
 AGENTS = REPO / "AGENTS.md"
 CONFIG = Path(".tadw") / "ship-gates.json"
-
-# The one AGENTS.md command that is deliberately not a gate: ADR 0005.
-NOT_A_GATE = "python3 evals/run.py"
 
 READ_ONLY_CALL = re.compile(r"git -C \S+ rev-parse ")
 
@@ -264,10 +261,8 @@ def case_configured_gate_matches_agents_md() -> None:
     assert result.returncode == 0, result.stderr
     selected = json.loads(result.stdout)
     assert selected["source"] == str(CONFIG), f"expected the file, got {selected['source']}"
-    listed = commands_in_agents_md()
-    assert NOT_A_GATE in listed, "the eval exclusion is stale"
+    documented = commands_in_agents_md()
     configured = [shlex.join(gate["command"]) for gate in selected["gates"]]
-    documented = [command for command in listed if command != NOT_A_GATE]
     assert configured == documented, (
         "the gates must be the AGENTS.md list, one for one and in its order\n"
         f"         only in the configuration: {sorted(set(configured) - set(documented))}\n"
@@ -1141,7 +1136,7 @@ def case_skill_links_the_setup_instructions() -> None:
 
 
 for name, fn in [
-    ("the gates are the AGENTS.md list, in order, except the model eval",
+    ("the gates are the AGENTS.md list, in order",
      case_configured_gate_matches_agents_md),
     ("every configured gate runs from the repository root",
      case_configured_gates_run_from_the_root),

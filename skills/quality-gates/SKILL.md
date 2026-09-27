@@ -108,8 +108,29 @@ A project command found in sources 1 to 3 **replaces** the auto-detected equival
 beside it. If `AGENTS.md` names `rumdl fmt --check .` as the format check, that is the lint gate. Do
 not also run a linter the project never mentions.
 
-Map every discovered command onto the gate it serves. A command that fits no gate below still runs,
-under a **Project checks** row.
+**Assign every discovered command to one gate by this rule.** Walk the list in order, and stop at
+the first line that matches. Match on the command as written, never on a guess about what it does.
+
+1. **Gate 1, Tests**, when it runs a test runner (`pytest`, `vitest`, `jest`, `rspec`, `go test`,
+   `swift test`, `npm test`, `rake test`), or a script whose file name marks it as a test: it
+   starts `test_` or `test-`, or it ends `_test`, `_spec`, or `.test` before the extension.
+2. **Gate 3, Lint and Format**, when it runs a linter or formatter by name (`ruff`, `eslint`,
+   `prettier`, `biome`, `rubocop`, `standardrb`, `rumdl`, `markdownlint`, `gofmt`,
+   `golangci-lint`, `swiftlint`, `black`, `flake8`), or a task-runner target named `lint`,
+   `format`, or `fmt`.
+3. **Gate 4, Type Checking**, when it runs a type checker by name (`mypy`, `pyright`, `tsc`,
+   `vue-tsc`, `srb tc`, `steep`).
+4. **Gate 5, Documentation Freshness**, when it runs the bundled `check_doc_paths.py`.
+5. **Gate 6, Hygiene**, when it runs the bundled `check_hygiene.py`.
+6. **Project checks** otherwise. Each such command runs on its own report row, under Project
+   Checks in Step 4.
+
+A tool the lists above do not name goes to Project checks, even when it looks like a linter. A
+judgment call here is what let two runs file one command under two gates.
+
+**Gate 2 never runs a discovered command.** Its `prompt-assets` and `infra` surfaces cite the
+result of a Project checks command, such as `claude plugin validate .` or `terraform validate`, as
+their evidence. Running it a second time can disagree with the first run.
 
 ### Step 2: Set the Scope
 
@@ -167,28 +188,44 @@ basis: it stops at the last commit and misses the very work being checked. It un
 Retyping those two commands and the base fallback on every run is how a scoped report comes to cover
 nothing.
 
+<!-- quality-gates-narrowing:start -->
+
 | Gate | At `--changed` (default) | At `--all` |
 |---|---|---|
 | Tests | The tests that cover the changed code | The whole suite |
 | Change coverage | The cases in the diff | The cases in the diff (unchanged; this gate is always about the change) |
 | Live API probe | The endpoints the diff changed | Every endpoint the changed files define |
-| Lint, doc freshness, hygiene | Changed files only | Whole tree |
+| Lint | The changed files the tool reads, in place of the command's path arguments. SKIP, with that reason, when there is no changed file it reads | Whole tree |
+| Doc freshness | The default document set, unchanged | The default document set |
+| Hygiene | The markers the diff adds | The markers the diff adds |
 | Type checking | Analyze the whole project, report only errors in changed files | Analyze and report whole-project |
-| Project checks | Every command in the row, unchanged, with no path arguments added | Every command in the row, unchanged |
+| Project checks | Every command Step 1 sent there, unchanged, with no path arguments added | Every command Step 1 sent there, unchanged |
 
-Three rows need their reasoning stated, because getting them wrong produces a confident wrong answer:
+Five rows need their reasoning stated, because getting them wrong produces a confident wrong answer:
 
+- **Lint runs only on changed files it reads, and SKIPs when there are none.** A file the tool reads
+  has an extension the tool lints by default: `.md` for `rumdl` and `markdownlint`; `.py` for
+  `ruff`, `black`, and `flake8`; `.js`, `.jsx`, `.ts`, `.tsx`, and `.vue` for `eslint`, `prettier`,
+  and `biome`; `.rb` for `rubocop` and `standardrb`; `.go` for `gofmt` and `golangci-lint`; `.swift`
+  for `swiftlint`. Passing a tool a file it does not read makes it parse Python as Markdown. Running
+  it over the whole tree instead reports files nobody changed. One run doing each is how one tree
+  got PASS and SKIP for the same row.
+- **Doc freshness never narrows.** A renamed or deleted source file breaks a path in a document
+  nobody changed, so the changed documents alone miss exactly that failure. The script is one fast
+  call over the default document set.
 - **Type checking always analyzes the whole project.** A type error usually surfaces in the file
   that consumes the changed one. Checking a subset of files reports clean while the project does not
   compile. Narrow the report, never the analysis.
 - **The live probe narrows hard, and it is the one gate where `--all` costs real time.** Every probe
   is a round trip against a running server. Probing every route a touched controller defines turns a
   two-line change into thirty requests, most of them about code nobody edited.
-- **Project checks never narrow.** Run every command Step 1 put in that row, at both scopes, and
+- **Project checks never narrow.** Run every command Step 1 sent there, at both scopes, and
   do not choose a subset. A project check reads inputs its command line does not name. For
   example, a checker that asserts every documented path exists reads every document. So no
   changed-file list can prove a project check unaffected. A subset picked by judgment differs from
   run to run, and then the same tree gets a different verdict.
+
+<!-- quality-gates-narrowing:end -->
 
 **Select the covering tests like this**, and keep what the selection tells you:
 
@@ -233,7 +270,7 @@ operator error, which is BLOCKED.
 | **cli** | `coverage` | Gate 2 alone, and its end-to-end rule means the real argv and the real exit code |
 | **library** | `coverage` | Gate 2 alone. The public API is the surface, so there is no separate live level |
 | **prompt-assets** | `coverage` | Gate 2 alone, on the structural invariants: it parses, it is registered, its embedded commands are valid |
-| **infra** | `coverage` | Gate 2 alone. The live check is the tool's own `validate` or `plan`, which Step 1 discovered |
+| **infra** | `coverage` | Gate 2 alone. The live check is the tool's own `validate` or `plan`, which Step 1 sent to Project checks. Gate 2 cites that row |
 | **unknown** | `coverage` | No rule matched. Say so, classify it by hand, and grade what you can |
 | **docs** | `none` | No behavior changed, so Gate 2 is SKIP |
 
@@ -290,7 +327,8 @@ silently never appears. Every row the report can contain has an owner here.
 
 | Row | Owner | Present when |
 |---|---|---|
-| Gate 1, one row per suite | `frontend` when Step 3 routed `browser-ui` and the suite is that surface's, else `backend-unit` | Step 1 discovered the suite |
+| Gate 1, one row per suite | `frontend` when Step 3 routed `browser-ui` and the suite is that surface's, else `backend-unit` | Step 2 selected the suite |
+| Gate 1 as SKIP, one bare `Tests` row | Orchestrator | Step 2 selected no suite |
 | Gate 2 for `cli`, `library`, `prompt-assets`, `infra`, `unknown` | `backend-unit` | Step 3 routed one of those surfaces |
 | Gate 2 for `http-api`, both the unit level and the end-to-end level | `integration` | Step 3 routed `http-api` |
 | Gate 2 as SKIP, carrying the router's reason | Orchestrator | Every surface Step 3 routed was `docs`, so nothing changed behavior |
@@ -299,7 +337,7 @@ silently never appears. Every row the report can contain has an owner here.
 | `Handoff: browser-ui`, naming `agent-browser` | `frontend` | Step 3 routed `browser-ui` |
 | `Handoff: mobile-ui`, naming `agent-device` | Orchestrator | Step 3 routed `mobile-ui` |
 | Gates 3, 4, 5, and 6 | Orchestrator | Always |
-| **Project checks** | Orchestrator | Step 1 discovered a command that maps to no gate |
+| **Project checks**, one row per command | Orchestrator | Step 1's rule sent a command there |
 | Any surface `route_qa.py` defines that no row above names | Orchestrator | Always, until a lane claims it |
 
 **That last row is what keeps the table open.** The rule the enumeration follows is that a row
@@ -361,7 +399,7 @@ than one row names each row `<Gate>: <qualifier>`. The qualifier says which row 
 | Rows | Qualifier | Example names |
 |---|---|---|
 | Gate 1, one row per suite | The suite's runner. When two suites share a runner, the runner and then the suite's directory | `Tests: pytest`, `Tests: vitest`, `Tests: pytest tests/unit` |
-| Any other gate that runs several commands, one row each | The tool the command runs. When two commands run the same tool, the tool and then its subcommand | `Lint: ruff`, `Lint: eslint`, `Lint: rumdl fmt`, `Lint: rumdl check` |
+| Any other gate that runs several commands, one row each, Project checks included | The tool the command runs. When two commands run the same tool, the tool and then its subcommand. A script run through an interpreter such as `python3` or `node` is its own tool, named by its file name | `Lint: ruff`, `Lint: eslint`, `Lint: rumdl fmt`, `Lint: rumdl check`, `Project checks: claude`, `Project checks: check_round_format.py` |
 | One row per handoff surface | The surface | `Handoff: browser-ui` |
 
 Gate 2 never takes a qualifier. Its rows reduce to one, under Reducing Two Change Coverage Rows
@@ -390,17 +428,28 @@ Verdict Rule 2 still sees it.
 
 #### Gate 1: Tests
 
+<!-- quality-gates-gate1:start -->
+
 Run the selected tests from Step 2. Record passed, failed, skipped, and errored counts, and name the
 selection.
 
-**Every discovered suite gets its own row.** The report requires the exact command and real counts
+**Every selected suite gets its own row.** The report requires the exact command and real counts
 in each row, so merging two suites into one discards a command and a count. One suite means one row.
 Which lane owns which suite is in Step 4's ownership table. Two or more suites name their rows by
 Naming Each Row in Step 4, such as `Tests: pytest` and `Tests: vitest`.
 
-An exit code of 127, a missing runner, or a collection error is BLOCKED, not FAIL. Zero tests
-collected in a project that has a test directory is BLOCKED too, because the runner found nothing to
-check.
+**A suite that Step 2 did not select gets no report row.** At `--changed`, a suite that covers no
+changed file does not run, and it is neither SKIP nor PASS. The **Scope** line states how many
+discovered suites did not run, such as "3 of 5 suites ran; 2 cover no changed file". A row for one
+unselected suite and not for another is how two runs on one tree came to list different rows. At
+`--all`, Step 2 selects every suite, so every suite gets a row. When Step 2 selected no suite at
+all, Gate 1 keeps one bare `Tests` row as SKIP, with that reason, because every gate keeps a row.
+
+An exit code of 127, a missing runner, or a collection error is BLOCKED, not FAIL. A selected suite
+that collects zero tests, in a project that has a test directory, is BLOCKED too, because the runner
+found nothing to check.
+
+<!-- quality-gates-gate1:end -->
 
 #### Gate 2: Change Coverage
 
@@ -416,8 +465,8 @@ and what "end to end" means depends on which:
 | **cli** | Invoke the built command the way a user does: real argv, real exit code, real stdout and stderr |
 | **library** | The public API is the surface. There is no separate end-to-end level |
 | **browser-ui**, **mobile-ui** | This skill cannot settle it. HANDOFF |
-| **prompt-assets** | The structural invariants: the asset parses, it is registered where the project says, and its embedded commands are valid |
-| **infra** | The tool's own `validate` or `plan`, which Step 1 discovered |
+| **prompt-assets** | The structural invariants: the asset parses, it is registered where the project says, and its embedded commands are valid. Cite the Project checks row that checks them, such as `claude plugin validate .`, rather than running it again |
+| **infra** | The tool's own `validate` or `plan`, cited from its Project checks row rather than run again |
 | **unknown** | Say the surface has no row, and grade the unit level you can see |
 
 A change can touch two surfaces. Grade each, and take the worst result. When two lanes each return
@@ -505,16 +554,26 @@ This gate fails work that is untested, not work that is tested less than exhaust
   cannot raise, a re-validation the caller performed. This gate must not create pressure to add
   them.
 
-When you are unsure whether a class is worth a test, ask what a real failure there would cost. Cheap
-and recoverable is a WARN at most.
+**An uncovered span class is WARN unless its failure is on this closed list.** Do not weigh cost
+by any other measure. Check membership, and name the item in the finding:
+
+1. **Lost data**: stored data deleted, or never written when the caller was told it was.
+2. **Wrong money**: a price, charge, balance, or invoice amount computed wrong.
+3. **A security hole**: authentication or authorization bypassed, a secret exposed, or untrusted
+   input executed.
+4. **Silent corruption**: stored data made wrong with no error raised. Wrong output on stdout, in
+   a report, or in a log is not on the list: a reader sees it.
+
+A judgment of "moderate" cost matched neither the WARN row nor the FAIL row, and one tree graded
+WARN, WARN, then FAIL over three runs. The list leaves no middle.
 
 **F. Grade.**
 
 | Result | When |
 |---|---|
 | **PASS** | Every case has a unit test, every touched surface has an end-to-end test, and every span class you identified is covered |
-| **WARN** | Every case is tested, but a span class is not, and a failure there would be cheap to notice and to recover from |
-| **FAIL** | Any case has no test at all, any touched CLI command or HTTP route has no end-to-end test, or an uncovered span class would fail expensively: lost data, wrong money, a security hole, or silent corruption |
+| **WARN** | Every case has a unit test and every touched surface has an end-to-end test, but a span class is uncovered, and no uncovered class has a failure on the closed list |
+| **FAIL** | Any case has no test at all, any touched CLI command or HTTP route has no end-to-end test, or an uncovered span class has a failure on the closed list |
 | **HANDOFF** | Step 3 routed *every* surface to `handoff`, so nothing is left here to grade. The orchestrator emits this row, since no single lane sees the union of surfaces. When only some surfaces routed to a handoff, grade the rest and let each handoff surface carry its own row, defined below |
 | **SKIP** | Step 3 routed every surface to `none`: documentation, comments, or formatting only |
 
@@ -523,8 +582,8 @@ is the finding.
 
 #### Gate 3: Lint and Format
 
-Run the project's linter and formatter check. Record error and warning counts separately, because
-most linters fail on the first and not the second.
+Run the project's linter and formatter check, narrowed as Step 2's scope table says. Record error
+and warning counts separately, because most linters fail on the first and not the second.
 
 #### Gate 4: Type Checking
 
@@ -541,8 +600,8 @@ python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" 
   -path '*/skills/quality-gates/scripts/check_doc_paths.py' -print -quit 2>/dev/null)" --repo-root .
 ```
 
-Pass document paths as arguments to narrow it under `--changed`. With none, it checks `README.md`,
-`AGENTS.md`, `CLAUDE.md`, every markdown file under `docs/`, and every prompt asset:
+Run it with no document arguments at both scopes, as Step 2's scope table says. It then checks
+`README.md`, `AGENTS.md`, `CLAUDE.md`, every markdown file under `docs/`, and every prompt asset:
 `skills/*/SKILL.md`, `commands/*.md`, and `agents/*.md`.
 
 The prompt assets are in that list because each command reads its skill through a delegation path. A
@@ -728,10 +787,16 @@ its own row in the gate table".
 
 #### Project Checks
 
-Step 1 maps every discovered command onto the gate it serves. A command that fits no gate still
-runs, under a single **Project checks** row carrying its exact command and its real counts. The
-orchestrator owns it. Omit the row only when Step 1 discovered no such command. The row runs every
-such command at `--changed` too, as the scope table in Step 2 states.
+<!-- quality-gates-project-checks:start -->
+
+Step 1's rule sends every command it does not assign to Gates 1 to 6 here. Each such command gets
+its own report row, carrying its exact command and its real counts, because the JSON artifact's
+`command` field holds one command. Name the rows by Naming Each Row in Step 4: one command keeps the
+bare name `Project checks`, and two or more are each `Project checks: <qualifier>`. The orchestrator
+owns every one of them. Omit them only when Step 1 sent no command here. Each command runs at
+`--changed` too, as the scope table in Step 2 states.
+
+<!-- quality-gates-project-checks:end -->
 
 ### Step 5: Attribute Every Failure
 
@@ -835,7 +900,7 @@ python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" 
     {"name": "Type checking", "status": "BLOCKED", "command": "mypy .", "detail": "exit 127, mypy not installed"},
     {"name": "Doc freshness", "status": "WARN", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py\" --repo-root .", "detail": "3 docs checked, 1 missing path"},
     {"name": "Hygiene", "status": "WARN", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_hygiene.py\" --base abc1234", "detail": "2 TODOs added"},
-    {"name": "Project checks", "status": "PASS", "command": "node hooks/test-hooks.js", "detail": "19 checks, 0 failed"}
+    {"name": "Project checks", "status": "PASS", "command": "claude plugin validate .", "detail": "1 plugin validated, 0 errors"}
   ],
   "findings": [
     {"gate": "Live API probe", "file": null, "line": null, "problem": "POST /api/v1/exports answers 500 on an unknown format, where it must answer 422", "evidence": "reject an unknown format: status 500, expected 422"},
@@ -925,11 +990,13 @@ itself, and it never fixes what it found.
 
 ## Output Format
 
+<!-- quality-gates-report:start -->
+
 ```markdown
 ## Quality Gates Report
 
 **Gate source:** AGENTS.md "Commands for This Repo" | .github/workflows/lint.yml | auto-detected
-**Scope:** changed (9 files vs `abc1234`). The full suite did not run.
+**Scope:** changed (9 files vs `abc1234`). The full suite did not run: 1 of 2 suites ran, and 1 covers no changed file.
 **QA method:** curl for http-api (2 files, 3 endpoints); handoff to `agent-browser` for browser-ui (1 file)
 
 | Gate | Status | Command | Result |
@@ -942,7 +1009,7 @@ itself, and it never fixes what it found.
 | Type checking | BLOCKED | `mypy .` | exit 127, mypy not installed |
 | Doc freshness | WARN | `python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_doc_paths.py" --repo-root .` | 3 docs checked, 1 missing path |
 | Hygiene | WARN | `python3 "${CLAUDE_PLUGIN_ROOT}/skills/quality-gates/scripts/check_hygiene.py" --base abc1234` | 2 TODOs added |
-| Project checks | PASS | `node hooks/test-hooks.js` | 19 checks, 0 failed |
+| Project checks | PASS | `claude plugin validate .` | 1 plugin validated, 0 errors |
 
 ### Overall: FAIL
 
@@ -1022,6 +1089,8 @@ not a skip. Install it or remove the configuration.
 
 ```text
 
+<!-- quality-gates-report:end -->
+
 The Artifact line always appears, and states either the path written or why nothing was written: `**Artifact:** not written, the tree is not a git repository`, or `**Artifact:** not written, write_report_json.py refused: <its stderr line>`.
 
 The Next line appears only when the verdict is FAIL, and then it is the last line. Step 6's The Next Line says why an INCOMPLETE verdict gets none.
@@ -1055,7 +1124,7 @@ The order is load-bearing. An all-BLOCKED run is a FAIL by rule 1 and never reac
 - Enumerate the change's cases before grading coverage, and show the table
 - Cite the evidence in every coverage cell: a `file:line` for a unit test's key assertion, and the quoted driving line for an end-to-end test
 - Name each case's span classes, and which of them nothing covers
-- Weigh an uncovered span class by what a failure there would cost
+- Grade an uncovered span class FAIL only when its failure is on Gate 2's closed list, and WARN otherwise
 - Analyze types over the whole project, even when reporting only the changed files
 - Record a configured-but-unrunnable gate as BLOCKED
 - Give the reason beside every SKIP

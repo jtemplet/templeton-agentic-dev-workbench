@@ -82,6 +82,11 @@ one.
 from the ship gate as well. Nothing under `evals/` runs in a gate or a hook now. Run
 `python3 evals/test_run.py` by hand after you change the harness.
 
+**Amended 2026-09-27:** the author moved `python3 evals/run.py` out of the "Commands for This
+Repo" command block into the prose beside it. `/quality-gates` runs every command in that block,
+so a prose exclusion left each run to skip the evals by judgment (tadw-6pyo). The ship gate is now
+the block as written, with no exclusion.
+
 **Read the delta between the two arms, not a pass or a fail.** The question the harness answers
 is whether the style rules still change what the model does, and that question has a magnitude
 for an answer, not a boolean.
