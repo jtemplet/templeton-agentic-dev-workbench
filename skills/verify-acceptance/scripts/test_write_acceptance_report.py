@@ -51,6 +51,7 @@ HERE = Path(__file__).resolve().parent
 SCRIPT = HERE / "write_acceptance_report.py"
 REPO = HERE.parents[2]
 CONSUMER = REPO / "skills" / "reconcile-acceptance" / "scripts" / "load_findings.py"
+SIBLING = REPO / "skills" / "quality-gates" / "scripts" / "write_report_json.py"
 
 
 def load(name: str, path: Path):
@@ -64,6 +65,8 @@ def load(name: str, path: Path):
 
 writer = load("write_acceptance_report", SCRIPT)
 consumer = load("acceptance_load_findings", CONSUMER)
+# The quality-gates writer carries an identical cap_evidence, and the two must not drift.
+sibling = load("write_report_json", SIBLING)
 
 passed = 0
 failed = 0
@@ -698,6 +701,16 @@ print("\n  [with evidence over the cap]")
 
 SHORT_LINES = [f"line {number}" for number in range(1, 26)]
 WIDE_LINES = ["x" * 300 for _ in range(10)]
+SHORT_THEN_LONG = "ok\n" + "x" * 3000
+EXACT_FILL = "a" * 1000 + "\n" + "b" * 999 + "\n" + "c" * 50
+CAP_INPUTS = [
+    SHORT_THEN_LONG,
+    "\n".join(SHORT_LINES),
+    "\n".join(WIDE_LINES),
+    "y" * 5000,
+    "\n".join(["z" * 99 for _ in range(19)] + ["z" * 100]),
+    EXACT_FILL,
+]
 
 
 def case_25_short_lines_keep_20() -> None:
@@ -705,11 +718,26 @@ def case_25_short_lines_keep_20() -> None:
     assert capped == "\n".join(SHORT_LINES[:20]) + "\n[trimmed: 5 more lines]", capped
 
 
-def case_10_wide_lines_keep_whole_lines_within_2000_characters() -> None:
+def case_10_wide_lines_fill_2000_characters_with_the_cut_lines_start() -> None:
     capped = writer.cap_evidence("\n".join(WIDE_LINES))
-    assert capped == "\n".join(WIDE_LINES[:6]) + "\n[trimmed: 4 more lines]", (
+    assert capped == "\n".join([*WIDE_LINES[:6], "x" * 194]) + "\n[trimmed: 4 more lines]", (
         f"got {len(capped.splitlines())} lines"
     )
+
+
+def case_short_line_then_long_line_keeps_the_long_lines_start() -> None:
+    capped = writer.cap_evidence(SHORT_THEN_LONG)
+    assert capped == "ok\n" + "x" * 1997 + "\n[trimmed: 1 more lines]", capped[-40:]
+
+
+def case_lines_that_fill_2000_characters_exactly_add_no_empty_start() -> None:
+    capped = writer.cap_evidence(EXACT_FILL)
+    assert capped == "a" * 1000 + "\n" + "b" * 999 + "\n[trimmed: 1 more lines]", capped[-40:]
+
+
+def case_both_writers_trim_alike() -> None:
+    for text in CAP_INPUTS:
+        assert writer.cap_evidence(text) == sibling.cap_evidence(text), text[:40]
 
 
 def case_single_long_line_keeps_its_first_2000_characters() -> None:
@@ -764,9 +792,18 @@ def case_gate_detail_is_not_capped() -> None:
 for name, fn in [
     ("25 short lines keep 20 and trim 5 [criterion 4]", case_25_short_lines_keep_20),
     (
-        "10 lines over 2,000 characters keep whole lines within 2,000 [criterion 4]",
-        case_10_wide_lines_keep_whole_lines_within_2000_characters,
+        "10 lines over 2,000 characters fill 2,000 with the cut line's start [criterion 4]",
+        case_10_wide_lines_fill_2000_characters_with_the_cut_lines_start,
     ),
+    (
+        "a short line then a 3,000-character line keeps the long line's start [tadw-a9m 1]",
+        case_short_line_then_long_line_keeps_the_long_lines_start,
+    ),
+    (
+        "lines that fill 2,000 characters exactly add no empty start",
+        case_lines_that_fill_2000_characters_exactly_add_no_empty_start,
+    ),
+    ("both writers trim every input alike [tadw-a9m 5]", case_both_writers_trim_alike),
     (
         "a single 5,000-character line keeps its first 2,000 [criterion 4]",
         case_single_long_line_keeps_its_first_2000_characters,

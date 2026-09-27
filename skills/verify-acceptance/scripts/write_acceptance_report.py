@@ -37,9 +37,10 @@ disagrees is how a report comes to read ACCEPTED over a criterion graded FAIL.
 
 THE EVIDENCE CAP. Each criterion's `evidence` keeps at most 20 lines and 2,000
 characters, then a final `[trimmed: <n> more lines]` line, where n counts the
-lines not kept whole. Only whole leading lines are kept, with one exception:
-when the first line alone is longer than 2,000 characters, its first 2,000
-characters are kept, and n counts every line, that one included. A gate's
+lines not kept whole. Whole leading lines are kept first. When the character
+cap stops them, the start of the next line fills the characters left, and n
+counts that cut line too. So a first line over 2,000 characters keeps its first
+2,000, and a long line after a short one is not dropped whole. A gate's
 `detail` is left alone, because SKILL.md already requires it to be a one-line
 result such as "Tests: 218 passed, 0 failed".
 
@@ -306,10 +307,11 @@ def cap_evidence(text: str) -> str:
     """`text` unchanged when it fits the cap, else its leading lines and a trimmed line.
 
     Whole leading lines are kept while they number at most 20 and join to at most
-    2,000 characters. When not even the first line fits, its first 2,000
-    characters are kept instead, and n counts every line, because none was kept
-    whole. When every line fits once `\\r\\n` endings become `\\n`, the joined lines
-    return with no trimmed line, since nothing was removed.
+    2,000 characters. When the character cap stops them, the start of the next
+    line fills the characters left, so a long line after a short one is not lost.
+    n counts every line not kept whole, the cut one included. When every line
+    fits once `\\r\\n` endings become `\\n`, the joined lines return with no
+    trimmed line, since nothing was removed.
     """
     lines = text.splitlines()
     if len(lines) <= MAX_EVIDENCE_LINES and len(text) <= MAX_EVIDENCE_CHARS:
@@ -317,7 +319,7 @@ def cap_evidence(text: str) -> str:
     kept = leading_lines_that_fit(lines)
     if len(kept) == len(lines):
         return "\n".join(kept)
-    body = "\n".join(kept) if kept else lines[0][:MAX_EVIDENCE_CHARS]
+    body = "\n".join([*kept, *start_of_cut_line(lines, kept)])
     return f"{body}\n[trimmed: {len(lines) - len(kept)} more lines]"
 
 
@@ -328,6 +330,13 @@ def leading_lines_that_fit(lines: list[str]) -> list[str]:
             break
         kept.append(line)
     return kept
+
+
+def start_of_cut_line(lines: list[str], kept: list[str]) -> list[str]:
+    if len(kept) == MAX_EVIDENCE_LINES:
+        return []
+    room = MAX_EVIDENCE_CHARS - len("\n".join(kept)) - (1 if kept else 0)
+    return [lines[len(kept)][:room]] if room > 0 else []
 
 
 def is_integer(value: Any) -> bool:
