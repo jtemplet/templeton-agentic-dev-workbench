@@ -18,7 +18,8 @@ this file.
   repository that holds the edited file, not the session's. It is also a copy of record: the
   deployed copy is `~/.claude/scripts/guard_default_branch.sh`, wired in `~/.claude/settings.json`.
   Change it here, then copy it over the deployed file. `scripts/test_guard_default_branch.sh`
-  tests it against throwaway repositories. Run it by hand: `sh scripts/test_guard_default_branch.sh`.
+  tests it against throwaway repositories. Run it by hand with
+  `sh scripts/test_guard_default_branch.sh`.
 
 Two properties matter to the target repository:
 
