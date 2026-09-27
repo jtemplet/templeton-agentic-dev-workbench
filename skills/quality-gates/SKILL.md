@@ -174,8 +174,9 @@ nothing.
 | Live API probe | The endpoints the diff changed | Every endpoint the changed files define |
 | Lint, doc freshness, hygiene | Changed files only | Whole tree |
 | Type checking | Analyze the whole project, report only errors in changed files | Analyze and report whole-project |
+| Project checks | Every command in the row, unchanged, with no path arguments added | Every command in the row, unchanged |
 
-Two rows need their reasoning stated, because getting them wrong produces a confident wrong answer:
+Three rows need their reasoning stated, because getting them wrong produces a confident wrong answer:
 
 - **Type checking always analyzes the whole project.** A type error usually surfaces in the file
   that consumes the changed one. Checking a subset of files reports clean while the project does not
@@ -183,6 +184,11 @@ Two rows need their reasoning stated, because getting them wrong produces a conf
 - **The live probe narrows hard, and it is the one gate where `--all` costs real time.** Every probe
   is a round trip against a running server. Probing every route a touched controller defines turns a
   two-line change into thirty requests, most of them about code nobody edited.
+- **Project checks never narrow.** Run every command Step 1 put in that row, at both scopes, and
+  do not choose a subset. A project check reads inputs its command line does not name. For
+  example, a checker that asserts every documented path exists reads every document. So no
+  changed-file list can prove a project check unaffected. A subset picked by judgment differs from
+  run to run, and then the same tree gets a different verdict.
 
 **Select the covering tests like this**, and keep what the selection tells you:
 
@@ -724,7 +730,8 @@ its own row in the gate table".
 
 Step 1 maps every discovered command onto the gate it serves. A command that fits no gate still
 runs, under a single **Project checks** row carrying its exact command and its real counts. The
-orchestrator owns it. Omit the row only when Step 1 discovered no such command.
+orchestrator owns it. Omit the row only when Step 1 discovered no such command. The row runs every
+such command at `--changed` too, as the scope table in Step 2 states.
 
 ### Step 5: Attribute Every Failure
 
