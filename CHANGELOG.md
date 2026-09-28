@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+## [4.6.11] - 2026-09-27
+
+### Added
+
+- **Copy of record for the default-branch guard and its test.** (`0fb532e`, tadw-css6)
+
+### Changed
+
+- **Rewrap the guard entry in scripts/AGENTS.md.** (`115ce44`, tadw-css6)
+
+### Fixed
+
+- **Evidence trimmer throws away a long line when a short...** (`32a19c9`, tadw-a9m)
+- **Quality-gates orchestrator gives a nondeterministic...** (`f1763ed`, tadw-4s5)
+- **Close the four quality-gates rules that let runs...** (`ab046c6`, tadw-6pyo)
+
 ## [4.6.10] - 2026-09-25
 
 ### Added
@@ -2773,7 +2789,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.10...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.11...HEAD
+[4.6.11]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.10...v4.6.11
 [4.6.10]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.9...v4.6.10
 [4.6.9]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.8...v4.6.9
 [4.6.8]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.7...v4.6.8
