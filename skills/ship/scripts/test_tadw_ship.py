@@ -48,9 +48,9 @@ Stdlib only, no install. Run with:
   ------------------------------------------------------------------------------
   1. Exit 0 with `SHIP_DONE <hash>` or 1 with       case_ship_exits_0_with_ship_done_last,
      `SHIP_BLOCKED <slug>` as the last line         case_stop_exits_1_with_ship_blocked_last
-  2. The default branch carries the checked         case_default_branch_carries_the_shipped_commit,
-     candidate, and the bead is closed              case_shipped_commit_is_the_checked_candidate,
-                                                    case_shipped_commit_is_pushed,
+  2. The default branch carries the landing commit;  case_default_branch_carries_the_shipped_commit,
+     the report names its checked code commit,      case_landing_commit_names_the_checked_code_commit,
+     and the bead closes and is pushed              case_shipped_commit_is_pushed,
                                                     case_ship_closes_the_bead,
                                                     case_ship_removes_the_worktree_and_branch
   3. A caller inside the removed worktree gets      case_caller_in_removed_worktree_gets_cd_line,
@@ -65,8 +65,8 @@ Stdlib only, no install. Run with:
   1. With no override and no file, an executable    case_pre_push_hook_is_selected,
      pre-push hook is the gate                      case_ship_gates_on_the_pre_push_hook,
                                                     case_configuration_outranks_the_hooks
-  2. The hook sees `origin` and the candidate       case_pre_push_hook_sees_the_candidate_pushed_to_the_default_branch,
-     pushed to the default branch                   case_run_gate_feeds_the_pre_push_hook_a_push_of_head
+  2. The gate checks code and the push carries the   case_pre_push_gate_checks_code_and_push_carries_landing_commit,
+     landing commit                                  case_run_gate_feeds_the_pre_push_hook_a_push_of_head
   3. A failing hook ends `SHIP_BLOCKED gate` with   case_failing_pre_push_hook_ends_with_ship_blocked_gate,
      the default branch unchanged                   case_run_gate_stops_on_a_failing_pre_push_hook
   4. core.hooksPath is honored                      case_hooks_path_is_honored
@@ -94,6 +94,18 @@ Stdlib only, no install. Run with:
   3. A failed ship restores them too                case_blocked_ship_still_restores_main_changes
   4. A restore that conflicts warns, keeps the      case_conflicting_restore_keeps_the_stash
      stash, and does not undo the landing
+
+  tadw-8vnh criterion                               Pinned by, all through bin/tadw-ship
+  ------------------------------------------------------------------------------
+  1. The gate checks the open-bead code commit,      case_landing_commit_names_the_checked_code_commit,
+     then the landing commit adds only the export   case_pre_push_gate_checks_code_and_push_carries_landing_commit
+  2. A failed gate leaves the bead open; a moved     case_failing_gate_leaves_the_bead_open,
+     default branch reopens it                       case_default_branch_moves_after_close_reopens_the_bead
+  3. A post-landing export change warns, and the     case_export_drift_after_landing_warns,
+     pre-commit hook runs once                       case_pre_commit_hook_is_the_gate_without_a_pre_push_hook
+  4. The real-bd test leaves a clean checkout and    test_ship_with_real_bd.py
+     carries the closed status without a later
+     export-only commit
 """
 
 from __future__ import annotations
@@ -615,6 +627,7 @@ BRANCH = f"feature/{BEAD}/add-thing"
 # A tracker holding one bead, whose status lives in a file beside the script.
 FAKE_BD = """#!/bin/sh
 status="$(dirname "$0")/status"
+root="$(cd "$(dirname "$0")/.." && pwd)"
 case "$1" in
   show)
     if [ "$2" = "BEAD" ]; then
@@ -622,8 +635,23 @@ case "$1" in
     else
       printf '{"error":"no issue found"}'
     fi ;;
-  close) echo closed > "$status" ;;
-  export) mkdir -p "$(dirname "$3")"; printf '{"id":"BEAD","status":"%s"}\\n' "$(cat "$status")" > "$3" ;;
+  close)
+    echo closed > "$status"
+    printf '{"id":"BEAD","status":"%s"}\\n' "$(cat "$status")" > "$root/main/.beads/issues.jsonl"
+    ;;
+  reopen)
+    echo open > "$status"
+    printf '{"id":"BEAD","status":"%s"}\\n' "$(cat "$status")" > "$root/main/.beads/issues.jsonl"
+    ;;
+  export)
+    if [ -f "$(dirname "$0")/move-main" ] && [ "$(cat "$status")" = closed ]; then
+      printf 'concurrent\\n' > "$root/main/concurrent.txt"
+      git -C "$root/main" add concurrent.txt
+      git -C "$root/main" commit -q -m "concurrent landing"
+    fi
+    mkdir -p "$(dirname "$3")"
+    printf '{"id":"BEAD","status":"%s"}\\n' "$(cat "$status")" > "$3"
+    ;;
   ready) printf '[]' ;;
 esac
 """.replace("BEAD", BEAD)
@@ -641,6 +669,7 @@ class ShipRun(NamedTuple):
     worktree_removed: bool
     branch_deleted: bool
     pushes: str = ""
+    pre_commit_calls: str = ""
 
     def last_line(self) -> str:
         return self.result.stdout.splitlines()[-1]
@@ -716,10 +745,15 @@ class ShipRepository:
 
 @functools.cache
 def ship_run(
-    gate: str | None, start_in_worktree: bool, hooks: tuple[tuple[str, str], ...] = ()
+    gate: str | None,
+    start_in_worktree: bool,
+    hooks: tuple[tuple[str, str], ...] = (),
+    move_default_on_export: bool = False,
 ) -> ShipRun:
     with tempfile.TemporaryDirectory() as directory:
         repository = ShipRepository(Path(directory).resolve())
+        if move_default_on_export:
+            (repository.shims / "move-main").touch()
         for name, body in hooks:
             repository.install_hook(name, body.replace("{root}", directory))
         before = repository.git("rev-parse", "main")
@@ -736,6 +770,7 @@ def ship_run(
             worktree_removed=not repository.worktree.exists(),
             branch_deleted=not repository.git("branch", "--list", BRANCH),
             pushes=read_if_present(Path(directory) / "pushes.log"),
+            pre_commit_calls=read_if_present(Path(directory) / "pre-commit.log"),
         )
 
 
@@ -778,10 +813,13 @@ def case_default_branch_carries_the_shipped_commit() -> None:
     assert run.default_after == run.shipped_hash(), run.result.stdout
 
 
-def case_shipped_commit_is_the_checked_candidate() -> None:
+def case_landing_commit_names_the_checked_code_commit() -> None:
     run = shipped_from_worktree()
-    checked = f"checked candidate {run.shipped_hash()[:12]}"
-    assert checked in run.result.stderr, run.result.stderr
+    checked = re.search(r"checked candidate ([0-9a-f]{12})", run.result.stderr)
+    assert checked, run.result.stderr
+    landing = f"landing commit {run.shipped_hash()[:12]} adds .beads/issues.jsonl only"
+    assert landing in run.result.stderr, run.result.stderr
+    assert checked.group(1) != run.shipped_hash()[:12], run.result.stderr
 
 
 def case_shipped_commit_is_pushed() -> None:
@@ -827,12 +865,19 @@ def case_failing_gate_leaves_the_bead_open() -> None:
     assert blocked_by_gate().bead_status == "open"
 
 
+def case_default_branch_moves_after_close_reopens_the_bead() -> None:
+    run = ship_run("true", True, move_default_on_export=True)
+    assert run.last_line() == "SHIP_BLOCKED git-state", run.result.stdout
+    assert run.bead_status == "open", run.bead_status
+    assert run.default_after != run.default_before, "the fixture did not move main"
+    assert run.origin_after == run.default_before, "ship pushed the concurrent landing"
+
+
 # tadw-awsr: with no override and no configuration file, the repository's own
 # hooks are the gate. Each hook body may write to {root}, the fixture's directory.
 LOGGING_PRE_PUSH = 'printf "%s " "$1" >> "{root}/pushes.log"; cat >> "{root}/pushes.log"'
 PASSING_PRE_PUSH = (("pre-push", LOGGING_PRE_PUSH),)
 FAILING_PRE_PUSH = (("pre-push", f"{LOGGING_PRE_PUSH}; exit 1"),)
-PASSING_PRE_COMMIT = (("pre-commit", "exit 0"),)
 FAILING_PRE_COMMIT = (("pre-commit", "echo 'lint failed' >&2; exit 1"),)
 
 
@@ -937,7 +982,9 @@ def stage_the_file_the_ship_adds(main: Path) -> None:
 def case_conflicting_restore_keeps_the_stash() -> None:
     repository, result = dirty_main_ship("true", stage_the_file_the_ship_adds)
     try:
-        assert re.fullmatch(r"SHIP_DONE [0-9a-f]{40}", result.stdout.splitlines()[-1]), result.stdout
+        assert re.fullmatch(r"SHIP_DONE [0-9a-f]{40}", result.stdout.splitlines()[-1]), (
+            result.stdout
+        )
         assert "warning: could not restore the changes stashed" in result.stderr, result.stderr
         assert repository.git("stash", "list"), "the stash was dropped"
         assert repository.git("rev-parse", "main") == repository.git("rev-parse", "origin/main")
@@ -951,13 +998,23 @@ def case_ship_gates_on_the_pre_push_hook() -> None:
     assert run.pushes, "the pre-push hook never ran"
 
 
-def case_pre_push_hook_sees_the_candidate_pushed_to_the_default_branch() -> None:
+def case_pre_push_gate_checks_code_and_push_carries_landing_commit() -> None:
     run = shipped_through_pre_push()
     runs = run.pushes.splitlines()
-    assert runs, "the pre-push hook never ran"
-    remote, local_ref, local_sha, remote_ref = runs[0].split()[:4]
-    assert (remote, local_ref, remote_ref) == ("origin", "refs/heads/main", "refs/heads/main")
-    assert local_sha == run.shipped_hash(), f"the hook checked {local_sha}, not the landed commit"
+    assert len(runs) == 2, f"expected one gate run and one real push: {runs}"
+    checked = re.search(r"checked candidate ([0-9a-f]{12})", run.result.stderr)
+    assert checked, run.result.stderr
+    for line in runs:
+        remote, local_ref, local_sha, remote_ref = line.split()[:4]
+        assert (remote, local_ref, remote_ref) == (
+            "origin",
+            "refs/heads/main",
+            "refs/heads/main",
+        )
+        if line == runs[0]:
+            assert local_sha.startswith(checked.group(1)), line
+        else:
+            assert local_sha == run.shipped_hash(), line
 
 
 def case_failing_pre_push_hook_ends_with_ship_blocked_gate() -> None:
@@ -967,8 +1024,21 @@ def case_failing_pre_push_hook_ends_with_ship_blocked_gate() -> None:
 
 
 def case_pre_commit_hook_is_the_gate_without_a_pre_push_hook() -> None:
-    run = ship_run(None, True, PASSING_PRE_COMMIT)
+    hook = 'echo called >> "{root}/pre-commit.log"'
+    run = ship_run(None, True, (("pre-commit", hook),))
     assert run.result.returncode == 0, run.result.stderr
+    assert run.pre_commit_calls.splitlines() == ["called"], run.pre_commit_calls
+
+
+def case_export_drift_after_landing_warns() -> None:
+    hook = """if [ -f \"{root}/pre-push.once\" ]; then
+  printf 'pending export\\n' > \"{root}/main/.beads/issues.jsonl\"
+else
+  touch \"{root}/pre-push.once\"
+fi"""
+    run = ship_run(None, True, (("pre-push", hook),))
+    assert run.result.returncode == 0, run.result.stderr
+    assert "warning: .beads/issues.jsonl differs from HEAD after ship" in run.result.stderr
 
 
 def case_refused_candidate_commit_ends_with_ship_blocked_gate() -> None:
@@ -1181,7 +1251,8 @@ for name, fn in [
     ("a stop exits 1 with SHIP_BLOCKED <slug> last", case_stop_exits_1_with_ship_blocked_last),
     ("the default branch carries the shipped commit",
      case_default_branch_carries_the_shipped_commit),
-    ("the shipped commit is the checked candidate", case_shipped_commit_is_the_checked_candidate),
+    ("the landing commit names the checked code commit",
+     case_landing_commit_names_the_checked_code_commit),
     ("the shipped commit is pushed", case_shipped_commit_is_pushed),
     ("a ship closes the bead", case_ship_closes_the_bead),
     ("a ship removes the worktree and the branch", case_ship_removes_the_worktree_and_branch),
@@ -1194,6 +1265,7 @@ for name, fn in [
     ("a failing gate leaves the default branch unchanged",
      case_failing_gate_leaves_the_default_branch_unchanged),
     ("a failing gate leaves the bead open", case_failing_gate_leaves_the_bead_open),
+    ("a moved default branch reopens the bead", case_default_branch_moves_after_close_reopens_the_bead),
     ("a rewritten export in main still ships", case_rewritten_export_in_main_still_ships),
     ("another changed file in main stops with git-state",
      case_another_changed_file_in_main_stops_with_git_state),
@@ -1206,12 +1278,14 @@ for name, fn in [
     ("a conflicting restore keeps the stash and warns",
      case_conflicting_restore_keeps_the_stash),
     ("ship gates on the pre-push hook", case_ship_gates_on_the_pre_push_hook),
-    ("the pre-push hook sees the candidate pushed to the default branch",
-     case_pre_push_hook_sees_the_candidate_pushed_to_the_default_branch),
+    ("the pre-push gate checks code and the push carries the landing commit",
+     case_pre_push_gate_checks_code_and_push_carries_landing_commit),
     ("a failing pre-push hook ends with SHIP_BLOCKED gate",
      case_failing_pre_push_hook_ends_with_ship_blocked_gate),
     ("the pre-commit hook is the gate without a pre-push hook",
      case_pre_commit_hook_is_the_gate_without_a_pre_push_hook),
+    ("an export changed after landing produces a warning",
+     case_export_drift_after_landing_warns),
     ("a refused candidate commit ends with SHIP_BLOCKED gate",
      case_refused_candidate_commit_ends_with_ship_blocked_gate),
     ("a pre-push hook is selected", case_pre_push_hook_is_selected),

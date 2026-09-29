@@ -14,11 +14,11 @@ were:
   1. Refuse a feature checkout with changed tracked files, or an unreadable status.
   2. Cut a detached worktree at the local default-branch tip. That tip includes
      local commits beyond the remote base, so they are in the checked tree.
-  3. Squash the feature branch into it, run `bd export`, and commit. The
-     pre-commit hook may fold a refreshed export into the same commit.
-  4. Require the tree to be clean after the hook, then run the gate on it.
-  5. Reject the candidate when the gate changed a tracked file, or when a fresh
-     tracker export differs from the export the candidate commit carries.
+  3. Squash the feature branch into it, export the tracker, and make the gated
+     commit. A pre-commit hook can run here.
+  4. Require a clean tree after the hook, then run the gate on the code tree.
+  5. After the gate passes, close the bead and export the tracker again. Make a
+     landing commit whose only change from the gated commit is the export.
   6. Advance the default branch only while it still names the candidate's parent,
      and only through a checkout that holds no unrelated tracked changes. A
      checkout whose only change is the tracker export has that one file restored
@@ -70,6 +70,22 @@ Gate = Callable[[Path], bool]
 ExportRunner = Callable[[Path, Path], bool] | None
 
 
+@dataclass(frozen=True)
+class BeadActions:
+    """Tracker actions that must travel together when shipping a bead."""
+
+    close: Callable[[Path], None]
+    reopen: Callable[[Path], None]
+
+
+@dataclass(frozen=True)
+class TrackerActions:
+    """Tracker operations that keep the landing export in sync with a bead close."""
+
+    export: ExportRunner
+    bead: BeadActions | None = None
+
+
 class CandidateStop(Exception):
     """The landing must stop here; `reason` is one word for the report."""
 
@@ -90,15 +106,18 @@ class Plan:
 
 @dataclass(frozen=True)
 class Landing:
-    """What a landing checked and moved, recorded once for the report."""
+    """The code commit that passed the gate and the commit the default branch carries."""
 
     parent: str
     commit: str
+    checked_commit: str
     local_commits: tuple[str, ...]
     restored_export_in: Path | None = None
 
     def report_lines(self) -> list[str]:
-        lines = [f"tadw_ship: checked candidate {self.commit[:12]} on {self.parent[:12]}"]
+        lines = [f"tadw_ship: checked candidate {self.checked_commit[:12]} on {self.parent[:12]}"]
+        if self.commit != self.checked_commit:
+            lines.append(f"tadw_ship: landing commit {self.commit[:12]} adds {EXPORT_PATH} only")
         lines += [
             f"tadw_ship: local commit in the checked tree: {sha[:12]}" for sha in self.local_commits
         ]
@@ -114,21 +133,53 @@ def restored_export_line(holder: Path) -> str:
     )
 
 
-def land_candidate(repo: Path, plan: Plan, gate: Gate, export: ExportRunner) -> Landing:
+def land_candidate(
+    repo: Path,
+    plan: Plan,
+    gate: Gate,
+    tracker: TrackerActions | None = None,
+) -> Landing:
     """Build, check, and land the candidate; raise `CandidateStop` instead of half-landing."""
     refuse_unsafe_checkout(repo)
     parent = resolve_commit(repo, f"refs/heads/{plan.default_branch}")
     local_commits = local_commits_beyond_remote(repo, plan.default_branch, parent)
     worktree = Path(tempfile.mkdtemp(prefix=WORKTREE_PREFIX)) / "tree"
+    bead_closed = False
+    branch_advance_started = False
+    branch_advanced = False
     try:
         git(repo, "worktree", "add", "--detach", str(worktree), parent)
-        commit = commit_candidate(worktree, plan, export)
-        verify_checked_tree(worktree, commit, gate, export)
+        export = None if tracker is None else tracker.export
+        checked_commit = commit_candidate(worktree, plan, export)
+        verify_checked_tree(worktree, checked_commit, gate)
+
+        commit = checked_commit
+        if tracker is not None and tracker.bead is not None:
+            bead_closed = True
+            tracker.bead.close(worktree)
+            commit = commit_landing_tree(worktree, plan.subject, checked_commit, tracker.export)
+
+        branch_advance_started = True
         restored_export_in = advance_default_branch(repo, plan.default_branch, parent, commit)
+        branch_advanced = True
+    # A user interrupt must reopen a bead before the temporary worktree is removed.
+    except BaseException as failure:
+        landing_reached_default = branch_advanced
+        if bead_closed and branch_advance_started and not landing_reached_default:
+            landing_reached_default = default_branch_contains(repo, plan.default_branch, commit)
+        if bead_closed and not landing_reached_default and tracker is not None and tracker.bead:
+            try:
+                tracker.bead.reopen(worktree)
+            except Exception as reopen_failure:
+                raise CandidateStop(
+                    "export",
+                    f"landing stopped ({failure}); bd could not reopen the bead: {reopen_failure}",
+                ) from reopen_failure
+        raise
     finally:
         preserve_audit_log(worktree, repo)
         remove_worktree(repo, worktree)
-    return Landing(parent, commit, local_commits, restored_export_in)
+    return Landing(parent, commit, checked_commit, local_commits, restored_export_in)
 
 
 def later_local_commits(repo: Path, default_branch: str, checked_commit: str) -> list[str]:
@@ -159,7 +210,7 @@ def local_commits_beyond_remote(repo: Path, default_branch: str, tip: str) -> tu
 
 
 def commit_candidate(worktree: Path, plan: Plan, export: ExportRunner) -> str:
-    """Squash the feature branch, export the tracker, and commit; the hook may add to the commit."""
+    """Squash the feature branch, export the tracker, and commit the tree the gate will check."""
     if not squash_merge(worktree, plan.branch):
         raise CandidateStop(
             "conflict", f"squashing {plan.branch} conflicts with the default branch"
@@ -191,14 +242,12 @@ def stage_export(worktree: Path) -> None:
     git(worktree, "add", "--", EXPORT_PATH)
 
 
-def verify_checked_tree(worktree: Path, commit: str, gate: Gate, export: ExportRunner) -> None:
+def verify_checked_tree(worktree: Path, commit: str, gate: Gate) -> None:
     require_untracked_audit_log(worktree, commit)
     require_clean_tree(worktree, "the pre-commit hook left the candidate dirty")
     if not gate(worktree):
         raise CandidateStop("gate", "the gate failed on the candidate commit")
     require_clean_tree(worktree, "the gate changed a tracked file")
-    if export is not None:
-        require_matching_export(worktree, export)
 
 
 def require_untracked_audit_log(worktree: Path, commit: str) -> None:
@@ -212,15 +261,34 @@ def require_clean_tree(worktree: Path, detail: str) -> None:
         raise CandidateStop(stop, detail)
 
 
-def require_matching_export(worktree: Path, export: Callable[[Path, Path], bool]) -> None:
-    """A fresh export must match the committed one byte for byte, or the check is stale."""
-    with tempfile.TemporaryDirectory(prefix="tadw-ship-export-") as directory:
-        fresh = Path(directory) / "issues.jsonl"
-        if not export(worktree, fresh):
-            raise CandidateStop("export", "bd export failed after the gate")
-        committed = worktree / EXPORT_PATH
-        if not committed.is_file() or committed.read_bytes() != fresh.read_bytes():
-            raise CandidateStop("export-drift", "the tracker export changed while the gate ran")
+def commit_landing_tree(
+    worktree: Path, subject: str, checked_commit: str, export: ExportRunner
+) -> str:
+    """Commit the post-close export on the checked tree without running hooks twice."""
+    if export is None or not export(worktree, worktree / EXPORT_PATH):
+        raise CandidateStop("export", "bd export did not write the tracker after closing the bead")
+
+    stage_export(worktree)
+    staged = git(worktree, "diff", "--cached", "--name-only").splitlines()
+    unstaged = git(worktree, "diff", "--name-only").splitlines()
+    if staged != [EXPORT_PATH] or unstaged:
+        raise CandidateStop(
+            "export-drift",
+            f"the landing tree must change only {EXPORT_PATH}; staged={staged}, unstaged={unstaged}",
+        )
+
+    tree = git(worktree, "write-tree")
+    commit = git(worktree, "commit-tree", tree, "-p", checked_commit, "-m", subject)
+    changed = git(worktree, "diff", "--name-only", checked_commit, commit).splitlines()
+    if changed != [EXPORT_PATH]:
+        raise CandidateStop(
+            "export-drift",
+            f"the landing commit must change only {EXPORT_PATH}; changed={changed}",
+        )
+
+    git(worktree, "reset", "--hard", commit)
+    require_clean_tree(worktree, "the landing commit left the candidate dirty")
+    return commit
 
 
 def advance_default_branch(
@@ -240,6 +308,21 @@ def advance_default_branch(
     restored = restore_stale_export(Path(holder), default_branch)
     git(Path(holder), "merge", "--ff-only", "--quiet", commit)
     return Path(holder) if restored else None
+
+
+def default_branch_contains(repo: Path, default_branch: str, commit: str) -> bool:
+    """Check whether a failed branch advance nevertheless made the landing reachable."""
+    result = run_git(
+        repo,
+        ("merge-base", "--is-ancestor", commit, f"refs/heads/{default_branch}"),
+    )
+    if result.returncode not in (0, 1):
+        detail = (result.stderr or result.stdout).strip()
+        raise CandidateStop(
+            "git",
+            f"cannot tell whether {default_branch} contains {commit[:12]}: {detail}",
+        )
+    return result.returncode == 0
 
 
 def restore_stale_export(holder: Path, default_branch: str) -> bool:

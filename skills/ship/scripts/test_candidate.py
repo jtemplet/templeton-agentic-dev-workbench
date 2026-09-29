@@ -13,10 +13,8 @@ checkout holding `main`, and a linked worktree holding the feature branch.
      unchanged
   2. Local default-branch commits appear in the        case_local_commits_are_in_the_checked_tree,
      checked tree and the report                       case_local_commits_are_reported
-  3. A gate that changes a tracked file, or the        case_gate_changing_a_tracked_file_is_rejected,
-     tracker export, rejects the candidate before      case_export_drift_is_rejected,
-     the fast-forward; untracked gate output does      case_untracked_gate_output_does_not_reject_the_candidate
-     not
+  3. A gate that changes a tracked file stops, and     case_gate_changing_a_tracked_file_is_rejected,
+     untracked gate output does not                     case_untracked_gate_output_does_not_reject_the_candidate
   4. A source conflict or dirty worktree stops         case_conflict_stops_and_keeps_work,
      without deleting unrelated work                   case_dirty_feature_checkout_stops
   5. bd export writes the export and the commit        case_export_rides_the_candidate_commit,
@@ -40,6 +38,19 @@ checkout holding `main`, and a linked worktree holding the feature branch.
                                                        case_clean_landing_reports_no_restore
 
   The same three run end to end through bin/tadw-ship in test_tadw_ship.py.
+
+  tadw-8vnh criterion                                  Pinned by
+  ------------------------------------------------------------------------------
+  1. The gate checks the open-bead code commit, then     case_bead_closes_after_gate_and_landing_commit_carries_export
+     the landing commit adds only the closed export
+  2. A failure after closing reopens the bead            case_failed_close_attempt_reopens_the_bead,
+                                                       case_failed_post_close_export_reopens_the_bead,
+                                                       case_stop_after_close_reopens_the_bead,
+                                                       case_default_branch_move_after_close_reopens_the_bead,
+                                                       case_landed_commit_is_not_reopened_after_an_error
+  3. A real bd ship leaves a clean checkout, carries    test_ship_with_real_bd.py
+     the closed bead in the landing export, and makes
+     no later export-only commit
 """
 
 from __future__ import annotations
@@ -129,12 +140,17 @@ class Fixture:
     def main_tip(self) -> str:
         return git(self.main, "rev-parse", "main")
 
-    def land(self, gate=None, export=USE_FAKE_EXPORT):
+    def land(self, gate=None, export=USE_FAKE_EXPORT, close=None, reopen=None):
+        bead = None if close is None else candidate.BeadActions(close, reopen)
+        tracker = candidate.TrackerActions(
+            write_export if export is USE_FAKE_EXPORT else export,
+            bead,
+        )
         return candidate.land_candidate(
             self.feature,
             candidate.Plan("feature", "main", "feat: land"),
             gate or passing_gate,
-            write_export if export is USE_FAKE_EXPORT else export,
+            tracker,
         )
 
 
@@ -222,18 +238,212 @@ def case_gate_changing_a_tracked_file_is_rejected() -> None:
     with_fixture(test)
 
 
-def case_export_drift_is_rejected() -> None:
+def case_bead_closes_after_gate_and_landing_commit_carries_export() -> None:
     def test(fixture: Fixture) -> None:
-        before, calls = fixture.main_tip(), []
+        status, events = ["open"], []
 
         def export(worktree: Path, target: Path) -> bool:
-            calls.append(target)
+            events.append("export")
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(TRACKER_EXPORT * len(calls), encoding="utf-8")
+            target.write_text(f'{{"id":"tadw-x","status":"{status[0]}"}}\n', encoding="utf-8")
             return True
 
-        assert stopped(fixture, export=export).reason == "export-drift"
+        def gate(worktree: Path) -> bool:
+            events.append("gate")
+            exported = (worktree / candidate.EXPORT_PATH).read_text(encoding="utf-8")
+            assert '"status":"open"' in exported, exported
+            return True
+
+        def close(worktree: Path) -> None:
+            events.append("close")
+            status[0] = "closed"
+
+        def reopen(worktree: Path) -> None:
+            events.append("reopen")
+            status[0] = "open"
+
+        landing = fixture.land(gate=gate, export=export, close=close, reopen=reopen)
+
+        assert events == ["export", "gate", "close", "export"], events
+        assert status[0] == "closed", status
+        exported = git(fixture.main, "show", f"{landing.commit}:{candidate.EXPORT_PATH}")
+        assert '"status":"closed"' in exported, exported
+        parent = git(fixture.main, "rev-parse", f"{landing.commit}^")
+        changed = git(fixture.main, "diff", "--name-only", parent, landing.commit).splitlines()
+        assert changed == [candidate.EXPORT_PATH], changed
+        assert fixture.main_tip() == landing.commit
+
+    with_fixture(test)
+
+
+def case_failed_gate_does_not_close_the_bead() -> None:
+    def test(fixture: Fixture) -> None:
+        before, status, events = fixture.main_tip(), ["open"], []
+
+        def close(worktree: Path) -> None:
+            events.append("close")
+            status[0] = "closed"
+
+        def reopen(worktree: Path) -> None:
+            events.append("reopen")
+            status[0] = "open"
+
+        stop = stopped(fixture, gate=failing_gate, close=close, reopen=reopen)
+
+        assert stop.reason == "gate", stop
+        assert status[0] == "open", status
+        assert events == [], events
         assert fixture.main_tip() == before
+
+    with_fixture(test)
+
+
+def case_failed_close_attempt_reopens_the_bead() -> None:
+    def test(fixture: Fixture) -> None:
+        status, events = ["open"], []
+
+        def close(worktree: Path) -> None:
+            status[0] = "closed"
+            events.append("close")
+            raise candidate.CandidateStop("export", "close reported failure")
+
+        def reopen(worktree: Path) -> None:
+            status[0] = "open"
+            events.append("reopen")
+
+        stop = stopped(fixture, close=close, reopen=reopen)
+
+        assert stop.reason == "export", stop
+        assert events == ["close", "reopen"], events
+        assert status[0] == "open", status
+
+    with_fixture(test)
+
+
+def case_failed_post_close_export_reopens_the_bead() -> None:
+    def test(fixture: Fixture) -> None:
+        before, status, events, exports = fixture.main_tip(), ["open"], [], 0
+
+        def export(worktree: Path, target: Path) -> bool:
+            nonlocal exports
+            exports += 1
+            if exports == 2:
+                return False
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(f'{{"id":"tadw-x","status":"{status[0]}"}}\n')
+            return True
+
+        def close(worktree: Path) -> None:
+            events.append("close")
+            status[0] = "closed"
+
+        def reopen(worktree: Path) -> None:
+            events.append("reopen")
+            status[0] = "open"
+
+        stop = stopped(fixture, export=export, close=close, reopen=reopen)
+
+        assert stop.reason == "export", stop
+        assert exports == 2, exports
+        assert events == ["close", "reopen"], events
+        assert status[0] == "open", status
+        assert fixture.main_tip() == before
+
+    with_fixture(test)
+
+
+def case_stop_after_close_reopens_the_bead() -> None:
+    def test(fixture: Fixture) -> None:
+        before, status, events, exports = fixture.main_tip(), ["open"], [], 0
+
+        def export(worktree: Path, target: Path) -> bool:
+            nonlocal exports
+            exports += 1
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(f'{{"id":"tadw-x","status":"{status[0]}"}}\n')
+            if exports == 2:
+                (worktree / "base.txt").write_text("unexpected change\n", encoding="utf-8")
+            return True
+
+        def close(worktree: Path) -> None:
+            events.append("close")
+            status[0] = "closed"
+
+        def reopen(worktree: Path) -> None:
+            events.append("reopen")
+            status[0] = "open"
+
+        stop = stopped(fixture, export=export, close=close, reopen=reopen)
+
+        assert stop.reason == "export-drift", stop
+        assert events == ["close", "reopen"], events
+        assert status[0] == "open", status
+        assert fixture.main_tip() == before
+
+    with_fixture(test)
+
+
+def case_default_branch_move_after_close_reopens_the_bead() -> None:
+    def test(fixture: Fixture) -> None:
+        before, status = fixture.main_tip(), ["open"]
+
+        def export(worktree: Path, target: Path) -> bool:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(f'{{"id":"tadw-x","status":"{status[0]}"}}\n')
+            return True
+
+        def close(worktree: Path) -> None:
+            status[0] = "closed"
+            fixture.commit_on_main("concurrent.txt", "another ship\n", "concurrent landing")
+
+        def reopen(worktree: Path) -> None:
+            status[0] = "open"
+
+        stop = stopped(fixture, export=export, close=close, reopen=reopen)
+
+        assert stop.reason == "base-moved", stop
+        assert fixture.main_tip() != before
+        assert git(fixture.main, "show", "main:concurrent.txt") == "another ship"
+        assert status[0] == "open", status
+
+    with_fixture(test)
+
+
+def case_landed_commit_is_not_reopened_after_an_error() -> None:
+    def test(fixture: Fixture) -> None:
+        before, status, events = fixture.main_tip(), ["open"], []
+
+        def export(worktree: Path, target: Path) -> bool:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(f'{{"id":"tadw-x","status":"{status[0]}"}}\n', encoding="utf-8")
+            return True
+
+        def close(worktree: Path) -> None:
+            events.append("close")
+            status[0] = "closed"
+
+        def reopen(worktree: Path) -> None:
+            events.append("reopen")
+            status[0] = "open"
+
+        advance = candidate.advance_default_branch
+
+        def advance_then_fail(repo: Path, default_branch: str, parent: str, commit: str):
+            advance(repo, default_branch, parent, commit)
+            raise candidate.CandidateStop("git", "advance reported failure after the branch moved")
+
+        candidate.advance_default_branch = advance_then_fail
+        try:
+            stop = stopped(fixture, export=export, close=close, reopen=reopen)
+        finally:
+            candidate.advance_default_branch = advance
+
+        assert stop.reason == "git", stop
+        assert fixture.main_tip() != before, "the landing commit did not reach main"
+        assert status[0] == "closed", status
+        assert events == ["close"], events
+        exported = git(fixture.main, "show", f"main:{candidate.EXPORT_PATH}")
+        assert '"status":"closed"' in exported, exported
 
     with_fixture(test)
 
@@ -448,7 +658,17 @@ for name, fn in [
     ("local commits are named in the report", case_local_commits_are_reported),
     ("a gate that changes a tracked file is rejected",
      case_gate_changing_a_tracked_file_is_rejected),
-    ("a drifting tracker export is rejected", case_export_drift_is_rejected),
+    ("the bead closes after the gate and rides the landing export",
+     case_bead_closes_after_gate_and_landing_commit_carries_export),
+    ("a failed gate leaves the bead open", case_failed_gate_does_not_close_the_bead),
+    ("a failed close attempt reopens the bead", case_failed_close_attempt_reopens_the_bead),
+    ("a failed post-close export reopens the bead",
+     case_failed_post_close_export_reopens_the_bead),
+    ("a stop after closing reopens the bead", case_stop_after_close_reopens_the_bead),
+    ("a moved default branch reopens the bead",
+     case_default_branch_move_after_close_reopens_the_bead),
+    ("a landed commit is not reopened after an error",
+     case_landed_commit_is_not_reopened_after_an_error),
     ("a source conflict stops and keeps unrelated work", case_conflict_stops_and_keeps_work),
     ("a dirty feature checkout stops", case_dirty_feature_checkout_stops),
     ("the export rides the candidate commit", case_export_rides_the_candidate_commit),

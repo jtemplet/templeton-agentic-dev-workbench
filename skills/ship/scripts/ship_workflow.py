@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
-"""Ship one bead end to end: ground, rebase, land the checked candidate, close, push, clean up.
+"""Ship one bead: ground, rebase, gate, close into the landing commit, push, and clean up.
 
 The order is the ship skill's (skills/ship/SKILL.md). Every step is a helper
 that already exists; this module runs them in order, and turns the stop each
 helper raises into one of the report's slugs: gate, conflict, tracker,
 git-state, or internal.
 
-ONLY THE LANDING MOVES THE DEFAULT BRANCH. `candidate.land_candidate` moves it
-after the gate passed on the exact commit it moves it to, so every stop before
-the landing leaves the default branch as it was.
-
-THE BEAD CLOSES AFTER THE LANDING, NEVER BEFORE. A bead closed ahead of a gate
-that then fails reads as shipped when nothing landed. The export inside the
-landing commit therefore still shows the bead open, and the next tracker export
-carries the close.
+ONLY THE LANDING MOVES THE DEFAULT BRANCH. `candidate.land_candidate` gates the
+code tree, closes the bead, and adds that close to a landing commit. A stop
+before the branch moves reopens the bead and leaves the default branch as it was.
 
 CLEANUP WAITS FOR THE LANDED CHECK. Deleting the branch is safe only once the
 default branch holds every file the branch authored, so a branch with
@@ -128,6 +123,7 @@ def land_and_publish(
     bring_current(request.repo, ground)
     landing = land(request.repo, ground, bead, gate)
     publish(request.repo, ground, bead, landing.commit)
+    warn_export_drift(request.stable)
     bead_id = None if bead is None else bead.id
     return Shipped(bead_id, landing.commit, clean_up(request, ground, landing))
 
@@ -227,9 +223,23 @@ def land(
 ) -> candidate.Landing:
     subject = commit_subject(bead, ground["branch"])
     plan = candidate.Plan(ground["branch"], ground["default_branch"], subject)
-    landing = candidate.land_candidate(repo, plan, gate, None if bead is None else bd_export)
+    tracker = tracker_actions(bead)
+    landing = candidate.land_candidate(repo, plan, gate, tracker)
     emit(landing.report_lines())
     return landing
+
+
+def tracker_actions(bead: select_bead.Bead | None) -> candidate.TrackerActions | None:
+    if bead is None:
+        return None
+
+    def close(directory: Path) -> None:
+        close_bead(directory, bead)
+
+    def reopen(directory: Path) -> None:
+        reopen_bead(directory, bead)
+
+    return candidate.TrackerActions(bd_export, candidate.BeadActions(close, reopen))
 
 
 def commit_subject(bead: select_bead.Bead | None, branch: str) -> str:
@@ -244,25 +254,37 @@ def bd_export(directory: Path, target: Path) -> bool:
 
 
 def publish(repo: Path, ground: dict, bead: select_bead.Bead | None, commit: str) -> None:
-    """Close the bead, push, and record what comes next; only a failed close or push stops."""
-    if bead is not None:
-        close_bead(repo, bead, commit)
+    """Push the landing commit and record what comes next; only a failed push stops."""
     push(repo, ground, commit)
     sync_tracker(repo, ground, bead)
     record_next(repo)
 
 
-def close_bead(repo: Path, bead: select_bead.Bead, commit: str) -> None:
+def close_bead(directory: Path, bead: select_bead.Bead) -> None:
     completed = run_bd(
-        repo, "close", bead.id, "--reason", f"shipped: {bead.title}", "--suggest-next"
+        directory, "close", bead.id, "--reason", f"shipped: {bead.title}", "--suggest-next"
     )
     if completed is None or completed.returncode != 0:
-        raise ShipStop(
-            "tracker",
-            f"bd close {bead.id} failed: {bd_failure(completed)}",
-            f"the default branch already carries {commit}, and {bead.id} is still open",
+        raise candidate.CandidateStop(
+            "export", f"bd close {bead.id} failed: {bd_failure(completed)}"
         )
     emit(f"tadw_ship: {line}" for line in completed.stdout.splitlines() if line.strip())
+
+
+def reopen_bead(directory: Path, bead: select_bead.Bead) -> None:
+    completed = run_bd(directory, "reopen", bead.id)
+    if completed is None or completed.returncode != 0:
+        raise candidate.CandidateStop(
+            "export", f"bd reopen {bead.id} failed: {bd_failure(completed)}"
+        )
+    emit(f"tadw_ship: {line}" for line in completed.stdout.splitlines() if line.strip())
+
+
+def warn_export_drift(directory: Path) -> None:
+    """Name a tracker export that changed after the landing commit was built."""
+    changed = candidate.git(directory, "status", "--porcelain", "--", candidate.EXPORT_PATH)
+    if changed:
+        say(f"warning: {candidate.EXPORT_PATH} differs from HEAD after ship")
 
 
 def push(repo: Path, ground: dict, commit: str) -> None:
