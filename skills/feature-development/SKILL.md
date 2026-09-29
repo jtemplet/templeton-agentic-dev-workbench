@@ -55,11 +55,27 @@ Then judge whether it is buildable, and say which:
 | Criteria exist but are vague, or `design` is empty | Load `bead-audit`, report what is missing, and **stop**. Ask the user to fill the gap or to confirm you should proceed on stated assumptions. |
 | `notes` says the bead is too big, or says "split before claiming" | Say so and stop. Building a bead that its own audit called too big produces a diff nobody can review. |
 | The bead does not exist, or is already closed | Say so and stop. Do not guess at a near-match id. |
-| `status` is `in_progress` and `assignee` names someone other than you | Say so and ask before proceeding. `assignee` is absent from the JSON when nobody holds the bead. |
+| `status` is `in_progress`, and this session holds no `bead-claim:` line naming this bead | Say so, name the `assignee`, and stop. See "Who holds the bead" below. |
 
 Do not claim the bead, do not change its status, and do not close it. This skill writes code.
 Tracker state is the user's to move, and self-grading is the failure `verify-acceptance` exists to
 prevent.
+
+**Who holds the bead.** The labeling hook claims an `open` bead when `/build` starts. It claims
+under an actor for this session alone, such as `<git user.name> (session 1a2b3c4d)`, and it
+tells the run so in a context line that starts `bead-claim: this session holds <id>`. That line
+is the only proof that an `in_progress` bead is yours. Stop on an `in_progress` bead without it,
+for three reasons:
+
+- Every session on one machine shares one git `user.name`, so an assignee that matches your name
+  can belong to a second window that is building the same bead now.
+- A tool that runs `bd update --status in_progress`, as outrigger did before it named itself,
+  claims with no assignee. So a missing `assignee` means an unnamed holder, not a free bead.
+- When the hook is missing or is an older copy, nothing claimed the bead for this run.
+
+When you stop, give the person the release command: `bd unclaim <id> --force`, followed by a new
+`/build`. Proceed without the line only when the person confirms that nobody else is working on the
+bead.
 
 **Without a bead id.** Ask 3 to 7 focused questions covering inputs, outputs, edge cases, errors,
 dependencies, where the code lives, and what observable behavior means done. Wait for answers, then
@@ -304,7 +320,8 @@ Both paths leave a record. There is no path where a finished run is silently unl
 
 This file and the bead's status are the only things the run writes outside the code. It does not
 close the bead. The labeling hook sets the status, moving a bead from `open` to `in_progress` when
-the run starts, and leaving one that already reads `in_progress` or `closed` alone.
+the run starts, and leaving a `closed` one alone. It refuses the run when another session or tool
+already holds the bead.
 
 Skip this phase when the work has no bead. A free-text description has nothing to label, so write
 no file.

@@ -5,25 +5,41 @@ argument-hint: "[bead-id | feature-description]"
 
 Use the `feature-development` skill to implement: $ARGUMENTS
 
-The implementation operates from the `software-engineer` role: a working engineer who reads the bead before asking, applies the project's conventions, and verifies before declaring success. Refer to `agents/software-engineer.md` for the role's beliefs and judgment principles.
+The implementation operates from the `software-engineer` role: a working engineer who reads the bead
+before asking, applies the project's conventions, and verifies before declaring success. Refer to
+`agents/software-engineer.md` for the role's beliefs and judgment principles.
 
-`$ARGUMENTS` is normally a **bead id**. The skill then reads the bead from `bd show <id> --json` rather than interviewing you about what the bead already records. Pass a free-text description instead when no bead exists, and the skill will interview you and write the acceptance criteria first.
+`$ARGUMENTS` is normally a **bead id**. The skill then reads the bead from `bd show <id> --json`
+rather than interviewing you about what the bead already records. Pass a free-text description
+instead when no bead exists, and the skill will interview you and write the acceptance criteria
+first.
 
 The skill will:
 
-1. **Ground** - Read the bead's Why, How, and Done when. Stop if the criteria are too thin to build against, or if its own notes say to split it first
-2. **Orient** - Read `AGENTS.md`/`CLAUDE.md`, the repository's `development_workflow.md` (under `docs`, `.agent_docs`, or `agent_docs`), `docs/adr/` for the ADRs that bind the area, the dependency manifest, and the two or three existing files nearest the change. Create the worktree or branch the workflow document names, then load the matching style skills (`style-python`, `style-rails`, `style-frontend`, `style-swift`, `style-go`, or `style-markdown`), plus `style-testing` for any test file and any project-local style skill
-3. **Implement** - Code criterion by criterion, each with a test named after the criterion it proves. Report any design decision that constrains work beyond this bead as an ADR candidate
+1. **Ground** - Read the bead's Why, How, and Done when. Stop if the criteria are too thin to build
+   against, or if its own notes say to split it first
+2. **Orient** - Read `AGENTS.md`/`CLAUDE.md`, the repository's `development_workflow.md` (under
+   `docs`, `.agent_docs`, or `agent_docs`), `docs/adr/` for the ADRs that bind the area, the
+   dependency manifest, and the two or three existing files nearest the change. Create the worktree
+   or branch the workflow document names, then load the matching style skills (`style-python`,
+   `style-rails`, `style-frontend`, `style-swift`, `style-go`, or `style-markdown`), plus
+   `style-testing` for any test file and any project-local style skill
+3. **Implement** - Code criterion by criterion, each with a test named after the criterion it
+   proves. Report any design decision that constrains work beyond this bead as an ADR candidate
 4. **Simplify** - Apply the `/simplify` command, then re-run the tests
 5. **Lint** - Run the project's own linter, or the language's standard one
-6. **Report** - Write the run's counts to `build-report.json`. A `Stop` hook reads that file and applies the `implemented` label itself, only when every criterion is met, at least one test passed with none failing, and the linter actually ran and was clean
+6. **Report** - Write the run's counts to `build-report.json`. A `Stop` hook reads that file and
+   applies the `implemented` label itself, only when every criterion is met, at least one test
+   passed with none failing, and the linter actually ran and was clean
 
 If no arguments are provided, the skill will ask for a bead id or a feature description.
 
 It stops at implemented, and it writes nothing to the bead itself: it does not close
 the bead, does not set its status, and does not apply its own label. Run
 `/quality-gates` and then `/verify-acceptance` for grading. The labeling hook owns both
-tracker writes. It moves an `open` bead to `in_progress` as the run starts, and after
+tracker writes. It moves an `open` bead to `in_progress` as the run starts, under an actor for
+this session alone. It refuses the run when the bead is already `in_progress` under any other
+holder, an empty assignee included. After
 the run it reads `build-report.json` and applies `implemented` only if the counts clear
 the gate. A run that never writes that file is never labeled, which is what keeps an
 interrupted build from reading as a finished one.

@@ -29,6 +29,13 @@ Two properties matter to the target repository:
 - **Every failure path exits 0**, so a skill runs whether or not its bead could be labeled. Two
   records make an outage visible: the log at `<git-common-dir>/bead-label.log`, and `--doctor`,
   which resolves the current branch and prints what each labeled command would do.
+- **One path stops a skill on purpose: `/build` on a bead somebody else holds.** The hook claims
+  under a per-session actor, `<git user.name> (session <first 8 of session_id>)`. It then refuses
+  `/build` when the bead is `in_progress` under any other assignee, an empty one included, since
+  outrigger claims with none. A claim under the bare `user.name`, which a manual
+  `bd update <id> --claim` makes, is the person's own: the session takes it over with
+  `--if-assignee` rather than refusing it. A payload with no `session_id` keeps the old behavior
+  and refuses nothing.
 
 **A session can outlive the directory it was started in.** Landing a bead removes its worktree.
 Each wired command guards on `test -x <path>`, so a missing script is a silent no-op rather than

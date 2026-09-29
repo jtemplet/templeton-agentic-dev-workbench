@@ -221,7 +221,10 @@ case "$sub" in
         exit 0
       fi
     fi
-    printf '[{"id":"%s","status":"%s","labels":[%s]}]\n' "${BD_ID_PREFIX:-}$id" "${BD_STATUS:-open}" "${BD_LABELS_JSON:-}"
+    # bd omits a null field, so an unset BD_ASSIGNEE prints no assignee key.
+    jq -cn --arg id "${BD_ID_PREFIX:-}$id" --arg st "${BD_STATUS:-open}" \
+      --arg as "${BD_ASSIGNEE:-}" --argjson labels "[${BD_LABELS_JSON:-}]" \
+      '[{id:$id, status:$st, labels:$labels} + (if $as == "" then {} else {assignee:$as} end)]'
     ;;
   close)
     case "${BD_CLOSE_MODE:-ok}" in
@@ -241,6 +244,11 @@ case "$sub" in
   comments) : ;;
   update)
     case "$*" in
+      *--claim*)
+        [[ "${BD_CLAIM_FAIL:-}" == "1" ]] && { echo "Error: already claimed" >&2; exit 1; } ;;
+      *--if-assignee*)
+        # 13 is bd's precondition mismatch: the assignee changed under the write.
+        [[ -n "${BD_ADOPT_RC:-}" ]] && exit "$BD_ADOPT_RC" ;;
       *--status=closed*)
         [[ "${BD_CLOSE_MODE:-ok}" == "refuse-both" ]] && exit 1
         echo "closed $id" >> "$BD_REPO/.beads/issues.jsonl" ;;
@@ -1543,6 +1551,132 @@ if case_start "label/claim: only /build claims; a review pass does not"; then
   assert_no_match "$R/.bdcalls" "[-][-]claim" "claimed nothing"
   assert_match "$R/.bdcalls" "--add-label reviewed" "still labeled it"
   unset BD_STATUS
+fi
+
+# ---------------------------------------------------------------------------
+# The per-session claim (tadw-ptb2)
+#
+# Every session used to claim as git user.name, so a bead a second window held
+# read as "yours", and outrigger claims with no assignee, which read as
+# "nobody's". Both let /build start duplicate work. With a session_id in the
+# payload the claim carries a per-session actor, and any other holder refuses
+# the run.
+# ---------------------------------------------------------------------------
+
+with_session() {  # with_session <payload> <session-id>
+  echo "$1" | jq -c --arg s "$2" '. + {session_id:$s}'
+}
+
+BUILD_PRE() { with_session "$(payload PreToolUse '' '' 'tadw:feature-development' 'tadw-alpha-one')" "$1"; }
+SESSION_ACTOR="Hook Suite (session aaaa1111)"
+
+if case_start "label/claim: an open bead is claimed under the session's actor"; then
+  R="$(new_repo s1 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open"
+  run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111-2222-3333)"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  assert_match "$R/.bdlog" "^update tadw-alpha-one --claim --actor Hook Suite \(session aaaa1111\)$" "claimed as the session"
+  assert_match "$R/.hookout" "bead-claim: this session holds tadw-alpha-one" "told the run it holds the bead"
+  assert_no_match "$R/.hookout" "permissionDecision" "did not refuse"
+  [[ -f "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "dropped the implemented marker" || nope "dropped the implemented marker"
+  unset BD_STATUS
+fi
+
+if case_start "label/claim: a second event of the same session is not refused"; then
+  R="$(new_repo s2 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="in_progress" BD_ASSIGNEE="$SESSION_ACTOR"
+  run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111-2222-3333)"
+  assert_no_match "$R/.hookout" "permissionDecision" "did not refuse"
+  assert_no_match "$R/.bdcalls" "[-][-]claim" "did not re-claim"
+  assert_match "$R/.hookout" "bead-claim: this session holds" "still told the run"
+  unset BD_STATUS BD_ASSIGNEE
+fi
+
+if case_start "label/claim: a bead another session holds refuses /build at the prompt"; then
+  R="$(new_repo s3 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="in_progress" BD_ASSIGNEE="Hook Suite (session bbbb2222)"
+  run_hook "$LABEL" "$R" "$(with_session "$(jq -n '{hook_event_name:"UserPromptSubmit", prompt:"/build tadw-alpha-one"}')" aaaa1111)"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  assert_eq "$(jq -r '.decision' "$R/.hookout" 2>/dev/null)" "block" "blocked the prompt"
+  assert_match "$R/.hookout" "session bbbb2222" "named the holder"
+  assert_match "$R/.hookout" "bd unclaim tadw-alpha-one --force" "named the way out"
+  assert_no_match "$R/.bdcalls" "[-][-]claim" "claimed nothing"
+  [[ ! -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "left no marker" || nope "left no marker"
+  unset BD_STATUS BD_ASSIGNEE
+fi
+
+if case_start "label/claim: an in_progress bead with no assignee (outrigger) refuses /build"; then
+  R="$(new_repo s4 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="in_progress"
+  unset BD_ASSIGNEE
+  run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111)"
+  assert_eq "$(jq -r '.hookSpecificOutput.permissionDecision' "$R/.hookout" 2>/dev/null)" "deny" "denied the skill"
+  assert_match "$R/.hookout" "no assignee" "said nobody is named"
+  assert_match "$R/.git/bead-label.log" "REFUSED, in_progress under no assignee" "logged the refusal"
+  unset BD_STATUS
+fi
+
+if case_start "label/claim: losing the claim race refuses /build"; then
+  R="$(new_repo s5 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_ASSIGNEE="Hook Suite (session bbbb2222)" BD_CLAIM_FAIL=1
+  run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111)"
+  assert_eq "$(jq -r '.hookSpecificOutput.permissionDecision' "$R/.hookout" 2>/dev/null)" "deny" "denied the skill"
+  assert_match "$R/.hookout" "claimed first by Hook Suite \(session bbbb2222\)" "named the winner"
+  unset BD_STATUS BD_ASSIGNEE BD_CLAIM_FAIL
+fi
+
+if case_start "label/claim: the person's own bare-name claim is adopted, not refused"; then
+  # `bd update <id> --claim`, the start /triage-beads prints, records the bare
+  # git user.name. Refusing it would refuse the documented way to begin.
+  for st in open in_progress; do
+    R="$(new_repo "s9-$st" with-origin)"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="$st" BD_ASSIGNEE="Hook Suite"
+    run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111)"
+    assert_no_match "$R/.hookout" "permissionDecision" "did not refuse ($st)"
+    assert_match "$R/.bdlog" "^update tadw-alpha-one --if-assignee Hook Suite --assignee Hook Suite \\(session aaaa1111\\) --status in_progress" "took it over as a compare-and-set ($st)"
+    assert_match "$R/.hookout" "bead-claim: this session holds tadw-alpha-one" "told the run it holds the bead ($st)"
+  done
+  unset BD_STATUS BD_ASSIGNEE
+fi
+
+if case_start "label/claim: losing the adoption race refuses /build"; then
+  R="$(new_repo s10 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="in_progress" BD_ASSIGNEE="Hook Suite" BD_ADOPT_RC=13
+  run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111)"
+  assert_eq "$(jq -r '.hookSpecificOutput.permissionDecision' "$R/.hookout" 2>/dev/null)" "deny" "denied the skill"
+  unset BD_STATUS BD_ASSIGNEE BD_ADOPT_RC
+fi
+
+if case_start "label/claim: a failed claim with no other holder still runs"; then
+  # bd broken is not a refusal. Every failure path but a real holder exits
+  # quietly and lets the skill run.
+  R="$(new_repo s6 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_CLAIM_FAIL=1
+  unset BD_ASSIGNEE
+  run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111)"
+  assert_no_match "$R/.hookout" "permissionDecision" "did not refuse"
+  assert_match "$R/.hookerr" "--claim failed" "said the claim failed"
+  unset BD_STATUS BD_CLAIM_FAIL
+fi
+
+if case_start "label/claim: a closed bead is not announced as held"; then
+  R="$(new_repo s7 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="closed"
+  run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111)"
+  assert_no_match "$R/.hookout" "bead-claim" "announced nothing"
+  assert_no_match "$R/.hookout" "permissionDecision" "did not refuse"
+  unset BD_STATUS
+fi
+
+if case_start "label/claim: without a session_id an in_progress bead is left alone"; then
+  # Codex and any caller whose payload has no session_id keep the old
+  # behavior, since one session cannot be told from another there.
+  R="$(new_repo s8 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="in_progress" BD_ASSIGNEE="Somebody Else"
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:feature-development' 'tadw-alpha-one')"
+  assert_no_match "$R/.hookout" "permissionDecision" "did not refuse"
+  assert_match "$R/.hookerr" "not open; leaving its status alone" "said why"
+  unset BD_STATUS BD_ASSIGNEE
 fi
 
 # ---------------------------------------------------------------------------
