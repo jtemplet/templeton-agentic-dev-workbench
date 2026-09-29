@@ -29,7 +29,8 @@ sign, use the base directory printed above this skill, with `/skills/ship` remov
 Never search the disk for another installed copy.
 
 The gate can take many minutes. Run the command in the background, or with the longest tool
-timeout, and wait for it to exit. Never start a second run while one is still going.
+timeout, and wait for it to exit. Never start a second run while one is still going; the runner
+refuses it.
 
 The last line is the machine line: `SHIP_DONE <hash>` with exit 0, or `SHIP_BLOCKED <slug>` with
 exit 1.

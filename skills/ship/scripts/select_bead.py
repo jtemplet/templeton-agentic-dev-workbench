@@ -154,6 +154,17 @@ def bd_lookup(repo: Path) -> Lookup:
 
 def parse_show(candidate: str, completed: subprocess.CompletedProcess) -> Bead | None:
     """A bead, None for "no such bead", or an exception for anything else."""
+    record = show_record(candidate, completed)
+    if record is None:
+        return None
+    try:
+        return Bead(record["id"], record["title"], record["issue_type"], record["status"])
+    except (KeyError, TypeError) as error:
+        raise TrackerFailed(f"bd show {candidate} is missing a field: {error}") from error
+
+
+def show_record(candidate: str, completed: subprocess.CompletedProcess) -> dict | None:
+    """The one issue record `bd show --json` returned, None for "no such bead", or an exception."""
     if NO_DATABASE_MESSAGE in completed.stderr:
         raise TrackerMissing(NO_DATABASE_MESSAGE)
     try:
@@ -166,11 +177,7 @@ def parse_show(candidate: str, completed: subprocess.CompletedProcess) -> Bead |
         return None
     if not isinstance(document, list) or len(document) != 1:
         raise TrackerFailed(f"bd show {candidate} returned an unexpected shape")
-    try:
-        record = document[0]
-        return Bead(record["id"], record["title"], record["issue_type"], record["status"])
-    except (KeyError, TypeError) as error:
-        raise TrackerFailed(f"bd show {candidate} is missing a field: {error}") from error
+    return document[0]
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -25,6 +25,11 @@ were:
      first: `bd` auto-export rewrites it from any worktree, the candidate carries
      a fresher copy, and `bd export` regenerates it from the database.
 
+Each step is recorded before and after it runs through the `record` the caller
+passes (ship_progress.py), so an interrupted landing can be resumed (tadw-dur4).
+A bead the run already closed is not closed again: the candidate's first export
+carries that close, so the gated commit is the landing commit.
+
 `.beads/interactions.jsonl` is an untracked audit log (ADR 0010). It is never
 staged, and a candidate that carries it is rejected.
 
@@ -41,9 +46,10 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
+from typing import Protocol
 
 
 def load_sibling(name: str) -> ModuleType:
@@ -58,6 +64,7 @@ def load_sibling(name: str) -> ModuleType:
 
 
 resolve_ground = load_sibling("resolve_ground")
+ship_progress = load_sibling("ship_progress")
 
 EXPORT_PATH = ".beads/issues.jsonl"
 AUDIT_LOG_PATH = ".beads/interactions.jsonl"
@@ -76,6 +83,7 @@ class BeadActions:
 
     close: Callable[[Path], None]
     reopen: Callable[[Path], None]
+    already_closed: bool = False
 
 
 @dataclass(frozen=True)
@@ -95,13 +103,26 @@ class CandidateStop(Exception):
         self.detail = detail
 
 
+class Recorder(Protocol):
+    def mark(self, state: str, **facts: object) -> None: ...
+
+
+class NoRecord:
+    """For a caller that keeps no progress record."""
+
+    def mark(self, state: str, **facts: object) -> None:
+        pass
+
+
 @dataclass(frozen=True)
 class Plan:
-    """What to land: the feature branch, where it lands, and the candidate's commit subject."""
+    """What to land: the feature branch, where it lands, the commit subject, and where each
+    step is recorded."""
 
     branch: str
     default_branch: str
     subject: str
+    record: Recorder = field(default_factory=NoRecord)
 
 
 @dataclass(frozen=True)
@@ -142,34 +163,41 @@ def land_candidate(
     """Build, check, and land the candidate; raise `CandidateStop` instead of half-landing."""
     refuse_unsafe_checkout(repo)
     parent = resolve_commit(repo, f"refs/heads/{plan.default_branch}")
+    branch_tip = resolve_commit(repo, f"refs/heads/{plan.branch}")
     local_commits = local_commits_beyond_remote(repo, plan.default_branch, parent)
     worktree = Path(tempfile.mkdtemp(prefix=WORKTREE_PREFIX)) / "tree"
-    bead_closed = False
+    bead = None if tracker is None else tracker.bead
+    bead_closed = bead is not None and bead.already_closed
     branch_advance_started = False
     branch_advanced = False
+    record = plan.record
     try:
+        record.mark(ship_progress.STARTED, parent=parent, candidate_worktree=str(worktree))
         git(repo, "worktree", "add", "--detach", str(worktree), parent)
         export = None if tracker is None else tracker.export
         checked_commit = commit_candidate(worktree, plan, export)
+        record.mark(ship_progress.CANDIDATE, checked_commit=checked_commit, branch_tip=branch_tip)
         verify_checked_tree(worktree, checked_commit, gate)
 
         commit = checked_commit
-        if tracker is not None and tracker.bead is not None:
+        if bead is not None and not bead.already_closed:
             bead_closed = True
-            tracker.bead.close(worktree)
+            bead.close(worktree)
             commit = commit_landing_tree(worktree, plan.subject, checked_commit, tracker.export)
 
+        record.mark(ship_progress.LANDING, landing_commit=commit)
         branch_advance_started = True
         restored_export_in = advance_default_branch(repo, plan.default_branch, parent, commit)
         branch_advanced = True
+        record.mark(ship_progress.LANDED)
     # A user interrupt must reopen a bead before the temporary worktree is removed.
     except BaseException as failure:
         landing_reached_default = branch_advanced
         if bead_closed and branch_advance_started and not landing_reached_default:
             landing_reached_default = default_branch_contains(repo, plan.default_branch, commit)
-        if bead_closed and not landing_reached_default and tracker is not None and tracker.bead:
+        if bead_closed and not landing_reached_default:
             try:
-                tracker.bead.reopen(worktree)
+                bead.reopen(worktree)
             except Exception as reopen_failure:
                 raise CandidateStop(
                     "export",
@@ -372,10 +400,15 @@ def remove_worktree(repo: Path, worktree: Path) -> None:
 
 
 def resolve_commit(directory: Path, revision: str) -> str:
-    stdout = git_or_none(directory, "rev-parse", "--verify", f"{revision}^{{commit}}")
+    stdout = commit_or_none(directory, revision)
     if stdout is None:
         raise CandidateStop("revision", f"{revision} does not name a commit in {directory}")
     return stdout
+
+
+def commit_or_none(directory: Path, revision: str) -> str | None:
+    """The commit `revision` names, or None when it names none."""
+    return git_or_none(directory, "rev-parse", "--verify", "--quiet", f"{revision}^{{commit}}")
 
 
 def git(directory: Path, *arguments: str) -> str:

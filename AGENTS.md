@@ -54,6 +54,7 @@ python3 skills/ship/scripts/test_run_checks.py               # regression suite 
 python3 skills/ship/scripts/test_resolve_rebase_conflict.py    # regression suite for ship's conflict resolver
 python3 skills/ship/scripts/test_select_bead.py              # regression suite for ship's bead selection
 python3 skills/ship/scripts/test_ship_report.py              # regression suite for ship's report and counts
+python3 skills/ship/scripts/test_ship_recovery.py            # regression suite for resuming an interrupted ship
 python3 skills/ship/scripts/test_candidate.py               # regression suite for ship's checked candidate
 python3 skills/ship/scripts/test_worktree_cleanup.py        # regression suite for ship's worktree cleanup and cd guidance
 python3 skills/reconcile-acceptance/scripts/test_load_findings.py   # regression suite for the acceptance findings loader
