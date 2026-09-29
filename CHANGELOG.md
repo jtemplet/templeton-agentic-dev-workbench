@@ -1,5 +1,23 @@
 ## [Unreleased]
 
+## [4.7.0] - 2026-09-29
+
+### Added
+
+- **Close the bead inside the landing commit.** (`75aadaf`, tadw-8vnh)
+- **Close the bead inside the landing commit.** (`412d16e`, tadw-8vnh)
+- **Resume interrupted ship runs safely.** (`290ec7c`, tadw-dur4)
+
+### Changed
+
+- **Land docs/plan/clean-tree-after-ship.** (`985c69c`)
+- **Record the clean-tree ship decisions in an ADR.** (`965005d`, tadw-fm1j)
+- **Mark tadw-l6u4 accepted.** (`29ffea1`)
+
+### Fixed
+
+- **/build proceeds on a bead another session already holds.** (`fd679e3`, tadw-ptb2)
+
 ## [4.6.11] - 2026-09-27
 
 ### Added
@@ -2789,7 +2807,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.11...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.0...HEAD
+[4.7.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.11...v4.7.0
 [4.6.11]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.10...v4.6.11
 [4.6.10]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.9...v4.6.10
 [4.6.9]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.8...v4.6.9
