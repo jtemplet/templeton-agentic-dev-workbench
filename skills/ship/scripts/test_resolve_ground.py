@@ -206,6 +206,54 @@ def case_dirty_tracked_stops() -> None:
         assert ground["dirty_tracked"] == ["README.md"], ground["dirty_tracked"]
 
 
+def track_tracker_files(repo: Path) -> None:
+    write(repo, ".beads/issues.jsonl", "{}\n")
+    commit(repo, "track the bd export")
+
+
+def case_bd_export_alone_does_not_stop() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repo = new_repo(Path(directory))
+        track_tracker_files(repo)
+        on_feature_branch(repo)
+        write(repo, ".beads/issues.jsonl", "{}\n{}\n")
+        write(repo, ".beads/interactions.jsonl", "{}\n")
+        code, ground = resolve(repo)
+        assert (code, ground["stop"]) == (0, None), (code, ground["stop"])
+        assert ground["dirty_tracked"] == [".beads/issues.jsonl"], ground["dirty_tracked"]
+
+
+def case_source_edit_beside_bd_export_still_stops() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repo = new_repo(Path(directory))
+        track_tracker_files(repo)
+        on_feature_branch(repo)
+        write(repo, ".beads/issues.jsonl", "{}\n{}\n")
+        write(repo, "README.md", "modified\n")
+        code, ground = resolve(repo)
+        assert (code, ground["stop"]) == (1, "dirty-tracked"), (code, ground["stop"])
+
+
+def case_guard_blocks_a_changed_bd_export() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repo = new_repo(Path(directory))
+        track_tracker_files(repo)
+        write(repo, ".beads/issues.jsonl", "{}\n{}\n")
+        verdict = resolve_ground.mutation_guard(repo)
+        assert verdict == "dirty-tracked", verdict
+
+
+def case_tracked_audit_log_stops_before_the_tree_checks() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repo = new_repo(Path(directory))
+        write(repo, ".beads/interactions.jsonl", "{}\n")
+        commit(repo, "track the audit log")
+        on_feature_branch(repo)
+        write(repo, "README.md", "modified\n")
+        code, ground = resolve(repo)
+        assert (code, ground["stop"]) == (1, "audit-log-tracked"), (code, ground["stop"])
+
+
 def case_detached_head_stops() -> None:
     with tempfile.TemporaryDirectory() as directory:
         repo = new_repo(Path(directory))
@@ -421,6 +469,11 @@ for name, fn in [
     ("the mutation guard lets untracked files through", case_guard_allows_untracked_files),
     ("the mutation guard blocks an unreadable status", case_guard_blocks_unreadable_status),
     ("the mutation guard blocks a changed tracked file", case_guard_blocks_dirty_tracked),
+    ("a bd export change alone does not stop the run", case_bd_export_alone_does_not_stop),
+    ("a source edit beside a bd export still stops", case_source_edit_beside_bd_export_still_stops),
+    ("the mutation guard still blocks a changed bd export", case_guard_blocks_a_changed_bd_export),
+    ("a tracked audit log stops before the tree checks",
+     case_tracked_audit_log_stops_before_the_tree_checks),
     ("a detached HEAD stops the run", case_detached_head_stops),
     ("HEAD on the default branch stops the run", case_on_default_branch_stops),
     ("a rebase already in progress stops the run", case_rebase_in_progress_stops),

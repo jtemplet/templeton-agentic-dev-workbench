@@ -937,6 +937,22 @@ def porcelain(repository: ShipRepository) -> str:
     return repository.git("status", "--porcelain")
 
 
+# tadw-d1nf: a tracked audit log is named, with its fix, before any tree-state stop.
+def case_tracked_audit_log_is_named_before_a_dirty_tree() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repository = ShipRepository(Path(directory).resolve())
+        worktree = repository.worktree
+        (worktree / ".beads").mkdir(exist_ok=True)
+        (worktree / ".beads" / "interactions.jsonl").write_text("{}\n")
+        subprocess.run(["git", "-C", str(worktree), "add", ".beads/interactions.jsonl"], check=True)
+        subprocess.run(["git", "-C", str(worktree), "commit", "-q", "-m", "track it"], check=True)
+        (worktree / "thing.txt").write_text("edited\n")
+        result = repository.ship("true", worktree)
+        assert result.returncode != 0, result.stderr
+        assert "git rm --cached .beads/interactions.jsonl" in result.stderr, result.stderr
+        assert "dirty-tracked" not in result.stderr, result.stderr
+
+
 def case_dirty_main_ships_and_gets_its_changes_back() -> None:
     repository, result = dirty_main_ship("true", stage_and_edit)
     try:
@@ -1270,6 +1286,8 @@ for name, fn in [
     ("another changed file in main stops with git-state",
      case_another_changed_file_in_main_stops_with_git_state),
     ("the run reports the restored export", case_restored_export_is_reported_by_the_run),
+    ("a tracked audit log is named before a dirty tree",
+     case_tracked_audit_log_is_named_before_a_dirty_tree),
     ("a dirty main is stashed for the ship and restored after",
      case_dirty_main_ships_and_gets_its_changes_back),
     ("the tracker export stays out of the stash", case_stale_export_stays_out_of_the_stash),

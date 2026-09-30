@@ -595,6 +595,17 @@ def case_audit_log_stays_untracked() -> None:
     with_fixture(test)
 
 
+def case_tracked_audit_log_stop_names_the_fix() -> None:
+    def test(fixture: Fixture) -> None:
+        (fixture.feature / ".beads").mkdir()
+        commit(fixture.feature, candidate.AUDIT_LOG_PATH, "{}\n", "track the audit log")
+        stop = stopped(fixture)
+        assert stop.reason == "audit-log", stop
+        assert f"git rm --cached {candidate.AUDIT_LOG_PATH}" in str(stop), stop
+
+    with_fixture(test)
+
+
 def case_bead_free_landing_writes_no_export() -> None:
     def test(fixture: Fixture) -> None:
         landing = fixture.land(export=None)
@@ -685,6 +696,8 @@ for name, fn in [
      case_cleanup_removes_only_the_temporary_worktree),
     ("a later local commit is reported unpushed", case_later_commit_is_reported_unpushed),
     ("the interactions log stays untracked", case_audit_log_stays_untracked),
+    ("a tracked audit log stops with the command that fixes it",
+     case_tracked_audit_log_stop_names_the_fix),
     ("a bead-free landing writes no export", case_bead_free_landing_writes_no_export),
     ("audit lines from the temporary worktree are kept",
      case_audit_lines_written_in_the_temporary_worktree_are_kept),

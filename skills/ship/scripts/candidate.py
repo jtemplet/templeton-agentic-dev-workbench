@@ -67,7 +67,7 @@ resolve_ground = load_sibling("resolve_ground")
 ship_progress = load_sibling("ship_progress")
 
 EXPORT_PATH = ".beads/issues.jsonl"
-AUDIT_LOG_PATH = ".beads/interactions.jsonl"
+AUDIT_LOG_PATH = resolve_ground.AUDIT_LOG_PATH
 WORKTREE_PREFIX = "tadw-ship-candidate-"
 
 # Runs the gate in a directory; True when every gate passed.
@@ -280,7 +280,15 @@ def verify_checked_tree(worktree: Path, commit: str, gate: Gate) -> None:
 
 def require_untracked_audit_log(worktree: Path, commit: str) -> None:
     if git(worktree, "ls-tree", "--name-only", commit, "--", AUDIT_LOG_PATH):
-        raise CandidateStop("audit-log", f"{AUDIT_LOG_PATH} must stay untracked")
+        raise CandidateStop("audit-log", untrack_audit_log_message())
+
+
+def untrack_audit_log_message() -> str:
+    return (
+        f"{AUDIT_LOG_PATH} must stay untracked (ADR 0010). Fix it on the branch: run "
+        f"`git rm --cached {AUDIT_LOG_PATH}`, add `interactions.jsonl` to `.beads/.gitignore`, "
+        "and commit both"
+    )
 
 
 def require_clean_tree(worktree: Path, detail: str) -> None:

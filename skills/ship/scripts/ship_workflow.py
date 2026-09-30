@@ -459,6 +459,8 @@ def read_ground(repo: Path) -> dict:
     ground = resolve_ground.resolve_ground(repo)
     if ground["stop"]:
         problem = f"the repository is not fit to ship from: {ground['stop']}"
+        if ground["stop"] == "audit-log-tracked":
+            problem += f". {candidate.untrack_audit_log_message()}"
         raise ShipStop("git-state", problem, NOTHING_CHANGED)
     return ground
 

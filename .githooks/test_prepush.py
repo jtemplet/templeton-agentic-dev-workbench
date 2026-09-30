@@ -1193,11 +1193,25 @@ NEIGHBOR_ABOVE = "skills/quality-gates/scripts/test_check_hygiene.py"
 NEIGHBOR_BELOW = "skills/quality-gates/scripts/test_route_qa.py"
 
 
-def wait_until(condition, what: str) -> None:
+def wait_until(condition, what: str, detail=lambda: "") -> None:
     deadline = time.monotonic() + PROCESS_DEADLINE_SECONDS
     while not condition():
-        assert time.monotonic() < deadline, f"timed out waiting until {what}"
+        assert time.monotonic() < deadline, f"timed out waiting until {what}{detail()}"
         time.sleep(0.05)
+
+
+def survivors(pids: list[int]) -> str:
+    """The pids still alive with their `ps` state, for a timeout message."""
+    living = [f"{pid}:{process_state(pid)}" for pid in pids if process_is_alive(pid)]
+    return f" (still alive: {', '.join(living)})" if living else ""
+
+
+def process_state(pid: int) -> str:
+    """The `ps` state letters of a pid, or an empty string when no such process exists."""
+    completed = subprocess.run(
+        ["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True, check=False
+    )
+    return completed.stdout.strip()
 
 
 def process_is_alive(pid: int) -> bool:
@@ -1211,7 +1225,8 @@ def process_is_alive(pid: int) -> bool:
         os.kill(pid, 0)
     except ProcessLookupError, PermissionError:
         return False
-    return True
+    # A killed process whose parent has not reaped it still answers signal 0. It is dead.
+    return not process_state(pid).startswith("Z")
 
 
 def paired_checks() -> tuple[str, str]:
@@ -1337,6 +1352,7 @@ def interrupted_hook_case(signum: signal.Signals, expected_code: int):
             wait_until(
                 lambda: not any(process_is_alive(pid) for pid in recorded_pids(pid_file)),
                 "the slow check and its child stopped",
+                lambda: survivors(recorded_pids(pid_file)),
             )
         finally:
             stop_hook_tree(hook)
@@ -1380,12 +1396,31 @@ def case_a_process_started_during_the_interrupt_is_stopped() -> None:
         wait_until(
             lambda: not any(process_is_alive(pid) for pid in recorded_pids(pid_file)),
             "every child the spawner started stopped",
+            lambda: survivors(recorded_pids(pid_file)),
         )
     finally:
         stop_hook_tree(hook)
         for pid in recorded_pids(pid_file):
             if process_is_alive(pid):
                 os.kill(pid, signal.SIGKILL)
+
+
+def case_a_defunct_process_counts_as_stopped() -> None:
+    """A killed child its parent has not reaped is dead, though its pid is still in the table.
+
+    `os.kill(pid, 0)` succeeds on such a zombie, so a liveness check built on it alone reports
+    a stopped process as running for as long as the parent lives.
+    """
+    child = subprocess.Popen(["sleep", "300"])
+    try:
+        assert process_is_alive(child.pid), "a running child must count as alive"
+        os.kill(child.pid, signal.SIGKILL)
+        wait_until(lambda: process_state(child.pid).startswith("Z"), "the killed child is defunct")
+        os.kill(child.pid, 0)  # positive control: the pid is still in the process table
+        assert not process_is_alive(child.pid), "a defunct child must count as stopped"
+    finally:
+        child.kill()
+        child.wait()
 
 
 def case_paired_check_runs_after_the_one_above() -> None:
@@ -1582,6 +1617,10 @@ for name, fn in [
     (
         "a process started during the interrupt is stopped too",
         case_a_process_started_during_the_interrupt_is_stopped,
+    ),
+    (
+        "a defunct process counts as stopped",
+        case_a_defunct_process_counts_as_stopped,
     ),
     (
         "the paired check runs after the check above it ends",
