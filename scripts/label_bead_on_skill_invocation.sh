@@ -120,6 +120,10 @@ LOG_MAX_LINES=1000
 SCRIPT_PATH="${BASH_SOURCE[0]}"
 SCRIPT_HASH=""
 
+# The /build claim decision, resolved as a sibling of this script. The
+# installer copies it alongside.
+CLAIM_MODULE="label_bead_hook.py"
+
 log() { echo "[bead-label] $*" >&2; }
 quiet_exit() { exit 0; }
 
@@ -233,151 +237,29 @@ add_label() {
 # it would leave the bead reading `open` for the whole run, so `bd ready` would
 # go on offering work already underway.
 #
-# Only an `open` bead is claimed. in_progress is already the target, and a
-# closed bead must not silently reopen because someone ran /build to re-read a
-# spec. Status comes from RESOLVED_JSON, which resolve_bead already fetched, so
+# The decision, the two bd writes, and the hook JSON live in label_bead_hook.py
+# beside this script, where a unit test can call the decision directly. Status
+# and assignee come from RESOLVED_JSON, which resolve_bead already fetched, so
 # this costs no extra `bd show`.
 #
-# The claim is made under a per-session actor (see claim_actor), and that is
-# what lets it REFUSE. Every session used to claim as git user.name, so a bead
-# held by a second window read as "yours", and outrigger claims with no
-# assignee at all, which read as "nobody's". Both let /build start duplicate
-# work on 2026-09-28. So an in_progress bead is refused unless its assignee is
-# this session's actor, an empty assignee included.
-#
-# Returns 0 when this session holds the bead or its status was left alone,
-# 1 when bd failed, and 2 when another holder means /build must not run.
-#
-# The outcome goes to stdout for the caller to log. It must be captured: inject
-# mode writes hook JSON to the same stream, and a stray line there is malformed
-# output rather than a message.
+# Echoes the module's JSON, {"outcome": ..., "hook_output": ...}, and returns
+# its exit status: 0 when this session holds the bead or its status was left
+# alone, 1 when the claim failed, and 2 when another holder means /build must
+# not run. A missing python3 or module is a failed claim, never a refusal.
 claim_bead() {
-  local bead_id="$1" status assignee actor
-  status="$(bead_field "$RESOLVED_JSON" status)"
-  assignee="$(bead_field "$RESOLVED_JSON" assignee)"
-  actor="$(claim_actor)"
-
-  # `bd update <id> --claim`, the start /triage-beads prints, assigns the bare
-  # git user.name. That is the person's own claim, so this session takes it
-  # over rather than refusing it. --if-assignee makes the takeover a
-  # compare-and-set: of two sessions adopting one claim, exactly one wins.
-  if [[ -n "$actor" && -n "$assignee" && "$assignee" == "$(claim_owner)" \
-        && ( "$status" == "open" || "$status" == "in_progress" ) ]]; then
-    adopt_claim "$bead_id" "$assignee" "$actor"
-    return $?
+  local bead_id="$1" module
+  module="$(dirname "$SCRIPT_PATH")/$CLAIM_MODULE"
+  if ! command -v python3 >/dev/null 2>&1 || [[ ! -f "$module" ]]; then
+    log "python3 or $CLAIM_MODULE is missing; /build runs without a claim"
+    jq -cn --arg m "$CLAIM_MODULE" '{outcome: "FAILED, python3 or \($m) is missing", hook_output: null}'
+    return 1
   fi
-
-  if [[ "$status" == "in_progress" && -n "$actor" ]]; then
-    if [[ "$assignee" == "$actor" ]]; then
-      log "$bead_id is already held by this session ($actor)"
-      echo "already held by this session"
-      return 0
-    fi
-    log "$bead_id is in_progress under ${assignee:-no assignee}; refusing /build"
-    echo "REFUSED, in_progress under ${assignee:-no assignee}"
-    return 2
-  fi
-
-  if [[ "$status" != "open" ]]; then
-    log "$bead_id is ${status:-of no readable status}, not open; leaving its status alone"
-    echo "left status ${status:-unreadable} alone"
-    return 0
-  fi
-
-  # --claim is atomic, so of two sessions racing for one open bead exactly one
-  # wins. It is idempotent when the claim is already this actor's, so two
-  # events firing for one /build (UserPromptSubmit, then PreToolUse) is safe.
-  if bd update "$bead_id" --claim ${actor:+--actor "$actor"} >/dev/null 2>&1; then
-    log "claimed $bead_id${actor:+ as $actor}, now in_progress"
-    refresh_export
-    echo "claimed in_progress${actor:+ as $actor}"
-    return 0
-  fi
-
-  # A lost race and a broken bd both fail here. Only the first is a refusal,
-  # and a fresh read tells them apart: a lost race leaves another assignee.
-  assignee="$(bead_field "$(bd show "$bead_id" --json 2>/dev/null)" assignee)"
-  if [[ -n "$actor" && -n "$assignee" && "$assignee" != "$actor" ]]; then
-    log "$bead_id was claimed by $assignee first; refusing /build"
-    echo "REFUSED, claimed first by $assignee"
-    return 2
-  fi
-
-  log "bd update $bead_id --claim failed"
-  echo "FAILED to claim in_progress"
-  return 1
-}
-
-# Echo the claim actor for this session, or nothing when the payload carried
-# no session_id. Nothing means the old behavior: bd claims as git user.name and
-# no in_progress bead is refused, since one session cannot be told from another.
-#
-# The user name stays in front so a person reading `bd show` still sees whose
-# machine holds the bead; the session suffix is what tells two windows apart.
-claim_actor() {
-  [[ -n "${SESSION_ID:-}" ]] || return 0
-  local name
-  name="$(claim_owner)"
-  echo "${name:-${USER:-agent}} (session ${SESSION_ID})"
-}
-
-# The bare name a manual `bd update --claim` records: bd's own default actor.
-claim_owner() { git config user.name 2>/dev/null || true; }
-
-# Take over the person's bare-name claim for this session. Returns as
-# claim_bead does. Exit 13 is bd's precondition mismatch: another session
-# adopted the claim between the read and this write.
-adopt_claim() {  # adopt_claim <bead-id> <owner> <actor>
-  local rc holder
-  bd update "$1" --if-assignee "$2" --assignee "$3" --status in_progress --actor "$3" >/dev/null 2>&1
-  rc=$?
-  if (( rc == 0 )); then
-    log "adopted $1 from $2 as $3, now in_progress"
-    refresh_export
-    echo "claimed in_progress as $3, adopted from $2"
-    return 0
-  fi
-  if (( rc == 13 )); then
-    holder="$(bead_field "$(bd show "$1" --json 2>/dev/null)" assignee)"
-    log "$1 was adopted by ${holder:-another session} first; refusing /build"
-    echo "REFUSED, claimed first by ${holder:-another session}"
-    return 2
-  fi
-  log "bd update $1 --if-assignee failed"
-  echo "FAILED to adopt the claim under $2"
-  return 1
+  printf '%s' "${payload:-}" | python3 "$module" claim "$bead_id" \
+    "$(bead_field "$RESOLVED_JSON" status)" "$(bead_field "$RESOLVED_JSON" assignee)"
 }
 
 bead_field() {  # bead_field <json> <field>
   echo "$1" | jq -r --arg f "$2" 'if type == "array" then .[0] else . end | .[$f] // ""' 2>/dev/null || true
-}
-
-# Stop /build before it starts, in the shape each event accepts. A
-# UserPromptSubmit block discards the prompt and shows the reason to the
-# person; a PreToolUse deny shows it to Claude instead of running the skill.
-# Codex's runner discards this stdout, so there the refusal is the unmade
-# claim plus the feature-development skill's own guard.
-refuse_build() {  # refuse_build <event> <bead-id> <outcome>
-  local reason
-  reason="/build refused: $2 is already being worked (${3#REFUSED, }). Another session or outrigger may be building it right now. If that work is abandoned, release it with \`bd unclaim $2 --force\`, then run /build again."
-  case "$1" in
-    UserPromptSubmit)
-      jq -n --arg r "$reason" '{decision:"block", reason:$r}' ;;
-    PreToolUse)
-      jq -n --arg r "$reason" \
-        '{hookSpecificOutput:{hookEventName:"PreToolUse", permissionDecision:"deny", permissionDecisionReason:$r}}' ;;
-  esac
-}
-
-# Tell the run which bead this session holds. The feature-development guard
-# reads this line: without it, an in_progress bead is one the run must not
-# assume is its own.
-announce_claim() {  # announce_claim <event> <bead-id>
-  local actor ctx
-  actor="$(claim_actor)"
-  [[ -n "$actor" ]] || return 0
-  ctx="bead-claim: this session holds $2 as \"$actor\" (in_progress). The claim was made for this run, so building it duplicates no one."
-  jq -n --arg e "$1" --arg c "$ctx" '{hookSpecificOutput:{hookEventName:$e, additionalContext:$c}}'
 }
 
 # Leave the working tree exactly as clean as it was found.
@@ -645,7 +527,7 @@ classify_skill() {
 # The shared flow, once a skill name is known. $3 names the hook event so
 # inject mode can label its own output correctly.
 run_label_flow() {
-  local skill="$1" args="$2" event="$3" branch claim_outcome claim_code
+  local skill="$1" args="$2" event="$3" branch claim_result claim_code claim_outcome claim_hook
 
   init_repo
   branch="$(git branch --show-current 2>/dev/null || true)"
@@ -663,18 +545,22 @@ run_label_flow() {
   # A refusal exits before the marker is written, so a run that never started
   # leaves no pending label behind.
   if [[ -n "${CLAIM:-}" ]]; then
-    claim_outcome="$(claim_bead "$RESOLVED_ID")"
+    claim_result="$(claim_bead "$RESOLVED_ID")"
     claim_code=$?
+    claim_outcome="$(jq -r '.outcome // empty' <<< "$claim_result" 2>/dev/null || true)"
+    claim_hook="$(jq -c '.hook_output // empty' <<< "$claim_result" 2>/dev/null || true)"
+    [[ "$claim_outcome" == claimed* ]] && refresh_export
     log_outcome "$event" "$skill" "$branch" "$RESOLVED_ID" "${claim_outcome:-claim produced no outcome}"
-    if (( claim_code == 2 )); then
-      refuse_build "$event" "$RESOLVED_ID" "$claim_outcome"
+    # python3 itself exits 2 when it cannot open the module, so only an
+    # outcome the module wrote counts as a refusal.
+    if (( claim_code == 2 )) && [[ "$claim_outcome" == REFUSED* ]]; then
+      [[ -n "$claim_hook" ]] && echo "$claim_hook"
       quiet_exit
     fi
     # Inject mode writes its own hook JSON to stdout, and two objects there is
     # malformed output. No claiming skill uses inject today.
-    if [[ "$claim_outcome" == claimed* || "$claim_outcome" == "already held"* ]] \
-      && [[ "$MODE" != "inject" ]]; then
-      announce_claim "$event" "$RESOLVED_ID"
+    if [[ -n "$claim_hook" && "$MODE" != "inject" ]]; then
+      echo "$claim_hook"
     fi
   fi
 
@@ -1309,10 +1195,6 @@ fi
 
 payload="$(cat)"
 event="$(echo "$payload" | jq -r '.hook_event_name // empty' 2>/dev/null || true)"
-# Eight characters tell concurrent sessions apart and keep `bd show` readable.
-# Anything but letters, digits and hyphens is dropped, since this lands in the
-# tracker as an assignee.
-SESSION_ID="$(echo "$payload" | jq -r '.session_id // empty' 2>/dev/null | tr -cd 'A-Za-z0-9-' | cut -c1-8 || true)"
 
 case "$event" in
   PreToolUse)       handle_pre "$payload" ;;

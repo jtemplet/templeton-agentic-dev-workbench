@@ -1668,6 +1668,28 @@ if case_start "label/claim: a closed bead is not announced as held"; then
   unset BD_STATUS
 fi
 
+if case_start "label/claim: a hostile session_id reaches the tracker as at most 8 safe characters"; then
+  R="$(new_repo s11 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open"
+  unset BD_ASSIGNEE
+  run_hook "$LABEL" "$R" "$(BUILD_PRE 'a b;$(rm -rf x)`id`|c-1234567')"
+  assert_match "$R/.bdlog" "^update tadw-alpha-one --claim --actor Hook Suite \(session abrm-rfx\)$" "kept only letters, digits and hyphens, eight of them"
+  unset BD_STATUS
+fi
+
+if case_start "label/claim: without the claim module /build still runs"; then
+  # A consumer that installed only the label script must not lose /build.
+  R="$(new_repo s12 with-origin)"
+  mkdir -p "$R/lonely"
+  cp "$LABEL" "$R/lonely/label_bead_on_skill_invocation.sh"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="in_progress" BD_ASSIGNEE="Somebody Else"
+  run_hook "$R/lonely/label_bead_on_skill_invocation.sh" "$R" "$(BUILD_PRE aaaa1111)"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  assert_no_match "$R/.hookout" "permissionDecision" "did not refuse"
+  assert_match "$R/.hookerr" "label_bead_hook.py is missing" "said why it did not claim"
+  unset BD_STATUS BD_ASSIGNEE
+fi
+
 if case_start "label/claim: without a session_id an in_progress bead is left alone"; then
   # Codex and any caller whose payload has no session_id keep the old
   # behavior, since one session cannot be told from another there.
@@ -2147,7 +2169,8 @@ INSTALLER_SRC="$SANDBOX/installer-src"
 mkdir -p "$INSTALLER_SRC"
 cp "$REPO_ROOT/scripts/install_label_bead_on_skill_invocation.sh" \
    "$REPO_ROOT/scripts/label_bead_on_skill_invocation.sh" \
-   "$REPO_ROOT/scripts/run_codex_bead_hooks.sh" "$INSTALLER_SRC/"
+   "$REPO_ROOT/scripts/run_codex_bead_hooks.sh" \
+   "$REPO_ROOT/scripts/label_bead_hook.py" "$INSTALLER_SRC/"
 INSTALLER="$INSTALLER_SRC/install_label_bead_on_skill_invocation.sh"
 
 run_installer() {  # run_installer <repo> [args...]; sets INSTALL_CODE, writes .instout
@@ -2241,6 +2264,20 @@ if case_start "install: the Codex runner lands beside the label script"; then
   run_installer "$R" --check
   assert_eq "$INSTALL_CODE" 0 "--check passes on a complete install"
   assert_match "$R/.instout" "codex:    current" "--check reports the runner"
+fi
+
+if case_start "install/check: the claim module is installed and matches its source"; then
+  # The label script runs it as a sibling to decide the /build claim (tadw-huz9).
+  R="$(new_repo i9)"
+  run_installer "$R"
+  assert_match "$R/.instout" "hook module: installed at .claude/scripts/label_bead_hook.py" "reported the module"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 0 "--check passes"
+  assert_match "$R/.instout" "module:   current at .claude/scripts/label_bead_hook.py \([0-9a-f]{12}\)" "--check calls the module current"
+  echo '# local patch' >> "$R/.claude/scripts/label_bead_hook.py"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 1 "a drifted module fails --check"
+  assert_match "$R/.instout" "module:   DRIFTED" "said the module drifted"
 fi
 
 if case_start "install/check: a missing Codex runner fails, even with the label script current"; then

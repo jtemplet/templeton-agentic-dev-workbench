@@ -14,7 +14,9 @@
 #      without the other is how Codex labeling becomes a permanent no-op in a
 #      repository whose Claude labeling works. It is inert until somebody
 #      adds it to .codex/hooks.json, so a repository that never runs Codex
-#      carries one unused file and loses nothing.
+#      carries one unused file and loses nothing. label_bead_hook.py rides
+#      along too: the label script runs it as a sibling to decide the /build
+#      claim, and without it /build starts with no claim at all.
 #   2. Wires that path into <repo>/.claude/settings.json for the three events
 #      the hook dispatches on: PreToolUse (matcher Skill), UserPromptSubmit,
 #      and Stop. Everything else in settings.json is left byte-identical.
@@ -44,6 +46,7 @@ set -euo pipefail
 
 HOOK_SCRIPT="label_bead_on_skill_invocation.sh"
 CODEX_SCRIPT="run_codex_bead_hooks.sh"
+MODULE_SCRIPT="label_bead_hook.py"
 DEST_DIR=".claude/scripts"
 CHECK_ONLY=false
 
@@ -66,11 +69,12 @@ Options:
   --check          Report how the installed copies and the wiring differ from
                    the source, then exit: 0 when all are current, 1 otherwise.
                    Copies nothing and touches settings.json not at all.
-  --dest-dir DIR   Where to put both hook scripts, relative to the repository
+  --dest-dir DIR   Where to put the hook scripts, relative to the repository
                    root. Default: .claude/scripts
   -h, --help       Print this and exit.
 
-Requires git and jq on PATH. The hook itself needs bd, jq, and git at runtime.
+Requires git and jq on PATH. The hook itself needs bd, jq, and git at runtime,
+and python3 to claim a bead for /build.
 USAGE
 }
 
@@ -107,12 +111,15 @@ SOURCE="$SOURCE_DIR/$HOOK_SCRIPT"
 [[ -f "$SOURCE" ]] || die "$HOOK_SCRIPT is not beside this installer (looked in $SOURCE_DIR)"
 CODEX_SOURCE="$SOURCE_DIR/$CODEX_SCRIPT"
 [[ -f "$CODEX_SOURCE" ]] || die "$CODEX_SCRIPT is not beside this installer (looked in $SOURCE_DIR)"
+MODULE_SOURCE="$SOURCE_DIR/$MODULE_SCRIPT"
+[[ -f "$MODULE_SOURCE" ]] || die "$MODULE_SCRIPT is not beside this installer (looked in $SOURCE_DIR)"
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" ||
   die "not inside a git repository; run this from the repository you want the hook installed in"
 
 DEST="$REPO_ROOT/$DEST_DIR/$HOOK_SCRIPT"
 CODEX_DEST="$REPO_ROOT/$DEST_DIR/$CODEX_SCRIPT"
+MODULE_DEST="$REPO_ROOT/$DEST_DIR/$MODULE_SCRIPT"
 [[ "$SOURCE" != "$DEST" ]] ||
   die "source and destination are the same file; run this from the target repository, not from its own source repository"
 
@@ -184,6 +191,8 @@ if [[ "$CHECK_ONLY" == true ]]; then
     check_failed=true
   report_script_state "codex:   " "$CODEX_SOURCE" "$CODEX_DEST" "$DEST_DIR/$CODEX_SCRIPT" ||
     check_failed=true
+  report_script_state "module:  " "$MODULE_SOURCE" "$MODULE_DEST" "$DEST_DIR/$MODULE_SCRIPT" ||
+    check_failed=true
 
   found="$(wired_events | tr '\n' ' ')"
   missing_events=""
@@ -238,11 +247,20 @@ else
   codex_result="installed"
 fi
 
+if [[ -f "$MODULE_DEST" ]] && cmp -s "$MODULE_SOURCE" "$MODULE_DEST"; then
+  module_result="already current"
+elif [[ -f "$MODULE_DEST" ]]; then
+  module_result="updated"
+else
+  module_result="installed"
+fi
+
 mkdir -p "$REPO_ROOT/$DEST_DIR"
 cp "$SOURCE" "$DEST"
 chmod +x "$DEST"
 cp "$CODEX_SOURCE" "$CODEX_DEST"
 chmod +x "$CODEX_DEST"
+cp "$MODULE_SOURCE" "$MODULE_DEST"
 
 # ---------------------------------------------------------------------
 # Step 2: the wiring
@@ -388,6 +406,7 @@ fi
 echo "repository:  $REPO_ROOT"
 echo "hook script: $script_result at $DEST_DIR/$HOOK_SCRIPT ($(hash_of "$DEST"))"
 echo "codex runner: $codex_result at $DEST_DIR/$CODEX_SCRIPT ($(hash_of "$CODEX_DEST"))"
+echo "hook module: $module_result at $DEST_DIR/$MODULE_SCRIPT ($(hash_of "$MODULE_DEST"))"
 echo "settings:    $settings_result in .claude/settings.json"
 echo "backup:      $backup_result"
 
@@ -408,6 +427,7 @@ jq -r --arg name "$HOOK_SCRIPT" '
 ' "$SETTINGS"
 
 echo
-echo "Commit .claude/settings.json, $DEST_DIR/$HOOK_SCRIPT and $DEST_DIR/$CODEX_SCRIPT"
-echo "to share this with the repo. The Codex runner needs its own entries in"
+echo "Commit .claude/settings.json, $DEST_DIR/$HOOK_SCRIPT, $DEST_DIR/$CODEX_SCRIPT"
+echo "and $DEST_DIR/$MODULE_SCRIPT to share this with the repo."
+echo "The Codex runner needs its own entries in"
 echo ".codex/hooks.json; docs/PORTABLE-HOOKS.md has them."
