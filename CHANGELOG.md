@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [4.7.1] - 2026-09-30
+
+### Fixed
+
+- **Ship's tree-cleanliness gate stops a clean branch...** (`a3679b5`, tadw-d1nf)
+
 ## [4.7.0] - 2026-09-29
 
 ### Added
@@ -2807,7 +2813,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.1...HEAD
+[4.7.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.0...v4.7.1
 [4.7.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.11...v4.7.0
 [4.6.11]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.10...v4.6.11
 [4.6.10]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.9...v4.6.10
