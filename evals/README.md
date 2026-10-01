@@ -39,12 +39,13 @@ because a flat ban on "flake" and "green" failed 14 of 14 runs across three vers
 skill, while those same runs carried the count, the re-run, and the reason every time. A
 grader that fails a complete report measures the vocabulary, not the rule.
 
-**One grader is deliberately looser than its rule.** The skill states a 25-word sentence
-limit; `max_sentence_words` fails only above 35. Measured, the model does not hold 25 on an
-explanation carrying a three-item list, and a check that can never pass stops being run. So
-the grader is a ceiling on runaway sentences, not a restatement of the target: it catches the
-39-word case this suite has produced, and 25 stays the number to write toward. Keep the
-tighter number in the rule and the looser one in the grader.
+**One grader is a ceiling, not a restatement of its rule.** The skill states no word limit. Its
+rule is one statement per sentence, and `max_sentence_words` fails only above 35. The skill
+stated a 25-word limit until commit `14c68d0` removed the number on 2026-09-23. Measured, the
+model did not hold 25 on an explanation carrying a three-item list, and a check that can never
+pass stops being run. So the grader catches runaway sentences, such as the 39-word case this
+suite has produced. Keep the ceiling at 35, because a ceiling set where the model already lands
+measures nothing.
 
 ## What is here
 
@@ -80,6 +81,29 @@ now forbids the label only where a fact it stands for is missing, and the grader
 That is the one legitimate reason to move a bar: the measurement showed the bar was in the
 wrong place. Loosening a grader because a rule is inconvenient is still how a suite stops
 measuring anything.
+
+**`self-report-plainly` no longer fails on sentence length, and the cause is not measured.** On
+2026-08-05, four of five runs broke the 35-word ceiling, at 44, 48, 54, and 64 words. On
+2026-10-01, on `main` at commit `208a25d`, four of five runs passed it:
+
+| Run | Longest sentence | `max_sentence_words` |
+|---|---|---|
+| 1 | 36 words | fail |
+| 2 | 22 words | pass |
+| 3 | 26 words | pass |
+| 4 | 29 words | pass |
+| 5 | 24 words | pass |
+
+Both label checks and all four `require_regex` checks passed 5 of 5 in the same runs. The
+command was
+`python3 evals/run.py --case self-report-plainly --runs 5 --model sonnet --no-baseline`.
+
+Bead `tadw-self-report-sentence-length-zxu` named three possible causes: the prompt asks for one
+paragraph, the cut list sits far from the self-report section, and four facts may not fit. Nobody
+tested any of them, because the failure had stopped before the tests ran. Commit `14c68d0`
+rewrote the skill between the two measurements, and that rewrite is the likely cause. Five runs
+is a small sample: [ADR 0005](../docs/adr/0005-the-evals-are-a-measurement-not-a-gate.md) records
+this grader moving between 22 and 40 words on an unchanged tree.
 
 **Which account answers.** `run.py` builds the environment for each `claude -p` call instead of
 inheriting yours, and drops the five variables in `REDIRECTING_VARS` on the way. So the suite
