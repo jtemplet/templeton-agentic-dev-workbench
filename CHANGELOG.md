@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [4.7.2] - 2026-10-01
+
+### Changed
+
+- **Move the claim, adopt, and refuse decision into...** (`a68eebe`, tadw-huz9)
+- **Move the claim, adopt, and refuse decision into...** (`e8892bc`, tadw-huz9)
+- **Add .beads/issues.jsonl to the gitingore so we can stop shooting ourselves in the foot.** (`d16796d`)
+- **Stop the git hooks from staging the tracker export.** (`344cfad`, tadw-joq3)
+- **Add dev workflow.** (`df27e8f`)
+
+### Fixed
+
+- **Land a bead in ship without staging the ignored...** (`0ffae57`, tadw-o3ar)
+- **Close a session-claimed bead in ship.** (`1ea1005`, tadw-tigd)
+
 ## [4.7.1] - 2026-09-30
 
 ### Fixed
@@ -2813,7 +2828,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.2...HEAD
+[4.7.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.1...v4.7.2
 [4.7.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.0...v4.7.1
 [4.7.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.11...v4.7.0
 [4.6.11]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.10...v4.6.11
