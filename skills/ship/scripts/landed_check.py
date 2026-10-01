@@ -30,14 +30,12 @@ The intersection is the branch's own outstanding work. A file the target changed
 alone is not this branch's business, and a file the branch changed to a value
 the target already holds is done.
 
-`.beads/` IS EXCLUDED, ALWAYS. The ship writes it: Step 4 closes the bead and
-folds the fresh export into the landing commit, so that path differs between the
-branch tip and the target on every ship with a bead, not on some. Without the
-exclusion the Step 5 check fires every time and the documented response is to
-keep the branch and ask a human, which makes the check noise rather than a
-guard. Reproduced on 2026-09-08 shipping tadw-w87: the check printed exactly
-`.beads/issues.jsonl` while the deliverable was byte-identical on both sides.
-That is tadw-0fo. Do not make this exclusion a flag somebody can forget; extra
+`.beads/` IS EXCLUDED, ALWAYS. The tracked files there are `bd`'s own, and `bd`
+rewrites them from any checkout, so a difference under that directory says
+nothing about whether the branch's deliverable landed. Without the exclusion the
+Step 5 check fires on tracker state, and the documented response is to keep the
+branch and ask a human, which makes the check noise rather than a guard. That is
+tadw-0fo. Do not make this exclusion a flag somebody can forget; extra
 exclusions go through `--exclude`.
 
 Exit status: 0 when nothing is outstanding, 1 when something is (the paths go to
@@ -52,8 +50,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-# The ship's own commit writes this on every run that has a bead. See the
-# module docstring; this is tadw-0fo.
+# bd owns the tracked files here. See the module docstring; this is tadw-0fo.
 ALWAYS_EXCLUDED = (".beads/",)
 
 EXIT_NOTHING_OUTSTANDING = 0

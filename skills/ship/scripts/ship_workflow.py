@@ -427,7 +427,6 @@ def move_default_back(
     if holder is None:
         candidate.git(repo, "update-ref", f"refs/heads/{default}", landing.parent, landing.commit)
         return
-    candidate.restore_stale_export(Path(holder), default)
     candidate.git(Path(holder), "reset", "--keep", "--quiet", landing.parent)
 
 
@@ -500,9 +499,7 @@ def follow_origin(repo: Path, default: str) -> None:
 def fast_forward(repo: Path, default: str, local: str, remote: str) -> None:
     if not is_ancestor(repo, local, remote):
         raise ShipStop("git-state", f"{default} and origin/{default} have diverged", NOT_LANDED)
-    restored_export_in = candidate.advance_default_branch(repo, default, local, remote)
-    if restored_export_in is not None:
-        emit([candidate.restored_export_line(restored_export_in)])
+    candidate.advance_default_branch(repo, default, local, remote)
     say(f"fast-forwarded {default} to origin/{default} at {remote[:12]}")
 
 

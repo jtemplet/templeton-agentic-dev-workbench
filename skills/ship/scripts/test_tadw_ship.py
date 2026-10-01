@@ -79,12 +79,10 @@ Stdlib only, no install. Run with:
 
   tadw-lndi criterion                               Pinned by, all through bin/tadw-ship
   ------------------------------------------------------------------------------
-  1. A main checkout dirty only in the export       case_rewritten_export_in_main_still_ships
-     ends SHIP_DONE with the candidate landed
+  1. A main checkout whose ignored export was       case_rewritten_export_in_main_still_ships
+     rewritten ends SHIP_DONE, candidate landed
   2. Any other changed tracked file ends            case_another_changed_file_in_main_stops_with_git_state
      SHIP_BLOCKED git-state, main unchanged
-  3. The output says the export was restored        test_candidate.py: git ignores the export,
-                                                    so no run through the executable restores it
 
   tadw-8tax criterion                               Pinned by, all through bin/tadw-ship
   ------------------------------------------------------------------------------
@@ -993,8 +991,8 @@ def shipped_through_pre_push() -> ShipRun:
     return ship_run(None, True, PASSING_PRE_PUSH)
 
 
-# tadw-lndi: `bd` auto-export rewrites the main checkout's export from any worktree.
-# Git ignores the export, so only the other file the hook edits dirties the checkout.
+# `bd` auto-export rewrites the main checkout's export from any worktree. Git ignores that
+# file, so the rewrite never dirties the checkout; the other file the hook edits does.
 REWRITE_MAIN_EXPORT = "printf 'rewritten by bd\\n' > {root}/main/.beads/issues.jsonl"
 EXPORT_REWRITTEN_IN_MAIN = (("pre-commit", REWRITE_MAIN_EXPORT),)
 EXPORT_AND_SOURCE_DIRTY_IN_MAIN = (
@@ -1272,7 +1270,7 @@ def runner_stop_slugs() -> set[str]:
     assert table, "ship_workflow.py must keep its CANDIDATE_SLUGS table"
     translated = set(re.findall(r"\"[a-z-]+\": \"([a-z-]+)\"", table.group(1)))
     # resolve_rebase_conflict.py reports its own stop, and the workflow passes it through.
-    return literal | translated | {"conflict", "tracker"}
+    return literal | translated | {"conflict"}
 
 
 def case_skill_ends_with_the_runner_machine_line() -> None:

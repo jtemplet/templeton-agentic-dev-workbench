@@ -7,9 +7,9 @@ worktree, so those changes never reach the checked tree. Ship therefore stashes 
 before the first step and restores them after the last, whatever the run's outcome.
 
 ONLY THE CHANGED TRACKED FILES MOVE. An untracked file blocks nothing, so it stays put.
-The tracker export is left out as well: `bd` rewrites it from any worktree, the landing
-already restores it (candidate.restore_stale_export), and popping a stale copy over the
-landed one would conflict.
+The tracker export is left out as well: ship regenerates it after the landing, and popping
+a stale copy would overwrite the fresh one. A checkout that tracks a changed export
+therefore stops the landing.
 
 A RESTORE THAT CONFLICTS KEEPS THE STASH. The landing has already happened by then, so the
 run still ends as it would have, with a warning naming the stash commit to apply by hand.
@@ -56,23 +56,25 @@ class Stash:
     paths: tuple[str, ...]
 
 
-@contextlib.contextmanager
 def default_checkout_set_aside(
     holder: str | None, default_branch: str, report: Report
-) -> Iterator[Stash | None]:
+) -> contextlib.AbstractContextManager[Stash | None]:
     """Stash the holder's changed tracked files, run the body, and restore them on the way out.
 
     Raises `candidate.CandidateStop` before the body runs when the stash cannot be made,
     so nothing has moved yet.
     """
     stash = set_aside(holder, default_branch)
-    if stash is not None:
-        report(f"stashed {len(stash.paths)} changed file(s) in {stash.holder} for the ship")
+    return contextlib.nullcontext() if stash is None else restored_on_exit(stash, report)
+
+
+@contextlib.contextmanager
+def restored_on_exit(stash: Stash, report: Report) -> Iterator[Stash]:
+    report(f"stashed {len(stash.paths)} changed file(s) in {stash.holder} for the ship")
     try:
         yield stash
     finally:
-        if stash is not None:
-            report(restore(stash))
+        report(restore(stash))
 
 
 def set_aside(holder: str | None, default_branch: str) -> Stash | None:
@@ -81,8 +83,10 @@ def set_aside(holder: str | None, default_branch: str) -> Stash | None:
         return None
     directory = Path(holder)
     paths = movable_changes(directory)
-    if not paths:
-        return None
+    return push_stash(directory, default_branch, paths) if paths else None
+
+
+def push_stash(directory: Path, default_branch: str, paths: list[str]) -> Stash:
     message = f"tadw-ship: {default_branch} changes held during the ship"
     candidate.git(directory, "stash", "push", "--quiet", "-m", message, "--", *paths)
     return Stash(directory, candidate.resolve_commit(directory, STASH_REFERENCE), tuple(paths))

@@ -20,10 +20,7 @@ were:
   5. After the gate passes, close the bead. The gated commit is the landing
      commit: git ignores the tracker export, so a close changes no tracked file.
   6. Advance the default branch only while it still names the candidate's parent,
-     and only through a checkout that holds no unrelated tracked changes. A
-     checkout whose only change is the tracker export has that one file restored
-     first: `bd` auto-export rewrites it from any worktree, the candidate carries
-     a fresher copy, and `bd export` regenerates it from the database.
+     and only through a checkout that holds no changed tracked files.
 
 Each step is recorded before and after it runs through the `record` the caller
 passes (ship_progress.py), so an interrupted landing can be resumed (tadw-dur4).
@@ -121,23 +118,15 @@ class Landing:
     commit: str
     checked_commit: str
     local_commits: tuple[str, ...]
-    restored_export_in: Path | None = None
 
     def report_lines(self) -> list[str]:
-        lines = [f"tadw_ship: checked candidate {self.checked_commit[:12]} on {self.parent[:12]}"]
-        lines += [
-            f"tadw_ship: local commit in the checked tree: {sha[:12]}" for sha in self.local_commits
+        return [
+            f"tadw_ship: checked candidate {self.checked_commit[:12]} on {self.parent[:12]}",
+            *(
+                f"tadw_ship: local commit in the checked tree: {sha[:12]}"
+                for sha in self.local_commits
+            ),
         ]
-        if self.restored_export_in is not None:
-            lines.append(restored_export_line(self.restored_export_in))
-        return lines
-
-
-def restored_export_line(holder: Path) -> str:
-    return (
-        f"tadw_ship: restored {EXPORT_PATH} in {holder} before the fast-forward; "
-        "bd export regenerates it"
-    )
 
 
 def land_candidate(
@@ -169,7 +158,7 @@ def land_candidate(
 
         record.mark(ship_progress.LANDING, landing_commit=commit)
         branch_advance_started = True
-        restored_export_in = advance_default_branch(repo, plan.default_branch, parent, commit)
+        advance_default_branch(repo, plan.default_branch, parent, commit)
         branch_advanced = True
         record.mark(ship_progress.LANDED)
     # A user interrupt must reopen a bead before the temporary worktree is removed.
@@ -189,7 +178,7 @@ def land_candidate(
     finally:
         preserve_audit_log(worktree, repo)
         remove_worktree(repo, worktree)
-    return Landing(parent, commit, commit, local_commits, restored_export_in)
+    return Landing(parent, commit, commit, local_commits)
 
 
 def later_local_commits(repo: Path, default_branch: str, checked_commit: str) -> list[str]:
@@ -270,23 +259,17 @@ def require_clean_tree(worktree: Path, detail: str) -> None:
         raise CandidateStop(stop, detail)
 
 
-def advance_default_branch(
-    repo: Path, default_branch: str, parent: str, commit: str
-) -> Path | None:
-    """Fast-forward only while the branch still names the candidate's parent.
-
-    Returns the checkout whose tracker export was restored first, or None.
-    """
+def advance_default_branch(repo: Path, default_branch: str, parent: str, commit: str) -> None:
+    """Fast-forward only while the branch still names the candidate's parent."""
     reference = f"refs/heads/{default_branch}"
     if resolve_commit(repo, reference) != parent:
         raise CandidateStop("base-moved", f"{default_branch} moved after the candidate was built")
     holder = resolve_ground.worktree_holding(resolve_ground.read_worktrees(repo), default_branch)
     if holder is None:
         git(repo, "update-ref", reference, commit, parent)
-        return None
-    restored = restore_stale_export(Path(holder), default_branch)
+        return
+    require_clean_holder(Path(holder), default_branch)
     git(Path(holder), "merge", "--ff-only", "--quiet", commit)
-    return Path(holder) if restored else None
 
 
 def default_branch_contains(repo: Path, default_branch: str, commit: str) -> bool:
@@ -304,18 +287,17 @@ def default_branch_contains(repo: Path, default_branch: str, commit: str) -> boo
     return result.returncode == 0
 
 
-def restore_stale_export(holder: Path, default_branch: str) -> bool:
-    """Restore the export when it is the holder's only changed tracked file; stop on anything else."""
+def require_clean_holder(holder: Path, default_branch: str) -> None:
+    """Stop on any changed tracked file in the checkout that holds the default branch.
+
+    A status git could not read stops as well: it is not a clean tree.
+    """
     changed = resolve_ground.read_status(holder, untracked=False)
-    if changed == []:
-        return False
-    if changed == [EXPORT_PATH]:
-        git(holder, "checkout", "HEAD", "--", EXPORT_PATH)  # HEAD also resets a staged copy
-        return True
-    raise CandidateStop(
-        "default-checkout-dirty",
-        f"{holder} holds {default_branch} with changed tracked files; nothing was moved",
-    )
+    if changed is None or changed:
+        raise CandidateStop(
+            "default-checkout-dirty",
+            f"{holder} holds {default_branch} with changed tracked files; nothing was moved",
+        )
 
 
 def preserve_audit_log(worktree: Path, repo: Path) -> None:

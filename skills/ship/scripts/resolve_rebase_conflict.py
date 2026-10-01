@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
-"""Resolve the two rebase conflicts that need no judgment, and refuse every other.
+"""Resolve the one rebase conflict that needs no judgment, and refuse every other.
 
-Step 2 of the ship skill rebases a feature branch onto the default branch. Two
-paths conflict there for reasons that have nothing to do with the code, and both
-have one correct resolution that a person adds nothing to:
+Step 2 of the ship skill rebases a feature branch onto the default branch. One
+path conflicts there for a reason that has nothing to do with the code, and it
+has one correct resolution that a person adds nothing to:
 
-  `.beads/issues.jsonl`  A passive export of the tracker database. The database
-                         is the source of truth, so neither side is worth
-                         reading: regenerate the file with `bd export`.
-  `CHANGELOG.md`         An append-only section conflicts whenever the default
-                         branch gains an entry first. Both entries are correct.
-                         Keep both, with the default branch's side first so that
-                         two runs of this script produce the same bytes.
+  `CHANGELOG.md`  An append-only section conflicts whenever the default branch
+                  gains an entry first. Both entries are correct. Keep both,
+                  with the default branch's side first so that two runs of this
+                  script produce the same bytes.
 
 ANY OTHER CONFLICTED PATH RESOLVES NOTHING AT ALL. A source conflict belongs to
-whoever wrote the branch. When the conflicted set holds even one path outside
-the two above, this script touches no file, names every conflicted path, and
+whoever wrote the branch. When the conflicted set holds even one path other than
+`CHANGELOG.md`, this script touches no file, names every conflicted path, and
 leaves the rebase exactly as it found it so the caller can abort cleanly.
 
 THE VERIFICATIONS THE PROSE USED TO CARRY ARE NOW STRUCTURAL.
@@ -25,8 +22,6 @@ THE VERIFICATIONS THE PROSE USED TO CARRY ARE NOW STRUCTURAL.
   * "Do not rewrite the marker check as `grep -c`" was a real trap: `grep -c`
     exits 1 when it counts zero, so the cleanest possible file stopped the run.
     Counting in Python has no exit code to misread.
-  * The tracker export is parsed as JSON line by line before it is staged,
-    because a truncated export is a file that looks fine and imports nothing.
 
 WHICH SIDE IS THE DEFAULT BRANCH'S. During `git rebase <upstream>`, git replays
 the branch's commits onto the upstream, so "ours" is the upstream and "theirs"
@@ -35,9 +30,8 @@ branch's, which is the side that goes first. This script is for that rebase and
 says so; a `git merge` conflict has the two sides the other way round.
 
 Exit status: 0 when the conflicted set is now empty (or was empty to begin
-with), 1 when the caller must stop (`stop` names the skill's slug: `conflict`
-for a path this script will not touch, `tracker` for an export that could not be
-regenerated or verified), 2 on operator error.
+with), 1 when the caller must stop (`stop` names the skill's slug, `conflict`),
+2 on operator error.
 """
 
 from __future__ import annotations
@@ -48,9 +42,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-TRACKER_EXPORT = ".beads/issues.jsonl"
 CHANGELOG = "CHANGELOG.md"
-RESOLVABLE = (TRACKER_EXPORT, CHANGELOG)
 
 OURS_MARKER = "<<<<<<<"
 SPLIT_MARKER = "======="
@@ -82,7 +74,7 @@ def resolve_conflicts(repo_root: Path) -> dict:
         outcome["detail"] = "no conflicted paths"
         return outcome
 
-    refused = [path for path in conflicted if path not in RESOLVABLE]
+    refused = [path for path in conflicted if path != CHANGELOG]
     if refused:
         outcome["stop"] = "conflict"
         outcome["detail"] = (
@@ -91,14 +83,12 @@ def resolve_conflicts(repo_root: Path) -> dict:
         )
         return outcome
 
-    for path in conflicted:
-        resolver = resolve_tracker_export if path == TRACKER_EXPORT else resolve_changelog
-        failure = resolver(repo_root, repo_root / path)
-        if failure:
-            outcome["stop"], outcome["detail"] = failure
-            return outcome
-        run_git(repo_root, "add", "--", path)
-        outcome["resolved"].append(path)
+    failure = resolve_changelog(repo_root / CHANGELOG)
+    if failure:
+        outcome["stop"], outcome["detail"] = failure
+        return outcome
+    run_git(repo_root, "add", "--", CHANGELOG)
+    outcome["resolved"].append(CHANGELOG)
 
     remaining = conflicted_paths(repo_root)
     if remaining:
@@ -107,36 +97,7 @@ def resolve_conflicts(repo_root: Path) -> dict:
     return outcome
 
 
-def resolve_tracker_export(repo_root: Path, path: Path) -> tuple[str, str] | None:
-    """Overwrite the conflicted export from the database, then prove it imports.
-
-    No `git checkout --ours` first: `bd export` truncates and rewrites the whole
-    file, so picking a side only to discard it is a step with no effect.
-    """
-    exported = run_bd(repo_root, "export", "-o", TRACKER_EXPORT)
-    if exported is not None:
-        return ("tracker", f"bd export failed: {exported}")
-
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as error:
-        return ("tracker", f"the export is unreadable after bd export: {error}")
-
-    markers = marker_lines(text)
-    if markers:
-        return ("tracker", f"conflict markers survived bd export at lines {markers}")
-
-    for number, line in enumerate(text.splitlines(), start=1):
-        if not line.strip():
-            continue
-        try:
-            json.loads(line)
-        except ValueError as error:
-            return ("tracker", f"{TRACKER_EXPORT} line {number} is not JSON: {error}")
-    return None
-
-
-def resolve_changelog(repo_root: Path, path: Path) -> tuple[str, str] | None:
+def resolve_changelog(path: Path) -> tuple[str, str] | None:
     """Keep both sides of every conflict hunk, the default branch's side first."""
     try:
         text = path.read_text(encoding="utf-8")
@@ -241,30 +202,9 @@ def run_git(repo_root: Path, *arguments: str) -> str:
     return completed.stdout
 
 
-def run_bd(repo_root: Path, *arguments: str) -> str | None:
-    """None when `bd` succeeded, otherwise the reason it did not.
-
-    A missing `bd` is reported rather than raised, because the caller's answer to
-    both is the same: stop with `tracker` and let a person look.
-    """
-    try:
-        completed = subprocess.run(
-            ["bd", *arguments],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except FileNotFoundError:
-        return "bd is not on PATH"
-    if completed.returncode != 0:
-        return completed.stderr.strip() or f"exit {completed.returncode}"
-    return None
-
-
 def parse_arguments(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Resolve a rebase's tracker-export and changelog conflicts, as JSON.",
+        description="Resolve a rebase's changelog conflict, as JSON.",
     )
     parser.add_argument(
         "--repo-root",

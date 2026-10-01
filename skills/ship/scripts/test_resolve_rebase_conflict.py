@@ -5,11 +5,7 @@ Stdlib only, no install, mirroring test_check_worktree_occupants.py. Run with:
     python3 skills/ship/scripts/test_resolve_rebase_conflict.py
 
 Every conflict here is produced by a real `git rebase` that really conflicts, so
-the markers under test are git's own rather than a fixture's idea of them. The
-tracker cases put a stub `bd` first on PATH instead of a real beads database: the
-contract being tested is that the script runs `bd export -o .beads/issues.jsonl`
-and then refuses whatever comes back unless it is marker-free JSON, and a stub
-can fail in the exact ways a real export fails.
+the markers under test are git's own rather than a fixture's idea of them.
 
 RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds.
 
@@ -24,16 +20,14 @@ RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds
   Both changelog sides survive, ours first        case_changelog_keeps_both_sides
   Every hunk in the file, not just the first      case_changelog_resolves_two_hunks
   A diff3 base section is dropped                 case_diff3_base_section_is_dropped
-  The export is regenerated, not chosen           case_tracker_export_is_regenerated
-  A failed export stops with `tracker`            case_failed_export_stops_with_tracker
-  A missing bd stops with `tracker`               case_missing_bd_stops_with_tracker
-  An export that is not JSON stops                case_invalid_json_export_stops
-  Markers surviving the export stop               case_markered_export_stops
-  Both paths at once are both resolved            case_both_paths_resolve_together
   An unterminated hunk loses no content           case_unterminated_hunk_stops
   Markers are counted, never grepped              case_changelog_keeps_both_sides
   Operator error is 2, never 1                    case_missing_repo_exits_2
   Stdlib only                                     case_no_third_party_imports
+
+  tadw-zgj8 criterion 4                           Pinned by
+  ------------------------------------------------------------------------------
+  A conflict on CHANGELOG.md alone resolves       case_changelog_keeps_both_sides
 """
 
 from __future__ import annotations
@@ -127,23 +121,12 @@ def conflicting_repo(
     return repo
 
 
-def stub_bd(directory: Path, body: str) -> dict:
-    """An environment whose PATH finds a `bd` that does exactly what `body` says."""
-    bin_directory = directory / "stub-bin"
-    bin_directory.mkdir(exist_ok=True)
-    script = bin_directory / "bd"
-    script.write_text("#!/bin/sh\n" + body, encoding="utf-8")
-    script.chmod(0o755)
-    return dict(os.environ, PATH=f"{bin_directory}{os.pathsep}{os.environ['PATH']}")
-
-
-def resolve(repo: Path, environment: dict | None = None) -> tuple[int, dict]:
+def resolve(repo: Path) -> tuple[int, dict]:
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--repo-root", str(repo)],
         capture_output=True,
         text=True,
         check=False,
-        env=environment,
     )
     if result.returncode == 2:
         return result.returncode, {}
@@ -280,88 +263,6 @@ def case_unterminated_hunk_stops() -> None:
         assert "SECOND HUNK" in read(repo, "CHANGELOG.md"), "content was written away"
 
 
-def tracker_sides() -> dict[str, tuple[str, str, str]]:
-    return {
-        ".beads/issues.jsonl": (
-            '{"id":"base"}\n',
-            '{"id":"main"}\n',
-            '{"id":"branch"}\n',
-        )
-    }
-
-
-def case_tracker_export_is_regenerated() -> None:
-    with tempfile.TemporaryDirectory() as directory:
-        repo = conflicting_repo(Path(directory), tracker_sides())
-        environment = stub_bd(Path(directory), 'printf \'{"id":"from-the-database"}\\n\' > "$3"\n')
-        code, outcome = resolve(repo, environment)
-        assert code == 0, f"expected exit 0, got {code}: {outcome}"
-        assert outcome["resolved"] == [".beads/issues.jsonl"], outcome
-        exported = read(repo, ".beads/issues.jsonl")
-        assert exported.strip() == '{"id":"from-the-database"}', exported
-        assert "main" not in exported and "branch" not in exported, exported
-        assert staged_paths(repo) >= {".beads/issues.jsonl"}, staged_paths(repo)
-        assert unmerged_paths(repo) == set(), unmerged_paths(repo)
-
-
-def case_failed_export_stops_with_tracker() -> None:
-    with tempfile.TemporaryDirectory() as directory:
-        repo = conflicting_repo(Path(directory), tracker_sides())
-        environment = stub_bd(Path(directory), 'echo "database is locked" >&2\nexit 1\n')
-        code, outcome = resolve(repo, environment)
-        assert code == 1, f"expected exit 1, got {code}: {outcome}"
-        assert outcome["stop"] == "tracker", outcome
-        assert "database is locked" in outcome["detail"], outcome["detail"]
-
-
-def case_missing_bd_stops_with_tracker() -> None:
-    with tempfile.TemporaryDirectory() as directory:
-        repo = conflicting_repo(Path(directory), tracker_sides())
-        empty = Path(directory) / "empty-bin"
-        empty.mkdir()
-        git_directory = subprocess.run(
-            ["sh", "-c", "command -v git"], capture_output=True, text=True, check=True,
-        ).stdout.strip()
-        (empty / "git").symlink_to(git_directory)
-        environment = dict(os.environ, PATH=str(empty))
-        code, outcome = resolve(repo, environment)
-        assert code == 1, f"expected exit 1, got {code}: {outcome}"
-        assert outcome["stop"] == "tracker", outcome
-        assert "bd is not on PATH" in outcome["detail"], outcome["detail"]
-
-
-def case_invalid_json_export_stops() -> None:
-    with tempfile.TemporaryDirectory() as directory:
-        repo = conflicting_repo(Path(directory), tracker_sides())
-        environment = stub_bd(Path(directory), 'printf \'{"id":"tru\\n\' > "$3"\n')
-        code, outcome = resolve(repo, environment)
-        assert code == 1, f"expected exit 1, got {code}: {outcome}"
-        assert outcome["stop"] == "tracker", outcome
-        assert "is not JSON" in outcome["detail"], outcome["detail"]
-
-
-def case_markered_export_stops() -> None:
-    with tempfile.TemporaryDirectory() as directory:
-        repo = conflicting_repo(Path(directory), tracker_sides())
-        environment = stub_bd(Path(directory), 'printf \'<<<<<<< HEAD\\n\' > "$3"\n')
-        code, outcome = resolve(repo, environment)
-        assert code == 1, f"expected exit 1, got {code}: {outcome}"
-        assert outcome["stop"] == "tracker", outcome
-        assert "markers survived" in outcome["detail"], outcome["detail"]
-
-
-def case_both_paths_resolve_together() -> None:
-    with tempfile.TemporaryDirectory() as directory:
-        sides = dict(tracker_sides())
-        sides["CHANGELOG.md"] = (BASE_CHANGELOG, MAIN_CHANGELOG, BRANCH_CHANGELOG)
-        repo = conflicting_repo(Path(directory), sides)
-        environment = stub_bd(Path(directory), 'printf \'{"id":"fresh"}\\n\' > "$3"\n')
-        code, outcome = resolve(repo, environment)
-        assert code == 0, f"expected exit 0, got {code}: {outcome}"
-        assert set(outcome["resolved"]) == {".beads/issues.jsonl", "CHANGELOG.md"}, outcome
-        assert unmerged_paths(repo) == set(), unmerged_paths(repo)
-
-
 def case_missing_repo_exits_2() -> None:
     with tempfile.TemporaryDirectory() as directory:
         outside = Path(directory) / "plain"
@@ -389,12 +290,6 @@ for name, fn in [
     ("a diff3 base section is dropped", case_diff3_base_section_is_dropped),
     ("a source conflict resolves nothing", case_source_conflict_resolves_nothing),
     ("one foreign path leaves the changelog conflicted", case_one_foreign_path_spares_the_changelog),
-    ("the tracker export is regenerated, not chosen", case_tracker_export_is_regenerated),
-    ("a failed bd export stops with tracker", case_failed_export_stops_with_tracker),
-    ("a missing bd stops with tracker", case_missing_bd_stops_with_tracker),
-    ("an export that is not JSON stops with tracker", case_invalid_json_export_stops),
-    ("markers surviving the export stop with tracker", case_markered_export_stops),
-    ("both resolvable paths resolve in one run", case_both_paths_resolve_together),
     ("an unterminated hunk stops and writes nothing", case_unterminated_hunk_stops),
     ("a directory that is not a repository exits 2", case_missing_repo_exits_2),
     ("neither file imports outside the standard library", case_no_third_party_imports),

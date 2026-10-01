@@ -71,9 +71,7 @@ EXIT_OPERATOR_ERROR = 2
 IN_PROGRESS_PATHS = ("rebase-merge", "rebase-apply", "MERGE_HEAD", "CHERRY_PICK_HEAD")
 
 # The audit log stays untracked (ADR 0010); a tracked copy is a stop with a fix, not a dirty path.
-# bd rewrites the export on every command, so a change to it is not this branch's own work.
 AUDIT_LOG_PATH = ".beads/interactions.jsonl"
-BD_MANAGED_PATHS = frozenset([".beads/issues.jsonl"])
 
 # A single branch-name segment that is a git convention rather than a bead id.
 # Only an exact match is dropped: `fix-the-retry-budget` is a slug, not a type.
@@ -158,18 +156,9 @@ def first_stop_condition(ground: dict) -> str | None:
         return "audit-log-tracked"
     if ground["status_unreadable"]:
         return "status-unreadable"
-    if blocking_paths(ground["dirty_tracked"]):
+    if ground["dirty_tracked"]:
         return "dirty-tracked"
     return None
-
-
-def blocking_paths(changed: list[str]) -> list[str]:
-    """The changed tracked paths that make a checkout unfit, bd's own files excluded.
-
-    bd rewrites these on every command, including one a concurrent session runs
-    against an unrelated bead, so a change to them says nothing about this branch.
-    """
-    return [path for path in changed if path not in BD_MANAGED_PATHS]
 
 
 def mutation_guard(directory: Path) -> str | None:
