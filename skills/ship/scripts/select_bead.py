@@ -55,6 +55,7 @@ class Bead:
     title: str
     type: str
     status: str
+    assignee: str | None = None
 
 
 @dataclass(frozen=True)
@@ -158,7 +159,13 @@ def parse_show(candidate: str, completed: subprocess.CompletedProcess) -> Bead |
     if record is None:
         return None
     try:
-        return Bead(record["id"], record["title"], record["issue_type"], record["status"])
+        return Bead(
+            record["id"],
+            record["title"],
+            record["issue_type"],
+            record["status"],
+            record.get("assignee") or None,
+        )
     except (KeyError, TypeError) as error:
         raise TrackerFailed(f"bd show {candidate} is missing a field: {error}") from error
 

@@ -647,7 +647,13 @@ def publish(repo: Path, ground: dict, bead: select_bead.Bead | None, commit: str
 
 def close_bead(directory: Path, bead: select_bead.Bead) -> None:
     completed = run_bd(
-        directory, "close", bead.id, "--reason", f"shipped: {bead.title}", "--suggest-next"
+        directory,
+        "close",
+        bead.id,
+        "--reason",
+        f"shipped: {bead.title}",
+        "--suggest-next",
+        *as_assignee(bead),
     )
     if completed is None or completed.returncode != 0:
         raise candidate.CandidateStop(
@@ -657,12 +663,17 @@ def close_bead(directory: Path, bead: select_bead.Bead) -> None:
 
 
 def reopen_bead(directory: Path, bead: select_bead.Bead) -> None:
-    completed = run_bd(directory, "reopen", bead.id)
+    completed = run_bd(directory, "reopen", bead.id, *as_assignee(bead))
     if completed is None or completed.returncode != 0:
         raise candidate.CandidateStop(
             "export", f"bd reopen {bead.id} failed: {bd_failure(completed)}"
         )
     emit(f"tadw_ship: {line}" for line in completed.stdout.splitlines() if line.strip())
+
+
+def as_assignee(bead: select_bead.Bead) -> tuple[str, ...]:
+    """`bd` refuses a close by anyone but the assignee, and `/build` claims as a session actor."""
+    return () if bead.assignee is None else ("--actor", bead.assignee)
 
 
 def push(repo: Path, ground: dict, commit: str) -> None:

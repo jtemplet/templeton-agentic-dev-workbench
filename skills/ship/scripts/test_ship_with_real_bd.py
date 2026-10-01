@@ -25,6 +25,7 @@ SHIP = REPO / "bin" / "tadw-ship"
 EXPORT = ".beads/issues.jsonl"
 BEAD_ID = "shiptest-1"
 BRANCH = f"feat/{BEAD_ID}"
+SESSION_ACTOR = "Ship integration test (session abc)"
 
 
 def isolated_environment(home: Path) -> dict[str, str]:
@@ -83,7 +84,7 @@ def git(directory: Path, *arguments: str, env: dict[str, str]) -> subprocess.Com
 
 
 def make_repository(main: Path, worktree: Path, env: dict[str, str]) -> None:
-    """Create an open bead on main and a feature commit in its linked worktree.
+    """Create a bead on main, claimed by a session, and a feature commit in its linked worktree.
 
     Git ignores the tracker export, and the main checkout holds one on disk.
     """
@@ -119,6 +120,8 @@ def make_repository(main: Path, worktree: Path, env: dict[str, str]) -> None:
         "A scratch bead for the real-bd ship test.",
         env=env,
     )
+    # `/build` claims a bead under a session actor, and `bd` refuses a close by anyone else.
+    checked(main, "bd", "update", BEAD_ID, "--claim", "--actor", SESSION_ACTOR, env=env)
     checked(main, "bd", "export", "-o", EXPORT, env=env)
 
     with (main / ".gitignore").open("a", encoding="utf-8") as ignored:

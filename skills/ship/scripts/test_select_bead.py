@@ -29,6 +29,8 @@ RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds
   bd's missing database means no tracker            case_missing_database_is_no_tracker
   Unparsable output is a tracker failure            case_unparsable_output_is_a_failure
   A record missing a field is a tracker failure     case_record_missing_a_field_is_a_failure
+  The assignee is read, and an empty one is none    case_assignee_is_read_from_the_record,
+  (tadw-tigd: ship closes the bead as its assignee) case_empty_assignee_is_no_assignee
   The command line prints the choice                case_command_line_prints_the_choice
 """
 
@@ -227,6 +229,21 @@ def case_record_missing_a_field_is_a_failure():
     raise AssertionError("a record missing a field was not reported as TrackerFailed")
 
 
+def shown(assignee) -> str:
+    record = {"id": "tadw-a7r", "title": "Resolve", "issue_type": "feature", "status": "open"}
+    return json.dumps([{**record, "assignee": assignee}])
+
+
+def case_assignee_is_read_from_the_record():
+    bead = select_bead.parse_show("tadw-a7r", completed(stdout=shown("t (session abc)"), code=0))
+    assert bead.assignee == "t (session abc)", bead
+
+
+def case_empty_assignee_is_no_assignee():
+    bead = select_bead.parse_show("tadw-a7r", completed(stdout=shown(""), code=0))
+    assert bead.assignee is None, bead
+
+
 def case_command_line_prints_the_choice():
     record = [{"id": "tadw-a7r", "title": "Resolve", "issue_type": "feature", "status": "open"}]
     with tempfile.TemporaryDirectory() as directory:
@@ -269,6 +286,8 @@ for name, fn in [
     ("bd's missing database means no tracker", case_missing_database_is_no_tracker),
     ("unparsable bd output is a tracker failure", case_unparsable_output_is_a_failure),
     ("a bd record missing a field is a tracker failure", case_record_missing_a_field_is_a_failure),
+    ("the assignee is read from the record", case_assignee_is_read_from_the_record),
+    ("an empty assignee is no assignee", case_empty_assignee_is_no_assignee),
     ("the command line prints the chosen bead", case_command_line_prints_the_choice),
 ]:
     check(name, fn)

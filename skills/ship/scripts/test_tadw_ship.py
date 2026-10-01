@@ -117,6 +117,13 @@ Stdlib only, no install. Run with:
 
   A ship with no bead runs no export, pinned by case_bead_free_ship_runs_no_export.
 
+  tadw-tigd criterion                               Pinned by, all through bin/tadw-ship
+  ------------------------------------------------------------------------------
+  1. A bead claimed under a session actor ships     case_session_claimed_bead_ships
+  2. A default branch that moves after the close    case_session_claimed_bead_reopens_when_main_moves,
+     reopens a session-claimed bead                 case_session_claimed_bead_reopens_as_its_assignee
+  3. A bead with no assignee closes with no actor   case_unassigned_bead_closes_with_no_actor
+
   Criteria 2, 4, and 5 are pinned in test_candidate.py, and 6 in test_ship_recovery.py.
 """
 
@@ -636,18 +643,32 @@ def case_run_gate_runs_the_override() -> None:
 
 BEAD = "tadw-e2e"
 BRANCH = f"feature/{BEAD}/add-thing"
+ASSIGNEE = "t (session abc)"
 # A tracker holding one bead, whose status lives in a file beside the script.
+# With the `assigned` flag file, ASSIGNEE holds the bead, and a close by anyone else is
+# refused, as the real `bd` refuses it.
 FAKE_BD = """#!/bin/sh
 status="$(dirname "$0")/status"
 root="$(cd "$(dirname "$0")/.." && pwd)"
+assignee=null
+if [ -f "$(dirname "$0")/assigned" ]; then assignee='"ASSIGNEE"'; fi
+actor=""; previous=""
+for argument in "$@"; do
+  if [ "$previous" = "--actor" ]; then actor="$argument"; fi
+  previous="$argument"
+done
 case "$1" in
   show)
     if [ "$2" = "BEAD" ]; then
-      printf '[{"id":"BEAD","title":"Add the thing","issue_type":"feature","status":"%s"}]' "$(cat "$status")"
+      printf '[{"id":"BEAD","title":"Add the thing","issue_type":"feature","status":"%s","assignee":%s}]' "$(cat "$status")" "$assignee"
     else
       printf '{"error":"no issue found"}'
     fi ;;
   close)
+    echo "$*" >> "$(dirname "$0")/closes.log"
+    if [ "$assignee" != null ] && [ "\"$actor\"" != "$assignee" ]; then
+      echo "cannot close BEAD: assignee is $assignee, actor is \"$actor\"" >&2; exit 1
+    fi
     echo closed > "$status"
     printf '{"id":"BEAD","status":"%s"}\\n' "$(cat "$status")" > "$root/main/.beads/issues.jsonl"
     if [ -f "$(dirname "$0")/move-main" ]; then
@@ -657,6 +678,7 @@ case "$1" in
     fi
     ;;
   reopen)
+    echo "$*" >> "$(dirname "$0")/reopens.log"
     echo open > "$status"
     printf '{"id":"BEAD","status":"%s"}\\n' "$(cat "$status")" > "$root/main/.beads/issues.jsonl"
     ;;
@@ -670,7 +692,7 @@ case "$1" in
     ;;
   ready) printf '[]' ;;
 esac
-""".replace("BEAD", BEAD)
+""".replace("BEAD", BEAD).replace("ASSIGNEE", ASSIGNEE)
 
 
 class ShipRun(NamedTuple):
@@ -686,6 +708,8 @@ class ShipRun(NamedTuple):
     branch_deleted: bool
     pushes: str = ""
     pre_commit_calls: str = ""
+    bd_closes: str = ""
+    bd_reopens: str = ""
 
     def last_line(self) -> str:
         return self.result.stdout.splitlines()[-1]
@@ -779,7 +803,8 @@ def ship_run(
     hooks: tuple[tuple[str, str], ...] = (),
     bd_flags: tuple[str, ...] = (),
 ) -> ShipRun:
-    """Each name in `bd_flags` is a file the fake `bd` reads: `move-main` or `export-fails`."""
+    """Each name in `bd_flags` is a file the fake `bd` reads: `move-main`, `export-fails`,
+    or `assigned`."""
     with tempfile.TemporaryDirectory() as directory:
         repository = ShipRepository(Path(directory).resolve())
         for flag in bd_flags:
@@ -801,6 +826,8 @@ def ship_run(
             branch_deleted=not repository.git("branch", "--list", BRANCH),
             pushes=read_if_present(Path(directory) / "pushes.log"),
             pre_commit_calls=read_if_present(Path(directory) / "pre-commit.log"),
+            bd_closes=read_if_present(repository.shims / "closes.log"),
+            bd_reopens=read_if_present(repository.shims / "reopens.log"),
         )
 
 
@@ -903,6 +930,27 @@ def case_default_branch_moves_after_close_reopens_the_bead() -> None:
 
 def shipped_with_a_failing_export() -> ShipRun:
     return ship_run("true", True, bd_flags=("export-fails",))
+
+
+def case_session_claimed_bead_ships() -> None:
+    run = ship_run("true", True, bd_flags=("assigned",))
+    assert re.fullmatch(r"SHIP_DONE [0-9a-f]{40}", run.last_line()), run.result.stderr
+
+
+def case_session_claimed_bead_reopens_when_main_moves() -> None:
+    run = ship_run("true", True, bd_flags=("assigned", "move-main"))
+    assert run.last_line() == "SHIP_BLOCKED git-state", run.result.stderr
+    assert run.bead_status == "open", run.bead_status
+
+
+def case_session_claimed_bead_reopens_as_its_assignee() -> None:
+    run = ship_run("true", True, bd_flags=("assigned", "move-main"))
+    assert run.bd_reopens.strip() == f"reopen {BEAD} --actor {ASSIGNEE}", run.bd_reopens
+
+
+def case_unassigned_bead_closes_with_no_actor() -> None:
+    closes = shipped_from_worktree().bd_closes
+    assert closes.startswith(f"close {BEAD} ") and "--actor" not in closes, closes
 
 
 BEAD_FREE_BRANCH = "chore/tidy-up"
@@ -1331,6 +1379,12 @@ for name, fn in [
      case_failing_gate_leaves_the_default_branch_unchanged),
     ("a failing gate leaves the bead open", case_failing_gate_leaves_the_bead_open),
     ("a moved default branch reopens the bead", case_default_branch_moves_after_close_reopens_the_bead),
+    ("a bead claimed under a session actor ships", case_session_claimed_bead_ships),
+    ("a session-claimed bead reopens when the default branch moves",
+     case_session_claimed_bead_reopens_when_main_moves),
+    ("a session-claimed bead reopens as its assignee",
+     case_session_claimed_bead_reopens_as_its_assignee),
+    ("a bead with no assignee closes with no actor", case_unassigned_bead_closes_with_no_actor),
     ("a ship with no bead runs no export", case_bead_free_ship_runs_no_export),
     ("a failed export after the close still ships", case_failed_export_still_ships),
     ("a failed export after the close warns", case_failed_export_warns),
