@@ -63,3 +63,4 @@ evals/results-*.json
 *.db
 .beads-credential-key
 .beads/proxieddb/
+.beads/issues.jsonl
