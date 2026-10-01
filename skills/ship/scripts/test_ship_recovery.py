@@ -5,7 +5,7 @@ and the recovery paths through bin/tadw-ship.
 Stdlib only, no install. Run with:
     python3 skills/ship/scripts/test_ship_recovery.py
 
-An interruption is a real SIGKILL: a fake `bd` or a git hook kills the running
+An interruption is a real SIGKILL: a git shim or a git hook kills the running
 tadw-ship process at the named point, and a second run resumes from the record.
 
   tadw-dur4 criterion                               Pinned by
@@ -38,6 +38,11 @@ tadw-ship process at the named point, and a second run resumes from the record.
      exits SHIP_DONE <default tip>, no gate, no     case_9_landed_branch_closes_the_bead,
      rebase                                         case_9_landed_branch_runs_no_gate,
                                                     case_9_landed_branch_is_not_rebased
+
+  tadw-o3ar criterion                               Pinned by
+  ------------------------------------------------------------------------------
+  6. After a successful ship, the export in the     case_shipped_bead_is_closed_in_the_main_export,
+     stable checkout holds the bead as closed       case_9_landed_branch_export_shows_the_close
 """
 
 from __future__ import annotations
@@ -124,10 +129,14 @@ while [ "$pid" -gt 1 ]; do
 done
 """
 
-# Wraps git so a test can make one push fail in a chosen way.
+# Wraps git so a test can make one push fail in a chosen way, or kill the run at one step.
 GIT_SHIM = """#!/bin/sh
 state="$(dirname "$0")"
 case " $* " in
+  *" update-ref LANDING_REF "*)
+    if [ -f "$state/kill-before-landing" ]; then
+      rm "$state/kill-before-landing"; "$state/kill-ship"
+    fi ;;
   *" push "*)
     if [ -f "$state/push-auth-fails" ]; then
       echo "fatal: Authentication failed for 'origin'" >&2; exit 128
@@ -138,11 +147,14 @@ case " $* " in
     fi ;;
 esac
 exec "REAL_GIT" "$@"
-""".replace("REAL_GIT", shutil.which("git"))
+""".replace("REAL_GIT", shutil.which("git")).replace("LANDING_REF", ship_progress.LANDING_REF)
 
 
 class Repository:
-    """A main checkout with an origin, a worktree whose branch adds a file, and a second clone."""
+    """A main checkout with an origin, a worktree whose branch adds a file, and a second clone.
+
+    Git ignores the tracker export, and the main checkout holds one on disk.
+    """
 
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -160,6 +172,7 @@ class Repository:
         self.git("config", "user.email", "t@t")
         (self.main / ".beads").mkdir()
         (self.main / ".beads" / "issues.jsonl").write_text("{}\n")
+        (self.main / ".gitignore").write_text(".beads/issues.jsonl\n")
         (self.main / "base.txt").write_text("base\n")
         self.git("add", ".")
         self.git("commit", "-q", "-m", "base")
@@ -291,10 +304,9 @@ def read_if_present(path: Path) -> str:
     return path.read_text() if path.exists() else ""
 
 
-def kill_on_closed_export(repository: Repository) -> None:
-    """Die right after the landing export, once this run's close is recorded."""
-    repository.on("export", f'[ "$(cat "{repository.state}/status")" = closed ] || exit 0\n'
-                  f'rm "$0"; "{repository.state}/kill-ship"')  # fmt: skip
+def kill_after_recorded_close(repository: Repository) -> None:
+    """Die once this run's close is recorded, as the record is about to name the landing."""
+    (repository.state / "kill-before-landing").touch()
 
 
 def kill_after_advance(repository: Repository) -> None:
@@ -409,7 +421,7 @@ def case_progress_record_round_trips() -> None:
 
 @functools.cache
 def resumed_after_close() -> Outcome:
-    return scenario(kill_on_closed_export)
+    return scenario(kill_after_recorded_close)
 
 
 @functools.cache
@@ -422,7 +434,12 @@ def changed_while_stopped() -> Outcome:
     def edit_the_bead(repository: Repository) -> None:
         (repository.state / "updated_at").write_text("t99\n")
 
-    return scenario(kill_on_closed_export, between=edit_the_bead)
+    return scenario(kill_after_recorded_close, between=edit_the_bead)
+
+
+@functools.cache
+def shipped_cleanly() -> Outcome:
+    return scenario(lambda repository: None, runs=1)
 
 
 @functools.cache
@@ -523,6 +540,11 @@ def lock_held() -> tuple[Outcome, str]:
 
 def shipped(outcome: Outcome, index: int = -1) -> str:
     return outcome.last(index).removeprefix("SHIP_DONE ")
+
+
+def case_shipped_bead_is_closed_in_the_main_export() -> None:
+    outcome = shipped_cleanly()
+    assert '"status":"closed"' in outcome.main_export, outcome.stderr()
 
 
 def case_1_resume_after_close_ships_the_bead() -> None:
@@ -672,6 +694,10 @@ def case_9_landed_branch_closes_the_bead() -> None:
     assert already_landed().bead_status == "closed"
 
 
+def case_9_landed_branch_export_shows_the_close() -> None:
+    assert '"status":"closed"' in already_landed().main_export, already_landed().stderr()
+
+
 def case_9_landed_branch_runs_no_gate() -> None:
     assert already_landed().gate_runs == 0
 
@@ -732,8 +758,11 @@ for name, fn in [
     ("9. a landed branch ends with SHIP_DONE <default tip>",
      case_9_landed_branch_ends_with_ship_done_default_tip),
     ("9. a landed branch closes the bead", case_9_landed_branch_closes_the_bead),
+    ("9. a landed branch's close reaches the export", case_9_landed_branch_export_shows_the_close),
     ("9. a landed branch runs no gate", case_9_landed_branch_runs_no_gate),
     ("9. a landed branch is not rebased", case_9_landed_branch_is_not_rebased),
+    ("a shipped bead is closed in the main checkout's export",
+     case_shipped_bead_is_closed_in_the_main_export),
 ]:  # fmt: skip
     check(name, fn)
 

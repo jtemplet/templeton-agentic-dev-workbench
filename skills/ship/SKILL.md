@@ -54,7 +54,7 @@ end with `SHIP_BLOCKED internal`.
 |---|---|
 | `gate` | No gate is configured, or a gate failed, timed out, or could not start |
 | `conflict` | A rebase or squash conflict in a path the runner does not resolve |
-| `tracker` | The bead is missing, closed, or ambiguous, or `bd close` or `bd export` failed |
+| `tracker` | The bead is missing, closed, or ambiguous, or `bd close` or `bd reopen` failed |
 | `git-state` | The repository was not fit to ship from, the default branch moved, or the push failed |
 | `internal` | Anything else; the lines above the machine line say what |
 

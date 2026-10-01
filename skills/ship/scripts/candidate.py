@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Build the exact commit ship will land, check it, and only then advance the default branch.
 
-The older order ran the gate before the squash and the tracker export, so the tree
-that passed was not the tree that was published. Here the candidate is committed
-first, in a temporary worktree cut from the local default-branch tip, and the
-gate runs against that clean commit. The default branch and the feature branch
-are never moved until the gate has passed on the committed tree.
+The older order ran the gate before the squash, so the tree that passed was not
+the tree that was published. Here the candidate is committed first, in a
+temporary worktree cut from the local default-branch tip, and the gate runs
+against that clean commit. The default branch and the feature branch are never
+moved until the gate has passed on the committed tree.
 
 The steps, each of which stops the run with a `CandidateStop` and leaves the
 default branch, the feature branch, and every checkout it did not create as they
@@ -14,11 +14,11 @@ were:
   1. Refuse a feature checkout with changed tracked files, or an unreadable status.
   2. Cut a detached worktree at the local default-branch tip. That tip includes
      local commits beyond the remote base, so they are in the checked tree.
-  3. Squash the feature branch into it, export the tracker, and make the gated
-     commit. A pre-commit hook can run here.
-  4. Require a clean tree after the hook, then run the gate on the code tree.
-  5. After the gate passes, close the bead and export the tracker again. Make a
-     landing commit whose only change from the gated commit is the export.
+  3. Squash the feature branch into it and make the gated commit. A pre-commit
+     hook can run here.
+  4. Require a clean tree after the hook, then run the gate on that commit.
+  5. After the gate passes, close the bead. The gated commit is the landing
+     commit: git ignores the tracker export, so a close changes no tracked file.
   6. Advance the default branch only while it still names the candidate's parent,
      and only through a checkout that holds no unrelated tracked changes. A
      checkout whose only change is the tracker export has that one file restored
@@ -27,11 +27,10 @@ were:
 
 Each step is recorded before and after it runs through the `record` the caller
 passes (ship_progress.py), so an interrupted landing can be resumed (tadw-dur4).
-A bead the run already closed is not closed again: the candidate's first export
-carries that close, so the gated commit is the landing commit.
+A bead the run already closed is not closed again.
 
-`.beads/interactions.jsonl` is an untracked audit log (ADR 0010). It is never
-staged, and a candidate that carries it is rejected.
+`.beads/interactions.jsonl` is an untracked audit log (ADR 0010). A candidate
+that carries it is rejected.
 
 The temporary worktree is the only directory removed, and it is removed on
 every path, so a default-branch checkout holding unrelated work is never touched
@@ -72,9 +71,6 @@ WORKTREE_PREFIX = "tadw-ship-candidate-"
 
 # Runs the gate in a directory; True when every gate passed.
 Gate = Callable[[Path], bool]
-# Runs `bd export` from a directory into a file path; True when the file was written.
-# A bead-free ship passes None, so no export is written, staged, or compared.
-ExportRunner = Callable[[Path, Path], bool] | None
 
 
 @dataclass(frozen=True)
@@ -84,14 +80,6 @@ class BeadActions:
     close: Callable[[Path], None]
     reopen: Callable[[Path], None]
     already_closed: bool = False
-
-
-@dataclass(frozen=True)
-class TrackerActions:
-    """Tracker operations that keep the landing export in sync with a bead close."""
-
-    export: ExportRunner
-    bead: BeadActions | None = None
 
 
 class CandidateStop(Exception):
@@ -127,7 +115,7 @@ class Plan:
 
 @dataclass(frozen=True)
 class Landing:
-    """The code commit that passed the gate and the commit the default branch carries."""
+    """The commit that passed the gate, which is the commit the default branch carries."""
 
     parent: str
     commit: str
@@ -137,8 +125,6 @@ class Landing:
 
     def report_lines(self) -> list[str]:
         lines = [f"tadw_ship: checked candidate {self.checked_commit[:12]} on {self.parent[:12]}"]
-        if self.commit != self.checked_commit:
-            lines.append(f"tadw_ship: landing commit {self.commit[:12]} adds {EXPORT_PATH} only")
         lines += [
             f"tadw_ship: local commit in the checked tree: {sha[:12]}" for sha in self.local_commits
         ]
@@ -158,7 +144,7 @@ def land_candidate(
     repo: Path,
     plan: Plan,
     gate: Gate,
-    tracker: TrackerActions | None = None,
+    bead: BeadActions | None = None,
 ) -> Landing:
     """Build, check, and land the candidate; raise `CandidateStop` instead of half-landing."""
     refuse_unsafe_checkout(repo)
@@ -166,7 +152,6 @@ def land_candidate(
     branch_tip = resolve_commit(repo, f"refs/heads/{plan.branch}")
     local_commits = local_commits_beyond_remote(repo, plan.default_branch, parent)
     worktree = Path(tempfile.mkdtemp(prefix=WORKTREE_PREFIX)) / "tree"
-    bead = None if tracker is None else tracker.bead
     bead_closed = bead is not None and bead.already_closed
     branch_advance_started = False
     branch_advanced = False
@@ -174,16 +159,13 @@ def land_candidate(
     try:
         record.mark(ship_progress.STARTED, parent=parent, candidate_worktree=str(worktree))
         git(repo, "worktree", "add", "--detach", str(worktree), parent)
-        export = None if tracker is None else tracker.export
-        checked_commit = commit_candidate(worktree, plan, export)
-        record.mark(ship_progress.CANDIDATE, checked_commit=checked_commit, branch_tip=branch_tip)
-        verify_checked_tree(worktree, checked_commit, gate)
+        commit = commit_candidate(worktree, plan)
+        record.mark(ship_progress.CANDIDATE, checked_commit=commit, branch_tip=branch_tip)
+        verify_checked_tree(worktree, commit, gate)
 
-        commit = checked_commit
         if bead is not None and not bead.already_closed:
             bead_closed = True
             bead.close(worktree)
-            commit = commit_landing_tree(worktree, plan.subject, checked_commit, tracker.export)
 
         record.mark(ship_progress.LANDING, landing_commit=commit)
         branch_advance_started = True
@@ -207,7 +189,7 @@ def land_candidate(
     finally:
         preserve_audit_log(worktree, repo)
         remove_worktree(repo, worktree)
-    return Landing(parent, commit, checked_commit, local_commits, restored_export_in)
+    return Landing(parent, commit, commit, local_commits, restored_export_in)
 
 
 def later_local_commits(repo: Path, default_branch: str, checked_commit: str) -> list[str]:
@@ -237,16 +219,12 @@ def local_commits_beyond_remote(repo: Path, default_branch: str, tip: str) -> tu
     return tuple(reversed(git(repo, "rev-list", f"{remote}..{tip}").split()))
 
 
-def commit_candidate(worktree: Path, plan: Plan, export: ExportRunner) -> str:
-    """Squash the feature branch, export the tracker, and commit the tree the gate will check."""
+def commit_candidate(worktree: Path, plan: Plan) -> str:
+    """Squash the feature branch and commit the tree the gate will check."""
     if not squash_merge(worktree, plan.branch):
         raise CandidateStop(
             "conflict", f"squashing {plan.branch} conflicts with the default branch"
         )
-    if export is not None:
-        if not export(worktree, worktree / EXPORT_PATH):
-            raise CandidateStop("export", "bd export did not write the tracker export")
-        stage_export(worktree)
     if not git(worktree, "diff", "--cached", "--name-only"):
         raise CandidateStop("empty", f"{plan.branch} adds nothing to the default branch")
     commit_through_hook(worktree, plan.subject)
@@ -263,11 +241,6 @@ def commit_through_hook(worktree: Path, subject: str) -> None:
 
 def squash_merge(worktree: Path, branch: str) -> bool:
     return run_git(worktree, ("merge", "--squash", f"refs/heads/{branch}")).returncode == 0
-
-
-def stage_export(worktree: Path) -> None:
-    """Stage the export alone; the audit log is untracked and is never staged."""
-    git(worktree, "add", "--", EXPORT_PATH)
 
 
 def verify_checked_tree(worktree: Path, commit: str, gate: Gate) -> None:
@@ -295,36 +268,6 @@ def require_clean_tree(worktree: Path, detail: str) -> None:
     stop = resolve_ground.mutation_guard(worktree)
     if stop is not None:
         raise CandidateStop(stop, detail)
-
-
-def commit_landing_tree(
-    worktree: Path, subject: str, checked_commit: str, export: ExportRunner
-) -> str:
-    """Commit the post-close export on the checked tree without running hooks twice."""
-    if export is None or not export(worktree, worktree / EXPORT_PATH):
-        raise CandidateStop("export", "bd export did not write the tracker after closing the bead")
-
-    stage_export(worktree)
-    staged = git(worktree, "diff", "--cached", "--name-only").splitlines()
-    unstaged = git(worktree, "diff", "--name-only").splitlines()
-    if staged != [EXPORT_PATH] or unstaged:
-        raise CandidateStop(
-            "export-drift",
-            f"the landing tree must change only {EXPORT_PATH}; staged={staged}, unstaged={unstaged}",
-        )
-
-    tree = git(worktree, "write-tree")
-    commit = git(worktree, "commit-tree", tree, "-p", checked_commit, "-m", subject)
-    changed = git(worktree, "diff", "--name-only", checked_commit, commit).splitlines()
-    if changed != [EXPORT_PATH]:
-        raise CandidateStop(
-            "export-drift",
-            f"the landing commit must change only {EXPORT_PATH}; changed={changed}",
-        )
-
-    git(worktree, "reset", "--hard", commit)
-    require_clean_tree(worktree, "the landing commit left the candidate dirty")
-    return commit
 
 
 def advance_default_branch(

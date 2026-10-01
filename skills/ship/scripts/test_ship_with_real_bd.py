@@ -83,7 +83,10 @@ def git(directory: Path, *arguments: str, env: dict[str, str]) -> subprocess.Com
 
 
 def make_repository(main: Path, worktree: Path, env: dict[str, str]) -> None:
-    """Create an open bead on main and a feature commit in its linked worktree."""
+    """Create an open bead on main and a feature commit in its linked worktree.
+
+    Git ignores the tracker export, and the main checkout holds one on disk.
+    """
     main.mkdir()
     git(main, "init", "--quiet", "--initial-branch=main", env=env)
     git(main, "config", "user.name", "Ship integration test", env=env)
@@ -118,10 +121,12 @@ def make_repository(main: Path, worktree: Path, env: dict[str, str]) -> None:
     )
     checked(main, "bd", "export", "-o", EXPORT, env=env)
 
+    with (main / ".gitignore").open("a", encoding="utf-8") as ignored:
+        ignored.write(f"\n{EXPORT}\n")
+
     # bd init creates local integrations that are not needed by the fixture.
     # Stage the generated repository state so the main checkout starts clean.
     git(main, "add", "--all", env=env)
-    git(main, "add", "--force", "--", EXPORT, env=env)
     git(main, "commit", "--quiet", "-m", "Fixture base", env=env)
 
     git(
@@ -157,37 +162,18 @@ def porcelain_paths(output: str) -> list[str]:
     return sorted(line[3:] for line in output.splitlines() if len(line) >= 4)
 
 
-def issue_status_in(commit: str, main: Path, env: dict[str, str]) -> str | None:
-    exported = git(main, "show", f"{commit}:{EXPORT}", env=env).stdout
-    for line in exported.splitlines():
+def exported_status(main: Path) -> str | None:
+    """The bead's status in the main checkout's export file."""
+    for line in (main / EXPORT).read_text(encoding="utf-8").splitlines():
         issue = json.loads(line)
         if issue.get("id") == BEAD_ID:
             return issue.get("status")
     return None
 
 
-def export_only_commits(landing: str, main: Path, env: dict[str, str]) -> list[str]:
-    commits = git(
-        main,
-        "log",
-        "--format=%H",
-        f"{landing}..refs/heads/main",
-        env=env,
-    ).stdout.splitlines()
-    export_only = []
-    for commit in commits:
-        paths = git(
-            main,
-            "diff-tree",
-            "--no-commit-id",
-            "--name-only",
-            "-r",
-            commit,
-            env=env,
-        ).stdout.splitlines()
-        if paths == [EXPORT]:
-            export_only.append(commit)
-    return export_only
+def tracks_export(commit: str, main: Path, env: dict[str, str]) -> bool:
+    listed = git(main, "ls-tree", "-r", "--name-only", commit, "--", EXPORT, env=env).stdout
+    return bool(listed.strip())
 
 
 def run_real_bd_check(bd_path: str) -> int:
@@ -223,8 +209,8 @@ def run_real_bd_check(bd_path: str) -> int:
         dirty = porcelain_paths(
             git(main, "status", "--porcelain", "--untracked-files=all", env=env).stdout
         )
-        status = issue_status_in(landing, main, env)
-        later_export_commits = export_only_commits(landing, main, env)
+        status = exported_status(main)
+        export_tracked = tracks_export(landing, main, env)
 
     print(f"bd: {bd_path}")
     checks = [
@@ -236,16 +222,15 @@ def run_real_bd_check(bd_path: str) -> int:
         ),
         (
             status == "closed",
-            f"landing commit carries the bead as {status!r} in {EXPORT}"
+            f"the main checkout's {EXPORT} holds the bead as {status!r}"
             if status == "closed"
-            else f"landing commit has bead status {status!r} in {EXPORT}; expected 'closed'",
+            else f"the main checkout's {EXPORT} holds the bead as {status!r}; expected 'closed'",
         ),
         (
-            not later_export_commits,
-            f"no later commit changes only {EXPORT}"
-            if not later_export_commits
-            else "later commits change only "
-            f"{EXPORT}: {', '.join(commit[:12] for commit in later_export_commits)}",
+            not export_tracked,
+            f"the landing commit does not carry {EXPORT}"
+            if not export_tracked
+            else f"the landing commit carries {EXPORT}",
         ),
     ]
     for passed, message in checks:

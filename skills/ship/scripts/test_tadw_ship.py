@@ -49,7 +49,7 @@ Stdlib only, no install. Run with:
   1. Exit 0 with `SHIP_DONE <hash>` or 1 with       case_ship_exits_0_with_ship_done_last,
      `SHIP_BLOCKED <slug>` as the last line         case_stop_exits_1_with_ship_blocked_last
   2. The default branch carries the landing commit;  case_default_branch_carries_the_shipped_commit,
-     the report names its checked code commit,      case_landing_commit_names_the_checked_code_commit,
+     the report names its checked code commit,      case_gated_commit_is_the_shipped_commit,
      and the bead closes and is pushed              case_shipped_commit_is_pushed,
                                                     case_ship_closes_the_bead,
                                                     case_ship_removes_the_worktree_and_branch
@@ -83,7 +83,8 @@ Stdlib only, no install. Run with:
      ends SHIP_DONE with the candidate landed
   2. Any other changed tracked file ends            case_another_changed_file_in_main_stops_with_git_state
      SHIP_BLOCKED git-state, main unchanged
-  3. The output says the export was restored        case_restored_export_is_reported_by_the_run
+  3. The output says the export was restored        test_candidate.py: git ignores the export,
+                                                    so no run through the executable restores it
 
   tadw-8tax criterion                               Pinned by, all through bin/tadw-ship
   ------------------------------------------------------------------------------
@@ -97,15 +98,26 @@ Stdlib only, no install. Run with:
 
   tadw-8vnh criterion                               Pinned by, all through bin/tadw-ship
   ------------------------------------------------------------------------------
-  1. The gate checks the open-bead code commit,      case_landing_commit_names_the_checked_code_commit,
-     then the landing commit adds only the export   case_pre_push_gate_checks_code_and_push_carries_landing_commit
+  1. Superseded by tadw-o3ar criterion 3
   2. A failed gate leaves the bead open; a moved     case_failing_gate_leaves_the_bead_open,
      default branch reopens it                       case_default_branch_moves_after_close_reopens_the_bead
-  3. A post-landing export change warns, and the     case_export_drift_after_landing_warns,
-     pre-commit hook runs once                       case_pre_commit_hook_is_the_gate_without_a_pre_push_hook
-  4. The real-bd test leaves a clean checkout and    test_ship_with_real_bd.py
-     carries the closed status without a later
-     export-only commit
+  3. The pre-commit hook runs once                   case_pre_commit_hook_is_the_gate_without_a_pre_push_hook
+  4. The real-bd test leaves a clean checkout        test_ship_with_real_bd.py
+
+  tadw-o3ar criterion                               Pinned by, all through bin/tadw-ship
+  ------------------------------------------------------------------------------
+  1. A bead ships from a repository that ignores    case_ship_exits_0_with_ship_done_last
+     the export                                     (every fixture here ignores it)
+  3. The gated commit is the shipped commit          case_gated_commit_is_the_shipped_commit,
+                                                    case_pre_push_gate_checks_code_and_push_carries_landing_commit
+  7. A failed export after the close warns, and     case_failed_export_still_ships,
+     the run still ends SHIP_DONE                   case_failed_export_warns
+  9. The `tracker` stop slug does not name          case_tracker_slug_does_not_name_the_export
+     `bd export`
+
+  A ship with no bead runs no export, pinned by case_bead_free_ship_runs_no_export.
+
+  Criteria 2, 4, and 5 are pinned in test_candidate.py, and 6 in test_ship_recovery.py.
 """
 
 from __future__ import annotations
@@ -638,16 +650,20 @@ case "$1" in
   close)
     echo closed > "$status"
     printf '{"id":"BEAD","status":"%s"}\\n' "$(cat "$status")" > "$root/main/.beads/issues.jsonl"
+    if [ -f "$(dirname "$0")/move-main" ]; then
+      printf 'concurrent\\n' > "$root/main/concurrent.txt"
+      git -C "$root/main" add concurrent.txt
+      git -C "$root/main" commit -q -m "concurrent landing"
+    fi
     ;;
   reopen)
     echo open > "$status"
     printf '{"id":"BEAD","status":"%s"}\\n' "$(cat "$status")" > "$root/main/.beads/issues.jsonl"
     ;;
   export)
-    if [ -f "$(dirname "$0")/move-main" ] && [ "$(cat "$status")" = closed ]; then
-      printf 'concurrent\\n' > "$root/main/concurrent.txt"
-      git -C "$root/main" add concurrent.txt
-      git -C "$root/main" commit -q -m "concurrent landing"
+    echo "$3" >> "$(dirname "$0")/exports.log"
+    if [ -f "$(dirname "$0")/export-fails" ]; then
+      echo "export refused" >&2; exit 1
     fi
     mkdir -p "$(dirname "$3")"
     printf '{"id":"BEAD","status":"%s"}\\n' "$(cat "$status")" > "$3"
@@ -682,14 +698,17 @@ class ShipRun(NamedTuple):
 
 
 class ShipRepository:
-    """A main checkout with an origin, and a linked worktree whose branch adds one file."""
+    """A main checkout with an origin, and a linked worktree whose branch adds one file.
 
-    def __init__(self, root: Path) -> None:
+    Git ignores the tracker export, and the main checkout holds one on disk.
+    """
+
+    def __init__(self, root: Path, branch: str = BRANCH) -> None:
         self.main = root / "main"
         self.worktree = root / "worktrees" / "add-thing"
         self.shims = root / "shims"
         self.create_main(root / "origin.git")
-        self.git("worktree", "add", "-q", "-b", BRANCH, str(self.worktree), "main")
+        self.git("worktree", "add", "-q", "-b", branch, str(self.worktree), "main")
         (self.worktree / "thing.txt").write_text("the thing\n")
         self.git("-C", str(self.worktree), "add", "thing.txt")
         self.git("-C", str(self.worktree), "commit", "-q", "-m", "Add the thing")
@@ -702,8 +721,9 @@ class ShipRepository:
         self.git("config", "user.email", "t@t")
         (self.main / ".beads").mkdir()
         (self.main / ".beads" / "issues.jsonl").write_text("{}\n")
+        (self.main / ".gitignore").write_text(".beads/issues.jsonl\n")
         (self.main / "base.txt").write_text("base\n")
-        self.git("add", ".beads/issues.jsonl", "base.txt")
+        self.git("add", ".gitignore", "base.txt")
         self.git("commit", "-q", "-m", "base")
         self.git("remote", "add", "origin", str(origin))
         self.git("push", "-q", "-u", "origin", "main")
@@ -725,8 +745,13 @@ class ShipRepository:
         hook.write_text(f"#!/bin/sh\n{body}\n")
         hook.chmod(0o755)
 
-    def ship(self, gate: str | None, cwd: Path) -> subprocess.CompletedProcess:
-        """A `gate` of None leaves TADW_SHIP_CHECK unset, so the hooks are the gate."""
+    def ship(
+        self, gate: str | None, cwd: Path, bead: str | None = BEAD
+    ) -> subprocess.CompletedProcess:
+        """A `gate` of None leaves TADW_SHIP_CHECK unset, so the hooks are the gate.
+
+        A `bead` of None names no bead, so the runner takes one from the branch name.
+        """
         environment = {
             key: value for key, value in os.environ.items() if not key.startswith("TADW_SHIP")
         }
@@ -734,7 +759,7 @@ class ShipRepository:
         if gate is not None:
             environment["TADW_SHIP_CHECK"] = gate
         return subprocess.run(
-            [str(EXECUTABLE), BEAD, "--repo-root", str(self.worktree)],
+            [str(EXECUTABLE), *([] if bead is None else [bead]), "--repo-root", str(self.worktree)],
             capture_output=True,
             text=True,
             check=False,
@@ -742,18 +767,23 @@ class ShipRepository:
             env=environment,
         )
 
+    def exports(self) -> str:
+        """Each path the fake `bd` was asked to export to, one per line."""
+        return read_if_present(self.shims / "exports.log")
+
 
 @functools.cache
 def ship_run(
     gate: str | None,
     start_in_worktree: bool,
     hooks: tuple[tuple[str, str], ...] = (),
-    move_default_on_export: bool = False,
+    bd_flags: tuple[str, ...] = (),
 ) -> ShipRun:
+    """Each name in `bd_flags` is a file the fake `bd` reads: `move-main` or `export-fails`."""
     with tempfile.TemporaryDirectory() as directory:
         repository = ShipRepository(Path(directory).resolve())
-        if move_default_on_export:
-            (repository.shims / "move-main").touch()
+        for flag in bd_flags:
+            (repository.shims / flag).touch()
         for name, body in hooks:
             repository.install_hook(name, body.replace("{root}", directory))
         before = repository.git("rev-parse", "main")
@@ -813,13 +843,11 @@ def case_default_branch_carries_the_shipped_commit() -> None:
     assert run.default_after == run.shipped_hash(), run.result.stdout
 
 
-def case_landing_commit_names_the_checked_code_commit() -> None:
+def case_gated_commit_is_the_shipped_commit() -> None:
     run = shipped_from_worktree()
     checked = re.search(r"checked candidate ([0-9a-f]{12})", run.result.stderr)
     assert checked, run.result.stderr
-    landing = f"landing commit {run.shipped_hash()[:12]} adds .beads/issues.jsonl only"
-    assert landing in run.result.stderr, run.result.stderr
-    assert checked.group(1) != run.shipped_hash()[:12], run.result.stderr
+    assert checked.group(1) == run.shipped_hash()[:12], run.result.stderr
 
 
 def case_shipped_commit_is_pushed() -> None:
@@ -866,11 +894,43 @@ def case_failing_gate_leaves_the_bead_open() -> None:
 
 
 def case_default_branch_moves_after_close_reopens_the_bead() -> None:
-    run = ship_run("true", True, move_default_on_export=True)
+    run = ship_run("true", True, bd_flags=("move-main",))
     assert run.last_line() == "SHIP_BLOCKED git-state", run.result.stdout
     assert run.bead_status == "open", run.bead_status
     assert run.default_after != run.default_before, "the fixture did not move main"
     assert run.origin_after == run.default_before, "ship pushed the concurrent landing"
+
+
+def shipped_with_a_failing_export() -> ShipRun:
+    return ship_run("true", True, bd_flags=("export-fails",))
+
+
+BEAD_FREE_BRANCH = "chore/tidy-up"
+
+
+@functools.cache
+def bead_free_ship() -> tuple[subprocess.CompletedProcess, str]:
+    """Ship a branch that names no bead; return the result and the exports the fake `bd` ran."""
+    with tempfile.TemporaryDirectory() as directory:
+        repository = ShipRepository(Path(directory).resolve(), BEAD_FREE_BRANCH)
+        result = repository.ship("true", repository.worktree, bead=None)
+        return result, repository.exports()
+
+
+def case_bead_free_ship_runs_no_export() -> None:
+    result, exports = bead_free_ship()
+    assert result.returncode == 0 and "bead-free ship" in result.stderr, result.stderr
+    assert exports == "", exports
+
+
+def case_failed_export_still_ships() -> None:
+    run = shipped_with_a_failing_export()
+    assert re.fullmatch(r"SHIP_DONE [0-9a-f]{40}", run.last_line()), run.result.stderr
+
+
+def case_failed_export_warns() -> None:
+    stderr = shipped_with_a_failing_export().result.stderr
+    assert "warning: bd export could not regenerate" in stderr, stderr
 
 
 # tadw-awsr: with no override and no configuration file, the repository's own
@@ -885,8 +945,8 @@ def shipped_through_pre_push() -> ShipRun:
     return ship_run(None, True, PASSING_PRE_PUSH)
 
 
-# tadw-lndi: `bd` auto-export rewrites the main checkout's export from any worktree,
-# so the candidate commit's own pre-commit hook dirties the default checkout.
+# tadw-lndi: `bd` auto-export rewrites the main checkout's export from any worktree.
+# Git ignores the export, so only the other file the hook edits dirties the checkout.
 REWRITE_MAIN_EXPORT = "printf 'rewritten by bd\\n' > {root}/main/.beads/issues.jsonl"
 EXPORT_REWRITTEN_IN_MAIN = (("pre-commit", REWRITE_MAIN_EXPORT),)
 EXPORT_AND_SOURCE_DIRTY_IN_MAIN = (
@@ -909,11 +969,6 @@ def case_another_changed_file_in_main_stops_with_git_state() -> None:
     run = ship_run("true", True, EXPORT_AND_SOURCE_DIRTY_IN_MAIN)
     assert run.last_line() == "SHIP_BLOCKED git-state", run.result.stdout
     assert run.default_after == run.default_before, "the default branch moved"
-
-
-def case_restored_export_is_reported_by_the_run() -> None:
-    stderr = shipped_over_a_rewritten_export().result.stderr
-    assert "restored .beads/issues.jsonl" in stderr, stderr
 
 
 # tadw-8tax: changes the operator left in the main checkout are stashed for the ship.
@@ -1044,17 +1099,6 @@ def case_pre_commit_hook_is_the_gate_without_a_pre_push_hook() -> None:
     run = ship_run(None, True, (("pre-commit", hook),))
     assert run.result.returncode == 0, run.result.stderr
     assert run.pre_commit_calls.splitlines() == ["called"], run.pre_commit_calls
-
-
-def case_export_drift_after_landing_warns() -> None:
-    hook = """if [ -f \"{root}/pre-push.once\" ]; then
-  printf 'pending export\\n' > \"{root}/main/.beads/issues.jsonl\"
-else
-  touch \"{root}/pre-push.once\"
-fi"""
-    run = ship_run(None, True, (("pre-push", hook),))
-    assert run.result.returncode == 0, run.result.stderr
-    assert "warning: .beads/issues.jsonl differs from HEAD after ship" in run.result.stderr
 
 
 def case_refused_candidate_commit_ends_with_ship_blocked_gate() -> None:
@@ -1211,6 +1255,12 @@ def case_runner_emits_only_existing_stop_categories() -> None:
     assert not unknown, f"the skill does not know these categories: {unknown}"
 
 
+def case_tracker_slug_does_not_name_the_export() -> None:
+    rows = marked_region(SKILL.read_text(), "stop-slugs").splitlines()
+    tracker = next(row for row in rows if row.startswith("| `tracker` |"))
+    assert "bd export" not in tracker, tracker
+
+
 def case_setup_instructions_name_the_setup_action() -> None:
     migration = marked_region(SETUP_INSTRUCTIONS.read_text(), "ship-setup")
     for action in ("TADW_SHIP_CHECK", ".tadw/ship-gates.json"):
@@ -1267,8 +1317,7 @@ for name, fn in [
     ("a stop exits 1 with SHIP_BLOCKED <slug> last", case_stop_exits_1_with_ship_blocked_last),
     ("the default branch carries the shipped commit",
      case_default_branch_carries_the_shipped_commit),
-    ("the landing commit names the checked code commit",
-     case_landing_commit_names_the_checked_code_commit),
+    ("the gated commit is the shipped commit", case_gated_commit_is_the_shipped_commit),
     ("the shipped commit is pushed", case_shipped_commit_is_pushed),
     ("a ship closes the bead", case_ship_closes_the_bead),
     ("a ship removes the worktree and the branch", case_ship_removes_the_worktree_and_branch),
@@ -1282,10 +1331,12 @@ for name, fn in [
      case_failing_gate_leaves_the_default_branch_unchanged),
     ("a failing gate leaves the bead open", case_failing_gate_leaves_the_bead_open),
     ("a moved default branch reopens the bead", case_default_branch_moves_after_close_reopens_the_bead),
+    ("a ship with no bead runs no export", case_bead_free_ship_runs_no_export),
+    ("a failed export after the close still ships", case_failed_export_still_ships),
+    ("a failed export after the close warns", case_failed_export_warns),
     ("a rewritten export in main still ships", case_rewritten_export_in_main_still_ships),
     ("another changed file in main stops with git-state",
      case_another_changed_file_in_main_stops_with_git_state),
-    ("the run reports the restored export", case_restored_export_is_reported_by_the_run),
     ("a tracked audit log is named before a dirty tree",
      case_tracked_audit_log_is_named_before_a_dirty_tree),
     ("a dirty main is stashed for the ship and restored after",
@@ -1302,8 +1353,6 @@ for name, fn in [
      case_failing_pre_push_hook_ends_with_ship_blocked_gate),
     ("the pre-commit hook is the gate without a pre-push hook",
      case_pre_commit_hook_is_the_gate_without_a_pre_push_hook),
-    ("an export changed after landing produces a warning",
-     case_export_drift_after_landing_warns),
     ("a refused candidate commit ends with SHIP_BLOCKED gate",
      case_refused_candidate_commit_ends_with_ship_blocked_gate),
     ("a pre-push hook is selected", case_pre_push_hook_is_selected),
@@ -1324,6 +1373,8 @@ for name, fn in [
      case_skill_lists_every_existing_stop_category),
     ("the runner emits only existing stop categories",
      case_runner_emits_only_existing_stop_categories),
+    ("the tracker stop slug does not name bd export",
+     case_tracker_slug_does_not_name_the_export),
     ("the setup instructions name the setup action", case_setup_instructions_name_the_setup_action),
     ("the skill links the setup instructions", case_skill_links_the_setup_instructions),
 ]:  # fmt: skip

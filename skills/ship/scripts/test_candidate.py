@@ -17,8 +17,9 @@ checkout holding `main`, and a linked worktree holding the feature branch.
      untracked gate output does not                     case_untracked_gate_output_does_not_reject_the_candidate
   4. A source conflict or dirty worktree stops         case_conflict_stops_and_keeps_work,
      without deleting unrelated work                   case_dirty_feature_checkout_stops
-  5. bd export writes the export and the commit        case_export_rides_the_candidate_commit,
-     carries it; a bead-free ship writes none          case_bead_free_landing_writes_no_export
+  5. No landing commit carries the tracker export      case_bead_free_landing_carries_no_export
+     (the "export rides the commit" half is
+     superseded by tadw-o3ar, below)
   6. Cleanup leaves a default-branch worktree with     case_dirty_default_checkout_is_left_alone,
      unrelated work unchanged                          case_cleanup_removes_only_the_temporary_worktree
   7. A later local commit is named unpushed and        case_later_commit_is_reported_unpushed
@@ -41,16 +42,22 @@ checkout holding `main`, and a linked worktree holding the feature branch.
 
   tadw-8vnh criterion                                  Pinned by
   ------------------------------------------------------------------------------
-  1. The gate checks the open-bead code commit, then     case_bead_closes_after_gate_and_landing_commit_carries_export
-     the landing commit adds only the closed export
+  1. Superseded by tadw-o3ar criterion 3
   2. A failure after closing reopens the bead            case_failed_close_attempt_reopens_the_bead,
-                                                       case_failed_post_close_export_reopens_the_bead,
-                                                       case_stop_after_close_reopens_the_bead,
                                                        case_default_branch_move_after_close_reopens_the_bead,
                                                        case_landed_commit_is_not_reopened_after_an_error
-  3. A real bd ship leaves a clean checkout, carries    test_ship_with_real_bd.py
-     the closed bead in the landing export, and makes
-     no later export-only commit
+  3. A real bd ship leaves a clean checkout              test_ship_with_real_bd.py
+
+  tadw-o3ar criterion                                  Pinned by
+  ------------------------------------------------------------------------------
+  1. A bead lands in a repository that ignores the     case_bead_lands_when_the_export_is_ignored
+     export
+  2. The landing commit does not carry the export      case_landing_commit_carries_no_export
+  3. The gated commit is the landing commit            case_gated_commit_is_the_landing_commit,
+                                                       case_bead_closes_after_the_gate
+  4. A failed gate leaves the bead open                case_failed_gate_does_not_close_the_bead
+  5. A default-branch move after the close reopens     case_default_branch_move_after_close_reopens_the_bead
+     the bead
 """
 
 from __future__ import annotations
@@ -77,8 +84,7 @@ ENVIRONMENT = {
     "GIT_CONFIG_GLOBAL": os.devnull,
     "GIT_CONFIG_SYSTEM": os.devnull,
 }
-USE_FAKE_EXPORT = object()
-TRACKER_EXPORT = '{"id":"tadw-x"}\n'
+COMMITTED_EXPORT = '{"id":"old"}\n'
 
 passed = 0
 failed = 0
@@ -140,18 +146,24 @@ class Fixture:
     def main_tip(self) -> str:
         return git(self.main, "rev-parse", "main")
 
-    def land(self, gate=None, export=USE_FAKE_EXPORT, close=None, reopen=None):
+    def land(self, gate=None, close=None, reopen=None):
         bead = None if close is None else candidate.BeadActions(close, reopen)
-        tracker = candidate.TrackerActions(
-            write_export if export is USE_FAKE_EXPORT else export,
-            bead,
-        )
         return candidate.land_candidate(
             self.feature,
             candidate.Plan("feature", "main", "feat: land"),
             gate or passing_gate,
-            tracker,
+            bead,
         )
+
+    def land_with_bead(self):
+        return self.land(close=leave_tracker_alone, reopen=leave_tracker_alone)
+
+    def ignore_export(self) -> None:
+        """Ignore the export on main and leave one on disk, as every repository now does."""
+        self.commit_on_main(".gitignore", f"{candidate.EXPORT_PATH}\n", "ignore the export")
+        export = self.main / candidate.EXPORT_PATH
+        export.parent.mkdir()
+        export.write_text('{"id":"tadw-x"}\n', encoding="utf-8")
 
 
 def commit(directory: Path, name: str, text: str, message: str) -> None:
@@ -168,10 +180,24 @@ def failing_gate(worktree: Path) -> bool:
     return False
 
 
-def write_export(worktree: Path, target: Path) -> bool:
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(TRACKER_EXPORT, encoding="utf-8")
-    return True
+def leave_tracker_alone(worktree: Path) -> None:
+    pass
+
+
+def gate_writing_audit_line(line: str):
+    """A passing gate during which `bd` appends to the audit log in the temporary worktree."""
+
+    def gate(worktree: Path) -> bool:
+        written = worktree / candidate.AUDIT_LOG_PATH
+        written.parent.mkdir(exist_ok=True)
+        written.write_text(line, encoding="utf-8")
+        return True
+
+    return gate
+
+
+def tracked_paths(fixture: Fixture, commit: str) -> list[str]:
+    return git(fixture.main, "ls-tree", "-r", "--name-only", commit).splitlines()
 
 
 def stopped(fixture: Fixture, **kwargs) -> candidate.CandidateStop:
@@ -238,40 +264,42 @@ def case_gate_changing_a_tracked_file_is_rejected() -> None:
     with_fixture(test)
 
 
-def case_bead_closes_after_gate_and_landing_commit_carries_export() -> None:
+def case_bead_lands_when_the_export_is_ignored() -> None:
     def test(fixture: Fixture) -> None:
-        status, events = ["open"], []
+        fixture.ignore_export()
+        landing = fixture.land_with_bead()
+        assert fixture.main_tip() == landing.commit, "main does not name the landing"
 
-        def export(worktree: Path, target: Path) -> bool:
-            events.append("export")
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(f'{{"id":"tadw-x","status":"{status[0]}"}}\n', encoding="utf-8")
-            return True
+    with_fixture(test)
+
+
+def case_landing_commit_carries_no_export() -> None:
+    def test(fixture: Fixture) -> None:
+        fixture.ignore_export()
+        landing = fixture.land_with_bead()
+        assert candidate.EXPORT_PATH not in tracked_paths(fixture, landing.commit)
+
+    with_fixture(test)
+
+
+def case_gated_commit_is_the_landing_commit() -> None:
+    def test(fixture: Fixture) -> None:
+        landing = fixture.land_with_bead()
+        assert landing.commit == landing.checked_commit, landing
+
+    with_fixture(test)
+
+
+def case_bead_closes_after_the_gate() -> None:
+    def test(fixture: Fixture) -> None:
+        events = []
 
         def gate(worktree: Path) -> bool:
             events.append("gate")
-            exported = (worktree / candidate.EXPORT_PATH).read_text(encoding="utf-8")
-            assert '"status":"open"' in exported, exported
             return True
 
-        def close(worktree: Path) -> None:
-            events.append("close")
-            status[0] = "closed"
-
-        def reopen(worktree: Path) -> None:
-            events.append("reopen")
-            status[0] = "open"
-
-        landing = fixture.land(gate=gate, export=export, close=close, reopen=reopen)
-
-        assert events == ["export", "gate", "close", "export"], events
-        assert status[0] == "closed", status
-        exported = git(fixture.main, "show", f"{landing.commit}:{candidate.EXPORT_PATH}")
-        assert '"status":"closed"' in exported, exported
-        parent = git(fixture.main, "rev-parse", f"{landing.commit}^")
-        changed = git(fixture.main, "diff", "--name-only", parent, landing.commit).splitlines()
-        assert changed == [candidate.EXPORT_PATH], changed
-        assert fixture.main_tip() == landing.commit
+        fixture.land(gate=gate, close=lambda _: events.append("close"), reopen=leave_tracker_alone)
+        assert events == ["gate", "close"], events
 
     with_fixture(test)
 
@@ -320,77 +348,9 @@ def case_failed_close_attempt_reopens_the_bead() -> None:
     with_fixture(test)
 
 
-def case_failed_post_close_export_reopens_the_bead() -> None:
-    def test(fixture: Fixture) -> None:
-        before, status, events, exports = fixture.main_tip(), ["open"], [], 0
-
-        def export(worktree: Path, target: Path) -> bool:
-            nonlocal exports
-            exports += 1
-            if exports == 2:
-                return False
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(f'{{"id":"tadw-x","status":"{status[0]}"}}\n')
-            return True
-
-        def close(worktree: Path) -> None:
-            events.append("close")
-            status[0] = "closed"
-
-        def reopen(worktree: Path) -> None:
-            events.append("reopen")
-            status[0] = "open"
-
-        stop = stopped(fixture, export=export, close=close, reopen=reopen)
-
-        assert stop.reason == "export", stop
-        assert exports == 2, exports
-        assert events == ["close", "reopen"], events
-        assert status[0] == "open", status
-        assert fixture.main_tip() == before
-
-    with_fixture(test)
-
-
-def case_stop_after_close_reopens_the_bead() -> None:
-    def test(fixture: Fixture) -> None:
-        before, status, events, exports = fixture.main_tip(), ["open"], [], 0
-
-        def export(worktree: Path, target: Path) -> bool:
-            nonlocal exports
-            exports += 1
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(f'{{"id":"tadw-x","status":"{status[0]}"}}\n')
-            if exports == 2:
-                (worktree / "base.txt").write_text("unexpected change\n", encoding="utf-8")
-            return True
-
-        def close(worktree: Path) -> None:
-            events.append("close")
-            status[0] = "closed"
-
-        def reopen(worktree: Path) -> None:
-            events.append("reopen")
-            status[0] = "open"
-
-        stop = stopped(fixture, export=export, close=close, reopen=reopen)
-
-        assert stop.reason == "export-drift", stop
-        assert events == ["close", "reopen"], events
-        assert status[0] == "open", status
-        assert fixture.main_tip() == before
-
-    with_fixture(test)
-
-
 def case_default_branch_move_after_close_reopens_the_bead() -> None:
     def test(fixture: Fixture) -> None:
         before, status = fixture.main_tip(), ["open"]
-
-        def export(worktree: Path, target: Path) -> bool:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(f'{{"id":"tadw-x","status":"{status[0]}"}}\n')
-            return True
 
         def close(worktree: Path) -> None:
             status[0] = "closed"
@@ -399,7 +359,7 @@ def case_default_branch_move_after_close_reopens_the_bead() -> None:
         def reopen(worktree: Path) -> None:
             status[0] = "open"
 
-        stop = stopped(fixture, export=export, close=close, reopen=reopen)
+        stop = stopped(fixture, close=close, reopen=reopen)
 
         assert stop.reason == "base-moved", stop
         assert fixture.main_tip() != before
@@ -412,11 +372,6 @@ def case_default_branch_move_after_close_reopens_the_bead() -> None:
 def case_landed_commit_is_not_reopened_after_an_error() -> None:
     def test(fixture: Fixture) -> None:
         before, status, events = fixture.main_tip(), ["open"], []
-
-        def export(worktree: Path, target: Path) -> bool:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(f'{{"id":"tadw-x","status":"{status[0]}"}}\n', encoding="utf-8")
-            return True
 
         def close(worktree: Path) -> None:
             events.append("close")
@@ -434,7 +389,7 @@ def case_landed_commit_is_not_reopened_after_an_error() -> None:
 
         candidate.advance_default_branch = advance_then_fail
         try:
-            stop = stopped(fixture, export=export, close=close, reopen=reopen)
+            stop = stopped(fixture, close=close, reopen=reopen)
         finally:
             candidate.advance_default_branch = advance
 
@@ -442,8 +397,6 @@ def case_landed_commit_is_not_reopened_after_an_error() -> None:
         assert fixture.main_tip() != before, "the landing commit did not reach main"
         assert status[0] == "closed", status
         assert events == ["close"], events
-        exported = git(fixture.main, "show", f"main:{candidate.EXPORT_PATH}")
-        assert '"status":"closed"' in exported, exported
 
     with_fixture(test)
 
@@ -471,16 +424,6 @@ def case_dirty_feature_checkout_stops() -> None:
     with_fixture(test)
 
 
-def case_export_rides_the_candidate_commit() -> None:
-    def test(fixture: Fixture) -> None:
-        landing = fixture.land()
-        carried = git(fixture.main, "show", f"{landing.commit}:{candidate.EXPORT_PATH}")
-        assert carried == TRACKER_EXPORT.strip(), carried
-        assert git(fixture.main, "rev-parse", "main") == landing.commit
-
-    with_fixture(test)
-
-
 def case_dirty_default_checkout_is_left_alone() -> None:
     def test(fixture: Fixture) -> None:
         (fixture.main / "base.txt").write_text("unrelated edit\n", encoding="utf-8")
@@ -495,7 +438,7 @@ def case_dirty_default_checkout_is_left_alone() -> None:
 def track_stale_export(fixture: Fixture) -> Path:
     """Commit an export on main, then rewrite it in the main checkout, as `bd` auto-export does."""
     (fixture.main / ".beads").mkdir()
-    fixture.commit_on_main(candidate.EXPORT_PATH, '{"id":"old"}\n', "chore: export")
+    fixture.commit_on_main(candidate.EXPORT_PATH, COMMITTED_EXPORT, "chore: export")
     stale = fixture.main / candidate.EXPORT_PATH
     stale.write_text('{"id":"rewritten by bd"}\n', encoding="utf-8")
     return stale
@@ -506,7 +449,7 @@ def case_export_only_dirty_default_checkout_lands() -> None:
         exported = track_stale_export(fixture)
         landing = fixture.land()
         assert fixture.main_tip() == landing.commit, "main did not move"
-        assert exported.read_text(encoding="utf-8") == TRACKER_EXPORT, "main holds a stale export"
+        assert exported.read_text(encoding="utf-8") == COMMITTED_EXPORT, "main holds a stale export"
         assert git(fixture.main, "status", "--porcelain", "--untracked-files=no") == ""
         assert landing.restored_export_in == fixture.main.resolve(), landing
 
@@ -519,7 +462,7 @@ def case_staged_export_in_default_checkout_lands() -> None:
         git(fixture.main, "add", candidate.EXPORT_PATH)
         landing = fixture.land()
         assert fixture.main_tip() == landing.commit, "main did not move"
-        assert exported.read_text(encoding="utf-8") == TRACKER_EXPORT, "main holds a stale export"
+        assert exported.read_text(encoding="utf-8") == COMMITTED_EXPORT, "main holds a stale export"
         assert git(fixture.main, "status", "--porcelain", "--untracked-files=no") == ""
 
     with_fixture(test)
@@ -583,14 +526,8 @@ def case_later_commit_is_reported_unpushed() -> None:
 
 def case_audit_log_stays_untracked() -> None:
     def test(fixture: Fixture) -> None:
-        def export(worktree: Path, target: Path) -> bool:
-            write_export(worktree, target)
-            (worktree / candidate.AUDIT_LOG_PATH).write_text("{}\n", encoding="utf-8")
-            return True
-
-        landing = fixture.land(export=export)
-        tracked = git(fixture.main, "ls-tree", "-r", "--name-only", landing.commit)
-        assert candidate.AUDIT_LOG_PATH not in tracked.splitlines(), tracked
+        landing = fixture.land(gate=gate_writing_audit_line("{}\n"))
+        assert candidate.AUDIT_LOG_PATH not in tracked_paths(fixture, landing.commit)
 
     with_fixture(test)
 
@@ -606,28 +543,19 @@ def case_tracked_audit_log_stop_names_the_fix() -> None:
     with_fixture(test)
 
 
-def case_bead_free_landing_writes_no_export() -> None:
+def case_bead_free_landing_carries_no_export() -> None:
     def test(fixture: Fixture) -> None:
-        landing = fixture.land(export=None)
-        tracked = git(fixture.main, "ls-tree", "-r", "--name-only", landing.commit)
-        assert candidate.EXPORT_PATH not in tracked.splitlines(), tracked
-        assert fixture.main_tip() == landing.commit
+        landing = fixture.land()
+        assert candidate.EXPORT_PATH not in tracked_paths(fixture, landing.commit)
 
     with_fixture(test)
 
 
 def case_audit_lines_written_in_the_temporary_worktree_are_kept() -> None:
     def test(fixture: Fixture) -> None:
-        def export(worktree: Path, target: Path) -> bool:
-            write_export(worktree, target)
-            (worktree / candidate.AUDIT_LOG_PATH).write_text('{"event":"x"}\n', encoding="utf-8")
-            return True
-
-        landing = fixture.land(export=export)
+        fixture.land(gate=gate_writing_audit_line('{"event":"x"}\n'))
         kept = (fixture.feature / candidate.AUDIT_LOG_PATH).read_text(encoding="utf-8")
         assert kept == '{"event":"x"}\n', kept
-        tracked = git(fixture.main, "ls-tree", "-r", "--name-only", landing.commit)
-        assert candidate.AUDIT_LOG_PATH not in tracked.splitlines(), tracked
 
     with_fixture(test)
 
@@ -638,12 +566,7 @@ def case_appended_audit_lines_never_join_an_unterminated_line() -> None:
         kept.parent.mkdir(exist_ok=True)
         kept.write_text('{"event":"old"}', encoding="utf-8")
 
-        def export(worktree: Path, target: Path) -> bool:
-            write_export(worktree, target)
-            (worktree / candidate.AUDIT_LOG_PATH).write_text('{"event":"new"}\n', encoding="utf-8")
-            return True
-
-        fixture.land(export=export)
+        fixture.land(gate=gate_writing_audit_line('{"event":"new"}\n'))
         lines = kept.read_text(encoding="utf-8").splitlines()
         assert lines == ['{"event":"old"}', '{"event":"new"}'], lines
 
@@ -669,20 +592,18 @@ for name, fn in [
     ("local commits are named in the report", case_local_commits_are_reported),
     ("a gate that changes a tracked file is rejected",
      case_gate_changing_a_tracked_file_is_rejected),
-    ("the bead closes after the gate and rides the landing export",
-     case_bead_closes_after_gate_and_landing_commit_carries_export),
+    ("a bead lands when the export is ignored", case_bead_lands_when_the_export_is_ignored),
+    ("the landing commit carries no export", case_landing_commit_carries_no_export),
+    ("the gated commit is the landing commit", case_gated_commit_is_the_landing_commit),
+    ("the bead closes after the gate", case_bead_closes_after_the_gate),
     ("a failed gate leaves the bead open", case_failed_gate_does_not_close_the_bead),
     ("a failed close attempt reopens the bead", case_failed_close_attempt_reopens_the_bead),
-    ("a failed post-close export reopens the bead",
-     case_failed_post_close_export_reopens_the_bead),
-    ("a stop after closing reopens the bead", case_stop_after_close_reopens_the_bead),
     ("a moved default branch reopens the bead",
      case_default_branch_move_after_close_reopens_the_bead),
     ("a landed commit is not reopened after an error",
      case_landed_commit_is_not_reopened_after_an_error),
     ("a source conflict stops and keeps unrelated work", case_conflict_stops_and_keeps_work),
     ("a dirty feature checkout stops", case_dirty_feature_checkout_stops),
-    ("the export rides the candidate commit", case_export_rides_the_candidate_commit),
     ("a dirty default checkout is left alone", case_dirty_default_checkout_is_left_alone),
     ("a default checkout dirty only in the export lands",
      case_export_only_dirty_default_checkout_lands),
@@ -698,7 +619,7 @@ for name, fn in [
     ("the interactions log stays untracked", case_audit_log_stays_untracked),
     ("a tracked audit log stops with the command that fixes it",
      case_tracked_audit_log_stop_names_the_fix),
-    ("a bead-free landing writes no export", case_bead_free_landing_writes_no_export),
+    ("a bead-free landing carries no export", case_bead_free_landing_carries_no_export),
     ("audit lines from the temporary worktree are kept",
      case_audit_lines_written_in_the_temporary_worktree_are_kept),
     ("appended audit lines never join an unterminated line",
