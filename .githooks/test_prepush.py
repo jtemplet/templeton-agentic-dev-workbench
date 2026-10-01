@@ -78,8 +78,6 @@ executor /tadw:ship shares, runs every planned check; the hook keeps the policy.
     failed, never as a skipped tool
   A check ended by a signal starts no check       case_a_check_ended_by_a_signal_starts_no_dependent
     that waits for it
-  A signal after the checks ends the hook         case_a_signal_during_the_tracker_export_commits_nothing
-    before stage 3 commits
 
 STAGE 2, the recorded quality-gates verdict (M4). Same fixture, same real
 `git push --dry-run`, with a report planted in the fixture's own git directory.
@@ -121,11 +119,13 @@ STAGE 2, the recorded quality-gates verdict (M4). Same fixture, same real
 STAGE 3, the tracker export (tadw-pm8). Same fixture, same real `git push --dry-run`. A stub `bd`
 is installed ahead of any real one, so the default fixture stays silent the same way the six
 project checks are stubbed for stage 1; a case that needs one export behavior overwrites the stub.
+Git ignores `.beads/issues.jsonl`, so tadw-joq3 replaced criterion 1: the stage writes the export
+and commits nothing.
 
   Bead criterion                                  Pinned by
   ------------------------------------------------------------------------------
-  1. A changed export lands as a follow-up      case_tracker_export_is_committed_when_it_changes
-     commit, never inside the push that caused it
+  1. A push writes a current export and         case_push_writes_a_current_export_and_commits_nothing
+     leaves HEAD where it was (tadw-joq3)
   2. A clean export adds no line and no commit  case_tracker_export_is_silent_when_nothing_changed
   3. A failed export warns, names the cost,     case_tracker_export_failure_warns_and_allows
      and still allows the push
@@ -140,6 +140,14 @@ verified with `git diff` at review time. What is pinned here is the runtime
 half, and the sharper risk: a hook that rewrites the tree it was asked to check.
 Dropping `--check` from the rumdl line would reformat every markdown file during
 a push, and `case_hook_leaves_the_tree_alone` is what catches that.
+
+PRE-COMMIT, the tracker export (tadw-joq3). Same fixture, with a real `git commit` in place of the
+push, and `.githooks/pre-commit` copied from the working tree.
+
+  Bead criterion                                  Pinned by
+  ------------------------------------------------------------------------------
+  2. A commit writes a current export, and      case_pre_commit_writes_a_current_export_and_stages_nothing
+     git status does not list it
 
 WHICH DIRECTORY GIT READS (tadw-yqu). Two static cases, no fixture. They guard
 the hooks directory beads owns, because a tadw hook copied there is a gate that
@@ -169,6 +177,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 HOOK = REPO / ".githooks" / "pre-push"
+PRE_COMMIT = REPO / ".githooks" / "pre-commit"
 EXECUTOR = REPO / "skills" / "ship" / "scripts" / "run_checks.py"
 AGENTS = REPO / "AGENTS.md"
 QUALITY_GATES_SKILL = REPO / "skills" / "quality-gates" / "SKILL.md"
@@ -342,8 +351,12 @@ RECORDED_AT = "2026-08-11T04:12:07Z"
 # STAGE 3's own stub for `bd`. A silent no-op by default, matching a push with
 # nothing to export; Fixture.stub_bd() overwrites it for a case that needs a
 # specific export behavior. The two named bodies below are the two behaviors
-# every stage-3 case needs beyond the default: a change to commit, and a
+# every stage-3 case needs beyond the default: an export to write, and a
 # failure to warn about.
+#
+# CHANGED_BD_STUB writes to the path `bd export -o` names, because pre-commit
+# exports through a temporary file and pre-push exports in place. It answers
+# every other subcommand, such as `bd hooks run`, with a silent exit 0.
 #
 # CHANGED_BD_STUB creates .beads/ itself. .gitattributes marks the whole
 # directory export-ignore, so it is absent from every fixture: build() clones
@@ -352,11 +365,13 @@ RECORDED_AT = "2026-08-11T04:12:07Z"
 # .beads/ already exists; only the fixture does, and only because of how it is
 # built.
 DEFAULT_BD_STUB = "#!/usr/bin/env sh\nexit 0\n"
+EXPORT = ".beads/issues.jsonl"
+STUB_EXPORT = '{"id": "stub-export"}\n'
 CHANGED_BD_STUB = (
     "#!/usr/bin/env sh\n"
+    '[ "$1" = export ] || exit 0\n'
     "mkdir -p .beads\n"
-    'echo \'{"id": "stub-export"}\' > .beads/issues.jsonl\n'
-    "exit 0\n"
+    'echo \'{"id": "stub-export"}\' > "$3"\n'
 )
 FAILING_BD_STUB = "#!/usr/bin/env sh\necho 'no beads database found' >&2\nexit 1\n"
 
@@ -373,7 +388,9 @@ def _cleanup() -> None:
         shutil.rmtree(path, ignore_errors=True)
 
 
-def git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def git(
+    root: Path, *args: str, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     """A git command that must succeed. Fixture setup has no recoverable failure.
 
     A fixed identity and no global excludes file, so a case tests the hook rather
@@ -401,6 +418,7 @@ def git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
         check=True,
+        env=env,
     )
 
 
@@ -555,6 +573,29 @@ def git_dir(root: Path) -> Path:
 
 def head_of(root: Path) -> str:
     return git(root, "rev-parse", "HEAD").stdout.strip()
+
+
+def ignore_what_the_repository_ignores(fixture: Fixture) -> None:
+    """Give the fixture this repository's own `.gitignore`, which names the tracker export.
+
+    `.gitattributes` marks `.gitignore` export-ignore, so `git archive` leaves it
+    out of every fixture. A case about the ignored export needs the real rules.
+    """
+    rules = REPO / ".gitignore"
+    assert rules.is_file(), f"{rules} is missing, so the fixture cannot ignore the export"
+    shutil.copy2(rules, fixture.work / ".gitignore")
+    fixture.commit_all("ignore what the repository ignores")
+
+
+def written_export(fixture: Fixture) -> str:
+    """The export the hook wrote, asserted to exist before it is read.
+
+    `check` catches AssertionError alone, so reading a missing file would end the
+    whole run in a traceback instead of failing the one case.
+    """
+    export = fixture.work / EXPORT
+    assert export.is_file(), f"the hook wrote no {EXPORT}"
+    return export.read_text(encoding="utf-8")
 
 
 def record_verdict(root: Path, verdict: str, *, head: str | None = None) -> Path:
@@ -1567,40 +1608,6 @@ def case_a_check_ended_by_a_signal_starts_no_dependent() -> None:
     assert "recorded no exit status" in output, f"as unfinished: {output}"
 
 
-def case_a_signal_during_the_tracker_export_commits_nothing() -> None:
-    """A signal after the checks ends the hook before stage 3 can commit.
-
-    The `bd` stub marks that it started, then sleeps before it changes the
-    export. The hook defers a trapped signal until its foreground command
-    ends, so a trap that returned to the script would go on to commit the
-    change the stub just made.
-    """
-    fixture = build()
-    started = fixture.work.parent / "export-started"
-    fixture.stub_bd(
-        "#!/usr/bin/env sh\n"
-        f"touch '{started}'\n"
-        "sleep 2\n"
-        "mkdir -p .beads\n"
-        'echo \'{"id": "stub-export"}\' > .beads/issues.jsonl\n'
-    )
-    commits_before = git(fixture.work, "rev-list", "--count", "HEAD").stdout.strip()
-
-    hook = start_hook_directly(fixture)
-    try:
-        wait_until(started.exists, "the tracker export started")
-        hook.send_signal(signal.SIGTERM)
-        output = output_after(hook, "SIGTERM")
-        assert "checks passed" in output, f"the control: the checks must have finished: {output}"
-        assert hook.returncode == 143, f"SIGTERM must exit 143: {output}"
-    finally:
-        stop_hook_tree(hook)
-    commits_after = git(fixture.work, "rev-list", "--count", "HEAD").stdout.strip()
-    assert commits_after == commits_before, (
-        f"an interrupted export must not commit: {commits_before} commits became {commits_after}"
-    )
-
-
 for name, fn in [
     (
         "SIGINT refuses the push, lets a check clean up, and stops it",
@@ -1641,10 +1648,6 @@ for name, fn in [
     (
         "a check ended by a signal starts no check that waits for it",
         case_a_check_ended_by_a_signal_starts_no_dependent,
-    ),
-    (
-        "a signal during the tracker export commits nothing",
-        case_a_signal_during_the_tracker_export_commits_nothing,
     ),
 ]:
     check(name, fn)
@@ -2139,29 +2142,25 @@ for name, fn in [
 print("\n  [stage 3: the tracker export, tadw-pm8]")
 
 
-def case_tracker_export_is_committed_when_it_changes() -> None:
-    """Criterion 1. A changed export lands as a follow-up commit.
+def case_push_writes_a_current_export_and_commits_nothing() -> None:
+    """tadw-joq3 criterion 3. A push refreshes the export and leaves HEAD where it was.
 
-    Never inside the push that caused it: git resolves which commit to push
-    before this hook runs, and does not re-read the ref afterward, so a commit
-    made here cannot join THIS push. It advances local HEAD by one commit that
-    goes out on the next push, which stage 3's own header in the hook explains.
+    Git ignores `.beads/issues.jsonl`, so the stage has nothing to stage. The
+    file is a local text copy of the tracker, and no commit carries it.
     """
     fixture = build()
+    ignore_what_the_repository_ignores(fixture)
     record_verdict(fixture.work, "PASS")
     before = head_of(fixture.work)
     fixture.stub_bd(CHANGED_BD_STUB)
     result = fixture.push()
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a push with a tracker change must still succeed: {output}"
-    after = head_of(fixture.work)
-    assert after != before, f"the export must land as a new local commit: {output}"
+    assert head_of(fixture.work) == before, f"the export must not become a commit: {output}"
+    content = written_export(fixture)
+    assert content == STUB_EXPORT, f"the file must hold what bd export wrote: {content!r}"
     assert git(fixture.work, "status", "--porcelain", ".beads/").stdout == "", (
-        f"the new commit must leave .beads/ clean: {output}"
-    )
-    content = (fixture.work / ".beads" / "issues.jsonl").read_text(encoding="utf-8")
-    assert content == '{"id": "stub-export"}\n', (
-        f"the committed file must hold what bd export wrote: {content!r}"
+        f"git must not list the ignored export: {output}"
     )
 
 
@@ -2180,9 +2179,9 @@ def case_tracker_export_is_silent_when_nothing_changed() -> None:
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a clean push must still succeed: {output}"
     after = head_of(fixture.work)
-    assert after == before, f"nothing changed, so no export commit should land: {output}"
+    assert after == before, f"a push must leave HEAD where it was: {output}"
     lines = [line for line in output.splitlines() if line.startswith("tadw:")]
-    assert len(lines) == 1, f"stage 3 must add no line when it has nothing to commit: {lines}"
+    assert len(lines) == 1, f"stage 3 must add no line when the export succeeds: {lines}"
 
 
 def case_tracker_export_failure_warns_and_allows() -> None:
@@ -2195,7 +2194,7 @@ def case_tracker_export_failure_warns_and_allows() -> None:
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a failed export must still allow the push: {output}"
     assert "bd export failed" in output, f"the failure must be named: {output}"
-    assert "one machine only" in output, f"and say what that costs: {output}"
+    assert f"{EXPORT} is not current" in output, f"and say what that costs: {output}"
     assert "no beads database found" in output, f"and carry the real error: {output}"
     assert head_of(fixture.work) == before, f"a failed export must commit nothing: {output}"
 
@@ -2216,34 +2215,32 @@ def case_missing_bd_warns_and_allows() -> None:
 def case_off_switch_also_skips_the_tracker_export() -> None:
     """Criterion 5. TADW_PREPUSH=off covers stage 3 too, not just stages 1 and 2."""
     fixture = build()
-    before = head_of(fixture.work)
     fixture.stub_bd(CHANGED_BD_STUB)
     result = fixture.push(env={"TADW_PREPUSH": "off"})
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"the off-switch must allow the push: {output}"
     assert "tadw:" not in output, f"off means silent, not merely permissive: {output!r}"
-    assert head_of(fixture.work) == before, (
-        f"the off-switch must skip stage 3 entirely, committing nothing: {output}"
+    assert not (fixture.work / EXPORT).exists(), (
+        f"the off-switch must skip stage 3 entirely, writing no export: {output}"
     )
 
 
 def case_delete_only_push_skips_the_tracker_export() -> None:
     """Criterion 6, stage 3's half. A deletion pushes no code, so nothing exports."""
     fixture = build(extra_branch="doomed")
-    before = head_of(fixture.work)
     fixture.stub_bd(CHANGED_BD_STUB)
     result = fixture.push("--delete", "doomed")
     output = result.stdout + result.stderr
     assert result.returncode == 0, f"a delete-only push must be allowed: {output}"
-    assert head_of(fixture.work) == before, (
+    assert not (fixture.work / EXPORT).exists(), (
         f"a delete-only push must not run stage 3 either: {output}"
     )
 
 
 for name, fn in [
     (
-        "a changed export lands as a follow-up commit [criterion 1]",
-        case_tracker_export_is_committed_when_it_changes,
+        "a push writes a current export and commits nothing [tadw-joq3 criterion 3]",
+        case_push_writes_a_current_export_and_commits_nothing,
     ),
     (
         "a clean export adds no line and no commit [criterion 2]",
@@ -2264,6 +2261,43 @@ for name, fn in [
     ),
 ]:
     check(name, fn)
+
+
+print("\n  [pre-commit: the tracker export, tadw-joq3]")
+
+
+def case_pre_commit_writes_a_current_export_and_stages_nothing() -> None:
+    """tadw-joq3 criterion 2. A commit refreshes the export, and git status does not list it.
+
+    The hook comes from the working tree, as build() takes pre-push, so an
+    uncommitted pre-commit is what gets tested.
+    """
+    fixture = build()
+    ignore_what_the_repository_ignores(fixture)
+    shutil.copy2(PRE_COMMIT, fixture.work / ".githooks" / "pre-commit")
+    fixture.stub_bd(CHANGED_BD_STUB)
+    fixture.write("NOTE.txt", "a change for the commit to carry\n")
+    git(fixture.work, "add", "NOTE.txt")
+    path = f"{fixture.bd_stub_dir}{os.pathsep}{os.environ.get('PATH', '')}"
+    git(
+        fixture.work,
+        "commit",
+        "-qm",
+        "a commit that runs pre-commit",
+        env={**os.environ, "PATH": path},
+    )
+    content = written_export(fixture)
+    assert content == STUB_EXPORT, f"the file must hold what bd export wrote: {content!r}"
+    status = git(fixture.work, "status", "--porcelain").stdout
+    assert ".beads" not in status, f"git status must not list the export: {status}"
+    committed = git(fixture.work, "show", "--name-only", "--format=", "HEAD").stdout
+    assert committed == "NOTE.txt\n", f"the commit must carry the staged file alone: {committed}"
+
+
+check(
+    "a commit writes a current export and stages nothing [tadw-joq3 criterion 2]",
+    case_pre_commit_writes_a_current_export_and_stages_nothing,
+)
 
 
 print("\n  [the hook runs the repository's own list, and stays in step with it]")

@@ -10,10 +10,10 @@ The root `AGENTS.md` keeps the setup command and the rules that bind every push:
 runs, when it refuses, the `TADW_PREPUSH=off` switch, and the `v*` tag gate. This file holds the
 mechanism under each of them. `CLAUDE.md` here is a symlink to this file.
 
-**`pre-push` is deliberately not a beads shim.** It exports the tracker and commits `.beads/`
-itself, on the terms recorded in the comments at the end of `.githooks/pre-push`, and calling
-`bd hooks run pre-push` there would export twice. `bd hooks list` therefore reports it with an
-empty version; that is expected.
+**`pre-push` is deliberately not a beads shim.** Its stage 3 exports the tracker to
+`.beads/issues.jsonl` itself, and commits nothing, because git ignores that file. The comments at
+the end of `.githooks/pre-push` record the terms. Calling `bd hooks run pre-push` there would
+export twice. `bd hooks list` therefore reports it with an empty version; that is expected.
 
 ## Stage one: the check list
 
@@ -67,9 +67,6 @@ each check in a process group of its own, then does two things:
 
 A check that started but recorded no exit status counts as failed. Once the checks finish, a signal
 only ends the hook.
-
-**Stage 3 can still leave the export staged.** A signal between its `git add .beads/` and its
-`git commit` leaves `.beads/` staged in the index. The serial hook had the same gap.
 
 Two behaviors are deliberate:
 

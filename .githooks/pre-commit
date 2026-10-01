@@ -1,12 +1,13 @@
 #!/usr/bin/env sh
 # beads shim. tadw's own checks live in .githooks/pre-push; this hook is beads only.
 #
-# pre-push deliberately does NOT call `bd hooks run`: it exports the tracker and
-# commits .beads/ itself, for the reasons recorded at the end of that file. Do not
-# 'fix' it by adding a beads section there, which would export twice.
+# pre-push deliberately does NOT call `bd hooks run`: it exports the tracker
+# itself, for the reasons recorded at the end of that file. Do not 'fix' it by
+# adding a beads section there, which would export twice.
 # --- BEGIN BEADS EXPORT ---
-# Fold .beads/issues.jsonl into the commit being made, so it is never left dirty
-# for someone to notice later. Ported from atlas (atlas-xh3s).
+# Keep .beads/issues.jsonl current on every commit. Git ignores that file, so
+# this section stages nothing: the export is a local text copy of the tracker
+# (tadw-joq3). Ported from atlas (atlas-xh3s).
 #
 # Deliberately contains no `exit`: this runs inside a hook whose own status
 # decides the commit, and an `exit 0` here would turn a failing gate into a
@@ -17,8 +18,8 @@
 #     would otherwise hang the commit with nothing on screen. Shorter than bd's
 #     own 300s: a commit should not stall for minutes over an export.
 #   - A temp file, because `bd export -o` truncates its target as it starts, so
-#     a killed export would leave a partial file, and staging that is worse than
-#     not exporting at all.
+#     a killed export would leave a partial file, which is worse than a stale
+#     one.
 if command -v bd >/dev/null 2>&1; then
   _bx_tmp=".beads/.issues.jsonl.hook-tmp"
   _bx_timeout="${BEADS_HOOK_TIMEOUT:-30}"
@@ -27,10 +28,6 @@ if command -v bd >/dev/null 2>&1; then
   else _bx_run=""; fi
   if $_bx_run bd export -o "$_bx_tmp" >/dev/null 2>&1 && [ -s "$_bx_tmp" ]; then
     mv -f "$_bx_tmp" .beads/issues.jsonl
-    if ! git diff --quiet HEAD -- .beads/issues.jsonl 2>/dev/null; then
-      git add -- .beads/issues.jsonl
-      echo "pre-commit: refreshed .beads/issues.jsonl into this commit"
-    fi
   else
     rm -f "$_bx_tmp"
   fi
