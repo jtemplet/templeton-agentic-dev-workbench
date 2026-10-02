@@ -319,8 +319,8 @@ uses RSpec
 - Resolves the bead from the argument or the branch name, verifying every candidate against `bd`
   and refusing when two real beads resolve, when a bead id given as an argument does not exist, or
   when the bead is already closed. It ships **bead-free** when the branch names no bead
-- Rebases onto the default branch, regenerating a conflicted `.beads/issues.jsonl` with
-  `bd export` and keeping both sides of a `CHANGELOG.md` conflict; any other conflict aborts
+- Rebases onto the default branch, keeping both sides of a `CHANGELOG.md` conflict; a conflict on
+  any other path aborts
 - Squashes the branch into a candidate commit, runs the gate on that exact commit, and moves the
   default branch only when the gate passed, so a failed gate leaves the default branch unchanged
 - Closes the bead after the landing, never before, then pushes without forcing. A rejected push

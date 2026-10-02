@@ -4,7 +4,7 @@ Both plugins are installed, and their skills overlap. **Where a tadw skill and a
 `mattpocock-skills` skill answer the same question, use the tadw one.** This is a standing
 instruction, not a preference to weigh case by case.
 
-Two exceptions are listed at the bottom, and they are deliberate.
+Three exceptions are listed at the bottom, and they are deliberate.
 
 ## Why tadw wins by default
 
@@ -31,9 +31,9 @@ produces work the rest of the pipeline cannot consume.
 
 ## Where the overlap is partial
 
-**`mattpocock-skills:resolving-merge-conflicts`.** The `ship` skill resolves exactly two paths
-mechanically, `.beads/issues.jsonl` and `CHANGELOG.md`, and stops on any other conflicted path
-by design. Use his skill for a source conflict, which is the case `ship` refuses to judge.
+**`mattpocock-skills:resolving-merge-conflicts`.** The `ship` skill resolves exactly one path
+mechanically, `CHANGELOG.md`, and stops on any other conflicted path by design. Use his skill
+for a source conflict, which is the case `ship` refuses to judge.
 
 **`mattpocock-skills:wayfinder`.** It plans work too large for one agent session as a map of
 decision tickets. `/plan-to-beads` plus `bd dep add` covers the dependency graph, but nothing in
