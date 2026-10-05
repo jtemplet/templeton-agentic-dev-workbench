@@ -1,5 +1,24 @@
 ## [Unreleased]
 
+## [4.8.0] - 2026-10-05
+
+### Added
+
+- **Add the verify-app skill, agent, and command.** (`3a3a5dc`, tadw-7q8)
+
+### Changed
+
+- **Delete the tracked-export tolerance from the ship...** (`0253afc`, tadw-zgj8)
+- **Correct the documents that say git tracks the...** (`18d0b50`, tadw-43ox)
+- **Reuse only eligible check results.** (`4aa00a7`, tadw-n8xh)
+- **Re-split the verification loop handoff work.** (`a4763e3`, tadw-440)
+- **Drive the iOS Simulator with agent-device.** (`a9b4f2e`, tadw-qby)
+- **Add a script that lists the journeys a change needs.** (`11ece47`, tadw-6xhi)
+
+### Fixed
+
+- **Diagnose why the sentence... (tadw-self-report-sentence-length-zxu).** (`5e33005`)
+
 ## [4.7.2] - 2026-10-01
 
 ### Changed
@@ -2828,7 +2847,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.2...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.0...HEAD
+[4.8.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.2...v4.8.0
 [4.7.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.1...v4.7.2
 [4.7.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.0...v4.7.1
 [4.7.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.6.11...v4.7.0
