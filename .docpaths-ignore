@@ -61,3 +61,9 @@ docs/API_CONVENTIONS.md
 # and why deleting it fixed the skill it used to shadow. Same case as
 # agents/quality-gates.md above, so this entry is permanent too.
 commands/bead-audit.md
+
+# The per-project control document verify-app reads. Each project creates it
+# from skills/verify-app/references/control-template.md, so it never exists in
+# this tree. Named by the skill, its command, README.md, and docs/ROUTING.md.
+docs/verification/*
+docs/verification

@@ -1,7 +1,7 @@
 # Verification Control Document Template
 
 This template holds what every journey in one project shares: how to start the application, how to
-sign in, and which browser tool to use. Copy it to `docs/verification/control.md` in the project
+sign in, and how to start the browser. Copy it to `docs/verification/control.md` in the project
 and fill each field once. The `verify-app` skill reads that copy, so it can start the application
 and reach a signed-in session without asking you a question.
 
@@ -76,13 +76,18 @@ Signed-in check: the text "Dashboard" is on the page
 
 ## browser
 
-**Holds:** which browser tool to load, and the exact `ToolSearch` query that loads it.
+**Holds:** the browser tool, the prefix for its session name, and any flags every command needs.
 
-Name one tool. `verify-app` runs the query before it drives the application, so write it in full.
+`verify-app` drives the application with the `agent-browser` command-line tool, and with no other
+tool. Write `agent-browser` on the `Tool` line. The skill names each run's session from the
+prefix, so two runs never share one browser. The `Flags` line holds what every command needs,
+for example `--state .auth/lender.json` when `auth` uses a saved browser session. Write `none`
+when the run needs no extra flag.
 
 ```text
-Tool: Claude in Chrome
-Query: select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__computer,mcp__claude-in-chrome__read_page,mcp__claude-in-chrome__tabs_create_mcp
+Tool: agent-browser
+Session prefix: verify
+Flags: none
 ```
 
 ## teardown

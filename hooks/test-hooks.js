@@ -82,6 +82,10 @@
 //      marker by an ordinary edit and stop being injected, with no other signal.
 //      That shipped: the pre-send closer fell below the marker and the session
 //      simply stopped receiving it.
+//  19. skills/verify-app/SKILL.md keeps the four machine lines its callers
+//      read, reports a stale selector as STALE rather than FAIL, and stops on
+//      a missing agent-browser; agents/verify-app.md runs on sonnet with four
+//      read-and-run tools. One check per acceptance criterion of tadw-7q8.
 //
 // Finally, the check count documented in docs/HOOKS.md is asserted against the
 // real total. That number drifted three times while this suite was being written.
@@ -1147,6 +1151,80 @@ check('the acceptance-verifier agent runs on sonnet with Read, Bash, Grep, and G
       'Grep, and Glob and nothing else. Bash runs the QA gates, and it can also write a file and ' +
       'change a bead, so the prompt is what keeps the grader off both. This list is the only ' +
       'thing holding the tools it can reach to four.'
+  );
+});
+
+// --- 19. verify-app keeps the contract its callers read ----------------------
+// quality-gates reads the last line a verify-app run prints, so the four machine
+// lines are an interface, not prose. A stale selector reported as FAIL files a
+// bug against working code, and a missing agent-browser that falls back to curl
+// reports a verdict on a page nobody opened. Each reads as a working skill.
+const VERIFY_APP_DIR = path.join(HOOKS_DIR, '..', 'skills', 'verify-app');
+const VERIFY_APP_SKILL = fs.readFileSync(path.join(VERIFY_APP_DIR, 'SKILL.md'), 'utf8');
+const VERIFY_APP_OUTCOMES = (VERIFY_APP_SKILL.match(
+  /<!-- verify-outcomes:start -->([\s\S]*?)<!-- verify-outcomes:end -->/
+) || [])[1];
+
+function assertVerifyAppSays(pattern, message) {
+  assert.ok(pattern.test(VERIFY_APP_SKILL), `skills/verify-app/SKILL.md: ${message}`);
+}
+
+function assertVerifyAppOutcome(line) {
+  assert.ok(VERIFY_APP_OUTCOMES, 'the outcome table must sit between verify-outcomes comments');
+  assert.ok(VERIFY_APP_OUTCOMES.includes(line), `the outcome table must list ${line}`);
+}
+
+check('verify-app ends a drivable journey on VERIFY_PASS or VERIFY_FAIL <step>', () => {
+  assertVerifyAppOutcome('`VERIFY_PASS`');
+  assertVerifyAppOutcome('`VERIFY_FAIL <step>`');
+  assertVerifyAppSays(/last line of the report/, 'a caller reads the machine line as the last line');
+});
+
+check('verify-app reports FAIL with the broken step and the quoted on-screen error', () => {
+  assertVerifyAppSays(/On a FAIL, quote the screen/, 'a FAIL must quote the screen');
+  assertVerifyAppSays(/get text body/, 'it must name the command that reads the on-screen text');
+  assertVerifyAppSays(/--timeout \d+/, 'the success-signal wait needs a timeout, or the run hangs');
+});
+
+check('verify-app reports a stale selector as VERIFY_STALE, never as FAIL', () => {
+  assertVerifyAppOutcome('`VERIFY_STALE <step>`');
+  assertVerifyAppSays(/A stale selector is never a FAIL/, 'a stale selector must never be a FAIL');
+});
+
+check('verify-app stops and names agent-browser when no browser tool is installed', () => {
+  assertVerifyAppOutcome('`VERIFY_BLOCKED <reason>`');
+  assertVerifyAppSays(/command -v agent-browser/, 'Step 1 must check for agent-browser on PATH');
+  assertVerifyAppSays(/VERIFY_BLOCKED browser/, 'a missing agent-browser ends with BLOCKED browser');
+  assertVerifyAppSays(/npm i -g agent-browser/, 'the stop must give the install command');
+  const template = fs.readFileSync(
+    path.join(VERIFY_APP_DIR, 'references', 'control-template.md'),
+    'utf8'
+  );
+  assert.ok(
+    /Tool: agent-browser/.test(template),
+    'the control template must name agent-browser, or a filled copy points the run elsewhere'
+  );
+});
+
+// ADR 0008: a verdict on a running page is a judgment nobody downstream
+// re-checks, so the agent keeps sonnet, and its tools stay four so it cannot
+// fix what it reports.
+check('the verify-app agent runs on sonnet with Read, Bash, Grep, and Glob', () => {
+  const doc = fs.readFileSync(path.join(HOOKS_DIR, '..', 'agents', 'verify-app.md'), 'utf8');
+  const frontmatter = doc.match(/^---\n([\s\S]*?)\n---\n/);
+  assert.ok(frontmatter, 'agents/verify-app.md must open with YAML frontmatter');
+
+  const model = frontmatter[1].match(/^model:\s*(\S+)\s*$/m);
+  assert.strictEqual(model && model[1], 'sonnet', 'agents/verify-app.md must run on sonnet, per ADR 0008');
+
+  const tools = frontmatter[1].match(/^tools:\s*\[(.*)\]\s*$/m);
+  assert.ok(tools, 'agents/verify-app.md must declare a tools list');
+  const declared = [...tools[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
+  assert.deepStrictEqual(
+    declared,
+    ['Bash', 'Glob', 'Grep', 'Read'],
+    `agents/verify-app.md declares [${declared.join(', ')}]. It reports and never edits, ` +
+      'so it holds no Edit or Write.'
   );
 });
 

@@ -147,6 +147,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Investigate a bug before fixing | `/diagnose` | `diagnostician` agent |
 | Write or restructure tests | - | `style-testing`, plus `style-rspec` for RSpec |
 | Run the QA gates | `/quality-gates` | `quality-gates` |
+| Prove a change works in the running web app | `/verify-app` | `verify-app`, or the `verify-app` agent in its own context |
 | Grade work against its bead | `/verify-acceptance` | `acceptance-verifier` agent, running `verify-acceptance` |
 | Fix what a NOT ACCEPTED verdict found | `/tadw:reconcile-acceptance` (the skill itself) | `reconcile-acceptance` |
 | Land a finished bead's branch on main | `/tadw:ship` (the skill itself) | `ship` |
@@ -257,7 +258,7 @@ tag `vX.Y.Z` and push main before the tag.
 Read the last tag with `git tag --list 'v*' --sort=-v:refname`, because lexical order puts
 `v2.10.1` above `v2.5.2` and a released tag then reads as missing.
 
-**Registered Skills** (42). One-line descriptions live in the `README.md` skills
+**Registered Skills** (43). One-line descriptions live in the `README.md` skills
 table and in each `skills/<name>/SKILL.md` frontmatter, which is what the runtime actually
 reads when deciding what to invoke.
 
@@ -270,17 +271,17 @@ reads when deciding what to invoke.
 `research-ingest` `research-synthesize` `review-fresh-eyes`
 `roadmap-dashboard` `ship` `style-frontend` `style-go` `style-markdown`
 `style-python` `style-rails` `style-rspec` `style-swift` `style-testing` `terraform-iac-expert`
-`triage-beads` `ux-review` `ux-review-ios` `verify-acceptance` `write-plan`
+`triage-beads` `ux-review` `ux-review-ios` `verify-acceptance` `verify-app` `write-plan`
 
-**Registered Agents** (13). Descriptions live in the `README.md` agents table and in
+**Registered Agents** (14). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.
 
 `acceptance-verifier` `claude-md-reviewer` `code-reviewer` `diagnostician`
 `feature-planner` `product-analyst`
 `product-cartographer` `product-manager` `project-manager` `quality-gates-orchestrator`
-`research-librarian` `software-engineer` `ux-product-designer`
+`research-librarian` `software-engineer` `ux-product-designer` `verify-app`
 
-**Registered Commands** (28). Descriptions live in the `README.md` command tables
+**Registered Commands** (29). Descriptions live in the `README.md` command tables
 and in each `commands/<name>.md` frontmatter.
 
 `/adr` `/agentic-clean-code` `/aso-review` `/bead-audit-all` `/bead-refine` `/build` `/code-review`
@@ -288,7 +289,7 @@ and in each `commands/<name>.md` frontmatter.
 `/plan-to-beads` `/prod-ops` `/product-analysis` `/product-surface-docs`
 `/quality-gates` `/research-ingest` `/research-synthesize` `/response-style`
 `/review-claude-md` `/roadmap-dashboard` `/swift-code-review` `/terraform-review` `/ux-review`
-`/ux-review-ios` `/validate-plugin` `/verify-acceptance`
+`/ux-review-ios` `/validate-plugin` `/verify-acceptance` `/verify-app`
 
 ### Hooks
 

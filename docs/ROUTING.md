@@ -291,6 +291,24 @@ uses RSpec
   by naming which changed files it involves
 - Report-only: it never fixes, formats, or rewrites the working tree
 
+**Prove a change works in the running web app:** Use `/verify-app` (reads the `verify-app` skill
+from disk), or dispatch the `verify-app` agent to keep the browser output in its own window
+
+- Reads `docs/verification/control.md` for the launch command, the ready check, the address, the
+  sign-in shortcut, the browser settings, and the teardown. The template is
+  `skills/verify-app/references/control-template.md`
+- Takes a journey name, nothing, or a sentence. A name or nothing reads the drive block of a leaf
+  document under `docs/products/`; nothing picks the leaf documents whose `source_refs` changed
+- Drives the browser with the `agent-browser` command-line tool alone, and stops with
+  `VERIFY_BLOCKED browser` and the install command when it is missing
+- Polls the ready check rather than waiting a fixed time, signs in through the shortcut rather than
+  a signup form, and takes a snapshot before each screen
+- Quotes the on-screen error text on a FAIL, and reports a selector that matches nothing on a clean
+  page as STALE, because a moved selector is stale documentation and not a defect
+- Ends with one machine line: `VERIFY_PASS`, `VERIFY_FAIL <step>`, `VERIFY_STALE <step>`, or
+  `VERIFY_BLOCKED <reason>`
+- Report-only: it never edits a file, the stale drive block included
+
 **Grade work against its criteria:** Use `/verify-acceptance`, which dispatches to the
 `acceptance-verifier` agent
 

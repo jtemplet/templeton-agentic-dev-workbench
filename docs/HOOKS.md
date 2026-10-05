@@ -149,7 +149,7 @@ in **every project** the plugin is loaded for, and (if distributed via the marke
 ASO), because a `SessionStart` hook cannot see the task type; the marker makes it self-evident
 and the off-switch is the escape hatch.
 
-**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 29 checks: the
+**Test.** `node hooks/test-hooks.js` (Node built-ins only, no install) runs 34 checks: the
 SessionStart raw output across every indexed entry (both documents present, the parts
 reassembling to the whole response style, an out-of-range index silent, response style
 frontmatter stripped), the three that hold the split shut (every payload inside the
@@ -170,6 +170,12 @@ is set, it stays silent when the off-switch is set and a runtime works, it needs
 external command nor `HOME`, and its off-switch agrees with `runtime.js`. Those nine build
 their PATH out of fake runtimes alone, holding no inherited entry. A real `bun` on the machine
 would otherwise run the broken-`node` cases and pass them for the wrong reason.
+
+Five more pin `verify-app`, because `quality-gates` reads the last line a run prints. Four hold
+the skill to one acceptance criterion of `tadw-7q8` each: the `VERIFY_PASS` and
+`VERIFY_FAIL <step>` lines, the quoted on-screen error on a FAIL, a stale selector reported as
+`VERIFY_STALE` rather than FAIL, and the stop on a missing `agent-browser`. The fifth holds
+`agents/verify-app.md` on `sonnet` with `Read`, `Bash`, `Grep`, and `Glob`, per ADR 0008.
 
 The last two hold the project's `.env` out of the hook process, and they are split on purpose.
 One reads back what the wrapper exported, using a fake runtime that prints its own environment,
