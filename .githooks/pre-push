@@ -248,6 +248,7 @@ check python3 skills/ship/scripts/test_worktree_cleanup.py
 check python3 skills/reconcile-acceptance/scripts/test_load_findings.py
 check python3 skills/reconcile-quality-gates/scripts/test_load_findings.py
 check python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py
+check python3 skills/verify-app/scripts/test_journeys.py
 
 run_planned_checks
 

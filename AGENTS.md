@@ -61,6 +61,7 @@ python3 skills/ship/scripts/test_worktree_cleanup.py        # regression suite f
 python3 skills/reconcile-acceptance/scripts/test_load_findings.py   # regression suite for the acceptance findings loader
 python3 skills/reconcile-quality-gates/scripts/test_load_findings.py   # regression suite for the quality-gates findings loader
 python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py   # regression suite for the acceptance report writer
+python3 skills/verify-app/scripts/test_journeys.py                    # regression suite for the journeys script
 python3 .githooks/test_prepush.py                             # regression suite for the pre-push hook
 claude plugin validate .                                      # parses every SKILL.md frontmatter
 ```

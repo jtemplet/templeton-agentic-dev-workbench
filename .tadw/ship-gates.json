@@ -50,6 +50,7 @@
     {"name": "acceptance-findings-suite", "command": ["python3", "skills/reconcile-acceptance/scripts/test_load_findings.py"]},
     {"name": "quality-gates-findings-suite", "command": ["python3", "skills/reconcile-quality-gates/scripts/test_load_findings.py"]},
     {"name": "acceptance-report-suite", "command": ["python3", "skills/verify-acceptance/scripts/test_write_acceptance_report.py"]},
+    {"name": "journeys-suite", "command": ["python3", "skills/verify-app/scripts/test_journeys.py"]},
     {"name": "prepush-suite", "command": ["python3", ".githooks/test_prepush.py"]},
     {"name": "plugin-validate", "command": ["claude", "plugin", "validate", "."]}
   ]
