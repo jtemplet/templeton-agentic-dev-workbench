@@ -46,6 +46,8 @@ outranks the file, and `TADW_SHIP_CHECK_TIMEOUT` keeps its meaning.
       "name": "hook-suite",
       "command": ["node", "hooks/test-hooks.js"],
       "inputs": ["hooks/**"],
+      "tools": ["node"],
+      "env": ["CLAUDE_CONFIG_DIR"],
       "depends_on": ["markdown-format"],
       "resources": ["tracker"],
       "timeout": 300,
@@ -61,17 +63,21 @@ outranks the file, and `TADW_SHIP_CHECK_TIMEOUT` keeps its meaning.
 | `gates` | yes | A non-empty list of gate objects. | - |
 | `name` | yes | A unique, non-empty name for the gate. | - |
 | `command` | yes | The command as an argument list, never a shell string. | - |
-| `inputs` | no | Repository-relative globs that the result depends on. | `[]` |
+| `inputs` | no | Repository-relative globs for the files the result depends on. | `[]` |
+| `tools` | no | Names of the programs the command runs, as found on `PATH`. | `[]` |
+| `env` | no | Names of the environment variables the result depends on. | `[]` |
 | `cwd` | no | Working directory, relative to the repository root, staying inside it. | `"."` |
 | `timeout` | no | Seconds before the check is stopped, a positive whole number. | `900` |
 | `depends_on` | no | Names of other gates that must finish before this one starts. | `[]` |
 | `resources` | no | Shared resources, such as `tracker`. Gates naming the same one run in sequence. | `[]` |
-| `reuse` | no | Whether a saved result may satisfy this gate. Milestone 5 defines the rule. | `false` |
+| `reuse` | no | Whether a saved result may satisfy this gate. See "The reuse rule" below. | `false` |
 
-Three rules keep the format honest:
+Four rules keep the format honest:
 
-- **Inputs are what a later reuse rule compares.** A gate with no `inputs` says it cannot name
-  them, so `reuse` is forced to `false` for it. Rerunning is the safe answer.
+- **`inputs`, `tools`, and `env` are what the reuse rule compares.** `reuse` is forced to `false`
+  for a gate with no `inputs`, and for a gate whose `tools` omit the first word of its `command`.
+  Such a gate cannot name what its result depends on, and rerunning is the safe answer. An absent
+  `env` is allowed, and it declares that the result depends on no variable.
 - **`depends_on` must be acyclic.** A gate cannot depend on itself, and a loop of gates is
   rejected with the loop named, because no scheduler could start any gate on it.
 - **Unknown keys are errors.** A misspelled `timeout` must not fall back to the default in silence.
@@ -81,6 +87,67 @@ Three rules keep the format honest:
 `skills/ship/scripts/read_gate_config.py --repo-root <path>` validates the file, prints every
 problem to stderr, and prints the normalized configuration, with each default filled in, to
 stdout. It exits 0 when valid, 1 when invalid, and 2 when the file is missing.
+
+## The reuse rule
+
+A gate with `"reuse": true` can pass without running. The executor,
+`skills/ship/scripts/run_checks.py`, saves each pass of that gate. On a later run it takes the
+saved pass in place of the check, only when everything the gate declares still matches.
+
+**Rerunning is the default.** A check runs again in every case below.
+
+| Case | Example |
+|---|---|
+| No saved result exists | The first run in a clone |
+| The saved result is not a pass, or cannot be read | A damaged file in the store |
+| The command or its `cwd` changed | A new flag in `command` |
+| A file matching `inputs` changed, appeared, or went away | An edit to the script under test |
+| An `inputs` glob matches no file | A misspelled path |
+| A tool resolves to another path, or prints another version | An upgraded `python3` |
+| A tool is not on `PATH`, or its `--version` fails | A tool with no `--version` flag |
+| A variable named in `env` has another value, or is newly set or unset | A changed `TMPDIR` |
+| `git` cannot list the files | A directory outside a repository |
+
+A commit hash is never compared. Two trees at one commit can differ in every row above.
+
+**What the executor reads.** It reads all of this when the check is due to start, and again after
+the check passes. It saves the pass only when both readings are equal. The second reading runs
+each tool's `--version` again, because the check may have changed a tool.
+
+- **Files.** It lists tracked files, and untracked files that git does not ignore, with
+  `git ls-files --cached --others --exclude-standard`. It hashes the working-tree content of each
+  file that matches an `inputs` glob. `**` crosses directories, and `*` stays inside one. A file
+  that git ignores is never an input, so a gate that reads one must not set `reuse`.
+- **Tools.** For each name in `tools`, it records the resolved path and the output of
+  `<tool> --version`. The first word of `command` must be in `tools`, or the gate is never reused.
+  List every other program the command runs too; nothing checks that part of the list for you.
+- **Variables.** For each name in `env`, it records a hash of the value, or that the variable is
+  unset. The store never holds the value itself.
+
+**Where passes are saved.** The store is the directory `tadw-check-results` under the path
+`git rev-parse --git-common-dir` prints. It holds one JSON file per command and working directory,
+and each run replaces the file. Every worktree of a repository shares the store. Sharing is safe,
+because a saved pass is matched on content and never on the worktree that wrote it. Ship depends
+on the sharing: it gates a temporary worktree, removes it, and then pushes from another checkout.
+Delete the directory to make every check run again.
+
+**Both callers save and reuse.** `tadw_ship.py` gives each reusable gate its declarations.
+`.githooks/pre-push` names its checks by number, so the executor finds the gate for a check by
+its command. It considers only a gate whose `cwd` is `"."`, because every check in the hook runs
+at the repository root. The check takes the declarations of the gate with the same argument list.
+A run that reused a result says so. Ship prints the count on stderr, and the hook adds it to its
+summary line.
+
+**Each caller keeps its own policy.** A reused result is a pass and nothing else. A failed, timed
+out, or interrupted check is never saved, so ship still stops on it and the hook still reports it.
+
+No gate in this repository sets `reuse` yet. `/tadw:ship` reads this file through the installed
+plugin's copy of `read_gate_config.py`, and a copy older than this rule rejects `tools` and `env`
+as unknown keys. `tadw-sbaq` marks the first two gates once the installed copy accepts them.
+Add `reuse` to another gate only after you have read what its command reads. Many of the suites
+here read `AGENTS.md`, a `SKILL.md`, or the tracker, and each of those is an input. A suite that
+builds git repositories also depends on the user's git configuration, which no key can declare.
+`check-executor-suite` is one, so it does not set `reuse`.
 
 ## Migration procedure
 
@@ -96,7 +163,8 @@ step 4 before the skill switched.
    example the command block in `AGENTS.md`. Leave out any check that is deliberately not a gate,
    such as a model eval.
 3. **Write one gate per check.** Split each shell line into an argument list, and add `inputs` where
-   you can name them. Add `depends_on` or `resources` only where a check needs one; a check that
+   you can name them. Leave `reuse` off until "The reuse rule" above holds for the gate.
+   Add `depends_on` or `resources` only where a check needs one; a check that
    uses the tracker database names the resource `tracker`.
 4. **Validate, then compare.** Run `read_gate_config.py`. Then check that the gate names and
    commands match the source list, one for one. A missing check is a check nothing enforces.

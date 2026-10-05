@@ -97,6 +97,7 @@ mkdir -p "$work" || exit 0
 total=0
 ran=0
 failed=0
+reused=0
 skipped=''
 after_previous=''
 previous_planned=''
@@ -109,6 +110,11 @@ executor=''
 # The report reads the numbered files in list order, so it reads the same as a
 # serial run's. The policy stays here: which tool is missing, what a failure
 # means, and whether the push goes ahead.
+#
+# `--repo-root .` lets the executor satisfy a check from a saved pass instead of
+# running it. It does so only for a check whose command is a gate that
+# .tadw/ship-gates.json marks `reuse`, and only when every input, tool, and
+# variable that gate declares still matches. docs/ship-gate-contract.md has the rule.
 #
 # `after_previous=yes` on the line above a `check` line makes that check wait for
 # the check on the line above, so the two run one after the other. When the check
@@ -169,7 +175,8 @@ worker_limit() {
 # arrives; a foreground command would hold the trap until it ended.
 run_planned_checks() {
   [ "$ran" -gt 0 ] || return 0
-  python3 skills/ship/scripts/run_checks.py --plan-dir "$work" --workers "$(worker_limit)" &
+  python3 skills/ship/scripts/run_checks.py \
+    --plan-dir "$work" --workers "$(worker_limit)" --repo-root . &
   executor=$!
   wait "$executor"
 }
@@ -255,6 +262,8 @@ while [ "$number" -lt "$total" ]; do
   number=$((number + 1))
   # No command file means the check never started, because its tool is missing.
   [ -e "$work/$number.cmd" ] || continue
+  # The executor leaves this file when a saved pass stood in for the check.
+  [ -e "$work/$number.reused" ] && reused=$((reused + 1))
   status=$(cat "$work/$number.rc" 2>/dev/null)
   [ "$status" = 0 ] && continue
   failed=$((failed + 1))
@@ -285,7 +294,10 @@ if [ "$ran" -eq 0 ]; then
   # the all-skipped-run-reports-PASS shape the quality-gates skill refuses by name.
   echo "tadw: WARNING - 0 of $total checks ran, so nothing was verified" >&2
 elif [ "$failed" -eq 0 ]; then
-  echo "tadw: pre-push checks passed ($ran of $total, ${elapsed}s)" >&2
+  # Said on the same line, so a reader never takes a reused result for a fresh run.
+  reused_note=''
+  [ "$reused" -gt 0 ] && reused_note=", $reused reused a saved result"
+  echo "tadw: pre-push checks passed ($ran of $total$reused_note, ${elapsed}s)" >&2
 else
   cat "$work/report" >&2
   echo "" >&2

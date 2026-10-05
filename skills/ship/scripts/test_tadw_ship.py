@@ -27,6 +27,12 @@ Stdlib only, no install. Run with:
   case_run_gate_stops_on_a_timeout, case_run_gate_runs_the_override, and
   case_run_gate_keeps_the_log_of_a_failed_gate.
 
+  tadw-n8xh: ship saves and reuses a gate's result, and a pass saved in one
+  worktree satisfies the same tree in another, pinned by
+  case_run_gate_reuses_a_saved_pass, case_run_gate_reports_the_reuse, and
+  case_run_gate_reuses_a_pass_saved_in_another_worktree. The match rule itself
+  is pinned in test_run_checks.py.
+
   tadw-a7r criterion 5: a failed gate's full output stays in its log, and the
   runner prints only a bounded excerpt, pinned by
   case_run_gate_prints_a_bounded_excerpt and case_run_gate_log_keeps_every_line.
@@ -637,6 +643,61 @@ def case_run_gate_runs_the_override() -> None:
     result = run_in_empty_repo("--run-gate", env={"TADW_SHIP_CHECK": "exit 4"})
     assert_ship_stopped(result)
     assert "failed TADW_SHIP_CHECK" in result.stderr, result.stderr
+
+
+class ReuseRuns(NamedTuple):
+    """`--run-gate` twice in a checkout, then once in a linked worktree of the same commit.
+
+    The one gate declares its input and its tool, and counts each process it starts.
+    """
+
+    second: subprocess.CompletedProcess
+    started_by_two_runs: int
+    started_by_three_runs: int
+
+
+def commit_reusable_gate(repo: Path, runs: Path) -> None:
+    counter = f"open({str(runs)!r}, 'a').write('x')"
+    declared = {"inputs": ["input.txt"], "tools": [sys.executable], "reuse": True}
+    gate = python_gate("counted", counter, **declared)
+    write_config(repo, gate_config(gate))
+    (repo / "input.txt").write_text("one\n", encoding="utf-8")
+    identity = ("-c", "user.name=t", "-c", "user.email=t@t")
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(repo), *identity, "commit", "-q", "-m", "gate"], check=True)
+
+
+@functools.cache
+def reuse_runs() -> ReuseRuns:
+    with tempfile.TemporaryDirectory() as directory:
+        repo, linked, runs = (Path(directory) / name for name in ("repo", "linked", "runs"))
+        subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+        commit_reusable_gate(repo, runs)
+        subprocess.run(
+            ["git", "-C", str(repo), "worktree", "add", "-q", "--detach", str(linked)], check=True
+        )
+        second = [run(repo, "--run-gate") for _ in range(2)][1]
+        started_by_two_runs = len(runs.read_text(encoding="utf-8"))
+        run(linked, "--run-gate")
+        return ReuseRuns(second, started_by_two_runs, len(runs.read_text(encoding="utf-8")))
+
+
+def case_run_gate_reuses_a_saved_pass() -> None:
+    assert reuse_runs().started_by_two_runs == 1, (
+        "the second run must take the saved pass and start no process"
+    )
+
+
+def case_run_gate_reports_the_reuse() -> None:
+    result = reuse_runs().second
+    assert "1 of 1 checks reused a saved result" in result.stderr, result.stderr
+
+
+def case_run_gate_reuses_a_pass_saved_in_another_worktree() -> None:
+    """Ship gates a temporary worktree, and the push that follows runs in the stable checkout."""
+    assert reuse_runs().started_by_three_runs == 1, (
+        "a linked worktree holding the same files must take the pass the checkout saved"
+    )
 
 
 BEAD = "tadw-e2e"
@@ -1359,6 +1420,12 @@ for name, fn in [
     ("--run-gate keeps the log of a failed gate", case_run_gate_keeps_the_log_of_a_failed_gate),
     ("--run-gate prints a bounded excerpt of a failure", case_run_gate_prints_a_bounded_excerpt),
     ("--run-gate keeps every line of a failure in its log", case_run_gate_log_keeps_every_line),
+    ("--run-gate reuses a saved pass", case_run_gate_reuses_a_saved_pass),
+    ("--run-gate reports the reuse", case_run_gate_reports_the_reuse),
+    (
+        "--run-gate reuses a pass saved in another worktree",
+        case_run_gate_reuses_a_pass_saved_in_another_worktree,
+    ),
     ("a ship exits 0 with SHIP_DONE <hash> last", case_ship_exits_0_with_ship_done_last),
     ("a stop exits 1 with SHIP_BLOCKED <slug> last", case_stop_exits_1_with_ship_blocked_last),
     ("the default branch carries the shipped commit",

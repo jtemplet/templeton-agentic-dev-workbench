@@ -7,9 +7,11 @@ needs a third-party parser, and it never depends on Markdown: the gate is what
 the file says, not what a document is read to mean.
 
 Each gate names one command as an argument list (never a shell string, so no
-quoting rule applies) and the inputs that command's result depends on. The
-inputs are what a later result-reuse rule will compare, so a gate that leaves
-them empty declares "I cannot say", and its result is never reused.
+quoting rule applies) and what that command's result depends on: `inputs`, the
+files it reads; `tools`, the programs it runs; and `env`, the environment
+variables it reads. run_checks.py compares all three before it reuses a saved
+result. A gate that leaves `inputs` empty, or whose `tools` omit the first word
+of its command, declares "I cannot say", and its result is never reused.
 
 Exit status: 0 when the file is valid, 1 when it is invalid (each problem is
 printed to stderr, all of them at once), 2 when there is no configuration file,
@@ -33,8 +35,20 @@ CONFIG_PATH = Path(".tadw") / "ship-gates.json"
 DEFAULT_TIMEOUT_SECONDS = 900
 
 GATE_KEYS = frozenset(
-    ["name", "command", "inputs", "cwd", "timeout", "depends_on", "resources", "reuse"]
+    [
+        "name",
+        "command",
+        "inputs",
+        "tools",
+        "env",
+        "cwd",
+        "timeout",
+        "depends_on",
+        "resources",
+        "reuse",
+    ]
 )
+TEXT_LIST_KEYS = ("inputs", "tools", "env", "resources", "depends_on")
 
 
 class NormalizedGate(TypedDict):
@@ -43,6 +57,8 @@ class NormalizedGate(TypedDict):
     name: str
     command: list[str]
     inputs: list[str]
+    tools: list[str]
+    env: list[str]
     cwd: str
     timeout: int
     depends_on: list[str]
@@ -142,7 +158,7 @@ def validate_gate(index: int, gate: object, names: list[object]) -> list[str]:
         problems.append(f"{where}.name must be a non-empty string")
     if not is_text_list(gate.get("command")) or not gate.get("command"):
         problems.append(f"{where}.command must be a non-empty list of strings")
-    for key in ("inputs", "resources", "depends_on"):
+    for key in TEXT_LIST_KEYS:
         if key in gate and not is_text_list(gate[key]):
             problems.append(f"{where}.{key} must be a list of strings")
     problems += validate_dependencies(where, gate, names)
@@ -202,15 +218,23 @@ def normalize(document: dict) -> dict:
                 name=gate["name"],
                 command=gate["command"],
                 inputs=gate.get("inputs", []),
+                tools=gate.get("tools", []),
+                env=gate.get("env", []),
                 cwd=gate.get("cwd", "."),
                 timeout=gate.get("timeout", DEFAULT_TIMEOUT_SECONDS),
                 depends_on=gate.get("depends_on", []),
                 resources=gate.get("resources", []),
-                reuse=gate.get("reuse", False) and bool(gate.get("inputs")),
+                reuse=may_reuse(gate),
             )
             for gate in document["gates"]
         ],
     }
+
+
+def may_reuse(gate: dict) -> bool:
+    """A gate must name its inputs, and the program its command runs, before a result is reused."""
+    names_its_program = gate["command"][0] in gate.get("tools", [])
+    return gate.get("reuse", False) and bool(gate.get("inputs")) and names_its_program
 
 
 def is_text(value: object) -> bool:

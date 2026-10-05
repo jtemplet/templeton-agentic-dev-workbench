@@ -21,11 +21,33 @@ Stdlib only, no install. Run with:
                                                     case_interrupted_run_lets_a_check_clean_up,
                                                     case_interrupted_run_writes_no_exit_status
   Criterion 4 belongs to the hook: .githooks/test_prepush.py.
+
+  tadw-n8xh criterion                               Pinned by
+  ------------------------------------------------------------------------------
+  1. A changed input file runs the check again      case_changed_input_file_runs_the_check_again
+  2. A changed command, tool identity, or           case_changed_command_runs_the_check_again,
+     declared environment runs the check again      case_changed_tool_version_runs_the_check_again,
+                                                    case_tool_changed_during_the_run_runs_the_check_again,
+                                                    case_changed_declared_variable_runs_the_check_again
+  3. Incomplete or unverifiable inputs run the      case_input_matching_no_file_runs_the_check_again,
+     check again                                    case_undeclared_tools_run_the_check_again,
+                                                    case_tools_omitting_the_commands_program_run_the_check_again,
+                                                    case_tool_missing_from_path_runs_the_check_again,
+                                                    case_tool_without_a_version_runs_the_check_again,
+                                                    case_files_git_cannot_list_run_the_check_again,
+                                                    case_unreadable_saved_result_runs_the_check_again,
+                                                    case_failed_result_runs_the_check_again,
+                                                    case_input_changed_during_the_run_runs_the_check_again
+  4. Matching inputs start fewer check processes    case_matching_inputs_start_fewer_processes_than_a_cold_run,
+     than a cold run                                case_reused_result_is_a_pass_marked_reused,
+                                                    case_planned_check_reuses_its_gates_saved_result,
+                                                    case_reused_planned_check_records_exit_status_0
 """
 
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import shutil
 import signal
@@ -395,6 +417,309 @@ def case_missing_command_fails() -> None:
 for name, fn in [
     ("a dependency on an unknown check is refused", case_unknown_dependency_is_refused),
     ("a command that cannot start fails", case_missing_command_fails),
+]:
+    check(name, fn)
+
+
+print("\n  [tadw-n8xh: a saved result stands in only when everything declared matches]")
+
+FAKE_TOOL = "tadw-fake-tool"
+SETTING = "TADW_REUSE_SETTING"
+
+
+class ReuseFixture:
+    """A repository with one input file, one tool on PATH, and a check that counts its own runs.
+
+    The counter, the tool, and the store live outside the repository, so none of
+    them is ever an input.
+    """
+
+    def __init__(self, in_repository: bool = True) -> None:
+        self.root = workspace()
+        self.outside = workspace()
+        if in_repository:
+            subprocess.run(["git", "init", "-q", str(self.root)], check=True)
+        (self.root / "input.txt").write_text("one\n", encoding="utf-8")
+        self.write_tool("echo 1.0")
+        self.environ = {"PATH": f"{self.outside}{os.pathsep}{os.environ['PATH']}", SETTING: "a"}
+        self.body = f"open({str(self.outside / 'runs')!r}, 'a').write('x')"
+        tools = (sys.executable, FAKE_TOOL)
+        self.declared = {"inputs": ("input.txt",), "tools": tools, "env": (SETTING,)}
+
+    def write_tool(self, script: str) -> None:
+        tool = self.outside / FAKE_TOOL
+        tool.write_text(f"#!/bin/sh\n{script}\n", encoding="utf-8")
+        tool.chmod(0o755)
+
+    def run(self) -> run_checks.CheckResult:
+        """One run, as a caller makes it: a fresh `SavedResults` over the same store."""
+        results = run_checks.SavedResults(self.root, self.outside / "saved", self.environ)
+        check = run_checks.Check(
+            name="counted",
+            command=(sys.executable, "-c", self.body),
+            log=self.outside / "counted.out",
+            cwd=self.root,
+            reuse=run_checks.Reuse(**self.declared, results=results),
+        )
+        return run([check], workers=1)["counted"]
+
+    def processes_started(self) -> int:
+        runs = self.outside / "runs"
+        return len(runs.read_text(encoding="utf-8")) if runs.exists() else 0
+
+
+def started_by_second_run(change=lambda fixture: None, **fixture_options) -> int:
+    """How many processes the second run starts, after `change` alters the fixture."""
+    fixture = ReuseFixture(**fixture_options)
+    fixture.run()
+    change(fixture)
+    fixture.run()
+    return fixture.processes_started() - 1
+
+
+def started_by_two_runs(prepare) -> int:
+    """How many processes two runs start, when `prepare` alters the fixture before the first."""
+    fixture = ReuseFixture()
+    prepare(fixture)
+    fixture.run()
+    fixture.run()
+    return fixture.processes_started()
+
+
+def case_changed_input_file_runs_the_check_again() -> None:
+    def change(fixture: ReuseFixture) -> None:
+        (fixture.root / "input.txt").write_text("two\n", encoding="utf-8")
+
+    assert started_by_second_run(change) == 1, "a changed input file must run the check again"
+
+
+def case_changed_command_runs_the_check_again() -> None:
+    def change(fixture: ReuseFixture) -> None:
+        fixture.body += "  # a changed command"
+
+    assert started_by_second_run(change) == 1, "a changed command must run the check again"
+
+
+def case_changed_tool_version_runs_the_check_again() -> None:
+    assert started_by_second_run(lambda fixture: fixture.write_tool("echo 2.0")) == 1, (
+        "a tool that reports another version must run the check again"
+    )
+
+
+def case_changed_declared_variable_runs_the_check_again() -> None:
+    def change(fixture: ReuseFixture) -> None:
+        fixture.environ[SETTING] = "b"
+
+    assert started_by_second_run(change) == 1, (
+        "a changed declared variable must run the check again"
+    )
+
+
+def case_input_matching_no_file_runs_the_check_again() -> None:
+    def prepare(fixture: ReuseFixture) -> None:
+        fixture.declared["inputs"] = ("input.txt", "absent.txt")
+
+    assert started_by_two_runs(prepare) == 2, "an input that matches no file cannot be verified"
+
+
+def case_undeclared_tools_run_the_check_again() -> None:
+    def prepare(fixture: ReuseFixture) -> None:
+        fixture.declared["tools"] = ()
+
+    assert started_by_two_runs(prepare) == 2, "a check that names no tool is never reused"
+
+
+def case_tools_omitting_the_commands_program_run_the_check_again() -> None:
+    def prepare(fixture: ReuseFixture) -> None:
+        fixture.declared["tools"] = (FAKE_TOOL,)
+
+    assert started_by_two_runs(prepare) == 2, (
+        "a check that does not declare the program its command runs is never reused"
+    )
+
+
+def case_tool_changed_during_the_run_runs_the_check_again() -> None:
+    """The check rewrites its tool, and the tool is put back before the second run.
+
+    The tool read before the first run then matches the second run's reading, so
+    only a fresh reading after the run keeps that pass out of the store.
+    """
+    fixture = ReuseFixture()
+    changed = "#!/bin/sh\necho 2.0\n"
+    fixture.body += f"; open({str(fixture.outside / FAKE_TOOL)!r}, 'w').write({changed!r})"
+    fixture.run()
+    fixture.write_tool("echo 1.0")
+    fixture.run()
+    assert fixture.processes_started() == 2, (
+        "a pass whose tool changed while it ran describes no state, so it is not saved"
+    )
+
+
+def case_tool_missing_from_path_runs_the_check_again() -> None:
+    def change(fixture: ReuseFixture) -> None:
+        (fixture.outside / FAKE_TOOL).unlink()
+
+    assert started_by_second_run(change) == 1, "a tool that is not on PATH cannot be verified"
+
+
+def case_tool_without_a_version_runs_the_check_again() -> None:
+    assert started_by_two_runs(lambda fixture: fixture.write_tool("exit 1")) == 2, (
+        "a tool whose --version fails cannot be verified"
+    )
+
+
+def case_files_git_cannot_list_run_the_check_again() -> None:
+    assert started_by_second_run(in_repository=False) == 1, (
+        "inputs outside a git repository cannot be listed, so they cannot be verified"
+    )
+
+
+def case_unreadable_saved_result_runs_the_check_again() -> None:
+    def change(fixture: ReuseFixture) -> None:
+        for saved in (fixture.outside / "saved").iterdir():
+            saved.write_text("{not json", encoding="utf-8")
+
+    assert started_by_second_run(change) == 1, "a saved result that cannot be read is no result"
+
+
+def case_failed_result_runs_the_check_again() -> None:
+    def prepare(fixture: ReuseFixture) -> None:
+        fixture.body += "; raise SystemExit(1)"
+
+    assert started_by_two_runs(prepare) == 2, "a failed result must never stand in for a check"
+
+
+def case_input_changed_during_the_run_runs_the_check_again() -> None:
+    """The check rewrites its input, and the input is put back before the second run.
+
+    The state read before the first run then matches the second run's state, so
+    only the comparison made after the run keeps that pass out of the store.
+    """
+    fixture = ReuseFixture()
+    fixture.body += f"; open({str(fixture.root / 'input.txt')!r}, 'w').write('changed')"
+    fixture.run()
+    (fixture.root / "input.txt").write_text("one\n", encoding="utf-8")
+    fixture.run()
+    assert fixture.processes_started() == 2, (
+        "a pass whose input changed while it ran describes no state, so it is not saved"
+    )
+
+
+def case_matching_inputs_start_fewer_processes_than_a_cold_run() -> None:
+    cold_run_started = 1
+    assert started_by_second_run() < cold_run_started, (
+        "with every declared value unchanged, the second run must start no process"
+    )
+
+
+def case_reused_result_is_a_pass_marked_reused() -> None:
+    fixture = ReuseFixture()
+    fixture.run()
+    result = fixture.run()
+    assert (result.status, result.exit_code, result.reused) == (
+        run_checks.Status.PASSED,
+        0,
+        True,
+    ), f"a reused result reads as a pass and says it was reused: {result}"
+
+
+class PlannedReuseFixture:
+    """The executor as the hook runs it: a plan directory, and a gate file that declares reuse."""
+
+    def __init__(self) -> None:
+        self.root = workspace()
+        self.plan = workspace()
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)
+        counter = f"open({str(self.plan / 'runs')!r}, 'a').write('x')\n"
+        (self.root / "count.py").write_text(counter, encoding="utf-8")
+        self.write_gate([sys.executable, "count.py"])
+        (self.plan / "1.cmd").write_text(f"{sys.executable} count.py\n", encoding="utf-8")
+
+    def write_gate(self, command: list[str]) -> None:
+        declared = {"inputs": ["count.py"], "tools": [command[0]]}
+        gate = {"name": "counted", "command": command} | declared
+        config = self.root / ".tadw" / "ship-gates.json"
+        config.parent.mkdir()
+        config.write_text(json.dumps({"version": 1, "gates": [gate | {"reuse": True}]}))
+
+    def run_twice(self) -> PlannedReuseFixture:
+        for _ in range(2):
+            subprocess.run(
+                [sys.executable, str(SCRIPT), "--plan-dir", str(self.plan), "--workers", "1"]
+                + ["--repo-root", "."],
+                cwd=self.root,
+                capture_output=True,
+                check=True,
+            )
+        return self
+
+
+def case_planned_check_reuses_its_gates_saved_result() -> None:
+    fixture = PlannedReuseFixture().run_twice()
+    assert (fixture.plan / "runs").read_text(encoding="utf-8") == "x", (
+        "a planned check whose command is a reusable gate must run once in two runs"
+    )
+
+
+def case_reused_planned_check_records_exit_status_0() -> None:
+    fixture = PlannedReuseFixture().run_twice()
+    assert (fixture.plan / "1.rc").read_text(encoding="utf-8") == "0\n", (
+        "the hook reads the status file, so a reused check must record exit status 0"
+    )
+
+
+for name, fn in [
+    ("a changed input file runs the check again", case_changed_input_file_runs_the_check_again),
+    ("a changed command runs the check again", case_changed_command_runs_the_check_again),
+    ("a changed tool version runs the check again", case_changed_tool_version_runs_the_check_again),
+    (
+        "a changed declared variable runs the check again",
+        case_changed_declared_variable_runs_the_check_again,
+    ),
+    (
+        "an input that matches no file runs the check again",
+        case_input_matching_no_file_runs_the_check_again,
+    ),
+    ("undeclared tools run the check again", case_undeclared_tools_run_the_check_again),
+    (
+        "tools that omit the command's own program run the check again",
+        case_tools_omitting_the_commands_program_run_the_check_again,
+    ),
+    (
+        "a tool changed during the run runs the check again",
+        case_tool_changed_during_the_run_runs_the_check_again,
+    ),
+    (
+        "a tool missing from PATH runs the check again",
+        case_tool_missing_from_path_runs_the_check_again,
+    ),
+    (
+        "a tool without a version runs the check again",
+        case_tool_without_a_version_runs_the_check_again,
+    ),
+    ("files git cannot list run the check again", case_files_git_cannot_list_run_the_check_again),
+    (
+        "an unreadable saved result runs the check again",
+        case_unreadable_saved_result_runs_the_check_again,
+    ),
+    ("a failed result runs the check again", case_failed_result_runs_the_check_again),
+    (
+        "an input changed during the run runs the check again",
+        case_input_changed_during_the_run_runs_the_check_again,
+    ),
+    (
+        "matching inputs start fewer processes than a cold run",
+        case_matching_inputs_start_fewer_processes_than_a_cold_run,
+    ),
+    ("a reused result is a pass marked reused", case_reused_result_is_a_pass_marked_reused),
+    (
+        "a planned check reuses its gate's saved result",
+        case_planned_check_reuses_its_gates_saved_result,
+    ),
+    (
+        "a reused planned check records exit status 0",
+        case_reused_planned_check_records_exit_status_0,
+    ),
 ]:
     check(name, fn)
 

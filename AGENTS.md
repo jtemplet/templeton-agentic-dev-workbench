@@ -70,6 +70,10 @@ Run `/validate-plugin` after you add, rename, or remove a component.
 **The ship gate is this list.** `/tadw:ship` reads its gate from `.tadw/ship-gates.json`, and
 `skills/ship/scripts/test_tadw_ship.py` fails when the two differ.
 
+**A gate marked `reuse` can pass from a saved result.** Ship and `pre-push` both skip the run when
+everything the gate declares still matches.
+[docs/ship-gate-contract.md](docs/ship-gate-contract.md) has the rule.
+
 The response-style evals are the wrong shape for a gate. They are graded against model prose, so
 they are not deterministic. `plain-sentences` measures sentence length against a 35-word ceiling,
 and the model lands on both sides of it. Derive the case count with `ls -d evals/cases/*/ | wc -l`,

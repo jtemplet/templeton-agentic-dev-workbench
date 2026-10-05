@@ -39,6 +39,12 @@ slowest check rather than for the sum. A passing push prints how many seconds th
 its summary line. The report still lists failures in the order of the `check` lines, because each
 check writes to its own numbered files.
 
+**A saved pass can stand in for a check.** The hook passes `--repo-root .` to the executor. A
+check whose command is a gate that `.tadw/ship-gates.json` marks `reuse` then starts no process,
+when every input, tool, and variable that gate declares still matches the saved pass. The summary
+line counts those checks, for example `2 reused a saved result`. The rule, and how to clear the
+store, are in [docs/ship-gate-contract.md](../docs/ship-gate-contract.md).
+
 **`python3` runs the executor, so without it no check runs.** The hook then names `python3` as the
 skipped tool, reports that 0 checks ran, and allows the push, as it does for any missing tool.
 

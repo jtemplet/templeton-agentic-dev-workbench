@@ -9,7 +9,13 @@ Stdlib only, no install. Run with:
   1. A valid gate fixture, when read, identifies    case_valid_fixture_names_commands_and_inputs
      the configured commands and their inputs
   Defaults are filled, so no reader guesses         case_absent_keys_take_their_defaults
-  Reuse needs declared inputs                       case_reuse_without_inputs_is_off
+  Reuse needs declared inputs, and tools that       case_reuse_without_inputs_is_off,
+  name the program the command runs                 case_reuse_without_tools_is_off,
+                                                    case_reuse_without_the_commands_program_is_off,
+                                                    case_reuse_with_inputs_and_tools_is_on
+  tadw-n8xh: a gate declares its tools and its      case_declared_tools_and_env_are_read,
+  environment                                       case_tools_that_are_not_a_list_are_invalid,
+                                                    case_env_that_is_not_a_list_is_invalid
   An invalid file exits 1 and names every problem   case_invalid_file_exits_1_and_prints_no_config,
                                                     case_invalid_file_names_every_problem_at_once,
                                                     case_unsupported_version_is_invalid,
@@ -96,23 +102,50 @@ def case_absent_keys_take_their_defaults() -> None:
     gate = json.loads(read({"version": 1, "gates": [valid_gate()]}).stdout)["gates"][0]
     assert gate["cwd"] == "." and gate["timeout"] == 900
     assert gate["inputs"] == [] and gate["depends_on"] == [] and gate["resources"] == []
+    assert gate["tools"] == [] and gate["env"] == []
     assert gate["reuse"] is False
 
 
+def normalized(**keys: object) -> dict:
+    """The one gate a file holding `valid_gate(**keys)` normalizes to."""
+    return json.loads(read({"version": 1, "gates": [valid_gate(**keys)]}).stdout)["gates"][0]
+
+
 def case_reuse_without_inputs_is_off() -> None:
-    gates = json.loads(
-        read(
-            {
-                "version": 1,
-                "gates": [
-                    valid_gate(reuse=True),
-                    valid_gate(name="with-inputs", reuse=True, inputs=["a"]),
-                ],
-            }
-        ).stdout
-    )["gates"]
-    assert gates[0]["reuse"] is False, "a gate with no declared inputs must never be reused"
-    assert gates[1]["reuse"] is True
+    assert normalized(reuse=True, tools=["rumdl"])["reuse"] is False, (
+        "a gate with no declared inputs must never be reused"
+    )
+
+
+def case_reuse_without_tools_is_off() -> None:
+    assert normalized(reuse=True, inputs=["a"])["reuse"] is False, (
+        "a gate with no declared tools must never be reused"
+    )
+
+
+def case_reuse_without_the_commands_program_is_off() -> None:
+    assert normalized(reuse=True, inputs=["a"], tools=["git"])["reuse"] is False, (
+        "a gate whose tools omit the first word of its command must never be reused"
+    )
+
+
+def case_reuse_with_inputs_and_tools_is_on() -> None:
+    assert normalized(reuse=True, inputs=["a"], tools=["rumdl"])["reuse"] is True
+
+
+def case_declared_tools_and_env_are_read() -> None:
+    gate = normalized(tools=["rumdl", "git"], env=["RUMDL_CONFIG"])
+    assert (gate["tools"], gate["env"]) == (["rumdl", "git"], ["RUMDL_CONFIG"]), gate
+
+
+def case_tools_that_are_not_a_list_are_invalid() -> None:
+    result = read({"version": 1, "gates": [valid_gate(tools="rumdl")]})
+    assert result.returncode == 1 and "gates[0].tools" in result.stderr, result.stderr
+
+
+def case_env_that_is_not_a_list_is_invalid() -> None:
+    result = read({"version": 1, "gates": [valid_gate(env="PATH")]})
+    assert result.returncode == 1 and "gates[0].env" in result.stderr, result.stderr
 
 
 def invalid_file_result() -> subprocess.CompletedProcess:
@@ -232,6 +265,15 @@ for name, fn in [
     ("a valid fixture names its commands and inputs", case_valid_fixture_names_commands_and_inputs),
     ("absent keys take their documented defaults", case_absent_keys_take_their_defaults),
     ("reuse is off for a gate with no declared inputs", case_reuse_without_inputs_is_off),
+    ("reuse is off for a gate with no declared tools", case_reuse_without_tools_is_off),
+    (
+        "reuse is off for a gate whose tools omit its command's program",
+        case_reuse_without_the_commands_program_is_off,
+    ),
+    ("reuse is on for a gate with inputs and tools", case_reuse_with_inputs_and_tools_is_on),
+    ("declared tools and env are read", case_declared_tools_and_env_are_read),
+    ("tools that are not a list are invalid", case_tools_that_are_not_a_list_are_invalid),
+    ("env that is not a list is invalid", case_env_that_is_not_a_list_is_invalid),
     (
         "an invalid file exits 1 and prints no configuration",
         case_invalid_file_exits_1_and_prints_no_config,

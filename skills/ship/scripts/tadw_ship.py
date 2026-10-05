@@ -17,7 +17,9 @@ these that is set, and no other source is read:
 
 `--check-gate` prints the selected gate as JSON. `--run-gate` runs it through
 run_checks.py, the executor the pre-push hook shares, and every gate must pass:
-a missing tool stops the ship rather than being skipped. With neither flag the
+a missing tool stops the ship rather than being skipped. A gate the file marks
+`reuse` passes without running when run_checks.py finds a saved pass that
+matches everything the gate declares. With neither flag the
 runner ships the bead end to end through ship_workflow.py, running the same
 gate on the candidate commit it lands.
 
@@ -119,6 +121,7 @@ class ShipGate:
         return {"source": self.source, "gates": list(self.gates)}
 
     def checks(self, repo: Path, log_dir: Path) -> list[run_checks.Check]:
+        results = run_checks.saved_results(repo)
         return [
             run_checks.Check(
                 name=gate["name"],
@@ -128,6 +131,7 @@ class ShipGate:
                 timeout=gate["timeout"],
                 depends_on=tuple(gate["depends_on"]),
                 resources=tuple(gate["resources"]),
+                reuse=run_checks.reuse_for(gate, results),
             )
             for gate in self.gates
         ]
@@ -144,13 +148,17 @@ class CandidateGate:
     def __call__(self, directory: Path) -> bool:
         """Logs go to a fresh temporary directory, kept only when a gate did not pass."""
         log_dir = Path(tempfile.mkdtemp(prefix="tadw-ship-gate-"))
-        self.outcome = run_checks.run_checks(
-            self.gate.checks(directory, log_dir), os.cpu_count() or 1
+        self.record(
+            run_checks.run_checks(self.gate.checks(directory, log_dir), os.cpu_count() or 1)
         )
-        self.reports = check_reports(self.outcome)
         if self.passed():
             shutil.rmtree(log_dir, ignore_errors=True)
         return self.passed()
+
+    def record(self, outcome: run_checks.Outcome) -> None:
+        self.outcome = outcome
+        self.reports = check_reports(outcome)
+        print_reuse(outcome)
 
     def passed(self) -> bool:
         return self.outcome is not None and gate_passed(self.outcome)
@@ -239,6 +247,8 @@ def override_gate(command: str, timeout: int) -> ShipGate:
         name=OVERRIDE_VARIABLE,
         command=["sh", "-c", command],
         inputs=[],
+        tools=[],
+        env=[],
         cwd=".",
         timeout=timeout,
         depends_on=[],
@@ -291,6 +301,8 @@ def pre_push_gate(branch: str, timeout: int) -> ShipGate:
         name=PRE_PUSH_SOURCE.replace(" ", "-"),
         command=["sh", "-c", PRE_PUSH_SCRIPT, "tadw-ship-pre-push", branch],
         inputs=[],
+        tools=[],
+        env=[],
         cwd=".",
         timeout=timeout,
         depends_on=[],
@@ -327,6 +339,12 @@ def check_reports(outcome: run_checks.Outcome) -> tuple[ship_report.CheckReport,
 def print_check_lines(reports: tuple[ship_report.CheckReport, ...]) -> None:
     for line in ship_report.check_lines(reports):
         print(line, file=sys.stderr)
+
+
+def print_reuse(outcome: run_checks.Outcome) -> None:
+    line = run_checks.reuse_line(outcome)
+    if line:
+        print(f"tadw_ship: {line}", file=sys.stderr)
 
 
 def gate_passed(outcome: run_checks.Outcome) -> bool:

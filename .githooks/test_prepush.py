@@ -79,6 +79,20 @@ executor /tadw:ship shares, runs every planned check; the hook keeps the policy.
   A check ended by a signal starts no check       case_a_check_ended_by_a_signal_starts_no_dependent
     that waits for it
 
+SAVED RESULTS (tadw-n8xh). The hook passes `--repo-root .`, so the executor may
+satisfy a check from a saved pass. The match rule is pinned in
+skills/ship/scripts/test_run_checks.py; these pin the hook's side of it.
+
+  Rule                                            Pinned by
+  ------------------------------------------------------------------------------
+  A second push starts no process for a check     case_second_push_reuses_a_saved_pass
+    whose gate declares reuse, when nothing
+    it declares changed
+  The summary line says how many checks reused    case_summary_line_counts_reused_checks
+    a saved result
+  A push that reused nothing says nothing         case_clean_push_is_quiet
+    about reuse
+
 STAGE 2, the recorded quality-gates verdict (M4). Same fixture, same real
 `git push --dry-run`, with a report planted in the fixture's own git directory.
 
@@ -163,6 +177,7 @@ prints the same success line and runs a shorter list.
 from __future__ import annotations
 
 import atexit
+import functools
 import hashlib
 import json
 import os
@@ -174,11 +189,13 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import NamedTuple
 
 REPO = Path(__file__).resolve().parents[1]
 HOOK = REPO / ".githooks" / "pre-push"
 PRE_COMMIT = REPO / ".githooks" / "pre-commit"
 EXECUTOR = REPO / "skills" / "ship" / "scripts" / "run_checks.py"
+GATE_READER = EXECUTOR.with_name("read_gate_config.py")
 AGENTS = REPO / "AGENTS.md"
 QUALITY_GATES_SKILL = REPO / "skills" / "quality-gates" / "SKILL.md"
 QUALITY_GATES_SCRIPTS = REPO / "skills" / "quality-gates" / "scripts"
@@ -526,7 +543,9 @@ def build(*, stub_checks: bool = True, extra_branch: str | None = None) -> Fixtu
     hook.chmod(0o755)
     # The executor the hook runs its checks through, from the working tree for the
     # same reason as the hook: an uncommitted change to it is what gets tested.
-    shutil.copy2(EXECUTOR, work / EXECUTOR.relative_to(REPO))
+    # The executor reads the gate file through this sibling, so it travels with it.
+    for script in (EXECUTOR, GATE_READER):
+        shutil.copy2(script, work / script.relative_to(REPO))
 
     # Sibling of `work`, never inside it: stage 3 finds it only through PATH,
     # the same way it would find a real `bd` installed on the machine.
@@ -1147,6 +1166,7 @@ def case_clean_push_is_quiet() -> None:
     # The elapsed time is the only number a reader can use to judge whether the
     # hook is worth its place on every push, so it is asserted rather than assumed.
     assert re.search(r"\b\d+s\b", lines[0]), f"and how long it took: {lines[0]!r}"
+    assert "reused" not in lines[0], f"nothing was reused on a first push: {lines[0]!r}"
 
 
 def case_push_from_a_linked_worktree_spares_the_main_repository() -> None:
@@ -1649,6 +1669,50 @@ for name, fn in [
         "a check ended by a signal starts no check that waits for it",
         case_a_check_ended_by_a_signal_starts_no_dependent,
     ),
+]:
+    check(name, fn)
+
+
+print("\n  [a saved pass stands in for a check, tadw-n8xh]")
+
+# One of the hook's own checks, stood in for by a script that counts its runs.
+REUSABLE_CHECK = "skills/ship/scripts/test_ship_report.py"
+
+
+class TwoPushes(NamedTuple):
+    """Two pushes of one tree whose gate file marks REUSABLE_CHECK reusable."""
+
+    second_output: str
+    processes_started: int
+
+
+@functools.cache
+def two_pushes_of_one_tree() -> TwoPushes:
+    fixture = build()
+    runs = fixture.work.parent / "runs"
+    fixture.write(REUSABLE_CHECK, f"open({str(runs)!r}, 'a').write('x')\n")
+    gate = {"name": "counted", "command": ["python3", REUSABLE_CHECK]}
+    declared = {"inputs": [REUSABLE_CHECK], "tools": ["python3"], "reuse": True}
+    fixture.write(".tadw/ship-gates.json", json.dumps({"version": 1, "gates": [gate | declared]}))
+    fixture.commit_all("a gate that declares reuse")
+    second = [fixture.push() for _ in range(2)][1]
+    return TwoPushes(second.stdout + second.stderr, len(runs.read_text(encoding="utf-8")))
+
+
+def case_second_push_reuses_a_saved_pass() -> None:
+    assert two_pushes_of_one_tree().processes_started == 1, (
+        "the second push must take the saved pass and start no process for that check"
+    )
+
+
+def case_summary_line_counts_reused_checks() -> None:
+    output = two_pushes_of_one_tree().second_output
+    assert ", 1 reused a saved result," in output, f"the summary must count the reuse: {output}"
+
+
+for name, fn in [
+    ("a second push reuses a saved pass", case_second_push_reuses_a_saved_pass),
+    ("the summary line counts reused checks", case_summary_line_counts_reused_checks),
 ]:
     check(name, fn)
 
