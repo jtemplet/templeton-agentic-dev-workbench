@@ -261,7 +261,7 @@ not, and 2 on operator error. It accepts `--json`, matching `check_staleness.py`
 | 1 | The drive block | Add **How to drive this** to the leaf template in `skills/product-surface-docs/SKILL.md`. Write `check_drive_blocks.py` and its regression suite. Add both to the check list in `CLAUDE.md` | S | `python3 skills/product-surface-docs/scripts/test_check_drive_blocks.py` passes, and `check_drive_blocks.py` reports every leaf document in a fixture tree that carries no block |
 | 2 | The control document | Write `skills/verify-app/references/control-template.md` with the six fields | S | The template holds all six fields, and `python3 skills/quality-gates/scripts/check_doc_paths.py` exits 0 |
 | 3 | `verify-app` | Write the skill, the agent, and the command. Cover launch, the ready poll, authentication, snapshot before each screen, and the PASS or FAIL report with its machine-readable last line | M | `claude plugin validate .` exits 0, `/validate-plugin` reports no orphan and no broken reference, and the three registration places name the component |
-| 4 | `verify-app-ios` | The same skill for the iOS Simulator, driven by `xcrun simctl`. Reuse the technique from `skills/ux-review-ios/SKILL.md` for capture and for setting Dynamic Type | M | `claude plugin validate .` exits 0, and the skill is registered in the three places |
+| 4 | `verify-app-ios` (tadw-qby) | The same skill for the iOS Simulator, driven by the `agent-device` command-line tool, which can tap where `xcrun simctl` cannot. Add a `device` section to the control template. Write each result to the `verify-app` report file under surface `mobile-ui` | M | `claude plugin validate .` exits 0, the skill is registered in the three places, and one recorded run returned a verdict |
 | 5a | The journeys script (tadw-6xhi) | Write `journeys.py` and its regression suite. Add the suite to the check list in `CLAUDE.md` and to `.tadw/ship-gates.json` | S | One command names the journeys a changed set needs, and a fingerprint changes only when one of that journey's files changes |
 | 5b | The `verify-app` report file (tadw-imgg) | Write `write_verify_report.py` and its suite. Call it from Step 6 of `verify-app`. Reword its Never rule to allow the one file inside `<git-dir>` | M | Every run on a leaf-document journey leaves that journey's outcome and fingerprint in the report file, and the working tree is unchanged |
 | 5c | The handoff grading (tadw-do7x) | Teach `write_acceptance_report.py` the fixed table and `gates_handoff`. Teach `load_findings.py` and the label hook the same count | M | An unchecked UI change leaves `gates_handoff` above zero and the bead without `accepted` |
@@ -321,7 +321,9 @@ is proven by criteria 8 and 9 alone, which is stated under Risks below.
 - The `agent-browser` command-line tool must be on the PATH of the machine running `verify-app`.
   The owner chose it on 2026-09-23, in place of a browser tool loaded through `ToolSearch`. A skill
   cannot install it, so `verify-app` stops with `VERIFY_BLOCKED browser` and the install command.
-- `xcrun simctl` and Xcode, for milestone 4 only.
+- The `agent-device` command-line tool, version 0.21.0 or later, and Xcode with an iOS Simulator,
+  for milestone 4 only. The owner chose `agent-device` on 2026-09-10 and confirmed it on
+  2026-10-05.
 - A running application to record the live seam against, for milestone 7.
 - No dependency on `/qa`, `/ios-qa`, or the `ll` plugin. This plan removes the first two from the
   pipeline and copies a shape from the third without importing it.
@@ -352,7 +354,3 @@ is proven by criteria 8 and 9 alone, which is stated under Risks below.
   `docs/products` tree. It is safe here, because this repository has no such tree. A project
   adopting it later needs a way to accept a leaf document that no one can drive, such as a
   document about a background job.
-- Which tool drives the iOS Simulator in milestone 4. On 2026-09-10 the owner chose the
-  `agent-device` command-line tool for the durable design, because `xcrun simctl` cannot tap. The
-  milestone 4 row and tadw-qby still name `xcrun simctl`. The owner of that answer is the
-  repository owner.
