@@ -1,80 +1,61 @@
 # Feature Plan: The Verification Loop
 
 **Date:** 2026-08-31
-**Revised:** 2026-10-05, after `bead-audit` re-grounded tadw-440 against `origin/main` @ `3a3a5dc`
-**Status:** Draft
+**Revised:** 2026-10-05, to reflect the browser verifier and journey helper now in the repository
+**Status:** In Progress
 
 ## Summary
 
-This plugin can prove that a change compiles, passes its tests, and answers a real HTTP request. It
-cannot prove that a change works in the running application. This plan adds `verify-app`, a skill
-that drives the real application and returns PASS or FAIL, and gives it the two documents it needs
-to know how to launch the application and where each feature lives.
+This plugin now drives browser journeys with `verify-app` and maps changed files to journeys with
+`journeys.py`. This plan connects those tools to QA and acceptance, saves results, and adds an iOS
+verifier.
 
 ## Motivation
 
-Three facts, each checked against the current tree, describe one hole.
+The browser verifier and journey helper exist, but the QA and acceptance pipeline does not use
+their results yet.
 
-**A change to a web page or a phone screen leaves this pipeline ungraded.**
-`skills/quality-gates/scripts/route_qa.py:87-88` routes a `browser-ui` change to `agent-browser` and
-a `mobile-ui` change to `agent-device`. Both are tools from outside this plugin, a stopgap from
-tadw-b2j that replaced `/qa` and `/ios-qa`. The row is a HANDOFF, and the run is INCOMPLETE.
+**A browser or mobile UI change still leaves a QA handoff.**
+`skills/quality-gates/scripts/route_qa.py` routes browser changes to `agent-browser` and mobile
+changes to `agent-device`. Each handoff leaves the quality-gates run INCOMPLETE, even when a
+separate verification later passes.
 
-**A change like that can still be graded ACCEPTED.** `skills/verify-acceptance/SKILL.md` Step 5
-runs three gates: Tests, Lint and Format, and Type Checking. Their statuses are PASS, FAIL,
-BLOCKED, and SKIP, so no HANDOFF row can reach the report. The label hook applies `accepted`
-unless a criterion fails or `gates_failed` or `gates_blocked` is above zero
-(`.claude/scripts/label_bead_on_skill_invocation.sh:934-941`). So a change to a web page whose
-acceptance criterion cites a passing component test is graded ACCEPTED, and nobody opened the page.
+**Acceptance does not include a UI verification result.**
+`skills/verify-acceptance/SKILL.md` runs Tests, Lint and Format, and Type Checking. Its report has no
+field for a browser or mobile handoff, so those results cannot affect its verdict.
 
-**The agent that investigates a bug cannot reproduce it.** `agents/diagnostician.md` Step 2 is
-called "Reproduce and Gather Evidence". Its frontmatter declares four tools: `Read`, `Bash`,
-`Grep`, and `Glob`. It cannot open the application it is investigating.
+**The diagnostician cannot reproduce a browser bug.**
+`agents/diagnostician.md` has no browser tool, so it cannot open the application during an
+investigation.
 
-Two skills here do drive a running application, `ux-review` through Playwright and `ux-review-ios`
-through `xcrun simctl`. Both judge design quality. Neither answers the question "did this change
-work".
+`verify-app` drives browser journeys, but it does not save results for later runs. The repository
+has no `verify-app-ios` skill yet.
 
-The person benefiting is the person who runs pipeline B on a change to a web page. Today that
-person is the only thing standing between a broken screen and a closed bead.
+The people running Pipeline B need QA and acceptance to consume the browser and mobile results.
 
 ## Scope
 
-### In Scope
+### Existing Foundation
 
-- A new skill, `verify-app`, that launches the application, drives one journey, and reports PASS or
-  FAIL with the step that broke.
-- A new skill, `verify-app-ios`, that does the same in the iOS Simulator.
-- A new agent, `verify-app`, so a caller can run a verification in its own context window.
-- A new command, `/verify-app`.
-- A new per-project control document at `docs/verification/control.md`, holding how to launch the
-  application, how to sign in, and which browser tool to load.
-- A new **How to drive this** section in the leaf document template of
-  `skills/product-surface-docs/SKILL.md`.
-- A new script, `skills/verify-app/scripts/journeys.py`, that names the journeys a changed set needs
-  and gives each one a fingerprint. A journey is one path through the application, described by a
-  drive block. A fingerprint is a hash of the files a journey depends on.
-- A new report file, `<git-dir>/verify-app-report.json`, that holds the outcome and the fingerprint
-  of each journey `verify-app` ran.
-- A change to `skills/verify-acceptance/scripts/write_acceptance_report.py`, so the script itself
-  grades each UI handoff from the routing, the journeys, and the `verify-app` report file. The same
-  change adds a `gates_handoff` count. The loader `load_findings.py` and the label hook learn that
-  count.
-- A change to `skills/quality-gates/scripts/route_qa.py` and `skills/quality-gates/SKILL.md`, so the
-  `browser-ui` and `mobile-ui` rows name `tadw:verify-app` and `tadw:verify-app-ios`.
-- A change to `skills/verify-acceptance/SKILL.md`, so it routes the change itself, passes the paths
-  to the writer, and grades an unresolved HANDOFF as INCONCLUSIVE.
-- Two browser tools added to the `agents/diagnostician.md` tool list, plus a reproduction step that
-  uses them.
-- A new checker, `skills/product-surface-docs/scripts/check_drive_blocks.py`, with its regression
-  suite, and both added to the check list in `CLAUDE.md`.
-- One eval case that measures whether `verify-app` loads when a person asks whether a change works.
+- `verify-app` provides a browser skill, agent, command, and control template.
+- `skills/product-surface-docs/scripts/check_drive_blocks.py` checks feature drive blocks.
+- `skills/verify-app/scripts/journeys.py` matches changed files to journeys and fingerprints their
+  source files.
+
+### Remaining In Scope
+
+- Add `verify-app-ios` for journeys in the iOS Simulator, driven by `agent-device`.
+- Save each verification result and its journey fingerprint in `<git-dir>/verify-app-report.json`.
+- Route browser and mobile UI handoffs to `tadw:verify-app` and `tadw:verify-app-ios`.
+- Make acceptance read the needed journeys and saved results, then report unresolved handoffs as
+  INCONCLUSIVE.
+- Give the diagnostician browser tools and a step for reproducing browser bugs.
+- Add an eval case that measures whether `verify-app` loads for a relevant request.
 
 ### Out of Scope
 
-- The eval invocation battery for all 45 skills. `docs/eval-driven-development.html` section 11
-  already specifies it. It is a different subject, so it becomes beads rather than part of this
-  plan.
+- The full skill invocation eval battery. [Section 11 of the eval guide](../eval-driven-development.html)
+  specifies it. It is a different subject, so it stays outside this plan.
 - Any change to `ux-review` or `ux-review-ios`. They audit design, and this plan does not touch that
   job.
 - Deleting `/qa` and `/ios-qa` from a user's setup. This plan stops pointing at them. It does not
@@ -85,7 +66,7 @@ person is the only thing standing between a broken screen and a closed bead.
 
 ## Technical Approach
 
-### Architecture
+### Target Architecture
 
 `verify-app` is its own skill, and `quality-gates` names it as the owner of a handoff. That keeps
 each skill to one job, and it removes the outside tools from the middle of pipeline B.

@@ -3,8 +3,8 @@
 The long form of the routing table in `AGENTS.md`: which command, skill, or agent to
 reach for per task, and what each one does. The workflow pipelines live in `README.md`.
 
-This covers 16 of the 28 commands. The twelve without a section here are named in the
-`AGENTS.md` pointer, and each has a one-line description in `README.md`.
+This page expands selected workflows. Routes for other tasks stay in `AGENTS.md`, and
+`README.md` lists every command and skill.
 
 ## Language-Specific Workflows
 
