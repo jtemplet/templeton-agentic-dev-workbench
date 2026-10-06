@@ -157,7 +157,7 @@ are this skill's own.
 |---|---|---|---|
 | 1 | `report-missing` | the loader | No file exists at `--report` |
 | 2 | `report-unreadable` | the loader | The file will not parse, lacks a version 2 field, names a version other than 2, or its shape is otherwise invalid |
-| 3 | `report-stale` | the loader | The report's `head` differs from the current `HEAD` |
+| 3 | `report-stale` | the loader | The report's `head` differs from the current `HEAD`; the caller commits, re-runs `/tadw:quality-gates`, then reconciles |
 | 4 | `bead-mismatch` | the loader | `--bead` was given and differs from the report's `bead`, `null` included |
 | 5 | `uncommitted-changes` | the loader for a finding with its own `file`, this skill for a `null`-file finding | The file already has uncommitted changes |
 | 6 | `failures-outside-change` | the loader for a finding with its own `file`, this skill for a `null`-file finding | Every FAIL finding is in a file outside `changed_files` |

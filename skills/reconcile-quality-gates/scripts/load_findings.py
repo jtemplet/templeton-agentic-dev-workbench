@@ -180,7 +180,10 @@ def trusted_report(inputs: LoaderInputs) -> dict[str, Any]:
 def check_checked_commit(report: dict[str, Any], head: str) -> None:
     if report["head"] != head:
         raise UntrustedReport(
-            REPORT_STALE, f"The report checked {report['head']}, and HEAD is {head}."
+            REPORT_STALE,
+            f"The report checked {report['head']}, and HEAD is {head}. "
+            "If the tree is dirty, commit the work. Then run /tadw:quality-gates again, "
+            "then reconcile.",
         )
 
 
