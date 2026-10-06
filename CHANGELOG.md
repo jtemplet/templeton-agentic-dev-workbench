@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [4.8.1] - 2026-10-06
+
+### Changed
+
+- **Refresh guidance against current repository state.** (`a744ab4`)
+- **Say to commit, re-run the gates, then reconcile.** (`708c38a`)
+
 ## [4.8.0] - 2026-10-05
 
 ### Added
@@ -2847,7 +2854,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.0...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.1...HEAD
+[4.8.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.0...v4.8.1
 [4.8.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.2...v4.8.0
 [4.7.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.1...v4.7.2
 [4.7.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.0...v4.7.1
