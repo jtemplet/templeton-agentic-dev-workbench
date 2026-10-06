@@ -48,16 +48,18 @@ fallback searches the installed plugin cache. Claude Code uses the loaded plugin
 ```bash
 REPORT="$(git rev-parse --path-format=absolute --git-dir)/quality-gates-report.json"
 REPORT_HEAD="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("head",""))' "$REPORT" 2>/dev/null)"
-MOVED=()
+MOVED_FILE="$(mktemp)"
+MOVED_ARGS=()
 if [ -n "$REPORT_HEAD" ] && git merge-base --is-ancestor "$REPORT_HEAD" HEAD 2>/dev/null; then
-  MOVED=(--moved-files <(git diff --name-only -z "$REPORT_HEAD" HEAD))
+  git diff --name-only -z "$REPORT_HEAD" HEAD > "$MOVED_FILE"
+  MOVED_ARGS=(--moved-files "$MOVED_FILE")
 fi
 python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
   -path '*/skills/reconcile-quality-gates/scripts/load_findings.py' -print -quit 2>/dev/null)" \
   --report "$REPORT" \
   --head "$(git rev-parse HEAD)" \
   --dirty-files <(git status --porcelain=v1 -z) \
-  "${MOVED[@]}" \
+  ${MOVED_ARGS[@]+"${MOVED_ARGS[@]}"} \
   --bead "$BEAD_ID"
 ```
 
