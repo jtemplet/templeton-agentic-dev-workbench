@@ -130,9 +130,12 @@ ONLY_HANDOFF = report([gate("Tests", "PASS"), gate("QA", "HANDOFF")], [], verdic
 PASSING = report([gate("Lint", "PASS"), gate("Tests", "PASS")], [], verdict="PASS")
 
 
-def load(body: dict | str | None, head: str = HEAD, dirty=(), bead: str | None = None):
+def load(body: dict | str | None, head: str = HEAD, dirty=(), bead: str | None = None, moved=None):
     text = body if body is None or isinstance(body, str) else json.dumps(body)
-    return loader.load_findings(loader.LoaderInputs(text, head, frozenset(dirty), bead))
+    moved_paths = None if moved is None else frozenset(moved)
+    return loader.load_findings(
+        loader.LoaderInputs(text, head, frozenset(dirty), bead, moved_paths)
+    )
 
 
 def reason_of(outcome) -> str | None:
@@ -200,6 +203,31 @@ def case_base_without_changed_files_is_report_unreadable() -> None:
 
 def case_other_head_is_report_stale() -> None:
     assert reason_of(load(IN_CHANGE, head=OTHER_HEAD)) == "report-stale"
+
+
+def case_dirty_report_committed_as_graded_is_not_stale() -> None:
+    body = with_field(IN_CHANGE, dirty=True)
+    assert reason_of(load(body, head=OTHER_HEAD, moved=[CHANGED_FILE])) is None
+
+
+def case_dirty_report_with_a_file_it_never_graded_is_stale() -> None:
+    body = with_field(IN_CHANGE, dirty=True)
+    assert (
+        reason_of(load(body, head=OTHER_HEAD, moved=[CHANGED_FILE, "other.py"])) == "report-stale"
+    )
+
+
+def case_clean_report_at_another_head_is_stale_even_with_moved_files() -> None:
+    assert reason_of(load(IN_CHANGE, head=OTHER_HEAD, moved=[CHANGED_FILE])) == "report-stale"
+
+
+def case_dirty_report_without_moved_files_is_stale() -> None:
+    assert reason_of(load(with_field(IN_CHANGE, dirty=True), head=OTHER_HEAD)) == "report-stale"
+
+
+def case_dirty_report_with_unknown_changed_set_is_stale() -> None:
+    body = with_field(IN_CHANGE, dirty=True, base=None, changed_files=None)
+    assert reason_of(load(body, head=OTHER_HEAD, moved=[CHANGED_FILE])) == "report-stale"
 
 
 def case_other_bead_is_bead_mismatch() -> None:
@@ -315,6 +343,26 @@ def case_stale_pass_report_is_report_stale() -> None:
 
 
 for name, fn in [
+    (
+        "a dirty report committed as graded is not stale",
+        case_dirty_report_committed_as_graded_is_not_stale,
+    ),
+    (
+        "a dirty report plus an ungraded file is stale",
+        case_dirty_report_with_a_file_it_never_graded_is_stale,
+    ),
+    (
+        "a clean report at another head is stale",
+        case_clean_report_at_another_head_is_stale_even_with_moved_files,
+    ),
+    (
+        "a dirty report with no moved-files input is stale",
+        case_dirty_report_without_moved_files_is_stale,
+    ),
+    (
+        "a dirty report with no changed set is stale",
+        case_dirty_report_with_unknown_changed_set_is_stale,
+    ),
     ("report-unreadable beats report-stale [criterion 1]", case_unreadable_beats_stale),
     ("report-stale beats bead-mismatch [criterion 1]", case_stale_beats_bead_mismatch),
     (

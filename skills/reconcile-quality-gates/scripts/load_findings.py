@@ -29,6 +29,13 @@ the run stops with `failures-outside-change`. Otherwise a BLOCKED gate stops it
 with `needs-environment`, and anything else, such as a HANDOFF gate or a FAIL
 gate with no finding, stops it with `needs-human-check`.
 
+REPORT-STALE AND A DIRTY GRADING. A report graded on an uncommitted tree
+records `dirty: true` and the commit before the work. `--moved-files` carries
+`git diff --name-only -z <report head> HEAD`, and the skill passes it only when
+that head is an ancestor of HEAD. The report then stays valid when every moved
+file is in `changed_files`, so the commit the caller made after grading does not
+strand the report.
+
 `uncommitted-changes` covers only the files that in-scope findings name. The
 skill applies the same rule to a file it finds by re-running a command.
 """
@@ -99,6 +106,7 @@ class LoaderInputs:
     head: str
     dirty_paths: frozenset[str]
     bead: str | None = None
+    moved_paths: frozenset[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -172,19 +180,35 @@ def trusted_report(inputs: LoaderInputs) -> dict[str, Any]:
     if inputs.report_text is None:
         raise UntrustedReport(REPORT_MISSING, "No quality-gates report exists at --report.")
     report = parse_report(inputs.report_text)
-    check_checked_commit(report, inputs.head)
+    check_checked_commit(report, inputs.head, inputs.moved_paths)
     check_checked_bead(report, inputs.bead)
     return report
 
 
-def check_checked_commit(report: dict[str, Any], head: str) -> None:
-    if report["head"] != head:
-        raise UntrustedReport(
-            REPORT_STALE,
-            f"The report checked {report['head']}, and HEAD is {head}. "
-            "If the tree is dirty, commit the work. Then run /tadw:quality-gates again, "
-            "then reconcile.",
-        )
+def check_checked_commit(
+    report: dict[str, Any], head: str, moved_paths: frozenset[str] | None
+) -> None:
+    if report["head"] == head or committed_the_graded_work(report, moved_paths):
+        return
+    raise UntrustedReport(
+        REPORT_STALE,
+        f"The report checked {report['head']}, and HEAD is {head}. "
+        "Run /tadw:quality-gates again on HEAD, then reconcile.",
+    )
+
+
+def committed_the_graded_work(report: dict[str, Any], moved_paths: frozenset[str] | None) -> bool:
+    """A dirty-tree report stays valid after the caller commits exactly what it graded.
+
+    `moved_paths` is the file list between the report's head and HEAD, and the
+    caller passes it only when the report's head is an ancestor of HEAD. Every
+    moved file must sit in the graded changed set, or HEAD holds work the report
+    never saw.
+    """
+    changed_files = report["changed_files"]
+    if report.get("dirty") is not True or moved_paths is None or changed_files is None:
+        return False
+    return moved_paths <= set(changed_files)
 
 
 def check_checked_bead(report: dict[str, Any], bead: str | None) -> None:
@@ -368,7 +392,9 @@ def outcome_for(args: argparse.Namespace) -> Outcome:
         report_text = read_report(args.report)
     except UntrustedReport as exc:
         return Blocked(exc.reason, str(exc))
-    return load_findings(LoaderInputs(report_text, args.head, args.dirty_paths, args.bead))
+    return load_findings(
+        LoaderInputs(report_text, args.head, args.dirty_paths, args.bead, args.moved_paths)
+    )
 
 
 class RaisingArgumentParser(argparse.ArgumentParser):
@@ -386,6 +412,9 @@ def parse_arguments(argv: list[str] | None) -> argparse.Namespace:
         "--dirty-files", dest="dirty_paths", required=True, type=dirty_paths_in, metavar="PATH"
     )
     parser.add_argument("--bead", type=bead_id, metavar="ID")
+    parser.add_argument(
+        "--moved-files", dest="moved_paths", type=moved_paths_in, metavar="PATH", default=None
+    )
     return parser.parse_args(argv)
 
 
@@ -416,6 +445,15 @@ def dirty_paths_in(value: str) -> frozenset[str]:
     except OSError as exc:
         raise argparse.ArgumentTypeError(f"could not be read: {exc}") from exc
     return parse_porcelain_z(raw.decode("utf-8", errors="surrogateescape"))
+
+
+def moved_paths_in(value: str) -> frozenset[str]:
+    try:
+        raw = Path(value).read_bytes()
+    except OSError as exc:
+        raise argparse.ArgumentTypeError(f"could not be read: {exc}") from exc
+    names = raw.decode("utf-8", errors="surrogateescape").split("\0")
+    return frozenset(name for name in names if name)
 
 
 def read_report(path: Path) -> str | None:

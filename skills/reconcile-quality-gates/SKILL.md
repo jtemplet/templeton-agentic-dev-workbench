@@ -47,15 +47,23 @@ fallback searches the installed plugin cache. Claude Code uses the loaded plugin
 
 ```bash
 REPORT="$(git rev-parse --path-format=absolute --git-dir)/quality-gates-report.json"
+REPORT_HEAD="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("head",""))' "$REPORT" 2>/dev/null)"
+MOVED=()
+if [ -n "$REPORT_HEAD" ] && git merge-base --is-ancestor "$REPORT_HEAD" HEAD 2>/dev/null; then
+  MOVED=(--moved-files <(git diff --name-only -z "$REPORT_HEAD" HEAD))
+fi
 python3 "$(find "${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}" "$HOME/.claude-personal" \
   -path '*/skills/reconcile-quality-gates/scripts/load_findings.py' -print -quit 2>/dev/null)" \
   --report "$REPORT" \
   --head "$(git rev-parse HEAD)" \
   --dirty-files <(git status --porcelain=v1 -z) \
+  "${MOVED[@]}" \
   --bead "$BEAD_ID"
 ```
 
-Drop `--bead "$BEAD_ID"` when the caller named none.
+Drop `--bead "$BEAD_ID"` when the caller named none. `--moved-files` lets a report graded on an
+uncommitted tree survive the commit that follows: the loader accepts it when `dirty` is true and
+every file committed since the report's `head` is in `changed_files`.
 
 | Exit | What it means | What to do |
 |---|---|---|
@@ -157,7 +165,7 @@ are this skill's own.
 |---|---|---|---|
 | 1 | `report-missing` | the loader | No file exists at `--report` |
 | 2 | `report-unreadable` | the loader | The file will not parse, lacks a version 2 field, names a version other than 2, or its shape is otherwise invalid |
-| 3 | `report-stale` | the loader | The report's `head` differs from the current `HEAD`; the caller commits, re-runs `/tadw:quality-gates`, then reconciles |
+| 3 | `report-stale` | the loader | The report's `head` differs from `HEAD`, and the report is not a `dirty` report whose graded files were committed unchanged since; the caller re-runs `/tadw:quality-gates` on `HEAD`, then reconciles |
 | 4 | `bead-mismatch` | the loader | `--bead` was given and differs from the report's `bead`, `null` included |
 | 5 | `uncommitted-changes` | the loader for a finding with its own `file`, this skill for a `null`-file finding | The file already has uncommitted changes |
 | 6 | `failures-outside-change` | the loader for a finding with its own `file`, this skill for a `null`-file finding | Every FAIL finding is in a file outside `changed_files` |
