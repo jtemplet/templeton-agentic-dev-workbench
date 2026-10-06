@@ -138,6 +138,13 @@ did not find. Three outcomes:
 Record the sha you grounded against in the body. A grounding claim without its commit is an
 assertion.
 
+**Pre-flight every criterion you draft.** Apply the "Criterion pre-flight" rules in
+`bead-audit` (Grounding Audit) before Step 7. Run each read-only command criterion against main.
+If it already fails because of a file the bead will not edit, narrow the command now; if it
+passes now, it probes the wrong thing. For a criterion whose only evidence is a human-run or
+model-followed ritual, write an `Evidence:` line under it that names the record that counts. The
+draft does not reach Step 7 with an `unreachable`, `vacuous`, or `ritual-only` criterion.
+
 **Take every domain term from `CONTEXT.md`, when the repository has one.** That file is the
 project's glossary, meaning the list of terms and what each one means here. Read it before you
 write the title, the Why, or the Acceptance Criteria. Use the glossary's word for a thing rather

@@ -262,6 +262,35 @@ the end state *already holds* on main, record `satisfied`. Somebody did the work
 change made it moot, and nothing told the tracker. A `satisfied` bead is the cheapest thing in a
 backlog to resolve and the most expensive to keep re-reading.
 
+#### Criterion pre-flight: can each criterion pass as written?
+
+The inverse check asks whether a criterion already holds. This check asks whether it *can* ever
+pass, and whether anyone will be able to prove it. Run it on every Acceptance Criterion and
+Done-when line, with the same `origin/main` sha as the rest of the dimension.
+
+**1. Run a runnable criterion against main.** A criterion is runnable when it names a command and
+an expected output, such as "when the old-subcommand grep runs, then it prints nothing". Run it
+only when it is read-only (`grep`, `git grep`, `ls`, a test collect-only run); otherwise record
+`not run` and say why. Prefer `git grep ... origin/main --` over a checkout. Then classify:
+
+| Result on main | Verdict | What to do |
+|---|---|---|
+| Fails, and the bead's Why or How names every file that causes the failure | `expected` | None. This is an open bead's normal state |
+| Fails, and a cause sits where the bead's work will not edit: a sibling bead's regression test that names the retired string on purpose, a vendored file, a generated file | `unreachable` | Flag it. Narrow the command (add the path exclusion) or move the criterion, before the build starts |
+| Passes, and the bead's work has not been done | `vacuous` | Flag it. The command probes the wrong thing, such as an empty glob or a typo in the pattern |
+| Passes, and the end state really holds | `satisfied` | Record `satisfied`, per the inverse check |
+
+List each cause of a failure by path. An `unreachable` or `vacuous` criterion caps grounding at
+`drifted`, because the bead cannot reach ACCEPTED as written.
+
+**2. Flag a criterion whose only evidence is a ritual.** A ritual is a step that a person runs by
+hand, or that a model follows from a spec with no program behind it: "when `/daily-planner` runs,
+then the note shows a link". No artifact exists afterward unless someone makes one, so
+`/verify-acceptance` can only grade it UNVERIFIABLE. Flag it as `ritual-only`. The bead must then
+carry a line under the criterion that says what record counts as evidence, for example `Evidence:
+the printed block quoted verbatim in the verifier's prompt` or `Evidence: a fixture-driven test`.
+A criterion with no such line stays flagged.
+
 #### What to check
 
 The same four checks `plan-review` uses for a plan, applied to a bead and bounded the same way:

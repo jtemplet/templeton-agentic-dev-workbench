@@ -52,6 +52,7 @@ Then judge whether it is buildable, and say which:
 | What you find | What to do |
 |---|---|
 | Criteria are specific and checkable, and `design` names an approach | Proceed. Restate the criteria as your build checklist. |
+| A runnable criterion already fails for a reason the bead's work will not touch, passes before any work, or rests on a ritual with no `Evidence:` line | Run the "Criterion pre-flight" from `bead-audit`, report which criterion and why, and **stop**. Do not build toward a criterion that cannot pass. |
 | Criteria exist but are vague, or `design` is empty | Load `bead-audit`, report what is missing, and **stop**. Ask the user to fill the gap or to confirm you should proceed on stated assumptions. |
 | `notes` says the bead is too big, or says "split before claiming" | Say so and stop. Building a bead that its own audit called too big produces a diff nobody can review. |
 | The bead does not exist, or is already closed | Say so and stop. Do not guess at a near-match id. |

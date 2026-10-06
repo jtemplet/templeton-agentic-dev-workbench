@@ -100,7 +100,10 @@ Then assign a verdict:
 | **UNVERIFIABLE** | No artifact can settle it here: it needs a human, a production observation, a design sign-off, or a device you do not have. |
 
 UNVERIFIABLE is a real answer and is not a soft FAIL. Say what would settle it and who has to do
-that.
+that. Name the exact evidence that turns it into PASS: the command to run, the output to quote, or
+the file to produce. Put that in the first report, so the caller can supply it in one step rather
+than after a second grading. A bead that gives an `Evidence:` line under the criterion names it
+already; use that line.
 
 Keep the command you ran for each criterion. Step 6 records the narrowest one that proves it.
 
