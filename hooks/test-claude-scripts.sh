@@ -2251,16 +2251,18 @@ if case_start "install/check: an uninstalled repository reports that, rather tha
   [[ ! -e "$(installed_hook "$R")" ]] && ok "installed nothing" || nope "installed nothing"
 fi
 
-if case_start "install: the Codex runner lands beside the label script"; then
-  # The runner resolves the label script as a SIBLING first. Installing one
-  # without the other gave a repository working Claude labeling and Codex
-  # labeling that never ran, with nothing to see either way.
+if case_start "install: the Codex runner lands in .codex/scripts"; then
+  # Installing the label script without the runner gave a repository working
+  # Claude labeling and Codex labeling that never ran, with nothing to see
+  # either way.
   R="$(new_repo i7)"
   run_installer "$R"
   assert_eq "$INSTALL_CODE" 0 "the run succeeds"
-  assert_match "$R/.instout" "codex runner: installed" "reported the runner"
-  [[ -x "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] \
+  assert_match "$R/.instout" "codex runner: installed at .codex/scripts/run_codex_bead_hooks.sh" "reported the runner"
+  [[ -x "$R/.codex/scripts/run_codex_bead_hooks.sh" ]] \
     && ok "left the runner executable" || nope "left the runner executable"
+  [[ ! -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] \
+    && ok "put no runner in .claude/scripts" || nope "put no runner in .claude/scripts"
   run_installer "$R" --check
   assert_eq "$INSTALL_CODE" 0 "--check passes on a complete install"
   assert_match "$R/.instout" "codex:    current" "--check reports the runner"
@@ -2280,10 +2282,36 @@ if case_start "install/check: the claim module is installed and matches its sour
   assert_match "$R/.instout" "module:   DRIFTED" "said the module drifted"
 fi
 
+if case_start "install: a runner an older installer left in .claude/scripts is removed"; then
+  R="$(new_repo i10)"
+  mkdir -p "$R/.claude/scripts"
+  echo '# old' > "$R/.claude/scripts/run_codex_bead_hooks.sh"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 1 "--check fails on the old copy"
+  assert_match "$R/.instout" "codex:    OLD COPY at .claude/scripts/run_codex_bead_hooks.sh" "named the old copy"
+  run_installer "$R"
+  assert_match "$R/.instout" "old runner:  removed from .claude/scripts/run_codex_bead_hooks.sh" "reported the removal"
+  [[ ! -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] \
+    && ok "removed the old copy" || nope "removed the old copy"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 0 "--check passes afterward"
+fi
+
+if case_start "install: an old runner that .codex/hooks.json still names is kept"; then
+  R="$(new_repo i11)"
+  mkdir -p "$R/.claude/scripts" "$R/.codex"
+  echo '# old' > "$R/.claude/scripts/run_codex_bead_hooks.sh"
+  echo '{"hooks":{"Stop":[{"hooks":[{"command":"bash .claude/scripts/run_codex_bead_hooks.sh Stop"}]}]}}' > "$R/.codex/hooks.json"
+  run_installer "$R"
+  assert_match "$R/.instout" "old runner:  KEPT at .claude/scripts/run_codex_bead_hooks.sh" "said it kept the old copy"
+  [[ -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] \
+    && ok "left the wired copy in place" || nope "left the wired copy in place"
+fi
+
 if case_start "install/check: a missing Codex runner fails, even with the label script current"; then
   R="$(new_repo i8)"
   run_installer "$R"
-  rm -f "$R/.claude/scripts/run_codex_bead_hooks.sh"
+  rm -f "$R/.codex/scripts/run_codex_bead_hooks.sh"
   run_installer "$R" --check
   assert_eq "$INSTALL_CODE" 1 "exits non-zero"
   assert_match "$R/.instout" "script:   current" "the label script is still current"

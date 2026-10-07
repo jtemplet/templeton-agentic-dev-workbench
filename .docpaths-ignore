@@ -67,3 +67,9 @@ commands/bead-audit.md
 # this tree. Named by the skill, its command, README.md, and docs/ROUTING.md.
 docs/verification/*
 docs/verification
+
+# Where the installer puts the Codex runner in a target repository. This tree
+# keeps the runner in scripts/, so the directory never exists here. Named by
+# docs/PORTABLE-HOOKS.md and scripts/AGENTS.md.
+.codex/scripts/*
+.codex/scripts

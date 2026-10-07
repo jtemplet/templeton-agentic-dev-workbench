@@ -20,9 +20,13 @@ hook dropped at the `bd` cutover.
 ## The installer
 
 `scripts/install_label_bead_on_skill_invocation.sh` installs the hook into whatever repository
-you run it from. It copies the hook and its Codex runner to `.claude/scripts/`, backs up
-`.claude/settings.json`, and wires the three events. Re-running it is safe. It repairs wiring
-that names an older path instead of adding a second entry. `--dest-dir` moves the destination.
+you run it from. It copies the hook and its claim module to `.claude/scripts/` and the Codex
+runner to `.codex/scripts/`, backs up `.claude/settings.json`, and wires the three events.
+Re-running it is safe. It repairs wiring that names an older path instead of adding a second
+entry. `--dest-dir` moves the label script and its module, never the runner.
+
+[bead-label-hooks.html](bead-label-hooks.html) explains, with diagrams, how the label script and
+its claim module work together.
 
 Only the label script is wired here. The runner is inert until somebody adds it to
 `.codex/hooks.json`, so a repository that never runs Codex carries one unused file and loses
@@ -51,14 +55,21 @@ label script.
 
 ### Where the two scripts live
 
-`scripts/install_label_bead_on_skill_invocation.sh` copies **both** scripts into
-`.claude/scripts/` of the target repository. Codex reads no file from that directory, so the name
-is only where the pair happens to live; the installer puts them together on purpose. The runner
-looks for the label script as a sibling first, then under `.claude/scripts/` of the main checkout,
-resolved through the git common dir. Either layout works, and a linked worktree finds the main
-checkout's copy.
+`scripts/install_label_bead_on_skill_invocation.sh` copies the label script into
+`.claude/scripts/` and the runner into `.codex/scripts/` of the target repository. Codex is the
+only thing that runs the runner, so it lives under Codex's directory. The runner looks for the
+label script as a sibling first, which is the layout of this repository's own `scripts/`. It then
+looks under `.claude/scripts/` of the main checkout, resolved through the git common dir, which is
+where an install puts it. A linked worktree finds the main checkout's copy.
 
-The two used to be separable, and the failure was silent. The installer wrote the label script to
+Before 2026-10-06 the installer put the runner in `.claude/scripts/` too. A run now removes that
+copy, unless `.codex/hooks.json` still names its path. In that case it keeps the copy and says so,
+and `--check` fails on it until the wiring points at `.codex/scripts/`.
+
+**`--dest-dir` and the runner do not mix.** The runner only knows the two places above, so a label
+script installed anywhere else is one it cannot find. It then writes `no-label-script` to the log.
+
+The failure of a split pair used to be silent. The installer wrote the label script to
 `.claude/scripts/` while the runner looked only for a sibling, so a repository set up the
 documented way had working Claude labeling and Codex labeling that never ran. A runner that cannot
 find its label script now writes one line to `<git-common-dir>/bead-label.log` before it returns,

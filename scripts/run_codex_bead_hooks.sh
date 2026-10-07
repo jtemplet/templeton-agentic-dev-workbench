@@ -18,11 +18,11 @@ event="${1:-}"
 [[ -n "$event" ]] ||
   event="$(printf '%s' "$payload" | jq -r '.hook_event_name // empty' 2>/dev/null || true)"
 
-# The label script sits in one of two places, and this script is copied into
-# repositories that use either. Beside this one is the layout of the workbench
-# repository and of an installed pair. Under .claude/scripts of the MAIN
-# checkout is where install_label_bead_on_skill_invocation.sh puts it, and the
-# git common dir resolves there from a linked worktree too.
+# The label script sits in one of two places. Beside this one is the layout of
+# the workbench repository. Under .claude/scripts of the MAIN checkout is where
+# install_label_bead_on_skill_invocation.sh puts it, while this script goes to
+# .codex/scripts, and the git common dir resolves there from a linked worktree
+# too.
 resolve_label_hook() {
   local script_dir sibling common installed
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || return 1

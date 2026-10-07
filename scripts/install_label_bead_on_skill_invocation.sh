@@ -9,12 +9,16 @@
 #
 #   1. Copies label_bead_on_skill_invocation.sh, the copy sitting beside this
 #      installer, into <repo>/.claude/scripts/ and marks it executable.
-#      run_codex_bead_hooks.sh rides along into the same directory, because
-#      that script resolves the label script as a SIBLING first. Copying one
+#      run_codex_bead_hooks.sh goes to <repo>/.codex/scripts/, because Codex
+#      is the only thing that runs it. It finds the label script under
+#      .claude/scripts of the main checkout, so --dest-dir, which moves the
+#      label script, leaves the runner unable to find it. Installing one
 #      without the other is how Codex labeling becomes a permanent no-op in a
 #      repository whose Claude labeling works. It is inert until somebody
 #      adds it to .codex/hooks.json, so a repository that never runs Codex
-#      carries one unused file and loses nothing. label_bead_hook.py rides
+#      carries one unused file and loses nothing. A runner an earlier
+#      installer left in the label script's directory is removed, unless
+#      .codex/hooks.json still names that path. label_bead_hook.py rides
 #      along too: the label script runs it as a sibling to decide the /build
 #      claim, and without it /build starts with no claim at all.
 #   2. Wires that path into <repo>/.claude/settings.json for the three events
@@ -48,6 +52,7 @@ HOOK_SCRIPT="label_bead_on_skill_invocation.sh"
 CODEX_SCRIPT="run_codex_bead_hooks.sh"
 MODULE_SCRIPT="label_bead_hook.py"
 DEST_DIR=".claude/scripts"
+CODEX_DEST_DIR=".codex/scripts"
 CHECK_ONLY=false
 
 # Verbatim from the reference wiring in ~/Dev/atlas/.claude/settings.json, so a
@@ -69,8 +74,9 @@ Options:
   --check          Report how the installed copies and the wiring differ from
                    the source, then exit: 0 when all are current, 1 otherwise.
                    Copies nothing and touches settings.json not at all.
-  --dest-dir DIR   Where to put the hook scripts, relative to the repository
-                   root. Default: .claude/scripts
+  --dest-dir DIR   Where to put the label script and its module, relative to
+                   the repository root. Default: .claude/scripts
+                   The Codex runner always goes to .codex/scripts.
   -h, --help       Print this and exit.
 
 Requires git and jq on PATH. The hook itself needs bd, jq, and git at runtime,
@@ -118,7 +124,10 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" ||
   die "not inside a git repository; run this from the repository you want the hook installed in"
 
 DEST="$REPO_ROOT/$DEST_DIR/$HOOK_SCRIPT"
-CODEX_DEST="$REPO_ROOT/$DEST_DIR/$CODEX_SCRIPT"
+CODEX_DEST="$REPO_ROOT/$CODEX_DEST_DIR/$CODEX_SCRIPT"
+# Where an installer before 2026-10-06 put the runner.
+OLD_CODEX_DEST="$REPO_ROOT/$DEST_DIR/$CODEX_SCRIPT"
+CODEX_HOOKS="$REPO_ROOT/.codex/hooks.json"
 MODULE_DEST="$REPO_ROOT/$DEST_DIR/$MODULE_SCRIPT"
 [[ "$SOURCE" != "$DEST" ]] ||
   die "source and destination are the same file; run this from the target repository, not from its own source repository"
@@ -189,8 +198,12 @@ if [[ "$CHECK_ONLY" == true ]]; then
 
   report_script_state "script:  " "$SOURCE" "$DEST" "$DEST_DIR/$HOOK_SCRIPT" ||
     check_failed=true
-  report_script_state "codex:   " "$CODEX_SOURCE" "$CODEX_DEST" "$DEST_DIR/$CODEX_SCRIPT" ||
+  report_script_state "codex:   " "$CODEX_SOURCE" "$CODEX_DEST" "$CODEX_DEST_DIR/$CODEX_SCRIPT" ||
     check_failed=true
+  if [[ -f "$OLD_CODEX_DEST" ]]; then
+    echo "codex:    OLD COPY at $DEST_DIR/$CODEX_SCRIPT"
+    check_failed=true
+  fi
   report_script_state "module:  " "$MODULE_SOURCE" "$MODULE_DEST" "$DEST_DIR/$MODULE_SCRIPT" ||
     check_failed=true
 
@@ -258,8 +271,21 @@ fi
 mkdir -p "$REPO_ROOT/$DEST_DIR"
 cp "$SOURCE" "$DEST"
 chmod +x "$DEST"
+mkdir -p "$REPO_ROOT/$CODEX_DEST_DIR"
 cp "$CODEX_SOURCE" "$CODEX_DEST"
 chmod +x "$CODEX_DEST"
+
+# Wiring that still names the old path would break if the file went away, so
+# that copy stays and the report says why.
+old_codex_result=""
+if [[ -f "$OLD_CODEX_DEST" ]]; then
+  if [[ -f "$CODEX_HOOKS" ]] && grep -q "$DEST_DIR/$CODEX_SCRIPT" "$CODEX_HOOKS"; then
+    old_codex_result="KEPT at $DEST_DIR/$CODEX_SCRIPT, because .codex/hooks.json names it; point that at $CODEX_DEST_DIR/$CODEX_SCRIPT, then run this again"
+  else
+    rm -f "$OLD_CODEX_DEST"
+    old_codex_result="removed from $DEST_DIR/$CODEX_SCRIPT"
+  fi
+fi
 cp "$MODULE_SOURCE" "$MODULE_DEST"
 
 # ---------------------------------------------------------------------
@@ -405,7 +431,8 @@ fi
 
 echo "repository:  $REPO_ROOT"
 echo "hook script: $script_result at $DEST_DIR/$HOOK_SCRIPT ($(hash_of "$DEST"))"
-echo "codex runner: $codex_result at $DEST_DIR/$CODEX_SCRIPT ($(hash_of "$CODEX_DEST"))"
+echo "codex runner: $codex_result at $CODEX_DEST_DIR/$CODEX_SCRIPT ($(hash_of "$CODEX_DEST"))"
+[[ -z "$old_codex_result" ]] || echo "old runner:  $old_codex_result"
 echo "hook module: $module_result at $DEST_DIR/$MODULE_SCRIPT ($(hash_of "$MODULE_DEST"))"
 echo "settings:    $settings_result in .claude/settings.json"
 echo "backup:      $backup_result"
@@ -427,7 +454,7 @@ jq -r --arg name "$HOOK_SCRIPT" '
 ' "$SETTINGS"
 
 echo
-echo "Commit .claude/settings.json, $DEST_DIR/$HOOK_SCRIPT, $DEST_DIR/$CODEX_SCRIPT"
+echo "Commit .claude/settings.json, $DEST_DIR/$HOOK_SCRIPT, $CODEX_DEST_DIR/$CODEX_SCRIPT"
 echo "and $DEST_DIR/$MODULE_SCRIPT to share this with the repo."
 echo "The Codex runner needs its own entries in"
 echo ".codex/hooks.json; docs/PORTABLE-HOOKS.md has them."

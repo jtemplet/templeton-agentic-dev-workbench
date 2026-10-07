@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the bead-label hooks work</title>
+<style>
+  :root {
+    --bg: #fbfaf7; --panel: #ffffff; --ink: #1d1f23; --muted: #5b616b; --line: #d9d6cf;
+    --shell: #1f6f8b; --shell-bg: #e3f1f5; --py: #8a5a00; --py-bg: #fbefd2;
+    --bd: #6b3fa0; --bd-bg: #efe6f8; --ok: #1f7a4a; --ok-bg: #e1f3e8;
+    --stop: #a8322a; --stop-bg: #fae5e2; --code-bg: #f1efe9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --panel: #1d2024; --ink: #e8e6e1; --muted: #a2a8b1; --line: #363a41;
+      --shell: #6cc4dd; --shell-bg: #17323b; --py: #e6b655; --py-bg: #3a2e12;
+      --bd: #c3a1ec; --bd-bg: #2c2140; --ok: #6fd09a; --ok-bg: #173324;
+      --stop: #f08a80; --stop-bg: #3d1c19; --code-bg: #262a30;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --panel: #1d2024; --ink: #e8e6e1; --muted: #a2a8b1; --line: #363a41;
+    --shell: #6cc4dd; --shell-bg: #17323b; --py: #e6b655; --py-bg: #3a2e12;
+    --bd: #c3a1ec; --bd-bg: #2c2140; --ok: #6fd09a; --ok-bg: #173324;
+    --stop: #f08a80; --stop-bg: #3d1c19; --code-bg: #262a30;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 920px; margin: 0 auto; padding: 32px 16px 80px; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 8px; }
+  h2 { font-size: 1.35rem; margin: 48px 0 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+  p { margin: 0 0 12px; }
+  .lede { font-size: 1.1rem; color: var(--muted); }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 0.9em;
+         font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+  pre { background: var(--code-bg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 0.85rem; }
+  pre code { background: none; padding: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
+  .answer { border-left: 5px solid var(--ok); }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .tag { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+  .t-shell { background: var(--shell-bg); color: var(--shell); }
+  .t-py { background: var(--py-bg); color: var(--py); }
+  .t-bd { background: var(--bd-bg); color: var(--bd); }
+  .t-ok { background: var(--ok-bg); color: var(--ok); }
+  .t-stop { background: var(--stop-bg); color: var(--stop); }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; fill: var(--ink); }
+  .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+  .b-shell { fill: var(--shell-bg); stroke: var(--shell); }
+  .b-py { fill: var(--py-bg); stroke: var(--py); }
+  .b-bd { fill: var(--bd-bg); stroke: var(--bd); }
+  .b-ok { fill: var(--ok-bg); stroke: var(--ok); }
+  .b-stop { fill: var(--stop-bg); stroke: var(--stop); }
+  .arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; marker-end: url(#ah); }
+  .dash { stroke-dasharray: 5 4; }
+  .small { font-size: 12px; fill: var(--muted); }
+  .lbl { font-size: 13px; }
+  .hd { font-size: 14px; font-weight: 600; }
+  ol.steps { padding-left: 20px; }
+  ol.steps li { margin-bottom: 8px; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>How the bead-label hooks work</h1>
+<p class="lede">Two files in <code>.claude/scripts/</code>: a shell script that runs on three Claude Code events,
+and a Python module that the shell script calls for one decision.</p>
+
+<div class="card answer">
+  <p><strong>Yes, they work together, and only one of them is a hook.</strong></p>
+  <p><code>label_bead_on_skill_invocation.sh</code> is the hook. Claude Code runs it. It finds the bead, decides which
+  label a skill earns, and applies the label.</p>
+  <p><code>label_bead_hook.py</code> is a helper. Nothing but the shell script runs it, and only when the skill is
+  <code>/build</code>. It answers one question: may this session claim the bead?</p>
+</div>
+
+<h2>The parts</h2>
+
+<svg viewBox="0 0 880 330" role="img" aria-label="Claude Code runs the shell script, which calls the Python module and the bd command">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <rect class="box" x="10" y="20" width="200" height="110" rx="10"/>
+  <text class="hd" x="26" y="46">Claude Code</text>
+  <text class="small" x="26" y="68">.claude/settings.json sends</text>
+  <text class="small" x="26" y="86">three events, each with a</text>
+  <text class="small" x="26" y="104">JSON payload on stdin</text>
+
+  <rect class="b-shell" x="290" y="20" width="290" height="110" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="306" y="46">label_bead_on_skill_invocation.sh</text>
+  <text class="small" x="306" y="68">the hook: finds the bead, picks the</text>
+  <text class="small" x="306" y="86">label and its mode, writes markers,</text>
+  <text class="small" x="306" y="104">reads reports, applies labels</text>
+
+  <rect class="b-py" x="660" y="20" width="210" height="110" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="676" y="46">label_bead_hook.py</text>
+  <text class="small" x="676" y="68">the claim decision for</text>
+  <text class="small" x="676" y="86">/build: claim, adopt, already</text>
+  <text class="small" x="676" y="104">held, refuse, or leave alone</text>
+
+  <rect class="b-bd" x="290" y="220" width="290" height="90" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="306" y="246">bd (the beads tracker)</text>
+  <text class="small" x="306" y="268">bd show reads a bead</text>
+  <text class="small" x="306" y="286">bd update writes a label, a claim, a status</text>
+
+  <path class="arrow" d="M210,75 L288,75"/>
+  <text class="small" x="218" y="66">stdin</text>
+  <path class="arrow" d="M580,60 L658,60"/>
+  <text class="small" x="586" y="52">/build only</text>
+  <path class="arrow dash" d="M658,95 L582,95"/>
+  <text class="small" x="590" y="112">JSON + exit</text>
+  <path class="arrow" d="M400,130 L400,218"/>
+  <text class="small" x="408" y="180">show, add-label</text>
+  <path class="arrow" d="M765,130 L765,265 L582,265"/>
+  <text class="small" x="640" y="256">claim, adopt</text>
+  <path class="arrow dash" d="M290,110 L210,110"/>
+  <text class="small" x="216" y="126">hook JSON</text>
+</svg>
+
+<div class="grid">
+  <div class="card">
+    <span class="tag t-shell">shell, about 1,200 lines</span>
+    <h3>label_bead_on_skill_invocation.sh</h3>
+    <p>Runs on <code>PreToolUse</code> (matcher <code>Skill</code>), <code>UserPromptSubmit</code>, and <code>Stop</code>.
+    It needs <code>bd</code>, <code>jq</code>, and <code>git</code>.</p>
+  </div>
+  <div class="card">
+    <span class="tag t-py">Python, about 290 lines</span>
+    <h3>label_bead_hook.py</h3>
+    <p>Standard library only, for Python 3.9. It sits beside the shell script, and the shell script runs it with
+    <code>python3</code>. It has its own test suite.</p>
+  </div>
+</div>
+
+<p>A third file, <code>run_codex_bead_hooks.sh</code>, lives in <code>.codex/scripts/</code>. Codex runs it, and it
+passes the Codex payload to the same shell script. It is not part of the Claude Code path.</p>
+
+<h2>The three events</h2>
+
+<p>A hook that fires when a skill starts cannot know how the skill ends. So the work is split: the first two events
+record what was asked for, and <code>Stop</code> checks what happened.</p>
+
+<svg viewBox="0 0 880 250" role="img" aria-label="Timeline: two start events, the skill runs, then Stop events">
+  <line x1="30" y1="130" x2="850" y2="130" stroke="var(--line)" stroke-width="3"/>
+  <circle cx="110" cy="130" r="9" fill="var(--shell)"/>
+  <circle cx="250" cy="130" r="9" fill="var(--shell)"/>
+  <circle cx="520" cy="130" r="9" fill="var(--muted)"/>
+  <circle cx="760" cy="130" r="9" fill="var(--ok)"/>
+  <rect class="box" x="300" y="112" width="170" height="36" rx="18"/>
+  <text class="lbl" x="330" y="135">the skill runs</text>
+
+  <text class="hd" x="40" y="60">UserPromptSubmit</text>
+  <text class="small" x="40" y="80">a person typed /build tadw-1</text>
+  <line x1="110" y1="88" x2="110" y2="120" stroke="var(--muted)"/>
+
+  <text class="hd" x="210" y="190">PreToolUse (Skill)</text>
+  <text class="small" x="210" y="210">Claude called the Skill tool</text>
+  <line x1="250" y1="140" x2="250" y2="174" stroke="var(--muted)"/>
+
+  <text class="hd" x="470" y="60">Stop, too early</text>
+  <text class="small" x="470" y="80">no report yet: marker stays</text>
+  <line x1="520" y1="88" x2="520" y2="120" stroke="var(--muted)"/>
+
+  <text class="hd" x="690" y="190">Stop, after the report</text>
+  <text class="small" x="690" y="210">report read, label decided</text>
+  <line x1="760" y1="140" x2="760" y2="174" stroke="var(--muted)"/>
+</svg>
+
+<div class="scroll">
+<table>
+  <tr><th>Event</th><th>When it fires</th><th>What the script does</th></tr>
+  <tr><td><code>UserPromptSubmit</code></td><td>A prompt starts with <code>/name</code> (or <code>$name</code> in Codex)</td>
+      <td>Maps the command name to a skill, then runs the shared flow</td></tr>
+  <tr><td><code>PreToolUse</code>, matcher <code>Skill</code></td><td>Claude calls the Skill tool</td>
+      <td>Reads the skill name from the payload, then runs the same shared flow</td></tr>
+  <tr><td><code>Stop</code></td><td>Every time Claude yields, not only when the work is done</td>
+      <td>Looks at each pending marker and reads that skill's report</td></tr>
+</table>
+</div>
+<p>Both start events can fire for one run. That is safe: a claim this session already holds reads as
+"already held", and a marker is written again under the same name.</p>
+
+<h2>Which skill earns which label</h2>
+
+<div class="scroll">
+<table>
+  <tr><th>Skill</th><th>Label</th><th>Mode</th><th>What decides it</th></tr>
+  <tr><td><code>/build</code> (<code>feature-development</code>)</td><td><code>implemented</code></td><td><span class="tag t-ok">gate</span></td>
+      <td><code>&lt;git-dir&gt;/build-report.json</code>. Also claims the bead</td></tr>
+  <tr><td><code>/simplify</code> (<code>code-simplify</code>)</td><td><code>simplified</code></td><td><span class="tag t-shell">apply</span></td><td>The run itself: labeled at once</td></tr>
+  <tr><td><code>/code-review</code>, <code>/fresh-eyes-cr</code></td><td><code>reviewed</code></td><td><span class="tag t-shell">apply</span></td><td>The run itself: labeled at once</td></tr>
+  <tr><td><code>/quality-gates</code>, <code>/qa</code></td><td><code>qa-d</code></td><td><span class="tag t-ok">gate</span></td>
+      <td><code>&lt;git-dir&gt;/quality-gates-report.json</code>, or a <code>.gstack/qa-reports/</code> file for <code>/qa</code></td></tr>
+  <tr><td><code>/verify-acceptance</code></td><td><code>accepted</code></td><td><span class="tag t-ok">gate</span></td>
+      <td><code>&lt;git-dir&gt;/acceptance-report.json</code></td></tr>
+</table>
+</div>
+
+<div class="grid">
+  <div class="card"><span class="tag t-shell">apply</span>
+    <p>The label says "this skill ran". That is true the moment it starts, so the script writes the label right away.</p></div>
+  <div class="card"><span class="tag t-ok">gate</span>
+    <p>The label says "this skill succeeded". The script writes a marker file and waits. <code>Stop</code> reads the
+    skill's report and applies the label only when the report passes.</p></div>
+  <div class="card"><span class="tag t-stop">inject (retired)</span>
+    <p>The script told the model to run <code>bd update --add-label</code> itself. No skill uses it now. It landed
+    fewer than half its labels, because the model often did not act.</p></div>
+</div>
+
+<h2>The shared flow at the start of a skill</h2>
+
+<svg viewBox="0 0 880 420" role="img" aria-label="Flow: find the bead, claim it for build, check the label, then apply or write a marker">
+  <rect class="b-shell" x="30" y="20" width="230" height="60" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="46" y="45">1. Find the bead</text>
+  <text class="small" x="46" y="64">from the arguments and the branch</text>
+
+  <rect class="b-stop" x="330" y="20" width="220" height="60" rx="10" stroke-width="1.5"/>
+  <text class="lbl" x="346" y="45">No bead resolves:</text>
+  <text class="small" x="346" y="64">log it, exit 0, label nothing</text>
+  <path class="arrow" d="M260,50 L328,50"/>
+
+  <rect class="b-py" x="30" y="130" width="230" height="60" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="46" y="155">2. Claim it (/build only)</text>
+  <text class="small" x="46" y="174">runs label_bead_hook.py</text>
+  <path class="arrow" d="M145,80 L145,128"/>
+
+  <rect class="b-stop" x="330" y="130" width="220" height="60" rx="10" stroke-width="1.5"/>
+  <text class="lbl" x="346" y="155">Refused (exit 2):</text>
+  <text class="small" x="346" y="174">print the block, stop /build</text>
+  <path class="arrow" d="M260,160 L328,160"/>
+
+  <rect class="b-ok" x="620" y="130" width="230" height="60" rx="10" stroke-width="1.5"/>
+  <text class="lbl" x="636" y="155">Held: print the line</text>
+  <text class="small" x="636" y="174">bead-claim: this session holds ...</text>
+  <path class="arrow dash" d="M260,145 C420,100 520,100 618,145"/>
+
+  <rect class="b-shell" x="30" y="240" width="230" height="60" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="46" y="265">3. Already labeled?</text>
+  <text class="small" x="46" y="284">then log it and exit</text>
+  <path class="arrow" d="M145,190 L145,238"/>
+
+  <rect class="b-shell" x="30" y="340" width="230" height="60" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="46" y="365">4. Act on the mode</text>
+  <text class="small" x="46" y="384">apply now, or leave a marker</text>
+  <path class="arrow" d="M145,300 L145,338"/>
+
+  <rect class="b-bd" x="330" y="310" width="220" height="50" rx="10" stroke-width="1.5"/>
+  <text class="lbl" x="346" y="340">apply: bd update --add-label</text>
+  <path class="arrow" d="M260,360 L328,340"/>
+
+  <rect class="box" x="330" y="372" width="350" height="40" rx="10"/>
+  <text class="lbl" x="346" y="397">gate: write pending-bead-labels/&lt;label&gt;__&lt;id&gt;</text>
+  <path class="arrow" d="M260,380 L328,390"/>
+</svg>
+
+<h3>Step 1: finding the bead</h3>
+<p>A bead id can look like <code>tadw-b14</code>, <code>fathom-3oo.8</code>, or a bare <code>e12</code>, so shape alone
+cannot tell an id from a word. The script collects candidates and asks <code>bd show</code> about each one. The
+tracker decides.</p>
+<ol class="steps">
+  <li><strong>Sources:</strong> the skill's arguments, the branch name, and a pull request's title, branch, and body
+      when the arguments name one.</li>
+  <li><strong>Order:</strong> segment two of a three-part branch goes first, such as <code>e12</code> in
+      <code>outrigger/e12/slug</code>. Then come tokens with a hyphen or a dot, longest first, then bare words.</li>
+  <li><strong>Two cheap filters:</strong> a hyphenated candidate must start with a prefix this repository uses. A
+      bare candidate must be six characters or fewer and hold a digit.</li>
+  <li><strong>Cap:</strong> at most 12 candidates, because each one costs a <code>bd show</code> call.</li>
+</ol>
+
+<h2>Step 2 in detail: the claim, decided in Python</h2>
+
+<p>The shell script already holds the bead's JSON from step 1. It passes the status and the assignee as arguments
+and the hook payload on stdin:</p>
+<pre><code>python3 label_bead_hook.py claim &lt;bead-id&gt; &lt;status&gt; &lt;assignee&gt;   # payload on stdin</code></pre>
+
+<p>The module builds this session's actor from the payload's <code>session_id</code>:
+<code>&lt;git user.name&gt; (session &lt;first 8 characters&gt;)</code>. Every window on one machine shares one
+<code>user.name</code>, so the session part is what tells two windows apart.</p>
+
+<svg viewBox="0 0 880 400" role="img" aria-label="Decision tree for the claim">
+  <rect class="b-py" x="300" y="10" width="280" height="50" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="316" y="40">status and assignee of the bead</text>
+
+  <rect class="box" x="20" y="110" width="250" height="70" rx="10"/>
+  <text class="lbl" x="34" y="134">assignee is the bare user.name,</text>
+  <text class="lbl" x="34" y="152">status open or in_progress</text>
+  <text class="small" x="34" y="170">a manual bd update --claim</text>
+
+  <rect class="box" x="300" y="110" width="280" height="70" rx="10"/>
+  <text class="lbl" x="314" y="134">status in_progress,</text>
+  <text class="lbl" x="314" y="152">any other assignee</text>
+  <text class="small" x="314" y="170">an empty assignee included</text>
+
+  <rect class="box" x="610" y="110" width="250" height="70" rx="10"/>
+  <text class="lbl" x="624" y="134">status open</text>
+  <text class="small" x="624" y="152">any other status, such as</text>
+  <text class="small" x="624" y="170">closed: leave alone</text>
+
+  <path class="arrow" d="M360,60 L160,108"/>
+  <path class="arrow" d="M440,60 L440,108"/>
+  <path class="arrow" d="M520,60 L720,108"/>
+
+  <rect class="b-ok" x="20" y="240" width="250" height="60" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="34" y="264">ADOPT</text>
+  <text class="small" x="34" y="284">take it over with --if-assignee</text>
+
+  <rect class="b-ok" x="300" y="240" width="135" height="60" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="312" y="264">ALREADY HELD</text>
+  <text class="small" x="312" y="284">assignee is this actor</text>
+
+  <rect class="b-stop" x="445" y="240" width="135" height="60" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="457" y="264">REFUSE</text>
+  <text class="small" x="457" y="284">someone else holds it</text>
+
+  <rect class="b-ok" x="610" y="240" width="250" height="60" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="624" y="264">CLAIM</text>
+  <text class="small" x="624" y="284">bd update --claim --actor ...</text>
+
+  <path class="arrow" d="M145,180 L145,238"/>
+  <path class="arrow" d="M400,180 L370,238"/>
+  <path class="arrow" d="M480,180 L510,238"/>
+  <path class="arrow" d="M735,180 L735,238"/>
+
+  <text class="small" x="20" y="340">Exit 0: this session holds the bead, or its status was left alone.</text>
+  <text class="small" x="20" y="360">Exit 1: bd failed. /build still runs, with no claim.</text>
+  <text class="small" x="20" y="380">Exit 2: another holder. /build must not run. This is the only path that stops a skill on purpose.</text>
+</svg>
+
+<p>A payload with no <code>session_id</code> has no actor. The module then claims as the plain
+<code>user.name</code> and refuses nothing, because it cannot tell one session from another.</p>
+
+<h3>What the module sends back</h3>
+<p>One JSON object on stdout, plus the exit code:</p>
+<pre><code>{"outcome": "claimed in_progress as Jason (session 1a2b3c4d)", "hook_output": { ... }}</code></pre>
+<div class="scroll">
+<table>
+  <tr><th>Field</th><th>Who reads it</th><th>What it holds</th></tr>
+  <tr><td><code>outcome</code></td><td>The shell script</td><td>The text for the log line, such as <code>claimed in_progress</code> or <code>REFUSED, in_progress under ...</code></td></tr>
+  <tr><td><code>hook_output</code></td><td>Claude Code, by way of the shell script's stdout</td>
+      <td>On a claim: the context line <code>bead-claim: this session holds &lt;id&gt;</code>. On a refusal: a block for <code>UserPromptSubmit</code>, or a deny for <code>PreToolUse</code></td></tr>
+</table>
+</div>
+<p>The <code>bead-claim:</code> line matters. <code>/build</code> Phase 1 stops on an <code>in_progress</code> bead
+unless that line is in its context. Without the module, the shell script logs a failed claim and
+<code>/build</code> runs with no claim at all.</p>
+
+<h2>Gate mode: the marker and the report</h2>
+
+<p>A marker is a small file in <code>&lt;git-common-dir&gt;/pending-bead-labels/</code>. Its name carries the label
+and the bead: <code>implemented__tadw-b14</code>. It has four lines.</p>
+<pre><code>1791234567              # when it was written, in seconds
+tadw-b14                # the bead
+tadw:feature-development   # the skill, which picks the report reader
+gate                    # the mode</code></pre>
+
+<p>On every <code>Stop</code>, the script walks each marker through these checks, in order:</p>
+
+<svg viewBox="0 0 880 300" role="img" aria-label="Stop checks: marker age, report present, report names this bead, report passes">
+  <rect class="box" x="10" y="40" width="150" height="70" rx="10"/>
+  <text class="lbl" x="22" y="68">Older than</text>
+  <text class="lbl" x="22" y="86">6 hours?</text>
+  <rect class="box" x="190" y="40" width="150" height="70" rx="10"/>
+  <text class="lbl" x="202" y="68">A report newer</text>
+  <text class="lbl" x="202" y="86">than the marker?</text>
+  <rect class="box" x="370" y="40" width="150" height="70" rx="10"/>
+  <text class="lbl" x="382" y="68">Does it name</text>
+  <text class="lbl" x="382" y="86">this bead?</text>
+  <rect class="box" x="550" y="40" width="150" height="70" rx="10"/>
+  <text class="lbl" x="562" y="68">Do its counts</text>
+  <text class="lbl" x="562" y="86">pass?</text>
+  <rect class="b-ok" x="730" y="40" width="140" height="70" rx="10" stroke-width="1.5"/>
+  <text class="hd" x="742" y="68">Apply the</text>
+  <text class="hd" x="742" y="86">label</text>
+
+  <path class="arrow" d="M160,75 L188,75"/><text class="small" x="164" y="66">no</text>
+  <path class="arrow" d="M340,75 L368,75"/><text class="small" x="342" y="66">yes</text>
+  <path class="arrow" d="M520,75 L548,75"/><text class="small" x="522" y="66">yes</text>
+  <path class="arrow" d="M700,75 L728,75"/><text class="small" x="702" y="66">yes</text>
+
+  <rect class="b-stop" x="10" y="190" width="150" height="70" rx="10" stroke-width="1.5"/>
+  <text class="lbl" x="22" y="218">Abandon it:</text>
+  <text class="small" x="22" y="238">delete the marker</text>
+  <rect class="box" x="190" y="190" width="150" height="70" rx="10"/>
+  <text class="lbl" x="202" y="218">Still running:</text>
+  <text class="small" x="202" y="238">keep the marker</text>
+  <rect class="box" x="370" y="190" width="150" height="70" rx="10"/>
+  <text class="lbl" x="382" y="218">A sibling's report:</text>
+  <text class="small" x="382" y="238">keep the marker</text>
+  <rect class="b-stop" x="550" y="190" width="150" height="70" rx="10" stroke-width="1.5"/>
+  <text class="lbl" x="562" y="218">Withhold the label:</text>
+  <text class="small" x="562" y="238">delete the marker</text>
+
+  <path class="arrow" d="M85,110 L85,188"/><text class="small" x="92" y="150">yes</text>
+  <path class="arrow" d="M265,110 L265,188"/><text class="small" x="272" y="150">no</text>
+  <path class="arrow" d="M445,110 L445,188"/><text class="small" x="452" y="150">no</text>
+  <path class="arrow" d="M625,110 L625,188"/><text class="small" x="632" y="150">no</text>
+</svg>
+
+<p>The report is also proof that the run finished. A run that stops halfway writes no report, so its marker waits
+and is dropped after six hours. That is why a half-done run never earns a label.</p>
+
+<h3>What each report must show</h3>
+<p>The script ignores any <code>verdict</code> field in the build and acceptance reports. It reads the counts and
+works out the answer itself, so a model cannot label its own work by writing "PASS".</p>
+<div class="scroll">
+<table>
+  <tr><th>Report</th><th>Passes only when</th></tr>
+  <tr><td><code>build-report.json</code></td>
+      <td><code>criteria_total</code> is above 0 and equals <code>criteria_met</code>; <code>tests_passed</code> is above 0;
+      <code>tests_failed</code> is 0; <code>lint_ran</code> is <code>true</code>; <code>lint_violations</code> is 0;
+      and <code>bead</code> names the marker's bead</td></tr>
+  <tr><td><code>acceptance-report.json</code></td>
+      <td><code>criteria_total</code> is above 0 and equals <code>criteria_passed</code>; <code>criteria_failed</code> and
+      <code>criteria_unverifiable</code> are 0; <code>gates_total</code> is above 0; <code>gates_failed</code> and
+      <code>gates_blocked</code> are 0</td></tr>
+  <tr><td><code>quality-gates-report.json</code></td><td><code>verdict</code> is exactly <code>PASS</code></td></tr>
+  <tr><td>a <code>/qa</code> report</td><td>0 Critical, 0 High, and 0 Deferred</td></tr>
+</table>
+</div>
+<p>Each report is read from <code>&lt;git-dir&gt;</code>, so a linked worktree reads its own report. Markers sit in
+the git common dir, which every worktree shares.</p>
+
+<h2>One <code>/build</code>, start to finish</h2>
+
+<svg viewBox="0 0 880 470" role="img" aria-label="Sequence of one build run across Claude Code, the shell script, the Python module, and bd">
+  <text class="hd" x="40" y="24">Claude Code</text>
+  <text class="hd" x="270" y="24">shell script</text>
+  <text class="hd" x="520" y="24">Python module</text>
+  <text class="hd" x="760" y="24">bd</text>
+  <line x1="85" y1="34" x2="85" y2="460" stroke="var(--line)" stroke-width="2"/>
+  <line x1="310" y1="34" x2="310" y2="460" stroke="var(--shell)" stroke-width="2"/>
+  <line x1="570" y1="34" x2="570" y2="460" stroke="var(--py)" stroke-width="2"/>
+  <line x1="775" y1="34" x2="775" y2="460" stroke="var(--bd)" stroke-width="2"/>
+
+  <path class="arrow" d="M85,65 L308,65"/><text class="small" x="95" y="58">UserPromptSubmit: /build tadw-b14</text>
+  <path class="arrow" d="M310,100 L773,100"/><text class="small" x="320" y="93">bd show tadw-b14 (status open)</text>
+  <path class="arrow" d="M310,135 L568,135"/><text class="small" x="320" y="128">claim tadw-b14 open ""</text>
+  <path class="arrow" d="M570,170 L773,170"/><text class="small" x="580" y="163">bd update --claim --actor</text>
+  <path class="arrow dash" d="M570,205 L312,205"/><text class="small" x="320" y="198">outcome + hook_output, exit 0</text>
+  <path class="arrow dash" d="M310,240 L87,240"/><text class="small" x="95" y="233">bead-claim: this session holds ...</text>
+  <text class="small" x="320" y="268">writes marker implemented__tadw-b14</text>
+
+  <rect class="box" x="30" y="285" width="120" height="34" rx="17"/>
+  <text class="small" x="48" y="307">the build runs</text>
+  <text class="small" x="160" y="307">and writes build-report.json at the end</text>
+
+  <path class="arrow" d="M85,350 L308,350"/><text class="small" x="95" y="343">Stop</text>
+  <text class="small" x="320" y="378">reads the report: 5 of 5 criteria, tests pass, lint ran</text>
+  <path class="arrow" d="M310,410 L773,410"/><text class="small" x="320" y="403">bd update --add-label implemented</text>
+  <text class="small" x="320" y="440">deletes the marker, writes one line to bead-label.log</text>
+</svg>
+
+<h2>Where each file lives</h2>
+<div class="scroll">
+<table>
+  <tr><th>Path</th><th>What it is</th></tr>
+  <tr><td><code>.claude/scripts/label_bead_on_skill_invocation.sh</code></td><td>The hook. A copy; the source is in the tadw repository's <code>scripts/</code></td></tr>
+  <tr><td><code>.claude/scripts/label_bead_hook.py</code></td><td>The claim module, beside the hook</td></tr>
+  <tr><td><code>.codex/scripts/run_codex_bead_hooks.sh</code></td><td>The Codex runner. Inert until <code>.codex/hooks.json</code> names it</td></tr>
+  <tr><td><code>.claude/settings.json</code></td><td>Connects the three events to the hook</td></tr>
+  <tr><td><code>&lt;git-common-dir&gt;/pending-bead-labels/</code></td><td>The markers. Never tracked, shared by every worktree</td></tr>
+  <tr><td><code>&lt;git-common-dir&gt;/bead-label.log</code></td><td>One line per outcome, kept to the last 1,000 lines</td></tr>
+  <tr><td><code>&lt;git-dir&gt;/build-report.json</code> and the other reports</td><td>Written by the skills, read by <code>Stop</code></td></tr>
+</table>
+</div>
+
+<h2>When something goes wrong</h2>
+<p>Every failure path exits 0, so a skill always runs whether or not its bead could be labeled. The one exception
+is the <code>/build</code> refusal. Because exit 0 hides a failure, three tools show it:</p>
+<div class="grid">
+  <div class="card"><h3>The log</h3>
+    <p><code>bead-label.log</code> records each outcome with the hash of the script copy that wrote it. Look for
+    <code>applied</code>, <code>withheld</code>, <code>FAILED</code>, or <code>REFUSED</code>.</p></div>
+  <div class="card"><h3><code>--doctor</code></h3>
+    <p>Run the hook with <code>--doctor</code>. It prints the bead this branch resolves to and what each labeled
+    command would do. It writes nothing.</p></div>
+  <div class="card"><h3><code>--check</code></h3>
+    <p>Run the installer with <code>--check</code>. It says whether each installed copy matches its source and
+    whether all three events are connected.</p></div>
+</div>
+<p>A stale copy is the usual cause of a missing label. Compare the <code>script=</code> hash in the log with the
+hash <code>--check</code> prints for the source.</p>
+
+<footer>
+  Source of record: <code>scripts/label_bead_on_skill_invocation.sh</code> and <code>scripts/label_bead_hook.py</code>
+  in the tadw repository. History and rationale: <code>docs/PORTABLE-HOOKS.md</code>.
+</footer>
+
+</main>
+</body>
+</html>
