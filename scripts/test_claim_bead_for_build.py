@@ -71,7 +71,8 @@ class FakeTracker:
 
 
 def claim(status: str, assignee: str = "", actor: str = ACTOR, tracker: FakeTracker = None):
-    return hook.run_claim("tadw-1", status, assignee, actor, OWNER, tracker or FakeTracker())
+    bead = hook.Bead("tadw-1", status, assignee)
+    return hook.run_claim(bead, hook.Claimant(actor, OWNER), tracker or FakeTracker())
 
 
 # --- decide_claim ------------------------------------------------------------

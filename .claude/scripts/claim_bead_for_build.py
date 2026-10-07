@@ -38,10 +38,11 @@ import enum
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional, Sequence
 
 EXIT_HELD = 0
 EXIT_FAILED = 1
@@ -50,6 +51,9 @@ EXIT_REFUSED = 2
 # bd's exit status for a failed --if-assignee precondition: another session
 # adopted the claim between the read and the write.
 BD_PRECONDITION_MISMATCH = 13
+
+# The shell's own status for a program it cannot find.
+EXIT_COMMAND_NOT_FOUND = 127
 
 # Eight characters tell concurrent sessions apart and keep `bd show` readable.
 SESSION_PART_LENGTH = 8
@@ -65,6 +69,23 @@ class Decision(enum.Enum):
     ALREADY_HELD = "already held"
     REFUSE = "refuse"
     LEAVE_ALONE = "leave alone"
+
+
+@dataclass(frozen=True)
+class Bead:
+    """What `bd show` reported about the bead /build was asked to start."""
+
+    id: str
+    status: str
+    assignee: str
+
+
+@dataclass(frozen=True)
+class Claimant:
+    """Who is asking: the per-session actor, and the bare git user.name."""
+
+    actor: str
+    owner: str
 
 
 @dataclass(frozen=True)
@@ -119,49 +140,75 @@ class BdTracker:
         # --claim is atomic, so of two sessions racing for one open bead exactly
         # one wins. It is idempotent when the claim is already this actor's, so
         # two events firing for one /build is safe.
-        return self._run(["update", bead_id, "--claim", *(["--actor", actor] if actor else [])]) == 0
+        actor_flags = ["--actor", actor] if actor else []
+        return self._run(["update", bead_id, "--claim", *actor_flags]) == 0
 
     def adopt(self, bead_id: str, owner: str, actor: str) -> int:
         # --if-assignee makes the takeover a compare-and-set: of two sessions
         # adopting one claim, exactly one wins.
-        return self._run([
-            "update", bead_id, "--if-assignee", owner, "--assignee", actor,
-            "--status", "in_progress", "--actor", actor,
-        ])
+        return self._run(
+            [
+                "update",
+                bead_id,
+                "--if-assignee",
+                owner,
+                "--assignee",
+                actor,
+                "--status",
+                "in_progress",
+                "--actor",
+                actor,
+            ]
+        )
 
     def assignee(self, bead_id: str) -> str:
-        try:
-            completed = subprocess.run(
-                ["bd", "show", bead_id, "--json"], capture_output=True, text=True, check=False
-            )
-        except OSError:
-            return ""
-        return bead_field(completed.stdout, "assignee")
+        completed = run_command(["bd", "show", bead_id, "--json"])
+        return bead_field(completed.stdout, "assignee") if completed else ""
 
     @staticmethod
     def _run(arguments: Sequence[str]) -> int:
-        try:
-            return subprocess.run(
-                ["bd", *arguments], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False
-            ).returncode
-        except OSError:
-            return 127
+        completed = run_command(["bd", *arguments])
+        return completed.returncode if completed else EXIT_COMMAND_NOT_FOUND
 
 
-def run_claim(bead_id: str, status: str, assignee: str, actor: str, owner: str, tracker) -> ClaimResult:
-    decision = decide_claim(status, assignee, actor, owner)
+def run_command(argv: Sequence[str]) -> subprocess.CompletedProcess[str] | None:
+    """Run one fixed command, or None when its program is missing.
+
+    Every argument is either a literal or an id and a name this module read from
+    the hook payload and `bd show`, and no shell is involved, so the call takes
+    no untrusted command line. The program is resolved to a path first.
+    """
+    program = shutil.which(argv[0])
+    if program is None:
+        return None
+    try:
+        return subprocess.run(  # noqa: S603
+            [program, *argv[1:]], capture_output=True, text=True, check=False
+        )
+    except OSError:
+        return None
+
+
+def run_claim(bead: Bead, claimant: Claimant, tracker) -> ClaimResult:
+    decision = decide_claim(bead.status, bead.assignee, claimant.actor, claimant.owner)
     if decision is Decision.ADOPT:
-        return _adopt(bead_id, owner, actor, tracker)
+        return _adopt(bead.id, claimant, tracker)
+    if decision is Decision.CLAIM:
+        return _claim(bead.id, claimant.actor, tracker)
+    return _without_writing(decision, bead, claimant.actor)
+
+
+def _without_writing(decision: Decision, bead: Bead, actor: str) -> ClaimResult:
+    holder = bead.assignee or "no assignee"
     if decision is Decision.ALREADY_HELD:
-        log(f"{bead_id} is already held by this session ({actor})")
+        log(f"{bead.id} is already held by this session ({actor})")
         return ClaimResult(EXIT_HELD, "already held by this session")
     if decision is Decision.REFUSE:
-        log(f"{bead_id} is in_progress under {assignee or 'no assignee'}; refusing /build")
-        return ClaimResult(EXIT_REFUSED, f"REFUSED, in_progress under {assignee or 'no assignee'}")
-    if decision is Decision.LEAVE_ALONE:
-        log(f"{bead_id} is {status or 'of no readable status'}, not open; leaving its status alone")
-        return ClaimResult(EXIT_HELD, f"left status {status or 'unreadable'} alone")
-    return _claim(bead_id, actor, tracker)
+        log(f"{bead.id} is in_progress under {holder}; refusing /build")
+        return ClaimResult(EXIT_REFUSED, f"REFUSED, in_progress under {holder}")
+    status = bead.status or "of no readable status"
+    log(f"{bead.id} is {status}, not open; leaving its status alone")
+    return ClaimResult(EXIT_HELD, f"left status {bead.status or 'unreadable'} alone")
 
 
 def _claim(bead_id: str, actor: str, tracker) -> ClaimResult:
@@ -180,7 +227,8 @@ def _claim(bead_id: str, actor: str, tracker) -> ClaimResult:
     return ClaimResult(EXIT_FAILED, "FAILED to claim in_progress")
 
 
-def _adopt(bead_id: str, owner: str, actor: str, tracker) -> ClaimResult:
+def _adopt(bead_id: str, claimant: Claimant, tracker) -> ClaimResult:
+    owner, actor = claimant.owner, claimant.actor
     rc = tracker.adopt(bead_id, owner, actor)
     if rc == 0:
         log(f"adopted {bead_id} from {owner} as {actor}, now in_progress")
@@ -193,7 +241,7 @@ def _adopt(bead_id: str, owner: str, actor: str, tracker) -> ClaimResult:
     return ClaimResult(EXIT_FAILED, f"FAILED to adopt the claim under {owner}")
 
 
-def refusal_output(event: str, bead_id: str, outcome: str) -> Optional[dict]:
+def refusal_output(event: str, bead_id: str, outcome: str) -> dict | None:
     """Stop /build before it starts, in the shape each event accepts.
 
     A UserPromptSubmit block discards the prompt and shows the reason to the
@@ -201,7 +249,7 @@ def refusal_output(event: str, bead_id: str, outcome: str) -> Optional[dict]:
     Codex's runner discards this stdout, so there the refusal is the unmade
     claim plus the feature-development skill's own guard.
     """
-    detail = outcome[len("REFUSED, "):] if outcome.startswith("REFUSED, ") else outcome
+    detail = outcome[len("REFUSED, ") :] if outcome.startswith("REFUSED, ") else outcome
     reason = (
         f"/build refused: {bead_id} is already being worked ({detail}). Another session or "
         "outrigger may be building it right now. If that work is abandoned, release it with "
@@ -210,13 +258,17 @@ def refusal_output(event: str, bead_id: str, outcome: str) -> Optional[dict]:
     if event == "UserPromptSubmit":
         return {"decision": "block", "reason": reason}
     if event == "PreToolUse":
-        return {"hookSpecificOutput": {
-            "hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason,
-        }}
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": reason,
+            }
+        }
     return None
 
 
-def announcement_output(event: str, bead_id: str, actor: str) -> Optional[dict]:
+def announcement_output(event: str, bead_id: str, actor: str) -> dict | None:
     """Tell the run which bead this session holds.
 
     The feature-development guard reads this line: without it, an in_progress
@@ -231,7 +283,7 @@ def announcement_output(event: str, bead_id: str, actor: str) -> Optional[dict]:
     return {"hookSpecificOutput": {"hookEventName": event, "additionalContext": context}}
 
 
-def hook_output(event: str, bead_id: str, actor: str, result: ClaimResult) -> Optional[dict]:
+def hook_output(event: str, bead_id: str, actor: str, result: ClaimResult) -> dict | None:
     if result.code == EXIT_REFUSED:
         return refusal_output(event, bead_id, result.outcome)
     if result.holds_bead:
@@ -251,13 +303,8 @@ def bead_field(show_json: str, field: str) -> str:
 
 
 def git_user_name() -> str:
-    try:
-        completed = subprocess.run(
-            ["git", "config", "user.name"], capture_output=True, text=True, check=False
-        )
-    except OSError:
-        return ""
-    return completed.stdout.strip()
+    completed = run_command(["git", "config", "user.name"])
+    return completed.stdout.strip() if completed else ""
 
 
 def read_payload(text: str) -> dict:
@@ -276,16 +323,27 @@ def main(argv: Sequence[str]) -> int:
     if len(argv) != 4 or argv[0] != "claim":
         log("usage: claim_bead_for_build.py claim <bead-id> <status> <assignee> (payload on stdin)")
         return EXIT_FAILED
-    bead_id, status, assignee = argv[1:]
+    bead = Bead(*argv[1:])
     payload = read_payload(sys.stdin.read())
+    claimant = claimant_for(payload)
+    result = run_claim(bead, claimant, BdTracker())
+    print(
+        json.dumps(
+            {"outcome": result.outcome, "hook_output": output_for(payload, bead, claimant, result)}
+        )
+    )
+    return result.code
+
+
+def claimant_for(payload: dict) -> Claimant:
     owner = git_user_name()
     actor = claim_actor(session_part(payload.get("session_id")), owner, os.environ.get("USER", ""))
+    return Claimant(actor, owner)
 
-    result = run_claim(bead_id, status, assignee, actor, owner, BdTracker())
+
+def output_for(payload: dict, bead: Bead, claimant: Claimant, result: ClaimResult) -> dict | None:
     event = payload.get("hook_event_name")
-    output = hook_output(event if isinstance(event, str) else "", bead_id, actor, result)
-    print(json.dumps({"outcome": result.outcome, "hook_output": output}))
-    return result.code
+    return hook_output(event if isinstance(event, str) else "", bead.id, claimant.actor, result)
 
 
 if __name__ == "__main__":
