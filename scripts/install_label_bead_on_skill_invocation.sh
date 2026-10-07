@@ -18,7 +18,7 @@
 #      adds it to .codex/hooks.json, so a repository that never runs Codex
 #      carries one unused file and loses nothing. A runner an earlier
 #      installer left in the label script's directory is removed, unless
-#      .codex/hooks.json still names that path. label_bead_hook.py rides
+#      .codex/hooks.json still names that path. claim_bead_for_build.py rides
 #      along too: the label script runs it as a sibling to decide the /build
 #      claim, and without it /build starts with no claim at all.
 #   2. Wires that path into <repo>/.claude/settings.json for the three events
@@ -50,7 +50,7 @@ set -euo pipefail
 
 HOOK_SCRIPT="label_bead_on_skill_invocation.sh"
 CODEX_SCRIPT="run_codex_bead_hooks.sh"
-MODULE_SCRIPT="label_bead_hook.py"
+MODULE_SCRIPT="claim_bead_for_build.py"
 DEST_DIR=".claude/scripts"
 CODEX_DEST_DIR=".codex/scripts"
 CHECK_ONLY=false
@@ -128,6 +128,10 @@ CODEX_DEST="$REPO_ROOT/$CODEX_DEST_DIR/$CODEX_SCRIPT"
 # Where an installer before 2026-10-06 put the runner.
 OLD_CODEX_DEST="$REPO_ROOT/$DEST_DIR/$CODEX_SCRIPT"
 CODEX_HOOKS="$REPO_ROOT/.codex/hooks.json"
+# What the claim module was called before 2026-10-06. Nothing names it but the
+# label script, which this run replaces, so the old file is always safe to remove.
+OLD_MODULE_SCRIPT="label_bead_hook.py"
+OLD_MODULE_DEST="$REPO_ROOT/$DEST_DIR/$OLD_MODULE_SCRIPT"
 MODULE_DEST="$REPO_ROOT/$DEST_DIR/$MODULE_SCRIPT"
 [[ "$SOURCE" != "$DEST" ]] ||
   die "source and destination are the same file; run this from the target repository, not from its own source repository"
@@ -204,6 +208,10 @@ if [[ "$CHECK_ONLY" == true ]]; then
     echo "codex:    OLD COPY at $DEST_DIR/$CODEX_SCRIPT"
     check_failed=true
   fi
+  if [[ -f "$OLD_MODULE_DEST" ]]; then
+    echo "module:   OLD COPY at $DEST_DIR/$OLD_MODULE_SCRIPT"
+    check_failed=true
+  fi
   report_script_state "module:  " "$MODULE_SOURCE" "$MODULE_DEST" "$DEST_DIR/$MODULE_SCRIPT" ||
     check_failed=true
 
@@ -277,6 +285,12 @@ chmod +x "$CODEX_DEST"
 
 # Wiring that still names the old path would break if the file went away, so
 # that copy stays and the report says why.
+old_module_result=""
+if [[ -f "$OLD_MODULE_DEST" ]]; then
+  rm -f "$OLD_MODULE_DEST"
+  old_module_result="removed from $DEST_DIR/$OLD_MODULE_SCRIPT"
+fi
+
 old_codex_result=""
 if [[ -f "$OLD_CODEX_DEST" ]]; then
   if [[ -f "$CODEX_HOOKS" ]] && grep -q "$DEST_DIR/$CODEX_SCRIPT" "$CODEX_HOOKS"; then
@@ -433,6 +447,7 @@ echo "repository:  $REPO_ROOT"
 echo "hook script: $script_result at $DEST_DIR/$HOOK_SCRIPT ($(hash_of "$DEST"))"
 echo "codex runner: $codex_result at $CODEX_DEST_DIR/$CODEX_SCRIPT ($(hash_of "$CODEX_DEST"))"
 [[ -z "$old_codex_result" ]] || echo "old runner:  $old_codex_result"
+[[ -z "$old_module_result" ]] || echo "old module:  $old_module_result"
 echo "hook module: $module_result at $DEST_DIR/$MODULE_SCRIPT ($(hash_of "$MODULE_DEST"))"
 echo "settings:    $settings_result in .claude/settings.json"
 echo "backup:      $backup_result"

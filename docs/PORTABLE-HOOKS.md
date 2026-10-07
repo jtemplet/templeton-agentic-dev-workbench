@@ -25,6 +25,11 @@ runner to `.codex/scripts/`, backs up `.claude/settings.json`, and wires the thr
 Re-running it is safe. It repairs wiring that names an older path instead of adding a second
 entry. `--dest-dir` moves the label script and its module, never the runner.
 
+The claim module is `claim_bead_for_build.py`. It decides whether `/build` may claim the bead, and
+the label script runs it as a sibling. It was `label_bead_hook.py` before 2026-10-06, a name that
+read as a second label hook. A run removes a copy under the old name, and `--check` fails while
+one remains.
+
 [bead-label-hooks.html](bead-label-hooks.html) explains, with diagrams, how the label script and
 its claim module work together.
 

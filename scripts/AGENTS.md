@@ -14,9 +14,11 @@ this file.
   Re-running it is safe. `--dest-dir` moves the label script and its module, never the runner.
 - `... --check` reports whether each installed copy matches its source, and whether all three
   events reference the label script. It changes nothing, and exits 1 when any is out of step.
-- `scripts/label_bead_hook.py` decides the `/build` claim: claim, adopt, already held, refuse, or
-  leave alone. The label script runs it as a sibling through `python3`, so the installer copies
-  it too. `python3 scripts/test_label_bead_hook.py` tests the decision directly.
+- `scripts/claim_bead_for_build.py` decides the `/build` claim: claim, adopt, already held,
+  refuse, or leave alone. It labels nothing and is not a hook. The label script runs it as a
+  sibling through `python3`, so the installer copies it too, and removes a copy under its old
+  name, `label_bead_hook.py`. `python3 scripts/test_claim_bead_for_build.py` tests the decision
+  directly.
 - `scripts/guard_default_branch.sh` is a `PreToolUse` hook (matcher `Edit|Write|NotebookEdit`)
   that refuses an edit to a file on its repository's default branch. It reads the branch of the
   repository that holds the edited file, not the session's. It is also a copy of record: the

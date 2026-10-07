@@ -4,7 +4,7 @@
 label_bead_on_skill_invocation.sh calls this once per /build, with the hook
 payload on stdin:
 
-    python3 label_bead_hook.py claim <bead-id> <status> <assignee>
+    python3 claim_bead_for_build.py claim <bead-id> <status> <assignee>
 
 <status> and <assignee> come from the `bd show` the hook already made while
 resolving the bead, so the decision itself costs no tracker call. Stdout is one
@@ -274,7 +274,7 @@ def log(message: str) -> None:
 
 def main(argv: Sequence[str]) -> int:
     if len(argv) != 4 or argv[0] != "claim":
-        log("usage: label_bead_hook.py claim <bead-id> <status> <assignee> (payload on stdin)")
+        log("usage: claim_bead_for_build.py claim <bead-id> <status> <assignee> (payload on stdin)")
         return EXIT_FAILED
     bead_id, status, assignee = argv[1:]
     payload = read_payload(sys.stdin.read())

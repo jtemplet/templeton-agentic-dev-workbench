@@ -209,7 +209,7 @@ check rumdl check . --extend-disable MD013
 check python3 skills/quality-gates/scripts/check_markdown_wrap.py
 check node hooks/test-hooks.js
 check bash hooks/test-claude-scripts.sh
-check python3 scripts/test_label_bead_hook.py
+check python3 scripts/test_claim_bead_for_build.py
 check python3 skills/style-testing/scripts/test_check_framework_leak.py
 check python3 skills/style-testing/scripts/check_framework_leak.py
 check python3 skills/quality-gates/scripts/test_check_doc_paths.py

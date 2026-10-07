@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Regression suite for label_bead_hook.py, the /build claim decision.
+"""Regression suite for claim_bead_for_build.py, the /build claim decision.
 
 Stdlib only, and Python 3.9, like the module. Run with:
-    python3 scripts/test_label_bead_hook.py
+    python3 scripts/test_claim_bead_for_build.py
 
 The decision is tested by calling decide_claim directly. run_claim gets a fake
 tracker, so each bd outcome (a lost race, a broken bd, a lost adoption) is one
@@ -24,10 +24,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 sys.dont_write_bytecode = True
-import label_bead_hook as hook  # noqa: E402
-from label_bead_hook import Decision, decide_claim  # noqa: E402
+import claim_bead_for_build as hook  # noqa: E402
+from claim_bead_for_build import Decision, decide_claim  # noqa: E402
 
-MODULE = Path(__file__).resolve().parent / "label_bead_hook.py"
+MODULE = Path(__file__).resolve().parent / "claim_bead_for_build.py"
 OWNER = "Hook Suite"
 ACTOR = "Hook Suite (session aaaa1111)"
 OTHER = "Hook Suite (session bbbb2222)"

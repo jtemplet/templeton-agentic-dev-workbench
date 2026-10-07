@@ -1686,7 +1686,7 @@ if case_start "label/claim: without the claim module /build still runs"; then
   run_hook "$R/lonely/label_bead_on_skill_invocation.sh" "$R" "$(BUILD_PRE aaaa1111)"
   assert_eq "$HOOK_CODE" 0 "exits 0"
   assert_no_match "$R/.hookout" "permissionDecision" "did not refuse"
-  assert_match "$R/.hookerr" "label_bead_hook.py is missing" "said why it did not claim"
+  assert_match "$R/.hookerr" "claim_bead_for_build.py is missing" "said why it did not claim"
   unset BD_STATUS BD_ASSIGNEE
 fi
 
@@ -2170,7 +2170,7 @@ mkdir -p "$INSTALLER_SRC"
 cp "$REPO_ROOT/scripts/install_label_bead_on_skill_invocation.sh" \
    "$REPO_ROOT/scripts/label_bead_on_skill_invocation.sh" \
    "$REPO_ROOT/scripts/run_codex_bead_hooks.sh" \
-   "$REPO_ROOT/scripts/label_bead_hook.py" "$INSTALLER_SRC/"
+   "$REPO_ROOT/scripts/claim_bead_for_build.py" "$INSTALLER_SRC/"
 INSTALLER="$INSTALLER_SRC/install_label_bead_on_skill_invocation.sh"
 
 run_installer() {  # run_installer <repo> [args...]; sets INSTALL_CODE, writes .instout
@@ -2272,11 +2272,11 @@ if case_start "install/check: the claim module is installed and matches its sour
   # The label script runs it as a sibling to decide the /build claim (tadw-huz9).
   R="$(new_repo i9)"
   run_installer "$R"
-  assert_match "$R/.instout" "hook module: installed at .claude/scripts/label_bead_hook.py" "reported the module"
+  assert_match "$R/.instout" "hook module: installed at .claude/scripts/claim_bead_for_build.py" "reported the module"
   run_installer "$R" --check
   assert_eq "$INSTALL_CODE" 0 "--check passes"
-  assert_match "$R/.instout" "module:   current at .claude/scripts/label_bead_hook.py \([0-9a-f]{12}\)" "--check calls the module current"
-  echo '# local patch' >> "$R/.claude/scripts/label_bead_hook.py"
+  assert_match "$R/.instout" "module:   current at .claude/scripts/claim_bead_for_build.py \([0-9a-f]{12}\)" "--check calls the module current"
+  echo '# local patch' >> "$R/.claude/scripts/claim_bead_for_build.py"
   run_installer "$R" --check
   assert_eq "$INSTALL_CODE" 1 "a drifted module fails --check"
   assert_match "$R/.instout" "module:   DRIFTED" "said the module drifted"
@@ -2295,6 +2295,21 @@ if case_start "install: a runner an older installer left in .claude/scripts is r
     && ok "removed the old copy" || nope "removed the old copy"
   run_installer "$R" --check
   assert_eq "$INSTALL_CODE" 0 "--check passes afterward"
+fi
+
+if case_start "install: a claim module under its old name is removed"; then
+  R="$(new_repo i12)"
+  mkdir -p "$R/.claude/scripts"
+  echo '# old' > "$R/.claude/scripts/label_bead_hook.py"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 1 "--check fails on the old module"
+  assert_match "$R/.instout" "module:   OLD COPY at .claude/scripts/label_bead_hook.py" "named the old module"
+  run_installer "$R"
+  assert_match "$R/.instout" "old module:  removed from .claude/scripts/label_bead_hook.py" "reported the removal"
+  [[ ! -e "$R/.claude/scripts/label_bead_hook.py" ]] \
+    && ok "removed the old module" || nope "removed the old module"
+  [[ -f "$R/.claude/scripts/claim_bead_for_build.py" ]] \
+    && ok "installed the renamed module" || nope "installed the renamed module"
 fi
 
 if case_start "install: an old runner that .codex/hooks.json still names is kept"; then

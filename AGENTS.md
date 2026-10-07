@@ -25,7 +25,7 @@ rumdl check . --extend-disable MD013                         # the linter, not t
 python3 skills/quality-gates/scripts/check_markdown_wrap.py   # MD013 at 100 columns, scoped to the changed set
 node hooks/test-hooks.js                                      # hook suite, incl. the docs/HOOKS.md count assertion
 bash hooks/test-claude-scripts.sh                             # suite for the two .claude/scripts hooks
-python3 scripts/test_label_bead_hook.py                        # regression suite for the /build claim decision
+python3 scripts/test_claim_bead_for_build.py                    # regression suite for the /build claim decision
 python3 skills/style-testing/scripts/test_check_framework_leak.py   # regression suite for the leak checker
 python3 skills/style-testing/scripts/check_framework_leak.py        # assert style-testing stays framework-free
 python3 skills/quality-gates/scripts/test_check_doc_paths.py        # regression suite for the doc-path checker

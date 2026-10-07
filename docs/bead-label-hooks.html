@@ -50,8 +50,14 @@
   .t-ok { background: var(--ok-bg); color: var(--ok); }
   .t-stop { background: var(--stop-bg); color: var(--stop); }
   .scroll { overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top;
+           min-width: 150px; }
+  th { white-space: nowrap; }
+  td:first-child { min-width: 240px; }
+  td:last-child { min-width: 280px; }
+  td code, th code { overflow-wrap: normal; word-break: normal; white-space: nowrap; }
+  td:last-child code { white-space: normal; overflow-wrap: break-word; }
   th { color: var(--muted); font-weight: 600; }
   svg { width: 100%; height: auto; display: block; }
   svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; fill: var(--ink); }
@@ -82,7 +88,7 @@ and a Python module that the shell script calls for one decision.</p>
   <p><strong>Yes, they work together, and only one of them is a hook.</strong></p>
   <p><code>label_bead_on_skill_invocation.sh</code> is the hook. Claude Code runs it. It finds the bead, decides which
   label a skill earns, and applies the label.</p>
-  <p><code>label_bead_hook.py</code> is a helper. Nothing but the shell script runs it, and only when the skill is
+  <p><code>claim_bead_for_build.py</code> is a helper. Nothing but the shell script runs it, and only when the skill is
   <code>/build</code>. It answers one question: may this session claim the bead?</p>
 </div>
 
@@ -107,7 +113,7 @@ and a Python module that the shell script calls for one decision.</p>
   <text class="small" x="306" y="104">reads reports, applies labels</text>
 
   <rect class="b-py" x="660" y="20" width="210" height="110" rx="10" stroke-width="1.5"/>
-  <text class="hd" x="676" y="46">label_bead_hook.py</text>
+  <text class="hd" x="676" y="46">claim_bead_for_build.py</text>
   <text class="small" x="676" y="68">the claim decision for</text>
   <text class="small" x="676" y="86">/build: claim, adopt, already</text>
   <text class="small" x="676" y="104">held, refuse, or leave alone</text>
@@ -140,7 +146,7 @@ and a Python module that the shell script calls for one decision.</p>
   </div>
   <div class="card">
     <span class="tag t-py">Python, about 290 lines</span>
-    <h3>label_bead_hook.py</h3>
+    <h3>claim_bead_for_build.py</h3>
     <p>Standard library only, for Python 3.9. It sits beside the shell script, and the shell script runs it with
     <code>python3</code>. It has its own test suite.</p>
   </div>
@@ -235,7 +241,7 @@ record what was asked for, and <code>Stop</code> checks what happened.</p>
 
   <rect class="b-py" x="30" y="130" width="230" height="60" rx="10" stroke-width="1.5"/>
   <text class="hd" x="46" y="155">2. Claim it (/build only)</text>
-  <text class="small" x="46" y="174">runs label_bead_hook.py</text>
+  <text class="small" x="46" y="174">runs claim_bead_for_build.py</text>
   <path class="arrow" d="M145,80 L145,128"/>
 
   <rect class="b-stop" x="330" y="130" width="220" height="60" rx="10" stroke-width="1.5"/>
@@ -285,7 +291,7 @@ tracker decides.</p>
 
 <p>The shell script already holds the bead's JSON from step 1. It passes the status and the assignee as arguments
 and the hook payload on stdin:</p>
-<pre><code>python3 label_bead_hook.py claim &lt;bead-id&gt; &lt;status&gt; &lt;assignee&gt;   # payload on stdin</code></pre>
+<pre><code>python3 claim_bead_for_build.py claim &lt;bead-id&gt; &lt;status&gt; &lt;assignee&gt;   # payload on stdin</code></pre>
 
 <p>The module builds this session's actor from the payload's <code>session_id</code>:
 <code>&lt;git user.name&gt; (session &lt;first 8 characters&gt;)</code>. Every window on one machine shares one
@@ -320,11 +326,11 @@ and the hook payload on stdin:</p>
 
   <rect class="b-ok" x="300" y="240" width="135" height="60" rx="10" stroke-width="1.5"/>
   <text class="hd" x="312" y="264">ALREADY HELD</text>
-  <text class="small" x="312" y="284">assignee is this actor</text>
+  <text class="small" x="312" y="284">this session holds it</text>
 
   <rect class="b-stop" x="445" y="240" width="135" height="60" rx="10" stroke-width="1.5"/>
   <text class="hd" x="457" y="264">REFUSE</text>
-  <text class="small" x="457" y="284">someone else holds it</text>
+  <text class="small" x="457" y="284">another holder</text>
 
   <rect class="b-ok" x="610" y="240" width="250" height="60" rx="10" stroke-width="1.5"/>
   <text class="hd" x="624" y="264">CLAIM</text>
@@ -469,7 +475,7 @@ the git common dir, which every worktree shares.</p>
 <table>
   <tr><th>Path</th><th>What it is</th></tr>
   <tr><td><code>.claude/scripts/label_bead_on_skill_invocation.sh</code></td><td>The hook. A copy; the source is in the tadw repository's <code>scripts/</code></td></tr>
-  <tr><td><code>.claude/scripts/label_bead_hook.py</code></td><td>The claim module, beside the hook</td></tr>
+  <tr><td><code>.claude/scripts/claim_bead_for_build.py</code></td><td>The claim module, beside the hook</td></tr>
   <tr><td><code>.codex/scripts/run_codex_bead_hooks.sh</code></td><td>The Codex runner. Inert until <code>.codex/hooks.json</code> names it</td></tr>
   <tr><td><code>.claude/settings.json</code></td><td>Connects the three events to the hook</td></tr>
   <tr><td><code>&lt;git-common-dir&gt;/pending-bead-labels/</code></td><td>The markers. Never tracked, shared by every worktree</td></tr>
@@ -496,7 +502,7 @@ is the <code>/build</code> refusal. Because exit 0 hides a failure, three tools 
 hash <code>--check</code> prints for the source.</p>
 
 <footer>
-  Source of record: <code>scripts/label_bead_on_skill_invocation.sh</code> and <code>scripts/label_bead_hook.py</code>
+  Source of record: <code>scripts/label_bead_on_skill_invocation.sh</code> and <code>scripts/claim_bead_for_build.py</code>
   in the tadw repository. History and rationale: <code>docs/PORTABLE-HOOKS.md</code>.
 </footer>
 

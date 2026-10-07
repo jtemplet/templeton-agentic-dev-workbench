@@ -122,7 +122,7 @@ SCRIPT_HASH=""
 
 # The /build claim decision, resolved as a sibling of this script. The
 # installer copies it alongside.
-CLAIM_MODULE="label_bead_hook.py"
+CLAIM_MODULE="claim_bead_for_build.py"
 
 log() { echo "[bead-label] $*" >&2; }
 quiet_exit() { exit 0; }
@@ -237,7 +237,7 @@ add_label() {
 # it would leave the bead reading `open` for the whole run, so `bd ready` would
 # go on offering work already underway.
 #
-# The decision, the two bd writes, and the hook JSON live in label_bead_hook.py
+# The decision, the two bd writes, and the hook JSON live in claim_bead_for_build.py
 # beside this script, where a unit test can call the decision directly. Status
 # and assignee come from RESOLVED_JSON, which resolve_bead already fetched, so
 # this costs no extra `bd show`.
