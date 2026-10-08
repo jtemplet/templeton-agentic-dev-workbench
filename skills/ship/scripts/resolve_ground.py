@@ -57,10 +57,24 @@ as it could be read), 2 on operator error.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
-import subprocess
 import sys
 from pathlib import Path
+
+
+def load_sibling(name: str):
+    """Load a helper from this file's own directory, never from another installed copy."""
+    spec = importlib.util.spec_from_file_location(
+        name, Path(__file__).resolve().parent / f"{name}.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+git_process = load_sibling("git_process")
 
 EXIT_FIT = 0
 EXIT_STOP = 1
@@ -378,15 +392,9 @@ def read_git(directory: Path, *arguments: str) -> str | None:
 def read_git_raw(directory: Path, *arguments: str) -> str | None:
     """The command's stdout verbatim, for output whose separator is NUL."""
     try:
-        completed = subprocess.run(
-            ["git", "-C", str(directory), *arguments],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except FileNotFoundError as error:
-        raise GitError("git is not on PATH") from error
-    return None if completed.returncode != 0 else completed.stdout
+        return git_process.ask(directory, *arguments)
+    except git_process.GitUnavailable as error:
+        raise GitError(str(error)) from error
 
 
 def parse_arguments(argv: list[str] | None) -> argparse.Namespace:

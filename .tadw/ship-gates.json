@@ -46,6 +46,7 @@
     {"name": "ship-report-suite", "command": ["python3", "skills/ship/scripts/test_ship_report.py"]},
     {"name": "ship-recovery-suite", "command": ["python3", "skills/ship/scripts/test_ship_recovery.py"]},
     {"name": "candidate-suite", "command": ["python3", "skills/ship/scripts/test_candidate.py"]},
+    {"name": "git-process-suite", "command": ["python3", "skills/ship/scripts/test_git_process.py"]},
     {"name": "worktree-cleanup-suite", "command": ["python3", "skills/ship/scripts/test_worktree_cleanup.py"]},
     {"name": "acceptance-findings-suite", "command": ["python3", "skills/reconcile-acceptance/scripts/test_load_findings.py"]},
     {"name": "quality-gates-findings-suite", "command": ["python3", "skills/reconcile-quality-gates/scripts/test_load_findings.py"]},

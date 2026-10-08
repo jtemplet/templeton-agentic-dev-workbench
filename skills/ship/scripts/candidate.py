@@ -59,6 +59,7 @@ def load_sibling(name: str) -> ModuleType:
     return module
 
 
+git_process = load_sibling("git_process")
 resolve_ground = load_sibling("resolve_ground")
 ship_progress = load_sibling("ship_progress")
 
@@ -346,22 +347,25 @@ def commit_or_none(directory: Path, revision: str) -> str | None:
 
 def git(directory: Path, *arguments: str) -> str:
     """Stdout with surrounding whitespace removed; a non-zero exit stops the landing."""
-    completed = run_git(directory, arguments)
-    if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout).strip()
-        raise CandidateStop("git", f"git {' '.join(arguments)} failed: {detail}")
-    return completed.stdout.strip()
+    try:
+        return git_process.read(directory, *arguments).strip()
+    except git_process.GitFailed as error:
+        detail = (error.stderr or error.stdout).strip()
+        raise CandidateStop("git", f"git {' '.join(arguments)} failed: {detail}") from error
+    except git_process.GitUnavailable as error:
+        raise CandidateStop("git", str(error)) from error
 
 
 def git_or_none(directory: Path, *arguments: str) -> str | None:
-    completed = run_git(directory, arguments)
-    return None if completed.returncode != 0 else completed.stdout.strip()
+    try:
+        stdout = git_process.ask(directory, *arguments)
+    except git_process.GitUnavailable as error:
+        raise CandidateStop("git", str(error)) from error
+    return None if stdout is None else stdout.strip()
 
 
 def run_git(directory: Path, arguments: tuple[str, ...]) -> subprocess.CompletedProcess:
     try:
-        return subprocess.run(
-            ["git", "-C", str(directory), *arguments], capture_output=True, text=True, check=False
-        )
-    except FileNotFoundError as error:
-        raise CandidateStop("git", "git is not on PATH") from error
+        return git_process.run(directory, *arguments)
+    except git_process.GitUnavailable as error:
+        raise CandidateStop("git", str(error)) from error

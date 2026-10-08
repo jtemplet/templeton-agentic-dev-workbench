@@ -45,10 +45,26 @@ stdout, one per line), 2 on operator error.
 from __future__ import annotations
 
 import argparse
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+
+def load_sibling(name: str):
+    """Load a helper from this file's own directory, never from another installed copy."""
+    # Imported here because test_landed_check.py allowlists top-level imports only.
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        name, Path(__file__).resolve().parent / f"{name}.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+git_process = load_sibling("git_process")
 
 # bd owns the tracked files here. See the module docstring; this is tadw-0fo.
 ALWAYS_EXCLUDED = (".beads/",)
@@ -149,18 +165,12 @@ class GitError(RuntimeError):
 
 def run_git(repo_root: Path, *arguments: str) -> str:
     try:
-        completed = subprocess.run(
-            ["git", "-C", str(repo_root), *arguments],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except FileNotFoundError as error:
-        raise GitError("git is not on PATH") from error
-    if completed.returncode != 0:
-        detail = completed.stderr.strip() or f"exit {completed.returncode}"
-        raise GitError(f"git {' '.join(arguments)}: {detail}")
-    return completed.stdout
+        return git_process.read(repo_root, *arguments)
+    except git_process.GitUnavailable as error:
+        raise GitError(str(error)) from error
+    except git_process.GitFailed as error:
+        detail = error.stderr.strip() or f"exit {error.returncode}"
+        raise GitError(f"git {' '.join(arguments)}: {detail}") from error
 
 
 def parse_arguments(argv: list[str] | None) -> argparse.Namespace:
