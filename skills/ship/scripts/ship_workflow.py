@@ -45,16 +45,26 @@ from typing import NamedTuple, NoReturn
 
 # Each ship script carries this loader: a shared one would itself have to be loaded by path.
 def load_sibling(name: str) -> ModuleType:
-    """Load a helper from this file's own directory, never from another installed copy."""
-    spec = importlib.util.spec_from_file_location(
-        name, Path(__file__).resolve().parent / f"{name}.py"
-    )
+    """Load a helper from this file's own directory, never from another installed copy.
+
+    A helper already registered from that file is returned as it is, so every script shares one
+    set of classes."""
+    path = Path(__file__).resolve().parent / f"{name}.py"
+    loaded = sys.modules.get(name)
+    if loaded is not None and Path(getattr(loaded, "__file__", "")).resolve() == path:
+        return loaded
+    return execute_sibling(name, path)
+
+
+def execute_sibling(name: str, path: Path) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
 
+git_process = load_sibling("git_process")
 resolve_ground = load_sibling("resolve_ground")
 select_bead = load_sibling("select_bead")
 resolve_rebase_conflict = load_sibling("resolve_rebase_conflict")
@@ -75,7 +85,6 @@ CANDIDATE_SLUGS = {
     "export": "tracker",
     "audit-log": "tracker",
 }
-GIT_ERRORS = (resolve_ground.GitError, resolve_rebase_conflict.GitError, landed_check.GitError)
 COMMIT_KINDS = {"feature": "feat", "epic": "feat", "bug": "fix", "docs": "docs"}
 MAX_RESOLUTIONS = 10
 MAX_LANDINGS = 2
@@ -144,7 +153,7 @@ def run_steps_without_git_errors(request: Request, gate: candidate.Gate) -> Ship
     """A helper that could not run git at all stops the run as `internal`."""
     try:
         return run_steps(request, gate)
-    except GIT_ERRORS as error:
+    except git_process.GitProcessError as error:
         raise ShipStop("internal", str(error)) from error
 
 

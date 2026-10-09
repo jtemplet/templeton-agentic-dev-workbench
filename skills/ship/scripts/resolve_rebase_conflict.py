@@ -43,13 +43,18 @@ from pathlib import Path
 
 
 def load_sibling(name: str):
-    """Load a helper from this file's own directory, never from another installed copy."""
+    """Load a helper from this file's own directory, never from another installed copy.
+
+    A helper already registered from that file is returned as it is, so every script shares one
+    set of classes."""
     # Imported here because test_resolve_rebase_conflict.py allowlists top-level imports only.
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location(
-        name, Path(__file__).resolve().parent / f"{name}.py"
-    )
+    path = Path(__file__).resolve().parent / f"{name}.py"
+    loaded = sys.modules.get(name)
+    if loaded is not None and Path(getattr(loaded, "__file__", "")).resolve() == path:
+        return loaded
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
@@ -74,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_arguments(argv)
     try:
         outcome = resolve_conflicts(args.repo_root)
-    except GitError as error:
+    except git_process.GitProcessError as error:
         print(f"error: {error}", file=sys.stderr)
         return EXIT_OPERATOR_ERROR
 
@@ -103,7 +108,7 @@ def resolve_conflicts(repo_root: Path) -> dict:
     if failure:
         outcome["stop"], outcome["detail"] = failure
         return outcome
-    run_git(repo_root, "add", "--", CHANGELOG)
+    git_process.read(repo_root, "add", "--", CHANGELOG)
     outcome["resolved"].append(CHANGELOG)
 
     remaining = conflicted_paths(repo_root)
@@ -194,22 +199,8 @@ def marker_lines(text: str) -> list[int]:
 
 
 def conflicted_paths(repo_root: Path) -> list[str]:
-    stdout = run_git(repo_root, "diff", "--name-only", "--diff-filter=U")
+    stdout = git_process.read(repo_root, "diff", "--name-only", "--diff-filter=U")
     return sorted({line for line in stdout.splitlines() if line})
-
-
-class GitError(RuntimeError):
-    """git refused a command, or there was no repository to run it in."""
-
-
-def run_git(repo_root: Path, *arguments: str) -> str:
-    try:
-        return git_process.read(repo_root, *arguments)
-    except git_process.GitUnavailable as error:
-        raise GitError(str(error)) from error
-    except git_process.GitFailed as error:
-        detail = error.stderr.strip() or f"exit {error.returncode}"
-        raise GitError(f"git {' '.join(arguments)}: {detail}") from error
 
 
 def parse_arguments(argv: list[str] | None) -> argparse.Namespace:

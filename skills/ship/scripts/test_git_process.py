@@ -18,6 +18,14 @@ RULE-TO-TEST MAPPING. A criterion with no test here is a criterion nothing holds
      no git on PATH                                     case_read_raises_git_unavailable,
                                                         case_ask_raises_git_unavailable
 
+  tadw-aj6x criterion                                   Pinned by
+  ------------------------------------------------------------------------------
+  2. GitFailed and GitUnavailable share one base,       case_both_errors_share_one_base
+     so one except clause names every git failure
+  2. Every ship script catches the same classes         case_ship_scripts_share_one_error_module
+  3. No stop-reason text changes: GitFailed keeps       case_git_failed_message_names_arguments_and_stderr
+     the old `git <args>: <stderr>` message
+
   Design decisions in the module docstring
   ------------------------------------------------------------------------------
   run never raises on a non-zero exit                   case_run_returns_nonzero_without_raising
@@ -111,6 +119,43 @@ def case_git_failed_carries_arguments_and_stdout():
         error = raises(git_process.GitFailed, lambda: git_process.read(root, *UNKNOWN_REVISION))
     assert error.arguments == UNKNOWN_REVISION, error.arguments
     assert isinstance(error.stdout, str), type(error.stdout)
+
+
+def case_git_failed_message_names_arguments_and_stderr():
+    with repository() as root:
+        error = raises(git_process.GitFailed, lambda: git_process.read(root, *UNKNOWN_REVISION))
+    expected = f"git {' '.join(UNKNOWN_REVISION)}: {error.stderr.strip()}"
+    assert str(error) == expected, str(error)
+
+
+def case_both_errors_share_one_base():
+    assert issubclass(git_process.GitFailed, git_process.GitProcessError)
+    assert issubclass(git_process.GitUnavailable, git_process.GitProcessError)
+
+
+SHARED_MODULE_PROBE = """
+import importlib.util, sys
+path = sys.argv[1]
+spec = importlib.util.spec_from_file_location("tadw_ship", path)
+tadw_ship = importlib.util.module_from_spec(spec)
+sys.modules["tadw_ship"] = tadw_ship
+spec.loader.exec_module(tadw_ship)
+shared = tadw_ship.git_process
+for name in ("resolve_ground", "candidate", "landed_check", "resolve_rebase_conflict"):
+    module = sys.modules.get(name)
+    assert module is not None and module.git_process is shared, name
+assert tadw_ship.ship_workflow.git_process is shared
+"""
+
+
+def case_ship_scripts_share_one_error_module():
+    script = SCRIPT.parent / "tadw_ship.py"
+    completed = subprocess.run(
+        [sys.executable, "-I", "-c", SHARED_MODULE_PROBE, str(script)],
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
 
 
 def case_ask_returns_none_on_nonzero_exit():

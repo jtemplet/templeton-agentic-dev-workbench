@@ -64,10 +64,15 @@ from pathlib import Path
 
 
 def load_sibling(name: str):
-    """Load a helper from this file's own directory, never from another installed copy."""
-    spec = importlib.util.spec_from_file_location(
-        name, Path(__file__).resolve().parent / f"{name}.py"
-    )
+    """Load a helper from this file's own directory, never from another installed copy.
+
+    A helper already registered from that file is returned as it is, so every script shares one
+    set of classes."""
+    path = Path(__file__).resolve().parent / f"{name}.py"
+    loaded = sys.modules.get(name)
+    if loaded is not None and Path(getattr(loaded, "__file__", "")).resolve() == path:
+        return loaded
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
@@ -104,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_arguments(argv)
     try:
         ground = resolve_ground(args.directory)
-    except GitError as error:
+    except git_process.GitProcessError as error:
         print(f"error: {error}", file=sys.stderr)
         return EXIT_OPERATOR_ERROR
 
@@ -281,7 +286,7 @@ def read_status(root: Path, *, untracked: bool, only_untracked: bool = False) ->
     kept, because that is the path a later command has to act on.
     """
     mode = "all" if untracked else "no"
-    stdout = read_git_raw(root, "status", "--porcelain=v1", "-z", f"--untracked-files={mode}")
+    stdout = git_process.ask(root, "status", "--porcelain=v1", "-z", f"--untracked-files={mode}")
     if stdout is None:
         return None
     fields = stdout.split("\0")
@@ -377,24 +382,12 @@ def absolute_git_path(root: Path, *arguments: str) -> str | None:
     return str((path if path.is_absolute() else root / path).resolve())
 
 
-class GitError(RuntimeError):
-    """git could not be run at all."""
-
-
 def read_git(directory: Path, *arguments: str) -> str | None:
     """The command's stdout with surrounding whitespace removed, or None when it
     exited non-zero. A non-zero exit here is an answer, not a failure: it is how
     git says a ref does not exist or a remote is not configured."""
-    stdout = read_git_raw(directory, *arguments)
+    stdout = git_process.ask(directory, *arguments)
     return None if stdout is None else stdout.strip()
-
-
-def read_git_raw(directory: Path, *arguments: str) -> str | None:
-    """The command's stdout verbatim, for output whose separator is NUL."""
-    try:
-        return git_process.ask(directory, *arguments)
-    except git_process.GitUnavailable as error:
-        raise GitError(str(error)) from error
 
 
 def parse_arguments(argv: list[str] | None) -> argparse.Namespace:

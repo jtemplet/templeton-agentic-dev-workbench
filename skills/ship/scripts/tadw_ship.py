@@ -44,10 +44,19 @@ from types import ModuleType
 
 # Each ship script carries this loader: a shared one would itself have to be loaded by path.
 def load_sibling(name: str) -> ModuleType:
-    """Load a helper from this file's own directory, never from another installed copy."""
-    spec = importlib.util.spec_from_file_location(
-        name, Path(__file__).resolve().parent / f"{name}.py"
-    )
+    """Load a helper from this file's own directory, never from another installed copy.
+
+    A helper already registered from that file is returned as it is, so every script shares one
+    set of classes."""
+    path = Path(__file__).resolve().parent / f"{name}.py"
+    loaded = sys.modules.get(name)
+    if loaded is not None and Path(getattr(loaded, "__file__", "")).resolve() == path:
+        return loaded
+    return execute_sibling(name, path)
+
+
+def execute_sibling(name: str, path: Path) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     # A dataclass resolves its string annotations through sys.modules.
     sys.modules[name] = module
@@ -55,6 +64,7 @@ def load_sibling(name: str) -> ModuleType:
     return module
 
 
+git_process = load_sibling("git_process")
 read_gate_config = load_sibling("read_gate_config")
 resolve_ground = load_sibling("resolve_ground")
 run_checks = load_sibling("run_checks")
@@ -280,7 +290,7 @@ def executable_hook(repo: Path, name: str) -> bool:
     """Git's own lookup, so `core.hooksPath` and a linked worktree resolve as git resolves them."""
     try:
         location = resolve_ground.read_git(repo, "rev-parse", "--git-path", f"hooks/{name}")
-    except resolve_ground.GitError:
+    except git_process.GitProcessError:
         return False
     if not location:
         return False

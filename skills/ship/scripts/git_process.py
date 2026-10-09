@@ -9,8 +9,9 @@ captured text output, and returns that output verbatim. Callers strip it themsel
 
 A missing git raises GitUnavailable from all three, because no git is a failure and not an answer.
 
-Each script loads this module with its own `load_sibling`, so each holds its own copy of these
-error classes. A script catches only the errors of the module object it loaded.
+Both errors derive from GitProcessError, so one `except` clause names every way git can fail. Each
+script loads this module with its own `load_sibling`, which returns the module already registered
+for this directory, so every ship script catches the same classes.
 """
 
 from __future__ import annotations
@@ -19,15 +20,20 @@ import subprocess
 from pathlib import Path
 
 
-class GitUnavailable(RuntimeError):
+class GitProcessError(RuntimeError):
+    """git could not be run, or ran and exited non-zero."""
+
+
+class GitUnavailable(GitProcessError):
     """git is not on PATH."""
 
 
-class GitFailed(RuntimeError):
+class GitFailed(GitProcessError):
     """git ran and exited non-zero."""
 
     def __init__(self, arguments: tuple[str, ...], returncode: int, stdout: str, stderr: str):
-        super().__init__(f"git {' '.join(arguments)} exited {returncode}")
+        detail = stderr.strip() or f"exit {returncode}"
+        super().__init__(f"git {' '.join(arguments)}: {detail}")
         self.arguments = arguments
         self.returncode = returncode
         self.stdout = stdout

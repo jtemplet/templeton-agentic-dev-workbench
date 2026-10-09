@@ -51,13 +51,18 @@ from pathlib import Path
 
 
 def load_sibling(name: str):
-    """Load a helper from this file's own directory, never from another installed copy."""
+    """Load a helper from this file's own directory, never from another installed copy.
+
+    A helper already registered from that file is returned as it is, so every script shares one
+    set of classes."""
     # Imported here because test_landed_check.py allowlists top-level imports only.
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location(
-        name, Path(__file__).resolve().parent / f"{name}.py"
-    )
+    path = Path(__file__).resolve().parent / f"{name}.py"
+    loaded = sys.modules.get(name)
+    if loaded is not None and Path(getattr(loaded, "__file__", "")).resolve() == path:
+        return loaded
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
@@ -93,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     comparison = Comparison(base=args.base, branch=args.branch, target=args.target)
     try:
         outstanding = outstanding_paths(args.repo_root, comparison, tuple(args.exclude))
-    except GitError as error:
+    except git_process.GitProcessError as error:
         print(f"error: {error}", file=sys.stderr)
         return EXIT_OPERATOR_ERROR
 
@@ -128,7 +133,7 @@ def changed_paths(repo_root: Path, *revision_arguments: str) -> set[str]:
     `--exclude` prefix test, and an excluded file is then reported as
     outstanding. A path holding a newline is the same story, one range apart.
     """
-    stdout = run_git(repo_root, "diff", "--name-only", "-z", *revision_arguments)
+    stdout = git_process.read(repo_root, "diff", "--name-only", "-z", *revision_arguments)
     return {path for path in stdout.split("\0") if path}
 
 
@@ -157,20 +162,6 @@ def normalize_prefix(prefix: str) -> str:
     while prefix.startswith("./"):
         prefix = prefix[2:]
     return prefix
-
-
-class GitError(RuntimeError):
-    """git refused a command, or there was no repository to run it in."""
-
-
-def run_git(repo_root: Path, *arguments: str) -> str:
-    try:
-        return git_process.read(repo_root, *arguments)
-    except git_process.GitUnavailable as error:
-        raise GitError(str(error)) from error
-    except git_process.GitFailed as error:
-        detail = error.stderr.strip() or f"exit {error.returncode}"
-        raise GitError(f"git {' '.join(arguments)}: {detail}") from error
 
 
 def parse_arguments(argv: list[str] | None) -> argparse.Namespace:
