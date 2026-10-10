@@ -1,5 +1,27 @@
 ## [Unreleased]
 
+## [4.8.2] - 2026-10-10
+
+### Added
+
+- **Pre-flight each acceptance criterion before the build.** (`e3652e2`)
+- **Install the Codex runner under .codex/scripts, and explain the label hooks.** (`7de4b61`)
+
+### Changed
+
+- **Rename label_bead_hook.py to claim_bead_for_build.py.** (`9a2e4dc`)
+- **Merge branch 'fix/claim-module-passes-baseline-lint' into main.** (`5e52f91`)
+- **Route the ship scripts' git calls through one...** (`9ebd57e`, tadw-vror)
+- **Collapse the three ship GitError classes onto the...** (`27e9fac`, tadw-aj6x)
+- **Add team maintainer.** (`7d324bc`)
+
+### Fixed
+
+- **Accept a dirty-tree report once its graded work is committed.** (`8fd16e1`)
+- **Pass the moved files through a temp file.** (`1cbc8d7`)
+- **A stale plugin cache silently withholds the accepted...** (`1d2161c`, tadw-a6y)
+- **The reconcile skills cannot add a file or correct...** (`621c7e7`, tadw-7sp8)
+
 ## [4.8.1] - 2026-10-06
 
 ### Changed
@@ -2854,7 +2876,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.1...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.2...HEAD
+[4.8.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.1...v4.8.2
 [4.8.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.0...v4.8.1
 [4.8.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.2...v4.8.0
 [4.7.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.1...v4.7.2
