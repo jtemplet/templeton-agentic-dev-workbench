@@ -245,13 +245,15 @@ broken one.
 A label that `/build` or `/verify-acceptance` was asked to apply, and never did, appears as
 `OWED <label>`. That is the one failure that used to leave no trace anywhere.
 
-An `accepted` label that never arrived has two different lines, and they name two different
-causes:
+An `accepted` label that never arrived has one of the lines below, and each line names its
+cause:
 
 | Line in the log | What happened |
 |---|---|
 | `withheld accepted, the acceptance-verifier agent finished and wrote no report` | The agent finished. The plugin cache can be older than 4.3.1, and an agent that old writes no `acceptance-report.json`. Update the plugin, then run `/verify-acceptance` again. |
 | `abandoned accepted, no report arrived and no agent finish was seen` | The run never finished. The marker waited 6 hours and the hook deleted it. |
+| `left accepted pending, the report names <id>` | The newest `acceptance-report.json` graded a different bead, so it earns this bead no label. The marker waits for the report of its own run. |
+| `left accepted pending, the report names no bead` | The report has no `bead` field, or the field is null. A report that cannot say which bead it graded earns no label. |
 
 The first line comes from the `SubagentStop` event, which Claude Code sends when a subagent
 finishes. A session that is stopped while its agent runs sends no such event, so that run reaches

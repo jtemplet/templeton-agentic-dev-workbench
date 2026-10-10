@@ -1080,10 +1080,11 @@ if case_start "label/inject: no skill is left on inject mode"; then
 fi
 
 # /verify-acceptance writes <git-dir>/acceptance-report.json with its counts. tadw-av7.
-write_acceptance_report() {  # write_acceptance_report <repo> <passed> <total> <failed> <unverifiable> <gates> <g-failed> <g-blocked>
+write_acceptance_report() {  # write_acceptance_report <repo> <passed> <total> <failed> <unverifiable> <gates> <g-failed> <g-blocked> [bead-as-json]
   jq -n --argjson p "$2" --argjson t "$3" --argjson f "$4" --argjson u "$5" \
         --argjson g "$6" --argjson gf "$7" --argjson gb "$8" \
-    '{bead:"tadw-alpha-one", criteria_total:$t, criteria_passed:$p,
+        --argjson bead "${9:-\"tadw-alpha-one\"}" \
+    '{bead:$bead, criteria_total:$t, criteria_passed:$p,
       criteria_failed:$f, criteria_unverifiable:$u,
       gates_total:$g, gates_failed:$gf, gates_blocked:$gb}' \
     > "$1/.git/acceptance-report.json"
@@ -1191,6 +1192,59 @@ if case_start "label/stop: a clean acceptance report labels accepted"; then
   assert_match "$R/.bdcalls" "--add-label accepted" "labeled it accepted"
   assert_match "$R/.hookerr" "9/9 criteria" "said why"
   [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "cleared the marker" || nope "cleared the marker"
+fi
+
+# tadw-6gij. The acceptance report carries the bead it graded, so a marker left
+# by an interrupted grading of one bead must not read a later grading of another.
+if case_start "label/stop: an acceptance report naming another bead leaves the marker pending"; then
+  R="$(new_repo an1 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  age_artifacts "$R"; write_acceptance_report "$R" 2 2 0 0 3 0 0 '"tadw-beta-two"'
+  export BD_KNOWN="tadw-alpha-one tadw-beta-two" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "labeled no bead"
+  if [[ -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]]; then
+    ok "kept the marker"
+  else
+    nope "kept the marker"
+  fi
+  assert_match "$R/.git/bead-label.log" "the report names tadw-beta-two" "the log names the mismatch"
+fi
+
+if case_start "label/stop: an acceptance report naming the marker's bead labels it"; then
+  R="$(new_repo an2 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  age_artifacts "$R"; write_acceptance_report "$R" 2 2 0 0 3 0 0 '"tadw-alpha-one"'
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "update tadw-alpha-one --add-label accepted" "labeled the named bead"
+  if [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]]; then
+    ok "deleted the marker"
+  else
+    nope "deleted the marker"
+  fi
+fi
+
+if case_start "label/stop: an acceptance report with no bead field labels nothing"; then
+  R="$(new_repo an3 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  age_artifacts "$R"; write_acceptance_report "$R" 2 2 0 0 3 0 0
+  jq 'del(.bead)' "$R/.git/acceptance-report.json" > "$R/.git/acceptance-report.tmp"
+  mv "$R/.git/acceptance-report.tmp" "$R/.git/acceptance-report.json"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "labeled no bead"
+  assert_match "$R/.git/bead-label.log" "the report names no bead" "the log says the report named none"
+fi
+
+if case_start "label/stop: an acceptance report whose bead is null labels nothing"; then
+  R="$(new_repo an4 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  age_artifacts "$R"; write_acceptance_report "$R" 2 2 0 0 3 0 0 null
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "labeled no bead"
+  assert_match "$R/.git/bead-label.log" "the report names no bead" "the log says the report named none"
 fi
 
 if case_start "label/stop: any failing criterion or gate withholds accepted"; then

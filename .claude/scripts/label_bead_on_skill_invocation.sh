@@ -982,12 +982,13 @@ report_after() {
   esac
 }
 
-# The bead a report was written for. Only /build records one, so every other
-# report is taken to describe the marker's own bead ($3), as it always was.
+# The bead a report was written for. /build and /verify-acceptance record one.
+# Every other report is taken to describe the marker's own bead ($3).
 report_bead() {
   local report="$1" skill="$2" marker_bead="$3"
   case "$skill" in
-    feature-development|tadw:feature-development) jq -r '.bead // empty' "$report" 2>/dev/null ;;
+    feature-development|tadw:feature-development|verify-acceptance|tadw:verify-acceptance)
+      jq -r '.bead // empty' "$report" 2>/dev/null ;;
     *) echo "$marker_bead" ;;
   esac
 }
