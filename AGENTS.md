@@ -145,7 +145,7 @@ templates live in [docs/AUTHORING.md](docs/AUTHORING.md).
 | Review agents, tools, prompts | `/agentic-clean-code` | `agentic-clean-code` |
 | Build a feature from a bead | `/build <bead-id>` | `feature-development` + a `style-*` skill |
 | Simplify code | - | `code-simplify` |
-| Find and fix bugs in a diff | `/fresh-eyes-cr` | `review-fresh-eyes` |
+| Find and fix bugs in a diff | `/fresh-eyes-cr` | `fresh-eyes-reviewer` agent, running `review-fresh-eyes` |
 | Investigate a bug before fixing | `/diagnose` | `diagnostician` agent |
 | Write or restructure tests | - | `style-testing`, plus `style-rspec` for RSpec |
 | Run the QA gates | `/quality-gates` | `quality-gates` |
@@ -275,11 +275,11 @@ reads when deciding what to invoke.
 `style-python` `style-rails` `style-rspec` `style-swift` `style-testing` `terraform-iac-expert`
 `triage-beads` `ux-review` `ux-review-ios` `verify-acceptance` `verify-app` `write-plan`
 
-**Registered Agents** (14). Descriptions live in the `README.md` agents table and in
+**Registered Agents** (15). Descriptions live in the `README.md` agents table and in
 each `agents/<name>.md` frontmatter.
 
 `acceptance-verifier` `claude-md-reviewer` `code-reviewer` `diagnostician`
-`feature-planner` `product-analyst`
+`feature-planner` `fresh-eyes-reviewer` `product-analyst`
 `product-cartographer` `product-manager` `project-manager` `quality-gates-orchestrator`
 `research-librarian` `software-engineer` `ux-product-designer` `verify-app`
 

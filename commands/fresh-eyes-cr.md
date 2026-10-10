@@ -1,17 +1,32 @@
 ---
 description: "Review all new/modified code with fresh eyes, find and fix obvious bugs and errors"
+argument-hint: "[--base <ref>] [bead-id]"
 ---
 
-Use the `review-fresh-eyes` skill to review all recently changed code.
+Dispatch the `fresh-eyes-reviewer` agent (`agents/fresh-eyes-reviewer.md`) with `$ARGUMENTS` as
+its input, and relay its report whole. Use the Agent tool with `subagent_type` set to
+`tadw:fresh-eyes-reviewer`. Do not run the review in this window.
 
-The review operates from the `software-engineer` role: a working engineer who modifies code carefully, prefers the smallest correct change, and verifies before declaring success. Refer to `agents/software-engineer.md` for the role's beliefs and judgment principles.
+The agent runs the `review-fresh-eyes` skill on `sonnet` in its own context window. It reads the
+diff and the code each hunk touches there, so the file text never enters this window; only the
+report comes back. The `reviewed` label lands from this command's own name, before the dispatch.
 
-The skill will:
+Pass `--base <ref>` on a stacked branch, meaning a branch built on another branch that is not
+merged yet. The agent then reviews only the files this branch changed. Pass a bead id to have
+the report name it.
 
-1. Auto-detect changed files from git state (unstaged, staged, or branch diff vs main)
-2. Read full files (not just diffs) for complete context
-3. Look for bugs, logic errors, missing error handling, copy-paste errors, and security issues
-4. **Fix issues directly** using the Edit tool, explaining each fix
-5. Report a summary table of issues found, fixes applied, and files needing your input
+The agent will:
 
-No arguments needed; scope is auto-detected from git.
+1. Resolve the changed set from git state (committed, staged, unstaged, and untracked work)
+2. Read the diff, then the enclosing unit of each hunk and every in-file use of a symbol the hunk
+   adds, renames, or removes; a whole file only when it is short or the hunk changes module-level
+   state
+3. Look for bugs, logic errors, missing error handling at a boundary, copy-paste errors, and
+   security issues
+4. **Fix a finding only after naming the input that makes the current code wrong**, then run the
+   narrowest test that covers the edited file; a fix that fails its test is reverted and reported
+5. Return one report table: issues fixed with the test that proved each, issues that need your
+   input, and the files it read clean
+
+When the report lists an issue under "Needs Your Input", answer it here; the agent has already
+ended, so re-run the command after you decide.
