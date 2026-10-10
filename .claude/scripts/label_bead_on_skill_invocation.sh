@@ -59,7 +59,9 @@
 # an open bead to in_progress immediately, and still defers
 # "implemented" to the report Phase 6 writes. It claims under a
 # per-session actor, and it REFUSES /build on a bead another session or
-# tool already holds. That refusal is the one path that stops a skill.
+# tool already holds, and on an epic or a milestone, which groups other
+# beads and holds no work of its own. Those refusals are the only paths
+# that stop a skill.
 #
 # Every failure path logs to stderr and exits 0, so a skill runs whether
 # or not the bead could be labeled. Stdout carries only well-formed hook
@@ -247,14 +249,15 @@ add_label() {
 # go on offering work already underway.
 #
 # The decision, the two bd writes, and the hook JSON live in claim_bead_for_build.py
-# beside this script, where a unit test can call the decision directly. Status
-# and assignee come from RESOLVED_JSON, which resolve_bead already fetched, so
-# this costs no extra `bd show`.
+# beside this script, where a unit test can call the decision directly. Status,
+# assignee and issue type come from RESOLVED_JSON, which resolve_bead already
+# fetched, so this costs no extra `bd show`.
 #
 # Echoes the module's JSON, {"outcome": ..., "hook_output": ...}, and returns
 # its exit status: 0 when this session holds the bead or its status was left
-# alone, 1 when the claim failed, and 2 when another holder means /build must
-# not run. A missing python3 or module is a failed claim, never a refusal.
+# alone, 1 when the claim failed, and 2 when /build must not run: another
+# holder has the bead, or it is a container. A missing python3 or module is a
+# failed claim, never a refusal.
 claim_bead() {
   local bead_id="$1" module
   module="$(dirname "$SCRIPT_PATH")/$CLAIM_MODULE"
@@ -264,7 +267,8 @@ claim_bead() {
     return 1
   fi
   printf '%s' "${payload:-}" | python3 "$module" claim "$bead_id" \
-    "$(bead_field "$RESOLVED_JSON" status)" "$(bead_field "$RESOLVED_JSON" assignee)"
+    "$(bead_field "$RESOLVED_JSON" status)" "$(bead_field "$RESOLVED_JSON" assignee)" \
+    "$(bead_field "$RESOLVED_JSON" issue_type)"
 }
 
 # The session the hook payload names, or nothing. `payload` is the global the
@@ -558,7 +562,8 @@ run_label_flow() {
   # back to in_progress rather than return early over the top of it.
   #
   # A refusal exits before the marker is written, so a run that never started
-  # leaves no pending label behind.
+  # leaves no pending label behind. That covers a container too: the module
+  # refuses it before either bd write.
   if [[ -n "${CLAIM:-}" ]]; then
     claim_result="$(claim_bead "$RESOLVED_ID")"
     claim_code=$?

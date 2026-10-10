@@ -39,7 +39,8 @@ the bead, does not set its status, and does not apply its own label. Run
 `/quality-gates` and then `/verify-acceptance` for grading. The labeling hook owns both
 tracker writes. It moves an `open` bead to `in_progress` as the run starts, under an actor for
 this session alone. It refuses the run when the bead is already `in_progress` under any other
-holder, an empty assignee included. After
+holder, an empty assignee included. It also refuses an epic or a milestone, and changes nothing on
+it, because such a bead groups other beads and holds no work of its own. After
 the run it reads `build-report.json` and applies `implemented` only if the counts clear
 the gate. A run that never writes that file is never labeled, which is what keeps an
 interrupted build from reading as a finished one.

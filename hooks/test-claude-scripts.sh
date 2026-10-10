@@ -222,9 +222,12 @@ case "$sub" in
       fi
     fi
     # bd omits a null field, so an unset BD_ASSIGNEE prints no assignee key.
+    # BD_TYPE is the issue_type; unset models a tracker read that carries none.
     jq -cn --arg id "${BD_ID_PREFIX:-}$id" --arg st "${BD_STATUS:-open}" \
-      --arg as "${BD_ASSIGNEE:-}" --argjson labels "[${BD_LABELS_JSON:-}]" \
-      '[{id:$id, status:$st, labels:$labels} + (if $as == "" then {} else {assignee:$as} end)]'
+      --arg as "${BD_ASSIGNEE:-}" --arg ty "${BD_TYPE:-}" --argjson labels "[${BD_LABELS_JSON:-}]" \
+      '[{id:$id, status:$st, labels:$labels}
+        + (if $as == "" then {} else {assignee:$as} end)
+        + (if $ty == "" then {} else {issue_type:$ty} end)]'
     ;;
   close)
     case "${BD_CLOSE_MODE:-ok}" in
@@ -1835,6 +1838,160 @@ if case_start "label/claim: without a session_id an in_progress bead is left alo
 fi
 
 # ---------------------------------------------------------------------------
+# The container refusal (tadw-5n2s.1)
+#
+# An epic or a milestone groups other beads and holds no work of its own. The
+# hook claims before the feature-development skill reads the bead, so a guard
+# in the skill alone runs after the container's status and assignee have
+# already changed. Every case asserts that bd saw no `update` at all, which
+# covers status, assignee and labels in one pattern.
+# ---------------------------------------------------------------------------
+
+build_prompt() {  # build_prompt <prompt> [session-id]
+  local body
+  body="$(jq -n --arg p "$1" '{hook_event_name:"UserPromptSubmit", prompt:$p}')"
+  if [[ -n "${2:-}" ]]; then with_session "$body" "$2"; else echo "$body"; fi
+}
+
+assert_container_untouched() {  # assert_container_untouched <repo> <label>
+  assert_no_match "$1/.bdcalls" "^update " "wrote nothing to the tracker ($2)"
+  assert_no_match "$1/.bdcalls" "^export" "ran no export ($2)"
+  [[ ! -e "$(marker_dir "$1")/implemented__tadw-alpha-one" ]] \
+    && ok "left no pending marker ($2)" || nope "left no pending marker ($2)"
+}
+
+for container in epic milestone; do
+  if case_start "label/container: a typed command for the $container refuses at the prompt, in every spelling"; then
+    n=0
+    for prompt in "/build" "/tadw:build" "/feature-development" "/tadw:feature-development" '$build'; do
+      n=$((n + 1))
+      R="$(new_repo "k1-$container-$n" with-origin)"
+      export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON='"hooks"' BD_STATUS="open" BD_TYPE="$container"
+      unset BD_ASSIGNEE
+      run_hook "$LABEL" "$R" "$(build_prompt "$prompt tadw-alpha-one" aaaa1111)"
+      assert_eq "$HOOK_CODE" 0 "exits 0 ($prompt)"
+      assert_eq "$(jq -r '.decision' "$R/.hookout" 2>/dev/null)" "block" "blocked the prompt ($prompt)"
+      assert_container_untouched "$R" "$prompt"
+    done
+    unset BD_STATUS BD_TYPE
+  fi
+
+  if case_start "label/container: the Skill tool is denied for the $container, under both skill names"; then
+    n=0
+    for skill in "feature-development" "tadw:feature-development"; do
+      n=$((n + 1))
+      R="$(new_repo "k2-$container-$n" with-origin)"
+      export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON='"hooks"' BD_STATUS="open" BD_TYPE="$container"
+      unset BD_ASSIGNEE
+      run_hook "$LABEL" "$R" "$(with_session "$(payload PreToolUse '' '' "$skill" 'tadw-alpha-one')" aaaa1111)"
+      assert_eq "$(jq -r '.hookSpecificOutput.permissionDecision' "$R/.hookout" 2>/dev/null)" "deny" "denied the skill ($skill)"
+      assert_container_untouched "$R" "$skill"
+    done
+    unset BD_STATUS BD_TYPE
+  fi
+
+  if case_start "label/container: the $container is refused without a session_id"; then
+    # Codex and any payload with no session_id refuse nothing else, and a
+    # container must still be refused there.
+    R="$(new_repo "k3-$container" with-origin)"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_TYPE="$container"
+    unset BD_ASSIGNEE
+    run_hook "$LABEL" "$R" "$(build_prompt "/build tadw-alpha-one")"
+    assert_eq "$(jq -r '.decision' "$R/.hookout" 2>/dev/null)" "block" "blocked the prompt"
+    assert_container_untouched "$R" "no session"
+    unset BD_STATUS BD_TYPE
+  fi
+
+  if case_start "label/container: the $container under the person's own claim is not adopted"; then
+    # A leaf in this state is adopted with --if-assignee, which rewrites both
+    # the assignee and the status.
+    for st in open in_progress; do
+      R="$(new_repo "k4-$container-$st" with-origin)"
+      export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="$st" BD_ASSIGNEE="Hook Suite" BD_TYPE="$container"
+      run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111)"
+      assert_eq "$(jq -r '.hookSpecificOutput.permissionDecision' "$R/.hookout" 2>/dev/null)" "deny" "denied the skill ($st)"
+      assert_container_untouched "$R" "$st"
+    done
+    unset BD_STATUS BD_ASSIGNEE BD_TYPE
+  fi
+
+  if case_start "label/container: the refusal of the $container says what it is and what to build instead"; then
+    R="$(new_repo "k5-$container" with-origin)"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_TYPE="$container"
+    unset BD_ASSIGNEE
+    run_hook "$LABEL" "$R" "$(build_prompt "/build tadw-alpha-one" aaaa1111)"
+    assert_match "$R/.hookout" "tadw-alpha-one is of type $container, a container" "named the type"
+    assert_match "$R/.hookout" "bd list --parent tadw-alpha-one" "named the command that lists its children"
+    assert_no_match "$R/.hookout" "bd unclaim" "did not advise releasing a claim nobody holds"
+    assert_match "$R/.git/bead-label.log" "REFUSED, type $container is a container" "logged the refusal"
+    unset BD_STATUS BD_TYPE
+  fi
+
+  if case_start "label/container: the refusal of the $container creates no branch and no worktree"; then
+    R="$(new_repo "k6-$container" with-origin)"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_TYPE="$container"
+    unset BD_ASSIGNEE
+    run_hook "$LABEL" "$R" "$(build_prompt "/build tadw-alpha-one" aaaa1111)"
+    assert_eq "$(sgit "$R" branch --format='%(refname:short)')" "main" "main is still the only branch"
+    assert_eq "$(sgit "$R" worktree list | wc -l | tr -d ' ')" "1" "the checkout is still the only worktree"
+    assert_eq "$(sgit "$R" status --porcelain --untracked-files=no)" "" "left the tracked files unmodified"
+    unset BD_STATUS BD_TYPE
+  fi
+
+  if case_start "label/container: a marker another skill left for the $container survives the refusal"; then
+    R="$(new_repo "k7-$container" with-origin)"
+    M="$(marker_dir "$R")"; mkdir -p "$M"
+    printf '1700000000\ntadw-alpha-one\ntadw:quality-gates\ngate\naaaa1111\n' > "$M/qa-d__tadw-alpha-one"
+    before="$(cat "$M/qa-d__tadw-alpha-one")"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_TYPE="$container"
+    unset BD_ASSIGNEE
+    run_hook "$LABEL" "$R" "$(build_prompt "/build tadw-alpha-one" aaaa1111)"
+    assert_eq "$(cat "$M/qa-d__tadw-alpha-one")" "$before" "left the qa-d marker byte-identical"
+    assert_eq "$(ls "$M" | wc -l | tr -d ' ')" "1" "added no marker beside it"
+    unset BD_STATUS BD_TYPE
+  fi
+done
+
+if case_start "label/container: a leaf that names its type is still claimed"; then
+  for leaf in task bug feature chore; do
+    R="$(new_repo "k8-$leaf" with-origin)"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_TYPE="$leaf"
+    unset BD_ASSIGNEE
+    run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111)"
+    assert_match "$R/.bdlog" "^update tadw-alpha-one --claim --actor Hook Suite \(session aaaa1111\)$" "claimed the $leaf"
+    assert_no_match "$R/.hookout" "permissionDecision" "did not refuse the $leaf"
+  done
+  unset BD_STATUS BD_TYPE
+fi
+
+if case_start "label/container: a typed leaf under the person's own claim is still adopted"; then
+  R="$(new_repo k9 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="in_progress" BD_ASSIGNEE="Hook Suite" BD_TYPE="task"
+  run_hook "$LABEL" "$R" "$(BUILD_PRE aaaa1111)"
+  assert_match "$R/.bdlog" "^update tadw-alpha-one --if-assignee Hook Suite --assignee Hook Suite \\(session aaaa1111\\) --status in_progress" "took it over as a compare-and-set"
+  unset BD_STATUS BD_ASSIGNEE BD_TYPE
+fi
+
+if case_start "label/container: a typed leaf with no session_id is still claimed as before"; then
+  R="$(new_repo k10 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_TYPE="task"
+  unset BD_ASSIGNEE
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:feature-development' 'tadw-alpha-one')"
+  assert_match "$R/.bdcalls" "^update tadw-alpha-one --claim$" "claimed it under git user.name"
+  [[ -f "$(marker_dir "$R")/implemented__tadw-alpha-one" ]] && ok "dropped the implemented marker" || nope "dropped the implemented marker"
+  unset BD_STATUS BD_TYPE
+fi
+
+if case_start "label/container: a review pass still labels an epic"; then
+  # The refusal rides the /build claim. A skill that claims nothing is not stopped.
+  R="$(new_repo k11 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_TYPE="epic"
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' 'tadw-alpha-one')"
+  assert_match "$R/.bdcalls" "--add-label reviewed" "labeled it"
+  unset BD_STATUS BD_TYPE
+fi
+
+# ---------------------------------------------------------------------------
 # Bead resolution from the branch
 #
 # The class of defect these pin cost a whole build-and-ship session on
@@ -2429,6 +2586,22 @@ if case_start "install/check: the claim module is installed and matches its sour
   run_installer "$R" --check
   assert_eq "$INSTALL_CODE" 1 "a drifted module fails --check"
   assert_match "$R/.instout" "module:   DRIFTED" "said the module drifted"
+fi
+
+if case_start "install: the installed script and module refuse a container together"; then
+  # The refusal needs both files: the script passes the type, the module decides.
+  for container in epic milestone; do
+    R="$(new_repo "i13-$container")"
+    run_installer "$R"
+    run_installer "$R" --check
+    assert_eq "$INSTALL_CODE" 0 "--check passes ($container)"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_TYPE="$container"
+    unset BD_ASSIGNEE
+    run_hook "$(installed_hook "$R")" "$R" "$(BUILD_PRE aaaa1111)"
+    assert_eq "$(jq -r '.hookSpecificOutput.permissionDecision' "$R/.hookout" 2>/dev/null)" "deny" "the installed copy denied the skill ($container)"
+    assert_no_match "$R/.bdcalls" "^update " "the installed copy wrote nothing to the tracker ($container)"
+    unset BD_STATUS BD_TYPE
+  done
 fi
 
 if case_start "install: a runner an older installer left in .claude/scripts is removed"; then

@@ -55,6 +55,7 @@ Then judge whether it is buildable, and say which:
 | A runnable criterion already fails for a reason the bead's work will not touch, passes before any work, or rests on a ritual with no `Evidence:` line | Run the "Criterion pre-flight" from `bead-audit`, report which criterion and why, and **stop**. Do not build toward a criterion that cannot pass. |
 | Criteria exist but are vague, or `design` is empty | Load `bead-audit`, report what is missing, and **stop**. Ask the user to fill the gap or to confirm you should proceed on stated assumptions. |
 | `notes` says the bead is too big, or says "split before claiming" | Say so and stop. Building a bead that its own audit called too big produces a diff nobody can review. |
+| `issue_type` is `epic` or `milestone` | Say that the bead is a container with no work of its own, give `bd list --parent <id>` to list its children, and **stop**. Create no branch and no worktree. The labeling hook normally refuses this run first; this stop covers a run the hook did not see. |
 | The bead does not exist, or is already closed | Say so and stop. Do not guess at a near-match id. |
 | `status` is `in_progress`, and this session holds no `bead-claim:` line naming this bead | Say so, name the `assignee`, and stop. See "Who holds the bead" below. |
 

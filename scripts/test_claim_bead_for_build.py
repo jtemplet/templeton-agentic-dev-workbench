@@ -71,8 +71,15 @@ class FakeTracker:
 
 
 def claim(status: str, assignee: str = "", actor: str = ACTOR, tracker: FakeTracker = None):
-    bead = hook.Bead("tadw-1", status, assignee)
+    return claim_of(hook.Bead("tadw-1", status, assignee), actor, tracker)
+
+
+def claim_of(bead, actor: str = ACTOR, tracker: FakeTracker = None):
     return hook.run_claim(bead, hook.Claimant(actor, OWNER), tracker or FakeTracker())
+
+
+def bead_of_type(issue_type: str, status: str = "open", assignee: str = ""):
+    return hook.Bead("tadw-1", status, assignee, issue_type)
 
 
 # --- decide_claim ------------------------------------------------------------
@@ -181,11 +188,67 @@ def case_left_alone_bead_is_not_held():
     assert_eq((result.code, result.outcome, result.holds_bead), (0, "left status closed alone", False))
 
 
+# --- containers ---------------------------------------------------------------
+
+CONTAINER_TYPES = ("epic", "milestone")
+LEAF_TYPES = ("task", "bug", "feature", "chore", "")
+
+
+def case_container_is_refused_before_any_tracker_write():
+    # Every status and assignee here would otherwise claim, adopt, or be left alone.
+    for issue_type in CONTAINER_TYPES:
+        for status, assignee in (("open", ""), ("open", OWNER), ("in_progress", ACTOR), ("closed", "")):
+            tracker = FakeTracker()
+            result = claim_of(bead_of_type(issue_type, status, assignee), tracker=tracker)
+            assert_eq(
+                (result.code, result.outcome, tracker.calls),
+                (2, f"REFUSED, type {issue_type} is a container", []),
+            )
+
+
+def case_container_is_refused_without_a_session():
+    for issue_type in CONTAINER_TYPES:
+        tracker = FakeTracker()
+        result = claim_of(bead_of_type(issue_type), actor="", tracker=tracker)
+        assert_eq((result.code, tracker.calls), (2, []))
+
+
+def case_refused_container_is_not_held():
+    assert_eq(claim_of(bead_of_type("epic")).holds_bead, False)
+
+
+def case_leaf_types_are_still_claimed():
+    for issue_type in LEAF_TYPES:
+        tracker = FakeTracker()
+        result = claim_of(bead_of_type(issue_type), tracker=tracker)
+        assert_eq((result.code, tracker.calls), (0, [("claim", "tadw-1", ACTOR)]))
+
+
+def case_leaf_adoption_survives_a_named_type():
+    tracker = FakeTracker()
+    result = claim_of(bead_of_type("task", "in_progress", OWNER), tracker=tracker)
+    assert_eq((result.code, tracker.calls), (0, [("adopt", "tadw-1", OWNER, ACTOR)]))
+
+
+def case_container_diagnostic_names_the_type_and_the_next_command():
+    for issue_type in CONTAINER_TYPES:
+        refused = claim_of(bead_of_type(issue_type))
+        blocked = hook.hook_output("UserPromptSubmit", "tadw-1", ACTOR, refused)
+        assert_eq(blocked["decision"], "block")
+        denied = hook.hook_output("PreToolUse", "tadw-1", ACTOR, refused)
+        assert_eq(denied["hookSpecificOutput"]["permissionDecision"], "deny")
+        for reason in (blocked["reason"], denied["hookSpecificOutput"]["permissionDecisionReason"]):
+            assert f"tadw-1 is of type {issue_type}, a container" in reason, reason
+            assert "bd list --parent tadw-1" in reason, reason
+            # Releasing a claim is the wrong advice: nothing holds a container.
+            assert "bd unclaim" not in reason, reason
+
+
 # --- hook output ----------------------------------------------------------------
 
 
 def case_refusal_takes_each_events_shape():
-    refused = hook.ClaimResult(2, f"REFUSED, in_progress under {OTHER}")
+    refused = claim("in_progress", OTHER)
     blocked = hook.hook_output("UserPromptSubmit", "tadw-1", ACTOR, refused)
     assert_eq(blocked["decision"], "block")
     assert "bd unclaim tadw-1 --force" in blocked["reason"], blocked["reason"]
@@ -254,6 +317,28 @@ def case_refusal_exits_2_with_hook_json():
         assert_eq(json.loads(completed.stdout)["hook_output"]["decision"], "block")
 
 
+def case_container_refusal_exits_2_and_runs_no_bd_command():
+    for issue_type in CONTAINER_TYPES:
+        for payload in ({"hook_event_name": "PreToolUse", "session_id": "aaaa1111"}, {"hook_event_name": "PreToolUse"}):
+            with tempfile.TemporaryDirectory() as tmp:
+                directory = Path(tmp)
+                completed = run_module(directory, json.dumps(payload), "claim", "tadw-1", "open", "", issue_type)
+                assert_eq(completed.returncode, 2)
+                assert_eq((directory / "bd.log").exists(), False)
+                output = json.loads(completed.stdout)["hook_output"]
+                assert_eq(output["hookSpecificOutput"]["permissionDecision"], "deny")
+
+
+def case_leaf_type_argument_still_claims():
+    with tempfile.TemporaryDirectory() as tmp:
+        directory = Path(tmp)
+        payload = json.dumps({"hook_event_name": "PreToolUse", "session_id": "aaaa1111"})
+        completed = run_module(directory, payload, "claim", "tadw-1", "open", "", "task")
+        assert_eq(completed.returncode, 0)
+        logged = (directory / "bd.log").read_text(encoding="utf-8")
+        assert_eq(logged, f"update tadw-1 --claim --actor {ACTOR}\n")
+
+
 def case_bad_usage_never_refuses():
     with tempfile.TemporaryDirectory() as tmp:
         completed = run_module(Path(tmp), "{}", "claim", "tadw-1")
@@ -280,12 +365,20 @@ for name, fn in [
     ("a failed adoption runs without a claim", case_failed_adoption_runs_without_a_claim),
     ("a refusal writes nothing to the tracker", case_refusal_writes_nothing),
     ("a bead left alone is not held", case_left_alone_bead_is_not_held),
+    ("an epic or milestone is refused before any tracker write", case_container_is_refused_before_any_tracker_write),
+    ("an epic or milestone is refused without a session", case_container_is_refused_without_a_session),
+    ("a refused container is not held", case_refused_container_is_not_held),
+    ("every leaf type is still claimed", case_leaf_types_are_still_claimed),
+    ("a leaf that names its type is still adopted", case_leaf_adoption_survives_a_named_type),
+    ("the container diagnostic names the type and the next command", case_container_diagnostic_names_the_type_and_the_next_command),
     ("a refusal takes the shape each event accepts", case_refusal_takes_each_events_shape),
     ("a held bead is announced to the run", case_held_bead_is_announced),
     ("no actor means no announcement", case_no_actor_announces_nothing),
     ("bead_field reads bd show JSON", case_bead_field_reads_bd_show_json),
     ("a hostile session_id reaches bd sanitized", case_hostile_session_id_reaches_bd_sanitized),
     ("a refusal exits 2 with hook JSON on stdout", case_refusal_exits_2_with_hook_json),
+    ("a container refusal exits 2 and runs no bd command", case_container_refusal_exits_2_and_runs_no_bd_command),
+    ("a leaf type on the command line still claims", case_leaf_type_argument_still_claims),
     ("bad usage exits 1 and never refuses", case_bad_usage_never_refuses),
 ]:
     check(name, fn)

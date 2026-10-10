@@ -4,16 +4,18 @@
 label_bead_on_skill_invocation.sh calls this once per /build, with the hook
 payload on stdin:
 
-    python3 claim_bead_for_build.py claim <bead-id> <status> <assignee>
+    python3 claim_bead_for_build.py claim <bead-id> <status> <assignee> [<issue-type>]
 
-<status> and <assignee> come from the `bd show` the hook already made while
-resolving the bead, so the decision itself costs no tracker call. Stdout is one
+<status>, <assignee> and <issue-type> come from the `bd show` the hook already
+made while resolving the bead, so the decision itself costs no tracker call. A
+label script older than the container refusal passes no <issue-type>, and its
+bead is then treated as a leaf, as it always was. Stdout is one
 JSON object, {"outcome": <text for the log>, "hook_output": <hook JSON or null>},
 and the exit status is the one the bash claim_bead always returned:
 
     0  this session holds the bead, or its status was left alone
     1  bd failed, so the skill runs without a claim
-    2  another holder means /build must not run
+    2  /build must not run: another holder has the bead, or it is a container
 
 Usage errors exit 1, never 2, so a broken call can never refuse a build.
 
@@ -27,6 +29,12 @@ empty assignee included.
 A payload with no session_id keeps the old behavior: bd claims as git user.name
 and no in_progress bead is refused, since one session cannot be told from
 another.
+
+WHY A CONTAINER IS REFUSED HERE. An epic or a milestone groups other beads and
+holds no work of its own. The hook claims before the feature-development skill
+reads the bead, so a guard in the skill alone runs after the container's status
+and assignee have already changed. The refusal needs no session, so it holds
+for every payload.
 
 Stdlib only, and Python 3.9, since /usr/bin/python3 is what a consumer
 repository is guaranteed to have.
@@ -55,6 +63,9 @@ BD_PRECONDITION_MISMATCH = 13
 # The shell's own status for a program it cannot find.
 EXIT_COMMAND_NOT_FOUND = 127
 
+# The bd issue types that group other beads and hold no work of their own.
+CONTAINER_TYPES = frozenset({"epic", "milestone"})
+
 # Eight characters tell concurrent sessions apart and keep `bd show` readable.
 SESSION_PART_LENGTH = 8
 
@@ -78,6 +89,11 @@ class Bead:
     id: str
     status: str
     assignee: str
+    issue_type: str = ""
+
+    @property
+    def is_container(self) -> bool:
+        return self.issue_type in CONTAINER_TYPES
 
 
 @dataclass(frozen=True)
@@ -92,6 +108,8 @@ class Claimant:
 class ClaimResult:
     code: int
     outcome: str
+    # What the person is told when the run is refused; empty for every other result.
+    reason: str = ""
 
     @property
     def holds_bead(self) -> bool:
@@ -190,6 +208,8 @@ def run_command(argv: Sequence[str]) -> subprocess.CompletedProcess[str] | None:
 
 
 def run_claim(bead: Bead, claimant: Claimant, tracker) -> ClaimResult:
+    if bead.is_container:
+        return _refuse_container(bead)
     decision = decide_claim(bead.status, bead.assignee, claimant.actor, claimant.owner)
     if decision is Decision.ADOPT:
         return _adopt(bead.id, claimant, tracker)
@@ -198,14 +218,41 @@ def run_claim(bead: Bead, claimant: Claimant, tracker) -> ClaimResult:
     return _without_writing(decision, bead, claimant.actor)
 
 
+def _refuse_container(bead: Bead) -> ClaimResult:
+    log(f"{bead.id} is of type {bead.issue_type}, a container; refusing /build")
+    reason = (
+        f"/build refused: {bead.id} is of type {bead.issue_type}, a container that "
+        "groups other beads and holds no work of its own. Nothing was claimed or changed. "
+        f"Run `bd list --parent {bead.id}` and build one of its children instead."
+    )
+    return ClaimResult(EXIT_REFUSED, f"REFUSED, type {bead.issue_type} is a container", reason)
+
+
+def _refuse_holder(bead_id: str, detail: str) -> ClaimResult:
+    reason = (
+        f"/build refused: {bead_id} is already being worked ({detail}). Another session or "
+        "outrigger may be building it right now. If that work is abandoned, release it with "
+        f"`bd unclaim {bead_id} --force`, then run /build again."
+    )
+    return ClaimResult(EXIT_REFUSED, f"REFUSED, {detail}", reason)
+
+
 def _without_writing(decision: Decision, bead: Bead, actor: str) -> ClaimResult:
-    holder = bead.assignee or "no assignee"
     if decision is Decision.ALREADY_HELD:
         log(f"{bead.id} is already held by this session ({actor})")
         return ClaimResult(EXIT_HELD, "already held by this session")
     if decision is Decision.REFUSE:
-        log(f"{bead.id} is in_progress under {holder}; refusing /build")
-        return ClaimResult(EXIT_REFUSED, f"REFUSED, in_progress under {holder}")
+        return _refuse_in_progress(bead)
+    return _leave_alone(bead)
+
+
+def _refuse_in_progress(bead: Bead) -> ClaimResult:
+    holder = bead.assignee or "no assignee"
+    log(f"{bead.id} is in_progress under {holder}; refusing /build")
+    return _refuse_holder(bead.id, f"in_progress under {holder}")
+
+
+def _leave_alone(bead: Bead) -> ClaimResult:
     status = bead.status or "of no readable status"
     log(f"{bead.id} is {status}, not open; leaving its status alone")
     return ClaimResult(EXIT_HELD, f"left status {bead.status or 'unreadable'} alone")
@@ -216,13 +263,16 @@ def _claim(bead_id: str, actor: str, tracker) -> ClaimResult:
     if tracker.claim(bead_id, actor):
         log(f"claimed {bead_id}{as_actor}, now in_progress")
         return ClaimResult(EXIT_HELD, f"claimed in_progress{as_actor}")
+    return _failed_claim(bead_id, actor, tracker)
 
+
+def _failed_claim(bead_id: str, actor: str, tracker) -> ClaimResult:
     # A lost race and a broken bd both fail here. Only the first is a refusal,
     # and a fresh read tells them apart: a lost race leaves another assignee.
     holder = tracker.assignee(bead_id)
     if actor and holder and holder != actor:
         log(f"{bead_id} was claimed by {holder} first; refusing /build")
-        return ClaimResult(EXIT_REFUSED, f"REFUSED, claimed first by {holder}")
+        return _refuse_holder(bead_id, f"claimed first by {holder}")
     log(f"bd update {bead_id} --claim failed")
     return ClaimResult(EXIT_FAILED, "FAILED to claim in_progress")
 
@@ -234,14 +284,18 @@ def _adopt(bead_id: str, claimant: Claimant, tracker) -> ClaimResult:
         log(f"adopted {bead_id} from {owner} as {actor}, now in_progress")
         return ClaimResult(EXIT_HELD, f"claimed in_progress as {actor}, adopted from {owner}")
     if rc == BD_PRECONDITION_MISMATCH:
-        holder = tracker.assignee(bead_id) or "another session"
-        log(f"{bead_id} was adopted by {holder} first; refusing /build")
-        return ClaimResult(EXIT_REFUSED, f"REFUSED, claimed first by {holder}")
+        return _lost_adoption(bead_id, tracker)
     log(f"bd update {bead_id} --if-assignee failed")
     return ClaimResult(EXIT_FAILED, f"FAILED to adopt the claim under {owner}")
 
 
-def refusal_output(event: str, bead_id: str, outcome: str) -> dict | None:
+def _lost_adoption(bead_id: str, tracker) -> ClaimResult:
+    holder = tracker.assignee(bead_id) or "another session"
+    log(f"{bead_id} was adopted by {holder} first; refusing /build")
+    return _refuse_holder(bead_id, f"claimed first by {holder}")
+
+
+def refusal_output(event: str, reason: str) -> dict | None:
     """Stop /build before it starts, in the shape each event accepts.
 
     A UserPromptSubmit block discards the prompt and shows the reason to the
@@ -249,12 +303,6 @@ def refusal_output(event: str, bead_id: str, outcome: str) -> dict | None:
     Codex's runner discards this stdout, so there the refusal is the unmade
     claim plus the feature-development skill's own guard.
     """
-    detail = outcome[len("REFUSED, ") :] if outcome.startswith("REFUSED, ") else outcome
-    reason = (
-        f"/build refused: {bead_id} is already being worked ({detail}). Another session or "
-        "outrigger may be building it right now. If that work is abandoned, release it with "
-        f"`bd unclaim {bead_id} --force`, then run /build again."
-    )
     if event == "UserPromptSubmit":
         return {"decision": "block", "reason": reason}
     if event == "PreToolUse":
@@ -285,7 +333,7 @@ def announcement_output(event: str, bead_id: str, actor: str) -> dict | None:
 
 def hook_output(event: str, bead_id: str, actor: str, result: ClaimResult) -> dict | None:
     if result.code == EXIT_REFUSED:
-        return refusal_output(event, bead_id, result.outcome)
+        return refusal_output(event, result.reason)
     if result.holds_bead:
         return announcement_output(event, bead_id, actor)
     return None
@@ -320,11 +368,16 @@ def log(message: str) -> None:
 
 
 def main(argv: Sequence[str]) -> int:
-    if len(argv) != 4 or argv[0] != "claim":
-        log("usage: claim_bead_for_build.py claim <bead-id> <status> <assignee> (payload on stdin)")
+    if len(argv) not in (4, 5) or argv[0] != "claim":
+        log(
+            "usage: claim_bead_for_build.py claim <bead-id> <status> <assignee> [<issue-type>] "
+            "(payload on stdin)"
+        )
         return EXIT_FAILED
-    bead = Bead(*argv[1:])
-    payload = read_payload(sys.stdin.read())
+    return claim_and_report(Bead(*argv[1:]), read_payload(sys.stdin.read()))
+
+
+def claim_and_report(bead: Bead, payload: dict) -> int:
     claimant = claimant_for(payload)
     result = run_claim(bead, claimant, BdTracker())
     print(

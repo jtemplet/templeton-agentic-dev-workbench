@@ -142,6 +142,45 @@ So the refresh is now conditional. It runs in two cases:
 confirming which of the two Manifest reads. The environment variable exists to cover that
 question until it is settled.
 
+## A container is refused before the claim
+
+`/build` refuses a bead whose `issue_type` is `epic` or `milestone`. Such a bead is a container:
+it groups other beads and holds no work of its own.
+
+The refusal is in the hook because the hook writes first. It claims the bead before the
+`feature-development` skill reads it. A guard in the skill alone would run after the status and
+the assignee of the container had already changed.
+
+The label script reads `issue_type` from the `bd show` it already made, and passes it to
+`claim_bead_for_build.py` as a fifth argument. The module refuses before it decides anything
+else, so these all hold for a container:
+
+- No `bd update` runs. The status, the assignee, and the labels stay as they were.
+- No pending marker is written, and a marker another skill left is not touched.
+- The refusal needs no `session_id`. A payload without one refuses no holder, and it still
+  refuses a container.
+- A container that carries the person's own bare-name claim is refused. It is not adopted.
+
+All four spellings refuse: `build`, `tadw:build`, `feature-development`, and
+`tadw:feature-development`. A typed command gets a `UserPromptSubmit` block. A `Skill` tool call
+gets a `PreToolUse` deny. Both carry the same reason. It names the type, and it names
+`bd list --parent <id>`, the command that lists the children to build instead. The log line reads
+`REFUSED, type epic is a container`.
+
+Every other type is a leaf, and a leaf claims and adopts as before. That includes a bead whose
+`bd show` carries no `issue_type`.
+
+The hook never creates a branch or a worktree. The skill creates them in its Phase 2, and a
+refused run never reaches the skill. The skill keeps its own stop for a container in Phase 1,
+before Phase 2. That stop covers Codex, which discards the hook's refusal output.
+
+A skill that claims nothing is not stopped. `/code-review` on an epic still labels it.
+
+**Install the label script and the module together.** A module that is one version behind
+rejects the fifth argument and fails the claim, so `/build` runs with no claim and no refusal. A
+label script that is one version behind passes four arguments, and the module then treats every
+bead as a leaf. `install_label_bead_on_skill_invocation.sh --check` fails on either copy.
+
 ## Widening before narrowing
 
 The candidate pattern takes a maximal hyphenated run. So a branch named `<bead-id>-<slug>` used to

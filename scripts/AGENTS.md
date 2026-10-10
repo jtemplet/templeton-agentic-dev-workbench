@@ -15,7 +15,8 @@ this file.
 - `... --check` reports whether each installed copy matches its source, and whether all four
   events reference the label script. It changes nothing, and exits 1 when any is out of step.
 - `scripts/claim_bead_for_build.py` decides the `/build` claim: claim, adopt, already held,
-  refuse, or leave alone. It labels nothing and is not a hook. The label script runs it as a
+  refuse, or leave alone. It refuses an epic or a milestone before any of those.
+  It labels nothing and is not a hook. The label script runs it as a
   sibling through `python3`, so the installer copies it too, and removes a copy under its old
   name, `label_bead_hook.py`. `python3 scripts/test_claim_bead_for_build.py` tests the decision
   directly.
@@ -41,7 +42,11 @@ Two properties matter to the target repository:
   outrigger claims with none. A claim under the bare `user.name`, which a manual
   `bd update <id> --claim` makes, is the person's own: the session takes it over with
   `--if-assignee` rather than refusing it. A payload with no `session_id` keeps the old behavior
-  and refuses nothing.
+  and refuses no holder.
+- **`/build` on an epic or a milestone also stops, for every payload.** The label script passes
+  the `issue_type` from its `bd show` to the claim module. The module refuses those two types
+  before it runs a `bd` write, with or without a `session_id`. The bead keeps its status,
+  assignee, and labels, and no pending marker is written.
 
 **A session can outlive the directory it was started in.** Landing a bead removes its worktree.
 Each wired command guards on `test -x <path>`, so a missing script is a silent no-op rather than
