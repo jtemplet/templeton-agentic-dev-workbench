@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Claude Code and Codex hook: label the bead a skill invocation acts on.
 #
-# Wired to three events and dispatches on hook_event_name:
+# Wired to four events and dispatches on hook_event_name:
 #
 #   PreToolUse (matcher Skill)  Claude invoked the Skill tool.
 #   UserPromptSubmit            A person typed a Claude slash command or
 #                               a Codex dollar-prefixed skill name. Same
 #                               flow, keyed on the command or skill name.
 #   Stop                        Resolves labels that needed an outcome.
+#   SubagentStop                Says when the acceptance-verifier agent
+#                               finished and wrote no report.
 #
 # Both entry points converge on run_label_flow, so a skill labels the same
 # whichever way it was started.
@@ -119,6 +121,13 @@ LOG_MAX_LINES=1000
 # already had a job to do.
 SCRIPT_PATH="${BASH_SOURCE[0]}"
 SCRIPT_HASH=""
+
+# The agent /verify-acceptance sends the grading to. SubagentStop names it in
+# agent_type as tadw:acceptance-verifier, so it is matched as a suffix.
+ACCEPTANCE_AGENT="acceptance-verifier"
+
+# The plugin version whose acceptance-verifier first wrote a report file.
+ACCEPTANCE_REPORT_SINCE="4.3.1"
 
 # The /build claim decision, resolved as a sibling of this script. The
 # installer copies it alongside.
@@ -256,6 +265,12 @@ claim_bead() {
   fi
   printf '%s' "${payload:-}" | python3 "$module" claim "$bead_id" \
     "$(bead_field "$RESOLVED_JSON" status)" "$(bead_field "$RESOLVED_JSON" assignee)"
+}
+
+# The session the hook payload names, or nothing. `payload` is the global the
+# dispatch at the foot of this file reads from stdin.
+payload_session() {
+  echo "${payload:-}" | jq -r '.session_id // empty' 2>/dev/null || true
 }
 
 bead_field() {  # bead_field <json> <field>
@@ -583,7 +598,10 @@ run_label_flow() {
         log_outcome "$event" "$skill" "$branch" "$RESOLVED_ID" "FAILED to write a $LABEL marker"
         quiet_exit
       }
-      printf '%s\n%s\n%s\ngate\n' "$(date +%s)" "$RESOLVED_ID" "$skill" \
+      # The fifth line names the session that started the run. Markers are
+      # shared by every worktree and session, and handle_subagent_stop must
+      # clear only the marker of the run whose agent just finished.
+      printf '%s\n%s\n%s\ngate\n%s\n' "$(date +%s)" "$RESOLVED_ID" "$skill" "$(payload_session)" \
         > "$MARKER_DIR/${LABEL}__${RESOLVED_ID}"
       log "pending $LABEL for $RESOLVED_ID; Stop will check the run's report"
       log_outcome "$event" "$skill" "$branch" "$RESOLVED_ID" "pending $LABEL, Stop reads the report"
@@ -1069,20 +1087,21 @@ handle_stop() {
       continue
     fi
 
-    if (( now - created > MARKER_TTL_SECONDS )); then
-      log "abandoning stale marker $(basename "$marker")"
-      log_outcome Stop "$(sed -n '3p' "$marker" 2>/dev/null)" "$branch" "$bead_id" \
-        "abandoned $marker_label, the marker outlived its TTL"
-      rm -f "$marker"
-      continue
-    fi
-
     skill="$(sed -n '3p' "$marker" 2>/dev/null)"
 
     # A marker written before the mode line existed is a gate marker, which is
     # what every marker meant then.
     mode="$(sed -n '4p' "$marker" 2>/dev/null)"
     [[ -n "$mode" ]] || mode="gate"
+
+    if (( now - created > MARKER_TTL_SECONDS )); then
+      log "abandoning stale marker $(basename "$marker")"
+      log_outcome Stop "$skill" "$branch" "$bead_id" \
+        "abandoned $marker_label, $(abandon_reason "$marker" "$skill" "$mode")"
+      rm -f "$marker"
+      continue
+    fi
+
     if [[ "$mode" == "inject" ]]; then
       resolve_inject_marker "$bead_id" "$marker_label" "$skill" "$branch"
       rm -f "$marker"
@@ -1112,6 +1131,81 @@ handle_stop() {
     else
       log_outcome Stop "$skill" "$branch" "$bead_id" "withheld $marker_label, the report did not pass"
     fi
+    rm -f "$marker"
+  done
+}
+
+# Why a marker past its TTL is abandoned, in the words the log carries.
+#
+# An accepted gate marker gets its own wording, because it is the one marker
+# with a second way out: handle_subagent_stop removes it when the agent
+# finishes without a report. Reaching the TTL therefore means neither signal
+# came, and the line has to read differently from that handler's.
+#
+# A report can still be there: one written after the marker, in a session that
+# then reached no Stop until the TTL had passed. Saying "no report arrived"
+# of that marker would be false, so it keeps the plain wording.
+abandon_reason() {
+  local marker="$1" skill="$2" mode="$3"
+  case "$mode:$skill" in
+    gate:verify-acceptance|gate:tadw:verify-acceptance)
+      if [[ -z "$(newest_acceptance_report_after "$marker")" ]]; then
+        echo "no report arrived and no agent finish was seen"
+        return 0
+      fi ;;
+  esac
+  echo "the marker outlived its TTL"
+}
+
+# ---------------------------------------------------------------------
+# SubagentStop
+# ---------------------------------------------------------------------
+
+# Says so when the acceptance-verifier agent finished and wrote no report.
+#
+# A session loads its agents from the plugin cache, and an agent older than
+# ACCEPTANCE_REPORT_SINCE writes no acceptance-report.json. handle_stop cannot
+# tell that from a run still going, so it kept the marker and logged nothing
+# until the TTL. On 2026-09-09 a grading of tadw-rai returned ACCEPTED that way
+# and the label was applied by hand.
+#
+# Measured on Claude Code 2.1.295: this event fires in the calling session's
+# directory when a subagent finishes, and never for a session killed mid-run.
+# last_assistant_message arrived empty, so the verdict is not read from it.
+#
+# It applies no label. A report that did arrive is handle_stop's to read.
+#
+# Only a marker this session wrote is cleared. Measured on 2026-10-09: the
+# payload carries the calling session's session_id, the same one PreToolUse
+# and UserPromptSubmit carry. Without the match, one agent finishing would
+# clear the marker of a run interrupted earlier, or of a run in another
+# worktree, and log this cause for a run it knows nothing about. A marker
+# with no session line predates that line and is left for the TTL.
+handle_subagent_stop() {
+  local agent_type session marker bead_id skill branch
+  agent_type="$(echo "$payload" | jq -r '.agent_type // empty' 2>/dev/null || true)"
+  [[ "$agent_type" == *"$ACCEPTANCE_AGENT" ]] || quiet_exit
+  session="$(payload_session)"
+  [[ -n "$session" ]] || quiet_exit
+
+  init_repo
+  [[ -d "$MARKER_DIR" ]] || quiet_exit
+  branch="$(git branch --show-current 2>/dev/null || true)"
+
+  for marker in "$MARKER_DIR"/accepted__*; do
+    [[ -e "$marker" ]] || continue
+    # An inject marker waits on no report, and a marker with no bead id is
+    # handle_stop's to discard.
+    [[ "$(sed -n '4p' "$marker" 2>/dev/null)" == "inject" ]] && continue
+    [[ "$(sed -n '5p' "$marker" 2>/dev/null)" == "$session" ]] || continue
+    bead_id="$(sed -n '2p' "$marker" 2>/dev/null)"
+    [[ -n "$bead_id" ]] || continue
+    [[ -n "$(newest_acceptance_report_after "$marker")" ]] && continue
+
+    skill="$(sed -n '3p' "$marker" 2>/dev/null)"
+    log "the $ACCEPTANCE_AGENT agent finished and wrote no report for $bead_id"
+    log_outcome SubagentStop "$skill" "$branch" "$bead_id" \
+      "withheld accepted, the $ACCEPTANCE_AGENT agent finished and wrote no report; the plugin cache can be older than $ACCEPTANCE_REPORT_SINCE"
     rm -f "$marker"
   done
 }
@@ -1200,6 +1294,7 @@ case "$event" in
   PreToolUse)       handle_pre "$payload" ;;
   UserPromptSubmit) handle_prompt "$payload" ;;
   Stop)             handle_stop ;;
+  SubagentStop)     handle_subagent_stop ;;
   *)                quiet_exit ;;
 esac
 

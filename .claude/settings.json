@@ -66,6 +66,17 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "command": "d=\"${CLAUDE_PROJECT_DIR:-}\"; test -n \"$d\" || exit 0; s=\"$(git -C \"$d\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)\"; test -n \"$s\" || exit 0; s=\"${s%/.git}/.claude/scripts/label_bead_on_skill_invocation.sh\"; test -x \"$s\" && exec \"$s\" || exit 0",
+            "statusMessage": "Checking for a missing acceptance report...",
+            "type": "command"
+          }
+        ]
+      }
     ]
   }
 }

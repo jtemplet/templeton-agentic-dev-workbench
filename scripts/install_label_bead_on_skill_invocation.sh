@@ -21,12 +21,13 @@
 #      .codex/hooks.json still names that path. claim_bead_for_build.py rides
 #      along too: the label script runs it as a sibling to decide the /build
 #      claim, and without it /build starts with no claim at all.
-#   2. Wires that path into <repo>/.claude/settings.json for the three events
+#   2. Wires that path into <repo>/.claude/settings.json for the four events
 #      the hook dispatches on: PreToolUse (matcher Skill), UserPromptSubmit,
-#      and Stop. Everything else in settings.json is left byte-identical.
+#      Stop, and SubagentStop. Everything else in settings.json is left
+#      byte-identical.
 #
 # --check answers the same two questions and changes nothing: it reports how
-# each installed copy differs from the source and which of the three events are
+# each installed copy differs from the source and which of the four events are
 # wired, then exits non-zero if either is out of step. That is the form a
 # pre-push hook can use, and it is also the honest way to look at a repository
 # whose copy somebody may have edited on purpose.
@@ -60,6 +61,11 @@ CHECK_ONLY=false
 PRE_MESSAGE="feature-development / simplify / code-review / fresh-eyes-cr / qa / verify-acceptance: labeling bead..."
 PROMPT_MESSAGE="slash command: labeling bead..."
 STOP_MESSAGE="Resolving pending bead labels..."
+SUBAGENT_STOP_MESSAGE="Checking for a missing acceptance report..."
+
+# Every event the hook dispatches on. --check verifies each one, and the jq
+# program below wires each one.
+WIRED_EVENTS="PreToolUse UserPromptSubmit Stop SubagentStop"
 
 die() { echo "error: $*" >&2; exit 1; }
 
@@ -181,8 +187,8 @@ report_script_state() {
   fi
 }
 
-# Which of the three events name this hook. Wiring drift is its own failure:
-# a current script reached by two events labels nothing on the third, which is
+# Which of the four events name this hook. Wiring drift is its own failure:
+# a current script reached by three events does nothing on the fourth, which is
 # exactly how a typed slash command went unlabeled while the file was fine.
 wired_events() {
   [[ -f "$SETTINGS" ]] || return 0
@@ -217,11 +223,11 @@ if [[ "$CHECK_ONLY" == true ]]; then
 
   found="$(wired_events | tr '\n' ' ')"
   missing_events=""
-  for e in PreToolUse UserPromptSubmit Stop; do
+  for e in $WIRED_EVENTS; do
     case " $found " in *" $e "*) ;; *) missing_events="$missing_events $e" ;; esac
   done
   if [[ -z "$missing_events" ]]; then
-    echo "wiring:   all three events reference the hook"
+    echo "wiring:   all four events reference the hook"
   else
     echo "wiring:   NOT WIRED for$missing_events in .claude/settings.json"
     check_failed=true
@@ -364,9 +370,9 @@ fi
 # one to the group whose matcher matches, otherwise add that group. Rewriting
 # in place is what makes a second run a repair rather than a duplication.
 #
-# Single-quoted on purpose: $cmd, $name, $pre, $prompt, and $stop are jq
-# variables fed by the --arg flags below, and letting bash expand them first
-# would substitute empty strings into the program.
+# Single-quoted on purpose: $cmd, $name, $pre, $prompt, $stop, and
+# $subagent_stop are jq variables fed by the --arg flags below, and letting
+# bash expand them first would substitute empty strings into the program.
 # shellcheck disable=SC2016
 JQ_PROGRAM='
 def entry($msg): {type: "command", command: $cmd, statusMessage: $msg};
@@ -402,6 +408,7 @@ def wire($event; $matcher; $msg):
 wire("PreToolUse"; "Skill"; $pre)
 | wire("UserPromptSubmit"; null; $prompt)
 | wire("Stop"; null; $stop)
+| wire("SubagentStop"; null; $subagent_stop)
 '
 
 tmp="$(mktemp "${TMPDIR:-/tmp}/settings.json.XXXXXX")"
@@ -413,6 +420,7 @@ printf '%s' "$original" |
      --arg pre "$PRE_MESSAGE" \
      --arg prompt "$PROMPT_MESSAGE" \
      --arg stop "$STOP_MESSAGE" \
+     --arg subagent_stop "$SUBAGENT_STOP_MESSAGE" \
      "$JQ_PROGRAM" >"$tmp" ||
   die "jq could not patch the settings (its own error is above); $SETTINGS is untouched"
 
@@ -453,7 +461,7 @@ echo "settings:    $settings_result in .claude/settings.json"
 echo "backup:      $backup_result"
 
 echo
-echo "The three events now referencing the hook:"
+echo "The four events now referencing the hook:"
 # Every event this script writes holds an array, but an unrelated event in
 # somebody's settings.json may hold anything. Skipping a non-array keeps a
 # report from failing after the install already succeeded.

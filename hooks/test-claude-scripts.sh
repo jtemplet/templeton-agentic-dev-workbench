@@ -1086,9 +1086,9 @@ write_acceptance_report() {  # write_acceptance_report <repo> <passed> <total> <
     > "$1/.git/acceptance-report.json"
 }
 
-acceptance_marker() {  # acceptance_marker <repo> <bead> [created-epoch]
+acceptance_marker() {  # acceptance_marker <repo> <bead> [created-epoch] [session-id]
   local M; M="$(marker_dir "$1")"; mkdir -p "$M"
-  printf '%s\n%s\ntadw:verify-acceptance\ngate\n' "${3:-$(date +%s)}" "$2" \
+  printf '%s\n%s\ntadw:verify-acceptance\ngate\n%s\n' "${3:-$(date +%s)}" "$2" "${4:-}" \
     > "$M/accepted__$2"
 }
 
@@ -1260,6 +1260,139 @@ if case_start "label/stop: an acceptance marker past its TTL is abandoned, never
   assert_no_match "$R/.bdcalls" "--add-label" "no label"
   assert_match "$R/.hookerr" "abandoning stale marker" "said why"
   [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "removed the marker" || nope "removed the marker"
+fi
+
+# SubagentStop names the agent that finished in agent_type. tadw-a6y: an
+# acceptance-verifier loaded from a plugin cache older than 4.3.1 writes no
+# report, and until this event was read that looked like a run still going.
+# The session id defaults to the one session_marker writes, so a case that
+# passes neither describes one session grading one bead.
+THIS_SESSION="11111111-aaaa-4bbb-8ccc-000000000001"
+OTHER_SESSION="22222222-aaaa-4bbb-8ccc-000000000002"
+
+subagent_stop() {  # subagent_stop <agent-type> [session-id]
+  jq -n --arg a "$1" --arg s "${2-$THIS_SESSION}" \
+    '{hook_event_name:"SubagentStop", agent_type:$a, last_assistant_message:""}
+     + (if $s == "" then {} else {session_id:$s} end)'
+}
+
+session_marker() {  # session_marker <repo> <bead> [session-id]
+  acceptance_marker "$1" "$2" "" "${3:-$THIS_SESSION}"
+}
+
+if case_start "label/subagent-stop: the acceptance-verifier finishing with no report logs it, labels nothing, and deletes the marker"; then
+  # tadw-a6y criterion 1.
+  R="$(new_repo s1 with-origin)"
+  session_marker "$R" tadw-alpha-one
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(subagent_stop tadw:acceptance-verifier)"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  L="$R/.git/bead-label.log"
+  assert_eq "$(grep -c 'finished and wrote no report' "$L" 2>/dev/null)" "1" "wrote exactly one line naming the cause"
+  assert_match "$L" "SubagentStop" "the line names the event"
+  assert_match "$L" "tadw-alpha-one" "the line names the bead"
+  assert_match "$L" "older than 4\.3\.1" "the line names the stale plugin cache"
+  assert_no_match "$R/.bdcalls" "--add-label" "made no --add-label call"
+  if [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]]; then ok "deleted the marker"; else nope "deleted the marker"; fi
+fi
+
+if case_start "label/subagent-stop: a passing report newer than the marker is left for Stop, which applies accepted"; then
+  # tadw-a6y criterion 2.
+  R="$(new_repo s2 with-origin)"
+  session_marker "$R" tadw-alpha-one
+  age_artifacts "$R"; write_acceptance_report "$R" 9 9 0 0 3 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(subagent_stop tadw:acceptance-verifier)"
+  if [[ -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]]; then ok "the marker remains"; else nope "the marker remains"; fi
+  assert_no_match "$R/.bdcalls" "--add-label" "SubagentStop itself applied no label"
+  assert_no_match "$R/.git/bead-label.log" "finished and wrote no report" "logged no missing report"
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "^update tadw-alpha-one --add-label accepted$" "the following Stop applied accepted"
+fi
+
+if case_start "label/subagent-stop: another agent finishing leaves the marker and the log alone"; then
+  # tadw-a6y criterion 3.
+  R="$(new_repo s3 with-origin)"
+  session_marker "$R" tadw-alpha-one
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(subagent_stop tadw:diagnostician)"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  if [[ -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]]; then ok "the marker remains"; else nope "the marker remains"; fi
+  if [[ ! -e "$R/.git/bead-label.log" ]]; then ok "the log gained no line"; else nope "the log gained no line" "$(cat "$R/.git/bead-label.log")"; fi
+fi
+
+if case_start "label/stop: an acceptance marker past its TTL with no report says no agent finish was seen"; then
+  # tadw-a6y criterion 4. This line must read differently from the one
+  # SubagentStop writes, or a run that never finished reads as a stale cache.
+  R="$(new_repo s4 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one "$(( $(date +%s) - 99999 ))"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  L="$R/.git/bead-label.log"
+  assert_match "$L" "abandoned accepted, no report arrived and no agent finish was seen" "named what was never seen"
+  assert_no_match "$L" "finished and wrote no report" "did not claim the agent finished"
+  if [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]]; then ok "removed the marker"; else nope "removed the marker"; fi
+fi
+
+if case_start "label/stop: an acceptance marker past its TTL with a report does not say no report arrived"; then
+  R="$(new_repo s4r with-origin)"
+  acceptance_marker "$R" tadw-alpha-one "$(( $(date +%s) - 99999 ))"
+  age_artifacts "$R"; write_acceptance_report "$R" 9 9 0 0 3 0 0
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  L="$R/.git/bead-label.log"
+  assert_match "$L" "abandoned accepted, the marker outlived its TTL" "kept the plain wording"
+  assert_no_match "$L" "no report arrived" "did not deny a report that is there"
+  assert_no_match "$R/.bdcalls" "--add-label" "still applied no label"
+fi
+
+if case_start "label/subagent-stop: a marker for another label is left for Stop"; then
+  # Only an accepted marker waits on this agent. A build or quality-gates run
+  # in the same checkout has its own report and its own reader.
+  R="$(new_repo s5 with-origin)"
+  build_marker "$R" tadw-alpha-one
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(subagent_stop tadw:acceptance-verifier)"
+  if [[ -e "$(marker_dir "$R")/implemented__tadw-alpha-one" ]]; then ok "the build marker remains"; else nope "the build marker remains"; fi
+  if [[ ! -e "$R/.git/bead-label.log" ]]; then ok "the log gained no line"; else nope "the log gained no line"; fi
+fi
+
+if case_start "label/pre: a gate marker records the session that started the run"; then
+  R="$(new_repo s6 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:verify-acceptance' 'tadw-alpha-one' \
+    | jq --arg s "$THIS_SESSION" '. + {session_id:$s}')"
+  assert_eq "$(sed -n 5p "$(marker_dir "$R")/accepted__tadw-alpha-one" 2>/dev/null)" "$THIS_SESSION" \
+    "the fifth line names the session"
+  run_hook "$LABEL" "$R" "$(subagent_stop tadw:acceptance-verifier)"
+  assert_match "$R/.git/bead-label.log" "finished and wrote no report" "and SubagentStop from that session resolves it"
+fi
+
+if case_start "label/subagent-stop: a marker another session wrote is left alone"; then
+  # An earlier grading that was interrupted, or one running in another
+  # worktree. This agent finishing says nothing about that run.
+  R="$(new_repo s7 with-origin)"
+  session_marker "$R" tadw-alpha-one "$OTHER_SESSION"
+  session_marker "$R" tadw-beta-two
+  export BD_KNOWN="tadw-alpha-one tadw-beta-two" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(subagent_stop tadw:acceptance-verifier)"
+  if [[ -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]]; then ok "the other session's marker remains"; else nope "the other session's marker remains"; fi
+  if [[ ! -e "$(marker_dir "$R")/accepted__tadw-beta-two" ]]; then ok "this session's marker is deleted"; else nope "this session's marker is deleted"; fi
+  L="$R/.git/bead-label.log"
+  assert_eq "$(grep -c 'finished and wrote no report' "$L" 2>/dev/null)" "1" "wrote one line, for this session's bead"
+  assert_no_match "$L" "tadw-alpha-one" "named no bead of the other session"
+fi
+
+if case_start "label/subagent-stop: a marker with no session line is left for the TTL"; then
+  # Markers written before the session line existed sit in real clones.
+  R="$(new_repo s8 with-origin)"
+  acceptance_marker "$R" tadw-alpha-one
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(subagent_stop tadw:acceptance-verifier)"
+  if [[ -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]]; then ok "the marker remains"; else nope "the marker remains"; fi
+  run_hook "$LABEL" "$R" "$(subagent_stop tadw:acceptance-verifier "")"
+  if [[ -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]]; then ok "a payload with no session clears nothing either"; else nope "a payload with no session clears nothing either"; fi
+  if [[ ! -e "$R/.git/bead-label.log" ]]; then ok "the log gained no line"; else nope "the log gained no line"; fi
 fi
 
 if case_start "label/stop: a bare ACCEPTED verdict string earns nothing on its own"; then
@@ -2161,7 +2294,7 @@ fi
 #
 # Deployed copies of the hook drift from the source, and nothing used to say
 # how. Two kinds of drift, and each fails on its own: a stale script, and a
-# script that is current but reached by fewer than three events. The second is
+# script that is current but reached by fewer than four events. The second is
 # how a typed slash command went unlabeled while the file itself was fine.
 # ---------------------------------------------------------------------------
 
@@ -2215,7 +2348,7 @@ if case_start "install/check: a current install passes and changes nothing"; the
   run_installer "$R" --check
   assert_eq "$INSTALL_CODE" 0 "exits 0"
   assert_match "$R/.instout" "script:   current" "called the script current"
-  assert_match "$R/.instout" "wiring:   all three events" "called the wiring complete"
+  assert_match "$R/.instout" "wiring:   all four events" "called the wiring complete"
   assert_eq "$(cat "$R/.claude/settings.json")" "$before" "left settings.json byte-identical"
 fi
 
@@ -2241,6 +2374,22 @@ if case_start "install/check: wiring that is missing an event fails even with a 
   assert_eq "$INSTALL_CODE" 1 "exits non-zero"
   assert_match "$R/.instout" "script:   current" "still calls the script current"
   assert_match "$R/.instout" "NOT WIRED for UserPromptSubmit" "names the event that is missing"
+fi
+
+if case_start "install/check: settings with no SubagentStop hook fail, and the installer repairs them"; then
+  # tadw-a6y criterion 5. Without this event the hook never learns that the
+  # acceptance-verifier finished, and a missing report stays silent.
+  R="$(new_repo i5s)"
+  run_installer "$R"
+  jq 'del(.hooks.SubagentStop)' "$R/.claude/settings.json" > "$R/.s" && mv "$R/.s" "$R/.claude/settings.json"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 1 "--check exits 1 without the SubagentStop hook"
+  assert_match "$R/.instout" "NOT WIRED for SubagentStop" "names the event that is missing"
+  run_installer "$R"
+  assert_eq "$INSTALL_CODE" 0 "the installer succeeds"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 0 "--check exits 0 after the installer runs"
+  assert_match "$R/.instout" "wiring:   all four events" "reports SubagentStop wired again"
 fi
 
 if case_start "install/check: an uninstalled repository reports that, rather than a diff"; then

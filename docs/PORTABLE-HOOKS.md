@@ -21,7 +21,7 @@ hook dropped at the `bd` cutover.
 
 `scripts/install_label_bead_on_skill_invocation.sh` installs the hook into whatever repository
 you run it from. It copies the hook and its claim module to `.claude/scripts/` and the Codex
-runner to `.codex/scripts/`, backs up `.claude/settings.json`, and wires the three events.
+runner to `.codex/scripts/`, backs up `.claude/settings.json`, and wires the four events.
 Re-running it is safe. It repairs wiring that names an older path instead of adding a second
 entry. `--dest-dir` moves the label script and its module, never the runner.
 
@@ -41,11 +41,11 @@ A run that overwrites an existing copy first reports how the two differ, in line
 hashes. After the copy, that evidence is gone.
 
 `--check` answers the same questions and changes nothing. It reports whether each installed copy
-matches its source, and whether all three events reference the label script. It exits 1 if any of
+matches its source, and whether all four events reference the label script. It exits 1 if any of
 those is out of step.
 
 The two kinds of drift fail independently. The second is the one that is easy to miss: a current
-script reached by only two events labels nothing on the third. `tadw-j80` covers wiring `--check`
+script reached by only three events does nothing on the fourth. `tadw-j80` covers wiring `--check`
 into `.githooks/pre-push`.
 
 ## Codex
@@ -205,6 +205,22 @@ broken one.
 
 A label that `/build` or `/verify-acceptance` was asked to apply, and never did, appears as
 `OWED <label>`. That is the one failure that used to leave no trace anywhere.
+
+An `accepted` label that never arrived has two different lines, and they name two different
+causes:
+
+| Line in the log | What happened |
+|---|---|
+| `withheld accepted, the acceptance-verifier agent finished and wrote no report` | The agent finished. The plugin cache can be older than 4.3.1, and an agent that old writes no `acceptance-report.json`. Update the plugin, then run `/verify-acceptance` again. |
+| `abandoned accepted, no report arrived and no agent finish was seen` | The run never finished. The marker waited 6 hours and the hook deleted it. |
+
+The first line comes from the `SubagentStop` event, which Claude Code sends when a subagent
+finishes. A session that is stopped while its agent runs sends no such event, so that run reaches
+the second line.
+
+The event clears only a marker that its own session wrote. A marker records that session on its
+fifth line. So an agent that finishes in one session never clears the marker of a run in another
+session or another worktree.
 
 **Before the fact.** Run
 `.claude/scripts/label_bead_on_skill_invocation.sh --doctor` from a terminal when a label you
