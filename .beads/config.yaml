@@ -3,3 +3,6 @@ sync:
     remote: "git+ssh://git@github.com/jtemplet/templeton-agentic-dev-workbench.git"
 export:
     auto: true
+no-git-ops: false
+agent:
+    profile: team-maintainer
