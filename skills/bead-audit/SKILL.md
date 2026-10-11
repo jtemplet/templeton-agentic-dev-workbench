@@ -19,8 +19,8 @@ responsibility (a human pasting, a script looping over a backlog, or a `/goal`-s
 
 1. **Content is not structure.** A bead whose Why/How/Done content is rich but written as `WHY:`
    prose instead of under `## Why (Computational)` is *correctly specified, wrongly formatted*. That
-   is an auto-fixable reformat (WARN), never an under-specification (FAIL). The audit reports these
-   as separate verdicts.
+   is an auto-fixable reformat (structure `variant`, rollup REFORMAT), never an under-specification
+   (content `fail`, rollup NEEDS WORK). The audit reports these as separate verdicts.
 2. **Specification is not currency.** A bead can be perfectly written and no longer true. If the
    file its How names was renamed last month, the bead is *stale*, not under-specified, and the fix
    is to re-ground it, not to write missing content. Grounding is therefore a third verdict on its
@@ -172,13 +172,16 @@ apply to every bead.**
 
 | Band | Files | LOC | Verdict |
 |---|---|---|---|
-| **N/A (umbrella)** | - | - | Pass. A container (`epic` or `milestone`) holds other beads and carries ~0 direct diff. Never FAIL a container on size |
-| **N/A (operational)** | - | - | Pass. Ops/chore/infra beads (config, deploy, manual production change, external-system work) have no meaningful repo diff |
-| **Trivial** | 1 | < 20 | Warn: should be a direct commit, not a bead |
+| **N/A (umbrella)** | - | - | No content verdict. The score excludes the dimension. A container (`epic` or `milestone`) holds other beads and carries ~0 direct diff. Never FAIL a container on size |
+| **N/A (operational)** | - | - | No content verdict. The score excludes the dimension. Ops/chore/infra beads (config, deploy, manual production change, external-system work) have no meaningful repo diff |
+| **Trivial** | 1 | < 20 | Content `warn` on size: should be a direct commit, not a bead |
 | **Target** | 1-5 | 20-300 | Pass |
 | **Stretch** | up to 10 | up to 600 | Pass only if a one-sentence justification is present |
 | **Too big** | > 10 | > 600 | Fail: must be split |
 | **Hard ceiling** | > 30 | > 2000 | Fail: cannot ship autonomously |
+
+**An N/A size band is not a `pass`.** It has no content verdict, and it leaves both the numerator
+and the denominator, per "Renormalization".
 
 **When dimensions disagree, the worse quality band wins** (code-bearing beads only).
 
@@ -191,7 +194,7 @@ apply to every bead.**
 <!-- container-size:end -->
 - **Operational beads** (work is config/deploy/infra/manual ops with no meaningful code diff,
   evident from the type or the How) are `N/A (operational)`. A `## Estimated size` of "N/A
-  (operational)" passes; absence is not a finding.
+  (operational)" records that N/A; absence is not a finding.
 - **Code-bearing beads** (task/feature/bug that change the repo) require `## Estimated size`. If it
   is absent, flag it as a missing section (a content FAIL on size), not a size-band failure. Do not
   guess a size band from the title or body **for the purpose of scoring** (you may not invent a
@@ -219,7 +222,9 @@ write-back.
 Checks for sections required by the bead's declared type. The type is taken from whichever field in
 the provided content names the issue type (a `Type:` metadata line, a `<!-- type: bug -->`
 annotation, or the caller's explicit statement). Default to `task` if the type cannot be determined,
-and flag this as a WARN (missing type declaration).
+and report a note that the type declaration is missing. This note is not a content verdict, so it
+changes neither the rollup nor the score. In JSON mode, write it in the `note` of the bead's
+type-specific check.
 
 <!-- type-sections:start -->
 | Type | Required sections | content: pass criteria |
@@ -244,7 +249,7 @@ missing size is not. So a container that lacks both gets one finding, and the re
 size as `N/A (umbrella)`.
 
 These sections also get the content/structure split: rich Acceptance Criteria written as `AC:` prose
-is a reformat (WARN), not a missing-section FAIL.
+is a reformat (structure `variant`), not a missing-section content `fail`.
 
 ### 4. Grounding Audit
 
@@ -400,7 +405,7 @@ Each bead rolls up to one of three overall states:
 | Overall | Condition | Caller action |
 |---|---|---|
 | **PASS** | Every content verdict is `pass` AND every structure verdict is `canonical` | None |
-| **REFORMAT** | Every content verdict is `pass` (or N/A) but at least one structure verdict is `variant`/`absent`, or a Trivial size-band warn | Auto-fixable: reformat to canonical headings, no human input needed |
+| **REFORMAT** | No content verdict is `fail`, and at least one structure verdict is `variant`/`absent` or at least one content verdict is `warn`. A Trivial size band is a content `warn` on size | A structure defect is auto-fixable: reformat to canonical headings, no human input needed. A Trivial size band is the exception. No draft can fix it, so it goes to a human (see Step 6) |
 | **NEEDS WORK** | At least one content verdict is `fail` (genuine under-specification or missing required section) | Human input may be required; see drafting guidance |
 
 A WARN on content (borderline-weak) rolls up to REFORMAT if the author chooses to leave it, or NEEDS
@@ -414,15 +419,19 @@ the two verdicts would change a bead's Overall without anyone touching the bead.
 the difference between "needs writing" and "needs re-grounding". Those two have different fixes and
 different owners.
 
-Report grounding as its own column. It reaches the score only through a quality-band cap (see
-"Bands, capped by verdict"), so a stale bead cannot report Excellent while its premise is false.
+Report grounding as its own column. Grounding never changes the score. It reaches the scorecard
+only through a quality-band cap (see "Bands, capped by verdict"), so a stale bead cannot report
+Excellent while its premise is false.
 
 ## Scorecard
 
 The three-state verdict answers "is this bead done?" The scorecard answers "how close, and which
 quality band?" That lets a caller rank and gate. The caller may be a human triaging, or a refinement
-loop targeting a quality band. The score **refines the verdict; it never overrides it.** The quality
-bands are constructed so that Excellent is exactly equivalent to PASS.
+loop targeting a quality band. The score **refines the verdict; it never overrides it.**
+
+Excellent implies PASS. A bead that reports Excellent has a PASS rollup and no grounding ceiling.
+The reverse does not hold: a PASS bead that is `drifted` reports Adequate, and one that is
+`satisfied` reports Weak.
 
 ### The score is derived, never asserted
 
@@ -492,7 +501,7 @@ ceiling implied by the rollup verdict:
 | NEEDS WORK | any required-section content `fail` | Weak |
 | REFORMAT (structure) | all content `pass`, any structure `variant`/`absent` | Great |
 | REFORMAT (weak content) | any content `warn`, no content `fail` | Great |
-| REFORMAT (Trivial-band warn) | all content `pass`, structure canonical, size band Trivial | Great |
+| REFORMAT (Trivial-band warn) | size content `warn` from a Trivial size band, every other content `pass`, structure canonical | Great |
 | PASS | all content `pass`, all structure `canonical`, size not Trivial | Excellent (no cap) |
 
 The grounding verdict applies a second, independent ceiling. Take the lowest of all applicable
@@ -569,8 +578,8 @@ fetch the bodies. If nothing is provided, ask for at least one bead.
 For each bead body, extract:
 
 - **Title** - from a `Title:` line, a top-level `#` heading, or the caller's label
-- **Type** - from a `Type:` line, an annotation, or the caller's statement; default to `task` with a
-  WARN if absent
+- **Type** - from a `Type:` line, an annotation, or the caller's statement; default to `task` and
+  report a note that the type declaration is missing
 - **Sections** - locate each canonical section via "Heading Recognition". Record, per section, the
   substance found and which heading carried it (canonical / variant / absent)
 
@@ -594,8 +603,8 @@ and sha first, then check every bead's claims against it.
 3. For each bead, extract its load-bearing current-state claims from Why, How, and Steps to
    Reproduce. Check each with the existence, pattern, stack, and behavior checks. Read main with
    `git show` and `git grep`, never the working tree.
-4. Run the inverse check on Done when and Acceptance Criteria: does the desired end state already
-   hold on main? If so, the bead is `satisfied`.
+4. Run the inverse check on Done when, Acceptance Criteria, and Success Criteria: does the desired
+   end state already hold on main? If so, the bead is `satisfied`.
 5. Roll up to one grounding verdict per bead.
 
 Grounding is the only dimension that costs repository reads, and it scales with backlog size. When a
@@ -615,10 +624,11 @@ Default output is human markdown (see "Output Modes" for JSON). For each bead:
 | How (Algorithmic) | pass / warn / fail | canonical / variant / absent | |
 | Done when (Acceptance) | pass / warn / fail | canonical / variant / absent | |
 | Acceptance Criteria | pass / warn / fail | canonical / variant / absent | |
-| Estimated size | pass / warn / fail / N/A | n/a | <band, or "N/A (umbrella)"> |
+| Estimated size | pass / warn / fail / N/A | canonical / variant / absent | <band, or "N/A (umbrella)"> |
 
 For an `epic` or a `milestone`, replace the Acceptance Criteria table row with a Success Criteria
-table row.
+table row. When the size is N/A, write `n/a` in its Structure cell too, because the section is not
+required and the structure term does not count it.
 
 **Overall: PASS / REFORMAT / NEEDS WORK**
 **Grounding: grounded / drifted / satisfied / ungroundable** (checked against `origin/main` @ `<short sha>`)
@@ -671,7 +681,9 @@ already done.
 If any bead is REFORMAT or NEEDS WORK, offer to draft corrected bodies:
 
 - **REFORMAT beads** can be fixed mechanically: move the existing substance under canonical headings
-  (or into the correct native field). No new information needed. Draft these without asking.
+  (or into the correct native field). No new information needed. Draft these without asking. A
+  REFORMAT bead with a Trivial size band is the exception: do not draft it, and route it to a human
+  (see Step 6).
 - **NEEDS WORK beads** need real content. Draft what can be inferred; for anything that cannot,
   insert `[AUTHOR TO COMPLETE: <what is needed>]` and flag it.
 
@@ -705,13 +717,20 @@ if you check it. Before returning any corrected body, **re-run the audit against
 1. Run Heading Recognition over the draft. Every required section for the type must resolve to
    `structure: canonical` (or sit in the correct native field).
 2. Re-evaluate each content verdict against the draft. Every required section must be
-   `content: pass` (size may be `pass` with a provisional marker).
+   `content: pass` (size may be `pass` with a provisional marker). A Trivial size band is the one
+   exception, and the last paragraph of this step covers it.
 3. Scan for any remaining `[AUTHOR TO COMPLETE]` placeholder. If one exists, the draft is
    `applyable: false`.
 
 A draft is `applyable: true` only when (1) and (2) hold and (3) finds no placeholder. If a draft you
 intended to be a clean fix does not re-pass, fix the draft and repeat; do not return a draft that
 fails its own audit.
+
+**A Trivial size band is the one content `warn` no draft can clear.** Reformatting does not change
+the size band. The remedy is a direct commit and a closed bead, and only a person can decide that.
+Do not draft a fix for it, and do not repeat this step on it. Mark the bead `applyable: false`, put
+`estimated-size` in `blocked_on`, and route it to a human. Do the same when the bead also has a
+structure defect, because reformatting a bead that should be a direct commit is wasted work.
 
 ## Output Modes
 
@@ -748,7 +767,7 @@ object and the caller applies it.
         "claims": [
           {
             "claim": "string, quoted from the bead",
-            "section": "why|how|steps-to-reproduce|estimated-size|done-when|acceptance-criteria",
+            "section": "why|how|steps-to-reproduce|estimated-size|done-when|acceptance-criteria|success-criteria",
             "check": "existence|pattern|stack|behavior",
             "verdict": "verified|drifted|unverifiable",
             "evidence": "string: path:line, or what was searched and not found"
@@ -774,8 +793,9 @@ Field semantics for a caller, such as a `/goal` loop:
   `acceptance_criteria` to `--acceptance`, `design` to `--design`, and so on, instead of one body
   blob). Omit or null when the tracker has no native fields.
 - `score`, `band`, `score_denominator`, and `excluded_dimensions` come from the Scorecard. Emit them
-  only when scoring was requested; omit for a plain pass/fail audit. `score` is capped by verdict,
-  so `band` may be lower than the raw `score` alone would imply.
+  only when scoring was requested; omit for a plain pass/fail audit. `score` is the raw score and
+  is never capped. Only `band` is capped, by the rollup verdict and by the grounding verdict, so
+  `band` may be lower than `score` alone would imply.
 - `score_denominator` is the sum of the weights of every dimension that applies to the bead,
   including Structure (weight 10) and, for a `bug`, Steps to Reproduce (weight 10). Do not compute
   it as "100 minus excluded weights". That is right for a `task` or `feature`, whose denominator is
@@ -790,12 +810,15 @@ Field semantics for a caller, such as a `/goal` loop:
   the structure term separately.
 - **`applyable` is the safety gate.** It is `true` only when the draft passed its Step 6 self-verify
   AND contains no `[AUTHOR TO COMPLETE]` placeholder AND the grounding verdict is not `drifted` or
-  `satisfied`. **A caller MUST NOT write back a bead whose `applyable` is `false`.** Doing so turns
+  `satisfied` AND the size band is not Trivial. **A caller MUST NOT write back a bead whose
+  `applyable` is `false`.** Doing so turns
   the bead into a placeholder-bearing body that looks fixed and re-fails forever. On a drifted bead,
   it puts good formatting over a false premise.
 - `blocked_on` lists what still needs a human. For a placeholder-bearing section, its value is that
   section's check name: `why`, `how`, `done-when`, `acceptance-criteria`, `steps-to-reproduce`,
-  `success-criteria`, or `estimated-size`. It also holds the literal `"grounding"` when the verdict
+  `success-criteria`, or `estimated-size`. It also holds `estimated-size` when the size band is
+  Trivial. No placeholder is involved there, because no draft can change the size band.
+  It also holds the literal `"grounding"` when the verdict
   is `drifted` or `satisfied`. `"grounding"` is deliberately not a check name. It is a bead-level
   finding, not a section, so a consumer matching this list against the `checks` array must expect
   it. Non-empty implies `applyable: false`.
@@ -862,7 +885,8 @@ to Reproduce / Success Criteria, draft them. Otherwise insert
   rather than embedding a heading in the description body.
 - Evaluate every applicable dimension. Skip size only for epics, milestones, and operational beads,
   and record those as N/A rather than as a finding.
-- Default the type to `task` if it cannot be determined, and flag it as a WARN.
+- Default the type to `task` if it cannot be determined, and report a note that the type
+  declaration is missing.
 - Use the byte-exact headings from `docs/bead-body-contract.md` when drafting, so a fixed bead
   re-passes the audit.
 - Self-verify every draft (Step 6): re-run the audit against your own draft and confirm it re-passes
