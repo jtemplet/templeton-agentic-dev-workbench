@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Decide whether /build may claim a bead, and carry out that decision.
 
+Also list the bead ids a skill invocation might be acting on, for the label
+script to probe (the `candidates` subcommand, at the foot of this docstring).
+
 label_bead_on_skill_invocation.sh calls this once per /build, with the hook
 payload on stdin:
 
@@ -36,6 +39,17 @@ reads the bead, so a guard in the skill alone runs after the container's status
 and assignee have already changed. The refusal needs no session, so it holds
 for every payload.
 
+THE CANDIDATES SUBCOMMAND. The label script calls this once per labeled skill,
+with the skill arguments and any pull request text on stdin:
+
+    python3 claim_bead_for_build.py candidates <branch> <prefixes>
+
+<prefixes> is the `a|b|c` alternation of the id prefixes the repository uses,
+and an empty one disables the prefix filter. Stdout is one candidate per line,
+most likely first, and the exit status is 0. The candidate functions are pure:
+they run no tracker and no git command and read no file, so the label script
+stays the only prober and bd still decides which candidate is a bead.
+
 Stdlib only, and Python 3.9, since /usr/bin/python3 is what a consumer
 repository is guaranteed to have.
 """
@@ -49,7 +63,7 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 
 EXIT_HELD = 0
@@ -72,6 +86,29 @@ SESSION_PART_LENGTH = 8
 # The session part lands in the tracker as an assignee, so anything but
 # letters, digits and hyphens is dropped.
 UNSAFE_SESSION_CHARACTERS = re.compile(r"[^A-Za-z0-9-]")
+
+# How many candidates the label script may probe. Each one is a `bd show`
+# subprocess on the critical path of every skill start, and the token pattern
+# offers far more than any branch really carries. Twelve sits well above the
+# real branches measured and still bounds the cost of a prose-heavy PR body.
+#
+# The cap falls on the SHORTEST candidates, since the list is longest-first. A
+# branch of more than twelve hyphen segments therefore spends the budget on
+# prefixes longer than the id and resolves nothing, which is the same answer it
+# gave before prefixes were offered at all.
+MAX_BEAD_PROBES = 12
+
+# A candidate with no hyphen that is longer than this is not a bead id. Every
+# bare id in this ecosystem is of the `e12` / `9ma` / `zkc.5` shape, and the
+# length bound plus a required digit is what stops the token pattern from
+# offering every lowercase word in a prompt.
+MAX_BARE_ID_LENGTH = 6
+
+# A maximal run: the hyphen is optional and a leading digit is allowed, so the
+# hyphen-free short ids outrigger puts in a branch (zkc.5, e12, 9ma) are offered
+# at all. Shape cannot tell such an id from an ordinary word, which is why the
+# filters below narrow the list and bd verifies what is left.
+CANDIDATE_TOKEN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[0-9]+)*")
 
 
 class Decision(enum.Enum):
@@ -368,13 +405,16 @@ def log(message: str) -> None:
 
 
 def main(argv: Sequence[str]) -> int:
-    if len(argv) not in (4, 5) or argv[0] != "claim":
-        log(
-            "usage: claim_bead_for_build.py claim <bead-id> <status> <assignee> [<issue-type>] "
-            "(payload on stdin)"
-        )
-        return EXIT_FAILED
-    return claim_and_report(Bead(*argv[1:]), read_payload(sys.stdin.read()))
+    if len(argv) in (4, 5) and argv[0] == "claim":
+        return claim_and_report(Bead(*argv[1:]), read_payload(sys.stdin.read()))
+    if len(argv) == 3 and argv[0] == "candidates":
+        return print_candidates(read_text(sys.stdin.buffer.read()), argv[1], argv[2])
+    log(
+        "usage: claim_bead_for_build.py claim <bead-id> <status> <assignee> [<issue-type>] "
+        "(payload on stdin), or claim_bead_for_build.py candidates <branch> <prefixes> "
+        "(text on stdin)"
+    )
+    return EXIT_FAILED
 
 
 def claim_and_report(bead: Bead, payload: dict) -> int:
@@ -397,6 +437,98 @@ def claimant_for(payload: dict) -> Claimant:
 def output_for(payload: dict, bead: Bead, claimant: Claimant, result: ClaimResult) -> dict | None:
     event = payload.get("hook_event_name")
     return hook_output(event if isinstance(event, str) else "", bead.id, claimant.actor, result)
+
+
+def read_text(raw: bytes) -> str:
+    # Decoded here rather than by sys.stdin, so a PR body with a stray byte
+    # cannot fail the lookup under whatever locale the hook was started in.
+    return raw.decode("utf-8", errors="replace")
+
+
+def print_candidates(text: str, branch: str, prefix_alternation: str) -> int:
+    prefixes = frozenset(filter(None, prefix_alternation.split("|")))
+    lines = "".join(f"{candidate}\n" for candidate in bead_candidates(text, branch, prefixes))
+    # Bytes, encoded the way argv was decoded, so the branch segment comes back
+    # out exactly as it went in.
+    sys.stdout.buffer.write(os.fsencode(lines))
+    return EXIT_HELD
+
+
+def bead_candidates(text: str, branch: str, prefixes: Collection[str]) -> list[str]:
+    """The ids worth probing, most likely first, at most MAX_BEAD_PROBES.
+
+    `text` is the skill arguments plus any pull request text. `prefixes` is the
+    id prefixes this repository uses; an empty one disables the prefix filter.
+    Nothing here is an authority: the list only narrows the search.
+    """
+    sources = f"{text}\n{branch.replace('/', ' ')}"
+    ranked = most_specific_first(with_hyphen_prefixes(CANDIDATE_TOKEN.findall(sources)))
+    plausible = (token for token in ranked if is_plausible_id(token, prefixes))
+    # The positional segment is added after the filters and is exempt from both.
+    # It is not a guess about shape: outrigger put the id in that position.
+    return unique_nonblank([positional_segment(branch), *plausible])[:MAX_BEAD_PROBES]
+
+
+def positional_segment(branch: str) -> str:
+    """Segment two of outrigger/<short-id>/<slug>, verbatim, or ""."""
+    segments = branch.split("/")
+    return segments[1] if len(segments) >= 3 else ""
+
+
+def with_hyphen_prefixes(tokens: Iterable[str]) -> list[str]:
+    """Each token, followed by its own hyphen-separated prefixes.
+
+    A branch named <bead-id>-<slug> arrives as one token, so without this
+    tadw-b14-hook-resolution offers only itself and the tadw-b14 inside it is
+    never probed. The single-segment prefix is offered too, and is_plausible_id
+    is what keeps `tadw` out.
+
+    A dotted child suffix sits in the last hyphen field and is never split off:
+    hdw-3fe4.3 must not offer hdw-3fe4, which is a different bead.
+    """
+    offered = []
+    for token in tokens:
+        fields = token.split("-")
+        offered.append(token)
+        offered.extend("-".join(fields[:count]) for count in range(1, len(fields)))
+    return offered
+
+
+def most_specific_first(tokens: Iterable[str]) -> list[str]:
+    """Id-shaped tokens ahead of bare words, and longest first within each.
+
+    Longest first is what tries a whole slug id (tadw-qg-prepush-verdict-gate-tug)
+    before any prefix of it, and that is the reason offering prefixes is safe:
+    tadw-qg resolves to nothing. The two tiers are what keeps the pattern
+    affordable: it matches every lowercase word, and a PR body of prose would
+    otherwise spend the whole probe budget on words longer than the id.
+
+    Equal lengths fall back to codepoint order, which is what `LC_ALL=C sort`
+    gave. The shell left that tie to the locale; this is the deterministic choice.
+    """
+    return sorted(tokens, key=lambda token: (is_bare_word(token), -len(token), token))
+
+
+def is_bare_word(token: str) -> bool:
+    return "-" not in token and "." not in token
+
+
+def is_plausible_id(token: str, prefixes: Collection[str]) -> bool:
+    """Two cheap local filters, because every survivor costs a `bd show`.
+
+    A hyphenated token must carry a prefix this repository uses, which is what
+    removes `pre-commit` and `code-review`. A token with no hyphen carries no
+    prefix at all, so it must instead be short and hold a digit, which every
+    real one does and no English word does.
+    """
+    prefix, hyphen, _ = token.partition("-")
+    if not hyphen:
+        return len(token) <= MAX_BARE_ID_LENGTH and any(c in "0123456789" for c in token)
+    return not prefixes or prefix in prefixes
+
+
+def unique_nonblank(candidates: Iterable[str]) -> list[str]:
+    return list(dict.fromkeys(candidate for candidate in candidates if candidate.strip()))
 
 
 if __name__ == "__main__":

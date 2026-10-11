@@ -9,6 +9,10 @@ tracker, so each bd outcome (a lost race, a broken bd, a lost adoption) is one
 constructor argument rather than a stub script. Two cases run the module as the
 hook does, with a stub bd on PATH, to pin the stdin and stdout contract.
 
+bead_candidates is pure, so its cases pass every input and compare the whole
+ordered list. The expected lists were captured from the shell pipeline the
+function replaced, run under LC_ALL=C.
+
 hooks/test-claude-scripts.sh still drives the whole bash hook end to end.
 """
 
@@ -346,6 +350,171 @@ def case_bad_usage_never_refuses():
         assert_eq(completed.stdout, "")
 
 
+# --- bead candidates ------------------------------------------------------------
+
+LONG_BRANCH = "tadw-b14-a1-b2-c3-d4-e5-f6-g7-h8-i9-j1-k2-l3-m4-n5"
+
+
+def candidates(text: str = "", branch: str = "main", prefixes=("tadw",)) -> list:
+    return hook.bead_candidates(text, branch, prefixes)
+
+
+def case_outrigger_branch_offers_its_hyphen_free_short_id():
+    assert_eq(candidates(branch="outrigger/zkc.5/some-slug"), ["zkc.5"])
+
+
+def case_positional_segment_beats_a_longer_slug():
+    assert_eq(
+        candidates(branch="outrigger/e12/tadw-beta-two-and-then-some"),
+        [
+            "e12",
+            "tadw-beta-two-and-then-some",
+            "tadw-beta-two-and-then",
+            "tadw-beta-two-and",
+            "tadw-beta-two",
+            "tadw-beta",
+        ],
+    )
+
+
+def case_id_slug_branch_offers_the_id_inside_it():
+    assert "tadw-b14" in candidates(branch="tadw-b14-hook-resolution-and-clean-tree")
+
+
+def case_slug_id_is_tried_whole_before_its_own_prefix():
+    assert_eq(
+        candidates(branch="tadw-qg-prepush-verdict-gate-tug"),
+        [
+            "tadw-qg-prepush-verdict-gate-tug",
+            "tadw-qg-prepush-verdict-gate",
+            "tadw-qg-prepush-verdict",
+            "tadw-qg-prepush",
+            "tadw-qg",
+        ],
+    )
+
+
+def case_dotted_child_does_not_offer_its_parent():
+    assert_eq(candidates(branch="feature/hdw-3fe4.3", prefixes=("hdw",)), ["hdw-3fe4.3"])
+
+
+def case_hyphenated_token_needs_a_known_prefix():
+    assert_eq(candidates("run pre-commit and code-review on tadw-9ma"), ["tadw-9ma"])
+
+
+def case_no_known_prefixes_disables_the_prefix_filter():
+    assert_eq(
+        candidates("run pre-commit and code-review on tadw-9ma", prefixes=()),
+        ["code-review", "pre-commit", "tadw-9ma"],
+    )
+
+
+def case_bare_word_without_a_digit_is_dropped():
+    assert_eq(candidates("needs human review"), [])
+
+
+def case_bare_id_is_kept_up_to_the_length_bound():
+    at_bound = "a1" + "b" * (hook.MAX_BARE_ID_LENGTH - 2)
+    assert_eq(candidates(f"{at_bound} {at_bound}b"), [at_bound])
+
+
+def case_dotted_id_without_a_hyphen_takes_the_bare_filter():
+    # abcd.12 is seven characters, one past the bound, and the dot counts.
+    assert_eq(candidates("zkc.5 abcd.12"), ["zkc.5"])
+
+
+def case_positional_segment_is_exempt_from_the_bare_filter():
+    assert_eq(candidates(branch="outrigger/averyverylongword/x"), ["averyverylongword"])
+
+
+def case_positional_segment_is_exempt_from_the_prefix_filter():
+    assert_eq(candidates(branch="outrigger/pre-commit/x"), ["pre-commit"])
+
+
+def case_blank_positional_segment_is_skipped():
+    assert_eq(candidates(branch="x//tadw-b1"), ["tadw-b1"])
+
+
+def case_two_segment_branch_has_no_positional():
+    assert_eq(candidates(branch="needs/tadw-alpha-one"), ["tadw-alpha-one", "tadw-alpha"])
+
+
+def case_duplicates_collapse_to_the_first():
+    assert_eq(candidates("tadw-a1 tadw-a1 e12 e12", branch="feature/tadw-a1"), ["tadw-a1", "e12"])
+
+
+def case_list_is_capped_at_the_probe_budget():
+    assert_eq(len(candidates(branch=LONG_BRANCH)), hook.MAX_BEAD_PROBES)
+
+
+def case_cap_falls_on_the_shortest_candidates():
+    # Fifteen survive the filters; the three shortest, tadw-b14 among them, are cut.
+    assert_eq(candidates(branch=LONG_BRANCH)[-1], "tadw-b14-a1-b2-c3")
+
+
+def case_id_named_in_the_arguments_is_offered():
+    assert_eq(candidates("fix tadw-b14 today"), ["tadw-b14"])
+
+
+def case_id_shaped_token_ranks_ahead_of_a_longer_bare_id():
+    assert_eq(candidates("abc123 a-1", prefixes=("a",)), ["a-1", "abc123"])
+
+
+def case_equal_lengths_are_ordered_by_codepoint():
+    assert_eq(candidates("tadw-b2 tadw-a2 b12 a12"), ["tadw-a2", "tadw-b2", "a12", "b12"])
+
+
+def case_nothing_to_offer_is_an_empty_list():
+    assert_eq(candidates("just some prose here"), [])
+
+
+def case_candidate_functions_run_no_command():
+    def refuse(*_args, **_kwargs):
+        raise AssertionError("a candidate function ran a command")
+
+    real = (hook.run_command, subprocess.run)
+    hook.run_command, subprocess.run = refuse, refuse
+    try:
+        candidates("see #12 and tadw-b14", branch="outrigger/e12/tadw-beta-two")
+    finally:
+        hook.run_command, subprocess.run = real
+
+
+def run_candidates(directory: Path, text: str, *arguments: str) -> subprocess.CompletedProcess:
+    return run_module(directory, text, "candidates", *arguments)
+
+
+def case_candidates_subcommand_prints_one_per_line():
+    with tempfile.TemporaryDirectory() as tmp:
+        completed = run_candidates(Path(tmp), "fix e12 and tadw-b14", "outrigger/zkc.5/slug", "tadw|life")
+        assert_eq((completed.returncode, completed.stdout), (0, "zkc.5\ntadw-b14\ne12\n"))
+
+
+def case_candidates_subcommand_takes_an_empty_prefix_list():
+    with tempfile.TemporaryDirectory() as tmp:
+        completed = run_candidates(Path(tmp), "pre-commit", "main", "")
+        assert_eq((completed.returncode, completed.stdout), (0, "pre-commit\n"))
+
+
+def case_candidates_subcommand_prints_nothing_when_there_is_nothing():
+    with tempfile.TemporaryDirectory() as tmp:
+        completed = run_candidates(Path(tmp), "", "main", "tadw")
+        assert_eq((completed.returncode, completed.stdout), (0, ""))
+
+
+def case_candidates_subcommand_runs_no_bd_command():
+    with tempfile.TemporaryDirectory() as tmp:
+        directory = Path(tmp)
+        run_candidates(directory, "tadw-b14", "outrigger/e12/slug", "tadw")
+        assert_eq((directory / "bd.log").exists(), False)
+
+
+def case_candidates_bad_usage_exits_1():
+    with tempfile.TemporaryDirectory() as tmp:
+        completed = run_candidates(Path(tmp), "tadw-b14", "main")
+        assert_eq((completed.returncode, completed.stdout), (1, ""))
+
+
 for name, fn in [
     ("an open, unassigned bead is claimed", case_open_unassigned_bead_is_claimed),
     ("this session's own claim is already held", case_own_session_holds_its_bead),
@@ -380,6 +549,33 @@ for name, fn in [
     ("a container refusal exits 2 and runs no bd command", case_container_refusal_exits_2_and_runs_no_bd_command),
     ("a leaf type on the command line still claims", case_leaf_type_argument_still_claims),
     ("bad usage exits 1 and never refuses", case_bad_usage_never_refuses),
+    ("an outrigger branch offers its hyphen-free short id", case_outrigger_branch_offers_its_hyphen_free_short_id),
+    ("the positional segment beats a longer slug", case_positional_segment_beats_a_longer_slug),
+    ("an id-slug branch offers the id inside it", case_id_slug_branch_offers_the_id_inside_it),
+    ("a slug id is tried whole before its own prefix", case_slug_id_is_tried_whole_before_its_own_prefix),
+    ("a dotted child does not offer its parent", case_dotted_child_does_not_offer_its_parent),
+    ("a hyphenated token needs a known prefix", case_hyphenated_token_needs_a_known_prefix),
+    ("no known prefixes disables the prefix filter", case_no_known_prefixes_disables_the_prefix_filter),
+    ("a bare word without a digit is dropped", case_bare_word_without_a_digit_is_dropped),
+    ("a bare id is kept up to MAX_BARE_ID_LENGTH and dropped past it", case_bare_id_is_kept_up_to_the_length_bound),
+    ("a dotted id without a hyphen takes the bare filter", case_dotted_id_without_a_hyphen_takes_the_bare_filter),
+    ("the positional segment is exempt from the bare filter", case_positional_segment_is_exempt_from_the_bare_filter),
+    ("the positional segment is exempt from the prefix filter", case_positional_segment_is_exempt_from_the_prefix_filter),
+    ("a blank positional segment is skipped", case_blank_positional_segment_is_skipped),
+    ("a two-segment branch has no positional segment", case_two_segment_branch_has_no_positional),
+    ("duplicate candidates collapse to the first", case_duplicates_collapse_to_the_first),
+    ("the list is capped at MAX_BEAD_PROBES", case_list_is_capped_at_the_probe_budget),
+    ("the cap falls on the shortest candidates", case_cap_falls_on_the_shortest_candidates),
+    ("an id named in the arguments is offered", case_id_named_in_the_arguments_is_offered),
+    ("an id-shaped token ranks ahead of a longer bare id", case_id_shaped_token_ranks_ahead_of_a_longer_bare_id),
+    ("equal lengths are ordered by codepoint", case_equal_lengths_are_ordered_by_codepoint),
+    ("nothing to offer is an empty list", case_nothing_to_offer_is_an_empty_list),
+    ("the candidate functions run no command", case_candidate_functions_run_no_command),
+    ("the candidates subcommand prints one candidate per line", case_candidates_subcommand_prints_one_per_line),
+    ("the candidates subcommand takes an empty prefix list", case_candidates_subcommand_takes_an_empty_prefix_list),
+    ("the candidates subcommand prints nothing when there is nothing", case_candidates_subcommand_prints_nothing_when_there_is_nothing),
+    ("the candidates subcommand runs no bd command", case_candidates_subcommand_runs_no_bd_command),
+    ("candidates bad usage exits 1", case_candidates_bad_usage_exits_1),
 ]:
     check(name, fn)
 

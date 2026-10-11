@@ -86,7 +86,7 @@ Options:
   -h, --help       Print this and exit.
 
 Requires git and jq on PATH. The hook itself needs bd, jq, and git at runtime,
-and python3 to claim a bead for /build.
+and python3 to list the candidate bead ids and to claim a bead for /build.
 USAGE
 }
 

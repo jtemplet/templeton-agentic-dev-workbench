@@ -26,9 +26,10 @@ Re-running it is safe. It repairs wiring that names an older path instead of add
 entry. `--dest-dir` moves the label script and its module, never the runner.
 
 The claim module is `claim_bead_for_build.py`. It decides whether `/build` may claim the bead, and
-the label script runs it as a sibling. It was `label_bead_hook.py` before 2026-10-06, a name that
-read as a second label hook. A run removes a copy under the old name, and `--check` fails while
-one remains.
+the label script runs it as a sibling. It also lists the candidate bead ids for every labeled
+skill, so without `python3` or the module no bead resolves and nothing is labeled. It was
+`label_bead_hook.py` before 2026-10-06, a name that read as a second label hook. A run removes a
+copy under the old name, and `--check` fails while one remains.
 
 [bead-label-hooks.html](bead-label-hooks.html) explains, with diagrams, how the label script and
 its claim module work together.
@@ -179,7 +180,9 @@ A skill that claims nothing is not stopped. `/code-review` on an epic still labe
 **Install the label script and the module together.** A module that is one version behind
 rejects the fifth argument and fails the claim, so `/build` runs with no claim and no refusal. A
 label script that is one version behind passes four arguments, and the module then treats every
-bead as a leaf. `install_label_bead_on_skill_invocation.sh --check` fails on either copy.
+bead as a leaf. A module older than the `candidates` subcommand offers no candidates, so no bead
+resolves and nothing is labeled. `install_label_bead_on_skill_invocation.sh --check` fails on
+either copy.
 
 ## Widening before narrowing
 
@@ -206,7 +209,9 @@ turn a working close into a refusal.
 Each candidate bead id costs one `bd show`. That was measured at 0.53 seconds against fathom's
 tracker, inside a hook that blocks `UserPromptSubmit`.
 
-Two local filters cut the candidate list without a tracker call:
+Two local filters cut the candidate list without a tracker call. They live in `bead_candidates`
+in `claim_bead_for_build.py`, with the ordering and the probe cap, as pure functions. The label
+script supplies the inputs and makes every probe:
 
 - A hyphenated candidate must carry a prefix the repository actually uses. The prefixes come
   from `.beads/config.yaml` and from the ids already in the export, so historical prefixes still

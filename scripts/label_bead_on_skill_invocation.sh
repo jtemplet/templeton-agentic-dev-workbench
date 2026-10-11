@@ -88,24 +88,6 @@ QA_MAX_DEFERRED=0
 # a run that never finished cannot label a later unrelated turn.
 MARKER_TTL_SECONDS=21600  # 6 hours
 
-# How many candidates resolve_bead will verify. Each one is a bd show
-# subprocess on the critical path of every skill start, and the widened
-# pattern below offers far more tokens than any branch really carries.
-# Twelve sits well above the real branches measured here and still bounds
-# the cost of a prose-heavy PR body.
-#
-# The cap falls on the SHORTEST candidates, since the list is longest-first.
-# A branch of more than twelve hyphen segments therefore spends the budget on
-# prefixes longer than the id and resolves nothing, which is the same answer it
-# gave before prefixes were offered at all.
-MAX_BEAD_PROBES=12
-
-# A bare candidate (no hyphen, no dot) longer than this is not a bead id. Every
-# bare id in this ecosystem is of the `e12` / `9ma` / `yx5` shape, and the
-# length bound plus a required digit is what stops the widened pattern from
-# offering every lowercase word in a prompt.
-MAX_BARE_ID_LENGTH=6
-
 # The durable log is truncated to its last this-many lines. The hook fires on
 # every /simplify and /code-review in a long-lived checkout, so the file has to
 # be bounded; a rotation scheme is more machinery than reading back the last
@@ -131,8 +113,8 @@ ACCEPTANCE_AGENT="acceptance-verifier"
 # The plugin version whose acceptance-verifier first wrote a report file.
 ACCEPTANCE_REPORT_SINCE="4.3.1"
 
-# The /build claim decision, resolved as a sibling of this script. The
-# installer copies it alongside.
+# The /build claim decision and the bead candidate list, resolved as a sibling
+# of this script. The installer copies it alongside.
 CLAIM_MODULE="claim_bead_for_build.py"
 
 log() { echo "[bead-label] $*" >&2; }
@@ -337,63 +319,27 @@ known_id_prefixes() {
   } | tr -d '"' | grep -E '^[a-z][a-z0-9]*$' | sort -u | paste -sd'|' -
 }
 
-# Echo each hyphenated token from stdin, followed by its own hyphen-separated
-# prefixes, shortest last.
-#
-# The pattern below matches a MAXIMAL hyphenated run, so a branch named
-# <bead-id>-<slug> arrived as a single token: tadw-b14-hook-resolution-and-clean-tree
-# offered only itself, the tadw-b14 inside it was never probed, and the branch
-# resolved to no bead at all. That naming is a common convention, and renaming the
-# branch to outrigger's shape was the only workaround.
-#
-# The full token is emitted first and stays the longest, so the sort below still
-# tries a whole slug id (tadw-qg-prepush-verdict-gate-tug) before any prefix of
-# it. That ordering is the whole reason this is safe: the close hook's regex was
-# widened to match such ids whole precisely because tadw-qg resolves to nothing.
-#
-# The single-segment prefix is emitted too, and the bare-id filter below decides
-# whether it is plausible, which is what keeps `tadw` and `needs` out. A dotted
-# epic-child suffix is never split off: hdw-3fe4.3 must not offer hdw-3fe4, which
-# is a different bead.
-with_hyphen_prefixes() {
-  awk -F- '{
-    print
-    prefix = $1
-    for (i = 2; i <= NF; i++) { print prefix; prefix = prefix "-" $i }
-  }'
-}
-
 # Bead ids here range from a bare three-character suffix to a full slug,
 # so shape alone cannot tell an id from an ordinary word. Every candidate
-# is verified against the tracker; the sources below only narrow the
-# search, and bd decides.
+# is verified against the tracker: the module narrows the search, and bd
+# decides.
 #
-# Three ordered sources, because the pattern alone was blind to the
-# branches this ecosystem actually produces. The pattern used to require
-# a hyphen, and outrigger writes outrigger/<short-id>/<slug> where every
-# short id in fathom is hyphen-free (zkc.5, e12, 9ma). So the only
-# candidate it ever offered from such a branch was the slug, which
-# resolves to nothing. Every outrigger branch in that repository went
-# unlabeled.
+# The candidate list comes from bead_candidates in claim_bead_for_build.py,
+# which owns the token pattern, the ordering, both filters and the probe
+# cap. It is handed everything it needs and runs no command, so this
+# function is the only place a candidate costs a tracker call. Three things
+# stay here because they reach outside the process: the pull request
+# lookup, the id prefixes read from local files, and the bd show probes.
 #
-#   1. Positional. Segment two of a branch with three or more segments
-#      is outrigger's short id verbatim, so it goes first.
-#   2. Pattern, widened to make the hyphen optional and admit a leading
-#      digit, so zkc.5, e12 and 9ma become candidates at all, then
-#      decomposed into hyphen prefixes so a <bead-id>-<slug> token
-#      offers the id inside it.
-#   3. Cap. At most MAX_BEAD_PROBES candidates, since each one is a
-#      bd show subprocess.
+# Each surviving candidate costs a bd show subprocess, and this hook BLOCKS
+# UserPromptSubmit. Measured against fathom's tracker on 2026-08-23, one
+# bd show takes 0.53s.
 #
-# Within the pattern's output, id-shaped tokens (carrying a hyphen or a
-# dot) rank above bare words, and each group is longest first so a slug
-# id beats its own prefix. The two tiers are what keeps the widened
-# pattern affordable: it now matches every lowercase word, and a PR body
-# of prose would otherwise spend the whole probe budget on words longer
-# than the id it is looking for.
+# A missing python3 or module offers no candidates, so nothing is labeled
+# and the skill still runs.
 resolve_bead() {
-  local args="$1" branch="$2" sources pr_id pr_json positional matched prefixes candidates candidate found id
-  sources="$args"$'\n'"${branch//\// }"
+  local args="$1" branch="$2" text pr_id pr_json module candidates candidate found id
+  text="$args"
 
   pr_id="$(echo "$args" | tr ' ' '\n' | awk '
     /^#?[0-9]+$/      { gsub(/#/, ""); print; exit }
@@ -404,53 +350,16 @@ resolve_bead() {
   if [[ -n "$pr_id" ]] && command -v gh >/dev/null 2>&1; then
     pr_json="$(gh pr view "$pr_id" --json title,headRefName,body 2>/dev/null || true)"
     if [[ -n "$pr_json" ]]; then
-      sources+=$'\n'"$(echo "$pr_json" | jq -r '.title, (.headRefName | gsub("/"; " ")), (.body // "")' 2>/dev/null || true)"
+      text+=$'\n'"$(echo "$pr_json" | jq -r '.title, (.headRefName | gsub("/"; " ")), (.body // "")' 2>/dev/null || true)"
     fi
   fi
 
-  positional=""
-  if [[ "$(awk -F/ '{ print NF }' <<< "$branch")" -ge 3 ]]; then
-    positional="$(cut -d/ -f2 <<< "$branch")"
+  module="$(dirname "$SCRIPT_PATH")/$CLAIM_MODULE"
+  if ! command -v python3 >/dev/null 2>&1 || [[ ! -f "$module" ]]; then
+    log "python3 or $CLAIM_MODULE is missing; no bead candidates to probe"
+    return 1
   fi
-
-  # Sorted on two keys: tier first (1 for id-shaped, 2 for a bare word),
-  # then length descending within the tier.
-  matched="$(echo "$sources" \
-    | grep -oE '[a-z0-9][a-z0-9]*(-[a-z0-9]+)*(\.[0-9]+)*' \
-    | with_hyphen_prefixes \
-    | awk '{ print ($0 ~ /[-.]/ ? 1 : 2), length, $0 }' \
-    | sort -k1,1n -k2,2nr \
-    | cut -d' ' -f3-)"
-
-  # Two filters, both local and both cheap, because every candidate that
-  # survives costs a bd show subprocess and this hook BLOCKS UserPromptSubmit.
-  # Measured against fathom's tracker on 2026-08-23, one bd show takes 0.53s,
-  # so a prompt naming no bead would otherwise pay MAX_BEAD_PROBES x 0.53s
-  # before answering "no bead". Neither filter is an authority: each only
-  # narrows the search, and bd still decides.
-  #
-  # A HYPHENATED candidate must carry a prefix this repository actually uses.
-  # That is what removes `pre-commit`, `code-review` and `needs-human`. It is
-  # applied to hyphenated candidates only, because a bare short id carries no
-  # prefix at all and filtering those out would undo the outrigger fix above.
-  #
-  # A BARE candidate must be short and carry a digit, which every real one is
-  # and no English word is.
-  prefixes="$(known_id_prefixes)"
-  matched="$(echo "$matched" | awk \
-    -v pattern="^(${prefixes})-" \
-    -v have_prefixes="${prefixes:+1}" \
-    -v maxbare="$MAX_BARE_ID_LENGTH" '
-    $0 !~ /-/        { if (length($0) <= maxbare && $0 ~ /[0-9]/) print; next }
-    have_prefixes    { if ($0 ~ pattern) print; next }
-                     { print }
-  ')"
-
-  # The positional segment is added AFTER the filters and is exempt from both.
-  # It is not a guess about shape: outrigger put the id in that position.
-  candidates="$(printf '%s\n%s\n' "$positional" "$matched" \
-    | awk 'NF && !seen[$0]++' \
-    | head -n "$MAX_BEAD_PROBES")"
+  candidates="$(printf '%s' "$text" | python3 "$module" candidates "$branch" "$(known_id_prefixes)")"
   [[ -z "$candidates" ]] && return 1
 
   while IFS= read -r candidate; do
