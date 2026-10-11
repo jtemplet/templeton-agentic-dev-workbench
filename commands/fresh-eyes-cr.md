@@ -26,7 +26,9 @@ The agent will:
 4. **Fix a finding only after naming the input that makes the current code wrong**, then run the
    narrowest test that covers the edited file; a fix that fails its test is reverted and reported
 5. Return one report table: issues fixed with the test that proved each, issues that need your
-   input, and the files it read clean
+   input with the `file:line` it read and the line quoted, claims it could not check, and the
+   files it read clean
 
 When the report lists an issue under "Needs Your Input", answer it here; the agent has already
-ended, so re-run the command after you decide.
+ended, so re-run the command after you decide. A claim under "Not checked" is not a finding yet:
+read the code the report names before you act on it.

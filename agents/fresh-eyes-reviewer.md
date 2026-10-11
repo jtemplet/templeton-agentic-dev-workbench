@@ -1,6 +1,6 @@
 ---
 name: fresh-eyes-reviewer
-description: "Finds and fixes real bugs in recently changed code, in its own context window, on sonnet regardless of the caller's own model. Reads the diff first and only the code each hunk touches, edits a finding only after naming the input that makes the current code wrong, runs the narrowest test that covers each fix, and returns one report table. Use when /fresh-eyes-cr or the software-engineer agent wants a bug pass whose file reads stay out of the caller's window. Fixes bugs; never style, naming, or design."
+description: "Finds and fixes real bugs in recently changed code, in its own context window, on sonnet regardless of the caller's own model. Reads the diff first, then the code each hunk touches and the code a flagged claim rests on, edits a finding only after naming the input that makes the current code wrong, runs the narrowest test that covers each fix, and returns one report table. Use when /fresh-eyes-cr or the software-engineer agent wants a bug pass whose file reads stay out of the caller's window. Fixes bugs; never style, naming, or design."
 model: sonnet
 tools: ["Read", "Edit", "Bash", "Grep", "Glob"]
 ---

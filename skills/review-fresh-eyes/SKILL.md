@@ -127,6 +127,31 @@ For each finding, in severity order:
    re-applying the original text for an untracked one. Report it under "Needs Your Input" with the
    test's output.
 
+**Read the code a claim is about before you list it under "Needs Your Input".** A claim is a
+finding that rests on code you have not read yet. A person acts on that list without reading the
+code again, so each finding on it shows the lines the review read. Step 2 reads the changed file,
+and a claim often rests on code outside that file. Examples are the endpoint a caller sends to, the
+response model a handler fills, and the test that asserts the behavior. Read that code in place.
+When the claim is that a caller and a callee disagree, read both sides.
+
+**Then look for the code that would prove the claim wrong.** `Grep` the repository for the symbol
+the claim names. Read each test, response model, and callee that uses it. A test that asserts the
+behavior shows the behavior is intended.
+
+The two reads sort the claim into one of three outcomes:
+
+- **The code shows the problem.** The claim is now a proven finding. List it under "Needs Your
+  Input". Give the `file:line` you read, and quote the line that shows the problem verbatim. Then
+  quote the line you checked the claim against, or give the `Grep` pattern that matched nothing.
+- **The code shows the claim is wrong.** Drop the claim. A test that asserts the behavior as
+  intended is one such case.
+- **You could not read the code.** List the claim under "Not checked", and say what would settle
+  it. The code may be in another repository, in a generated file, or behind a service. Keep the
+  claim, because a real bug would otherwise go unreported.
+
+A claim you cannot cite stays a "Not checked" claim, never a "Needs Your Input" finding. Step 3
+still applies: a candidate with no failure scenario goes on neither list.
+
 **Be conservative:**
 
 - Fix only what you proved in Step 3.
@@ -155,6 +180,14 @@ Output the summary report below and nothing after it.
 
 - [File:Line] [Severity] [Failure scenario, and why the fix is not yours to pick, or the test
   output that failed]
+  - Read: `[file:line]` `[the line that shows the problem, quoted verbatim]`
+  - Checked against: `[file:line]` `[the line that could prove the claim wrong, quoted verbatim:
+    a test, a response model, or the callee]`, or `[the Grep pattern]` matched nothing
+
+### Not checked
+
+- [File:Line] [Severity] [The claim, and the code the review could not read]
+  - Settles it: [the file to read, or the command to run]
 
 ### Clean Files
 
@@ -164,7 +197,8 @@ Output the summary report below and nothing after it.
 
 - Files reviewed: X (Y read whole, Z read by hunk; "whole" means every line of the file)
 - Issues fixed: A, each proved by a passing test
-- Needs input: B
+- Needs input: B, each with the `file:line` read and the line quoted
+- Not checked: C
 - Findings capped: yes or no
 ```
 
@@ -188,12 +222,14 @@ Anything ambiguous is flagged for the user instead of guessed at.
 - Run the scoped test after every fix, and report its real counts
 - Revert a fix whose test fails
 - Include file:line references for every finding
+- Read the code a claim is about before you flag it, and quote the line that shows the problem
 
 **Never:**
 
 - Fix style or formatting (that is a different review)
 - Refactor working code (you are looking for bugs, not improvements)
 - Edit a finding without a failure scenario, or guess at an ambiguous fix
+- List a finding under "Needs Your Input" from a symbol name or a diff hunk alone
 - Read every changed file whole by default; the 300-line rule and module-level state decide
 - Report LOW, or more than 10 findings
 - Commit, push, or write to the tracker
@@ -206,5 +242,8 @@ Before reporting completion, verify:
 - [ ] Every finding carries a failure scenario and a severity
 - [ ] Every fix names the scoped test that passed after it, with counts
 - [ ] Every fix whose test failed was reverted and listed under Needs Your Input
+- [ ] Every Needs Your Input finding cites the `file:line` read and quotes the line
+- [ ] Every Needs Your Input finding names what it was checked against
+- [ ] Every claim the review could not check is under Not checked, with what would settle it
 - [ ] No finding is a style preference
 - [ ] The summary counts match the tables
