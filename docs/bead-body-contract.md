@@ -39,24 +39,64 @@ description body when a native field exists for it.
 [ADR 0001](adr/0001-native-tracker-fields-are-canonical.md) records that decision and the two
 options that lost.
 
+<!-- section-table:start -->
 | Section | Goes in this `bd` field | Heading to write | Required for |
 |---|---|---|---|
 | Ask | `description` | none; it is the first line | all types |
 | Why | `description` | `## Why (Computational)` | all types |
 | Estimated size | `description` | `## Estimated size` | task, feature, bug |
 | Steps to Reproduce | `description` | `## Steps to Reproduce` | bug |
-| Success Criteria | `description` | `## Success Criteria` | epic |
+| Success Criteria | `description` | `## Success Criteria` | epic, milestone |
 | How | `design` | none; write the content alone | all types |
 | Done when | `notes` | `## Done when (Acceptance)` | all types |
 | Out of scope | `notes` | `## Out of scope` | optional, any type |
 | Acceptance Criteria | `acceptance_criteria` | none; write the list alone | task, feature, bug |
+<!-- section-table:end -->
+
+`skills/bead-audit/scripts/test_container_contract.py` reads the table between the two comments
+above. Keep the four columns, and write each type name in the last column exactly as `bd` spells
+it.
 
 The flags that write these four fields are `-d`, `--design`, `--notes`, and `--acceptance`. `bd`
 rejects `--acceptance-criteria` as an unknown flag.
 
-An epic carries no Estimated size and no Acceptance Criteria. An epic holds other beads, so it
-produces no diff of its own. An operational bead, such as a config change or a manual production
-step, writes `N/A (operational)` as its size instead of a band.
+An operational bead, such as a config change or a manual production step, writes
+`N/A (operational)` as its size instead of a band.
+
+## Containers: epic and milestone
+
+A container is a bead that holds other beads and produces no diff of its own. `bd` has two
+container types, and this contract gives both the same body.
+
+| Type | What it holds |
+|---|---|
+| `epic` | A large body of work, as the child beads that deliver it |
+| `milestone` | A deliverable a stakeholder can see, as the beads that must close to reach it |
+
+**A container carries five sections: Ask, Why, How, Done when, and Success Criteria.** The How
+goes in `design` and the Done when goes in `notes`, the same as for every other type.
+
+**A container carries no Estimated size and no Acceptance Criteria.** Both describe one diff, and
+a container has none. Leave the `acceptance_criteria` field empty. A missing size on a container
+is correct, and no audit counts it as a fault.
+
+**Success Criteria is the section a container cannot omit.** Write each line so that a
+stakeholder who has read none of the child beads can judge it. A stakeholder is a person who
+wants the result and does not build it. Name a result that person can see, measure, or use.
+
+| Do not write | Write |
+|---|---|
+| All 4 child beads are closed | A developer can turn a reviewed plan into beads without a manual fix |
+| `test_publish.py` passes | A publish that stops halfway leaves no duplicate bead |
+
+A line that only a builder can check belongs in the Acceptance Criteria of a child bead.
+
+The How of a container says how the work is divided and in what order. It names no file to edit.
+The Done when of a container says which child work must be verified before the container closes.
+
+**A milestone bead is not a table row in `docs/milestones.md`.** That file maps a label to a goal
+for `/bead-refine`. A milestone bead is a `bd` bead whose type is `milestone`. This contract
+governs the bead alone.
 
 ## Two fields carry headings, and two do not
 
@@ -161,7 +201,7 @@ Write "the copy runs 10 checks and `.githooks/pre-push` runs 18; derive both wit
 
 ## A complete bead
 
-This is every field of one bead, written to this contract.
+This is every field of one task, written to this contract.
 
 ```text
 description:
@@ -192,4 +232,38 @@ notes:
 acceptance_criteria:
   1. Given the repository, when `.beads/hooks` is listed, then it holds exactly the four beads
      shims and no tadw hook.
+```
+
+## A complete milestone
+
+This is every field of one milestone, written to this contract. It has no `## Estimated size`
+section and no `acceptance_criteria` field.
+
+```text
+description:
+  **Ask:** Deliver safe publication, so a plan becomes beads that are ready only when valid.
+
+  ## Why (Computational)
+
+  A developer who publishes a plan today can see half of its beads as ready work. A publish that
+  stops halfway leaves beads with no dependency on the bead that must come first.
+
+  ## Success Criteria
+
+  - A developer can publish a reviewed plan and start the first bead with no manual fix.
+  - A publish that stops halfway shows no bead as ready, and a second run adds no duplicate.
+
+design:
+  Publish every bead on hold first. Add the dependencies next, and release the holds last. The
+  three child beads follow that order, and each one ships alone.
+
+notes:
+  ## Done when (Acceptance)
+
+  - The three child beads are closed, and each one has a recorded acceptance verdict.
+  - One reviewed plan was published from start to finish with the released skill.
+
+  ## Out of scope
+
+  - Moving an existing backlog into the new hierarchy.
 ```

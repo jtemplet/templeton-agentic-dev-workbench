@@ -1,6 +1,6 @@
 ---
 name: bead-create
-description: "Author one well-crafted bead and file it. Use whenever someone asks to create a bead, file a bead, write a bead, open an issue, file a ticket, log a bug, capture a TODO, or track a piece of work in bd (beads), even if they do not say the word bead. Interviews for only what cannot be inferred, searches the tracker for a duplicate first, grounds every current-state claim in the code on main, picks the type, drafts the body against the canonical structure (Why, How, Done when, Acceptance Criteria, plus Steps to Reproduce for a bug and Success Criteria for an epic), estimates the diff-size band and splits anything too big, then self-audits the draft with the bead-audit rubric until it passes. Presents the bead and waits for confirmation before writing. Creates it in one call with the native design, notes, and acceptance fields populated, labels it, wires its dependencies, reads it back to prove it landed, and exports the tracker silently."
+description: "Author one well-crafted bead and file it. Use whenever someone asks to create a bead, file a bead, write a bead, open an issue, file a ticket, log a bug, capture a TODO, or track a piece of work in bd (beads), even if they do not say the word bead. Interviews for only what cannot be inferred, searches the tracker for a duplicate first, grounds every current-state claim in the code on main, picks the type, drafts the body against the canonical structure (Why, How, Done when, Acceptance Criteria, plus Steps to Reproduce for a bug and Success Criteria for an epic or a milestone), estimates the diff-size band and splits anything too big, then self-audits the draft with the bead-audit rubric until it passes. Presents the bead and waits for confirmation before writing. Creates it in one call with the native design, notes, and acceptance fields populated, labels it, wires its dependencies, reads it back to prove it landed, and exports the tracker silently."
 ---
 
 # Bead Create
@@ -81,7 +81,7 @@ what no artifact can answer.
 | Why | "What breaks, or stays broken, if this is never done? Who is affected?" |
 | How | "Is there an approach you have in mind, or should the implementer choose?" |
 | Done when | "How would a second person know this is finished without asking you?" |
-| Type | Infer it: a defect in existing behavior is a `bug`, new user-facing capability is a `feature`, everything else is a `task`, and an umbrella over child beads is an `epic` |
+| Type | Infer it: a defect in existing behavior is a `bug`, new user-facing capability is a `feature`, everything else is a `task`. A bead that holds other beads is a container: an `epic` for a large body of work, or a `milestone` for a deliverable a stakeholder can see |
 | Priority | Infer from impact and urgency; state your reasoning at the confirmation gate rather than asking |
 
 Batch the questions into one exchange. Three questions asked together cost the author one
@@ -165,6 +165,11 @@ which sections the type requires, the byte-exact heading for each one, and the `
 goes in. It also explains why Done when and Acceptance Criteria are different sections, with a
 worked example. It defines the `**Ask:**` line every description opens with.
 
+**For an `epic` or a `milestone`, read the "Containers" section of that file.** A container
+carries Ask, Why, How, Done when, and Success Criteria. It carries no Estimated size and no
+Acceptance Criteria. Write each Success Criteria line for a stakeholder who has read no child
+bead.
+
 Write every sentence to that file's ten sentence rules. The reader of a bead is a person who cannot
 tell what it asks for.
 
@@ -172,6 +177,9 @@ Write the title as a single action with no conjunction bundling two work units. 
 middleware" is a title. "Add user auth middleware and migrate the callers" is two beads wearing one.
 
 ### Step 5: Estimate the Size, Then Split or Refuse
+
+**Skip this step for an `epic` or a `milestone`.** A container produces no diff, so it has no size
+to estimate. Size each child bead instead.
 
 Estimate files touched and LOC changed, tests and docs included, and place it in a band using
 `bead-audit`'s Size Audit table. Target is 1 to 5 files and 20 to 300 LOC. Stretch is up to 10 files
@@ -193,7 +201,8 @@ Run `bead-audit`'s dimensions against your own draft before showing it to anyone
 1. **Marr audit.** Does the Why name a stakeholder or constraint? Does the How state an approach
    with a decision in it, not an action? Is every Done when line verifiable by a second person?
 2. **Type-specific audit.** Is every section this type requires present and substantive?
-3. **Size audit.** Does the band pass, and does a Stretch band carry its justification?
+3. **Size audit.** Does the band pass, and does a Stretch band carry its justification? For an
+   `epic` or a `milestone`, record `N/A (umbrella)` and move on.
 4. **Structure.** Does every section sit under the byte-exact canonical heading, or in its native
    field?
 
@@ -243,6 +252,9 @@ Show the complete bead and stop:
 **Self-audit:** Marr pass, type-specific pass, size pass, structure canonical.
 ```
 
+For an `epic` or a `milestone`, show **Success Criteria:** in place of **Acceptance Criteria:**.
+Leave out the **Estimated size:** line, and write `size N/A (umbrella)` in the self-audit line.
+
 **Wait for confirmation before any write.** Filing a bead is a change to shared state. Treat any
 edit the author makes as a re-audit: confirm the edited version still passes Step 6 before creating.
 
@@ -284,7 +296,8 @@ EOF
 **bug:** the same shape, with Steps to Reproduce in the description body alongside the Why (it has
 no native slot), carrying numbered steps plus expected against actual behavior.
 
-**epic:** the same shape, with Success Criteria in the body, no size estimate, and no
+**epic or milestone:** the same shape, with `-t epic` or `-t milestone`. Put `## Success Criteria`
+in the `-d` body in place of `## Estimated size`. Keep `--design` and `--notes`, and pass no
 `--acceptance`.
 
 On a tracker whose `create` cannot set a native field, create the bead first. Populate it with
@@ -336,6 +349,9 @@ bd show "$id"
 
 Confirm `design`, `notes`, and `acceptance_criteria` are populated, not empty. A create that
 reported success and left the native fields blank is the exact defect ADR 0001 exists to prevent.
+
+For an `epic` or a `milestone`, confirm `design` and `notes` alone. A container has no acceptance
+criteria, so its empty `acceptance_criteria` field is correct.
 
 Then export, silently:
 

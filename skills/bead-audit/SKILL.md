@@ -172,7 +172,7 @@ apply to every bead.**
 
 | Band | Files | LOC | Verdict |
 |---|---|---|---|
-| **N/A (umbrella)** | - | - | Pass. Epics coordinate child beads and carry ~0 direct diff. Never FAIL an epic on size |
+| **N/A (umbrella)** | - | - | Pass. A container (`epic` or `milestone`) holds other beads and carries ~0 direct diff. Never FAIL a container on size |
 | **N/A (operational)** | - | - | Pass. Ops/chore/infra beads (config, deploy, manual production change, external-system work) have no meaningful repo diff |
 | **Trivial** | 1 | < 20 | Warn: should be a direct commit, not a bead |
 | **Target** | 1-5 | 20-300 | Pass |
@@ -184,8 +184,11 @@ apply to every bead.**
 
 **Applicability rules:**
 
-- **Epics** are always `N/A (umbrella)`. The `## Estimated size` section is not required and its
-  absence is not a finding.
+<!-- container-size:start -->
+- **Containers** are always `N/A (umbrella)`. A container is a bead of type `epic` or `milestone`.
+  The `## Estimated size` section is not required, and its absence is not a finding. Record the
+  same N/A when a container does carry a size, and do not grade the band it states.
+<!-- container-size:end -->
 - **Operational beads** (work is config/deploy/infra/manual ops with no meaningful code diff,
   evident from the type or the How) are `N/A (operational)`. A `## Estimated size` of "N/A
   (operational)" passes; absence is not a finding.
@@ -218,12 +221,27 @@ the provided content names the issue type (a `Type:` metadata line, a `<!-- type
 annotation, or the caller's explicit statement). Default to `task` if the type cannot be determined,
 and flag this as a WARN (missing type declaration).
 
+<!-- type-sections:start -->
 | Type | Required sections | content: pass criteria |
 |---|---|---|
 | `task` | Acceptance Criteria | At least one testable, observable condition |
 | `feature` | Acceptance Criteria | At least one testable, observable condition |
 | `bug` | Acceptance Criteria + Steps to Reproduce | AC: at least one observable condition; Steps: numbered steps with expected vs. actual behavior |
 | `epic` | Success Criteria | At least one outcome-level indicator legible to a product stakeholder who has not read child beads |
+| `milestone` | Success Criteria | The same bar as `epic` |
+<!-- type-sections:end -->
+
+**A container needs no Acceptance Criteria.** On an `epic` or a `milestone`, an empty
+`acceptance_criteria` field is correct. Do not report it, and do not draft content for it.
+
+**A container with no Success Criteria fails.** That is a content `fail`, so the rollup is NEEDS
+WORK. A list that holds only implementation checks, such as "all child beads are closed" or a
+test name, is also a content `fail`. The "Containers" section of
+[docs/bead-body-contract.md](../../docs/bead-body-contract.md) defines the bar and gives examples.
+
+**Keep the two container results apart.** A missing Success Criteria section is a finding. A
+missing size is not. So a container that lacks both gets one finding, and the report names the
+size as `N/A (umbrella)`.
 
 These sections also get the content/structure split: rich Acceptance Criteria written as `AC:` prose
 is a reformat (WARN), not a missing-section FAIL.
@@ -415,15 +433,21 @@ visible, and (because of the caps below) cannot by itself lift a bead past its v
 
 ### Weights
 
+<!-- score-weights:start -->
 | Dimension | Weight | Applies to |
 |---|---|---|
 | Why (Computational) | 20 | all types |
 | How (Algorithmic) | 20 | all types |
 | Done when (Acceptance) | 20 | all types |
-| Acceptance Criteria (Success Criteria for `epic`) | 20 | all types |
+| Acceptance Criteria (Success Criteria for `epic` and `milestone`) | 20 | all types |
 | Steps to Reproduce | 10 | `bug` only |
-| Estimated size | 10 | code-bearing beads only |
+| Estimated size | 10 | `task`, `feature`, and `bug`, unless the Size Audit records N/A (operational) |
 | Structure | 10 | all types |
+<!-- score-weights:end -->
+
+`skills/bead-audit/scripts/test_container_contract.py` reads this table and the type table in
+"3. Type-specific Section Audit". Keep each type name in backticks in the last column, or write
+`all types`.
 
 **Content points per dimension:** `pass` earns the full weight, `warn` half, `fail` zero.
 
@@ -435,14 +459,20 @@ native structured fields") is canonical.
 
 The denominator is the sum of applicable weights, not a fixed 100. A dimension is **excluded from
 both numerator and denominator whenever this skill's own audit already recorded it N/A**. The Size
-Audit's applicability rules set those: `N/A (umbrella)` for epics, `N/A (operational)` for ops
-beads, and Steps to Reproduce for any non-bug type. This ties applicability to a verdict the skill
+Audit's applicability rules set those: `N/A (umbrella)` for both container types (`epic` and
+`milestone`), `N/A (operational)` for ops beads, and Steps to Reproduce for any non-bug type.
+This ties applicability to a verdict the skill
 computed, not to a fresh type or label guess. So it cannot contradict the Size Audit, and nobody can
 game it by re-declaring a bead operational at scoring time. When a dimension is dropped, the report
 must name it and the reason ("size N/A (operational), excluded").
 
 There is no `pass`/`warn`/`fail` for an N/A dimension, so it is never scored zero; it simply leaves
 the denominator.
+
+**A container's denominator is 90.** Why, How, Done when, and Success Criteria total 80, and
+Structure adds 10. The size weight of 10 is not in the sum, for an `epic` and for a `milestone`
+alike. Structure counts four required sections for a container, so a container with every section
+canonical earns `10 × 4/4`.
 
 ### Bands, capped by verdict
 
@@ -500,12 +530,18 @@ computed from the weights and rules above:
 | task, all content warn, canonical | 55.0 | Weak | Great | **Weak** |
 | task, all pass, canonical, size Trivial | 95.0 | Excellent | Great | **Great** |
 | epic, all sections pass, size N/A | 100.0 | Excellent | Excellent | **Excellent** |
+| milestone, all sections pass, no size written | 100.0 | Excellent | Excellent | **Excellent** |
+| milestone, no Success Criteria (content fail), no size written | 75.0 | Great | Weak | **Weak** |
 
 The lower-of-two rule means a cap only ever moves a quality band down, as in rows 3 and 6. It never
 moves one up. So a NEEDS WORK bead can never report above Weak, however high its raw score, as in
 rows 2 and 4. The bug row denominator is 110: Why, How, Done, AC, Steps, and Size total 100, plus
 Structure 10. 5 of 6 sections canonical gives structure `10 × 5/6`. Recompute it to confirm that the
 skill and the caller agree.
+
+The last milestone row has a denominator of 90. Why, How, and Done when earn 60. 3 of 4 sections
+canonical gives structure `10 × 3/4`, so the numerator is 67.5 and the raw score is 75.0. The
+missing size takes no points, because the size weight is not in the denominator.
 
 ### Scorecard in the report
 
@@ -543,8 +579,8 @@ A heading with no following content is treated as having no content for that sec
 ### Step 3: Run All Applicable Audits Per Bead
 
 For each bead, evaluate every applicable dimension. Produce a content verdict and a structure
-verdict for each required section, per "Audit Dimensions". Skip the size dimension for epics and
-operational beads (record it as N/A, not as a finding).
+verdict for each required section, per "Audit Dimensions". Skip the size dimension for epics,
+milestones, and operational beads (record it as N/A, not as a finding).
 
 **Then run the Grounding Audit.** Do this once per repository, not once per bead: resolve the ref
 and sha first, then check every bead's claims against it.
@@ -580,6 +616,9 @@ Default output is human markdown (see "Output Modes" for JSON). For each bead:
 | Done when (Acceptance) | pass / warn / fail | canonical / variant / absent | |
 | Acceptance Criteria | pass / warn / fail | canonical / variant / absent | |
 | Estimated size | pass / warn / fail / N/A | n/a | <band, or "N/A (umbrella)"> |
+
+For an `epic` or a `milestone`, replace the Acceptance Criteria table row with a Success Criteria
+table row.
 
 **Overall: PASS / REFORMAT / NEEDS WORK**
 **Grounding: grounded / drifted / satisfied / ungroundable** (checked against `origin/main` @ `<short sha>`)
@@ -687,7 +726,7 @@ object and the caller applies it.
   "beads": [
     {
       "id": "<id or title>",
-      "type": "task|feature|bug|epic",
+      "type": "task|feature|bug|epic|milestone",
       "overall": "pass|reformat|needs_work",
       "score": 100,
       "band": "excellent|great|adequate|weak|poor",
@@ -740,7 +779,8 @@ Field semantics for a caller, such as a `/goal` loop:
 - `score_denominator` is the sum of the weights of every dimension that applies to the bead,
   including Structure (weight 10) and, for a `bug`, Steps to Reproduce (weight 10). Do not compute
   it as "100 minus excluded weights". That is right for a `task` or `feature`, whose denominator is
-  100, and for an `epic`, whose denominator is 90 with size excluded. It is wrong for a `bug`, whose
+  100, and for an `epic` or a `milestone`, whose denominator is 90 with size excluded. It is wrong
+  for a `bug`, whose
   base is 110. Excluding a dimension removes its weight from this sum.
 - Per-check `points` cover only the content dimensions in the `checks` array. They do **not**
   include the Structure contribution. Structure is computed once, as
@@ -820,8 +860,8 @@ to Reproduce / Success Criteria, draft them. Otherwise insert
 - When the tracker has native fields, such as `bd`'s acceptance_criteria, design, and notes, audit
   the field's content. Treat the field as canonical structure. Write a fix to the native field,
   rather than embedding a heading in the description body.
-- Evaluate every applicable dimension. Skip size only for epics and operational beads, and record
-  those as N/A rather than as a finding.
+- Evaluate every applicable dimension. Skip size only for epics, milestones, and operational beads,
+  and record those as N/A rather than as a finding.
 - Default the type to `task` if it cannot be determined, and flag it as a WARN.
 - Use the byte-exact headings from `docs/bead-body-contract.md` when drafting, so a fixed bead
   re-passes the audit.
@@ -840,7 +880,8 @@ to Reproduce / Success Criteria, draft them. Otherwise insert
 
 - FAIL a bead whose Why/How/Done content is present and adequate but written under non-canonical
   headings. That is a REFORMAT.
-- Force a files/LOC size band onto an epic or operational bead.
+- Force a files/LOC size band onto an epic, a milestone, or an operational bead.
+- Report an empty `acceptance_criteria` field on an epic or a milestone, or draft content for it.
 - Manufacture a passing size band during scoring to suppress a FAIL. (A *drafted* fix may supply a
   `(provisional ...)`-marked estimate; that is the one allowed inference, and it is distinct from a
   `[AUTHOR TO COMPLETE]` placeholder.)

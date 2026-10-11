@@ -19,23 +19,30 @@ without checking it.
 | `needs-work-no-ac.md` | task | missing Acceptance Criteria | Weak (NEEDS WORK cap) |
 | `bug-without-repro.md` | bug | missing Steps to Reproduce | Weak (NEEDS WORK cap) |
 | `epic-without-size.md` | epic | clean, size N/A (renormalized) | Excellent |
+| `milestone-complete.md` | milestone | clean, native `design` and `notes`, no size, no acceptance field | Excellent |
+| `milestone-without-success-criteria.md` | milestone | missing Success Criteria, and no size | Weak (NEEDS WORK cap) |
 | `title-only.md` | task | title plus one line, nothing else | Poor, applyable:false |
 
 These map to the plan's acceptance criteria: excellent-task→1, epic-without-size→3,
 reformat-only→4, needs-work-no-ac→5, bug-without-repro→6, all-warn-canonical→7, title-only→2,
 trivial-band→the Trivial cap row.
 
+The two milestone fixtures prove bead `tadw-5n2s.2`. They are written as `bd` fields, not as one
+pasted body, so the How sits in `design` and the Done when sits in `notes`.
+`python3 skills/bead-audit/scripts/test_container_contract.py` checks their `Expected` blocks
+against the weights in `SKILL.md`.
+
 ## Grounding and these fixtures
 
-Every fixture here is a pasted body describing a fictional login rate-limiter, and it names
-**no repository of record**. All eight are therefore `ungroundable` under the last-but-one
+Every fixture here describes a fictional product, most of them a login rate-limiter, and names
+**no repository of record**. Every fixture is therefore `ungroundable` under the last-but-one
 bullet of `SKILL.md` → "When the dimension cannot run", which applies no band ceiling, so
 the expected bands above are unchanged by the Grounding Audit.
 
 **This is load-bearing, not incidental.** These fixtures live inside a repository, so an
 auditor that grounds a bead against "whatever repo is open" would run their existence checks
-against `tadw`, find no login endpoint and no rate limiter, and report `drifted` on all
-eight. That applies the Adequate ceiling and drops `excellent-task.md` from Excellent to
+against `tadw`, find no login endpoint and no rate limiter, and report `drifted` on every
+one. That applies the Adequate ceiling and drops `excellent-task.md` from Excellent to
 Adequate, failing the suite for a reason that has nothing to do with the Scorecard. If you
 see fixture bands move after a grounding rule change, check that rule first: the fixtures
 are almost certainly being grounded against a repository they were never about.
