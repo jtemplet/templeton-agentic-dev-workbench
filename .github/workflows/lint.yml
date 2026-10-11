@@ -15,7 +15,7 @@ jobs:
     name: Markdown (rumdl)
     runs-on: ubuntu-latest
     env:
-      RUMDL_VERSION: v0.2.33
+      RUMDL_VERSION: v0.2.77
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
       # relative link to a path that does not exist, so without this step the
       # gate lives only in .githooks/pre-push. core.hooksPath is local config
       # and does not travel with a clone, so a hook-only gate protects only the
-      # machines somebody wired by hand. MD057 needs v0.2.33, which is why
+      # machines somebody wired by hand. MD057 needs v0.2.33 or later, which is why
       # RUMDL_VERSION was bumped. MD013 is excluded here because a whole-tree
       # run would fail on the 87 files not yet reflowed to 100 columns.
       # .githooks/pre-push carries MD013 separately, scoped to the changed
