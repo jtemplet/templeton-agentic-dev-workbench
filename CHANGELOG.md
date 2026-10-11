@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [4.8.3] - 2026-10-11
+
+### Changed
+
+- **Refuse containers before TADW build claims.** (`f478e27`, tadw-5n2s.1)
+- **Run fresh-eyes review in a sonnet agent with...** (`d64b33d`, tadw-bu4b)
+- **Review-fresh-eyes flags issues it has not read the...** (`488621a`, tadw-0t87)
+- **Define milestone content in the shared bead...** (`7afc264`, tadw-5n2s.2)
+- **Carry a plan's binding ADRs into the beads...** (`f7e15b5`, tadw-cat)
+
+### Fixed
+
+- **The Stop handler applies accepted to a bead the...** (`3f92ecc`, tadw-6gij)
+- **Bead-audit's verdict model and scorecard contradict...** (`baf6b1f`, tadw-uvw)
+
 ## [4.8.2] - 2026-10-10
 
 ### Added
@@ -2876,7 +2891,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.2...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.3...HEAD
+[4.8.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.2...v4.8.3
 [4.8.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.1...v4.8.2
 [4.8.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.0...v4.8.1
 [4.8.0]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.7.2...v4.8.0
