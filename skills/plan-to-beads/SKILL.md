@@ -232,6 +232,21 @@ If the plan has no acceptance criteria at all, say so, author them per bead from
 and scope, and recommend the user run `/plan-review` on the plan. Do not silently paper over an
 unprovable plan.
 
+**Inherit binding ADRs from the plan.** Plans written by `/write-plan` or `/plan-from-idea`
+carry a `## Decisions That Bind This Plan` section. It is a table that names each ADR, the rule
+that ADR sets, and how the plan honors it. Read that section. For each ADR in it, decide which
+beads the ADR constrains. Write the ADR number and its rule into the `design` field of each of
+those beads, as part of the How. Add no new heading and no separate note for it. A binding rule
+limits the approach, and `design` is the native field that holds the approach
+([ADR 0001](../../docs/adr/0001-native-tracker-fields-are-canonical.md)).
+
+Surface one failure mode at the confirmation gate in Step 3, before any bead is created: an ADR the
+plan names that no bead inherits. Name that ADR by its number. Either a bead is missing the rule, or
+the plan lists an ADR that does not constrain this work. Ask the user which.
+
+If the plan has no such section, or the section reads "None found", say so once and create the
+beads as usual. A repository with no `docs/adr/` is normal, not an error.
+
 For each issue, prepare:
 
 | Field | Value |
@@ -606,6 +621,9 @@ Before reporting completion, verify:
 - [ ] Every issue has an explicit type (`task`, `feature`, `bug`, or `epic`)
 - [ ] Every issue carries Why, How, and Done when, each written to its canonical destination per ADR
   0001 (native field where one exists, description body otherwise)
+- [ ] Every ADR in the plan's `## Decisions That Bind This Plan` section has its number and its rule
+  in the `design` field of each bead it constrains, or was named at the confirmation gate as
+  inherited by no bead
 - [ ] No bead was left in the partial state of a successful `bd create` followed by a failed
   `bd update`
 - [ ] Every `## Done when` section contains at least one condition a second person could verify
