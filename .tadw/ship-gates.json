@@ -52,6 +52,8 @@
     {"name": "quality-gates-findings-suite", "command": ["python3", "skills/reconcile-quality-gates/scripts/test_load_findings.py"]},
     {"name": "acceptance-report-suite", "command": ["python3", "skills/verify-acceptance/scripts/test_write_acceptance_report.py"]},
     {"name": "journeys-suite", "command": ["python3", "skills/verify-app/scripts/test_journeys.py"]},
+    {"name": "rumdl-version-suite", "command": ["python3", ".githooks/test_check_rumdl_version.py"]},
+    {"name": "rumdl-version", "command": ["python3", ".githooks/check_rumdl_version.py"]},
     {"name": "prepush-suite", "command": ["python3", ".githooks/test_prepush.py"]},
     {"name": "plugin-validate", "command": ["claude", "plugin", "validate", "."]}
   ]

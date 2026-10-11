@@ -250,6 +250,8 @@ check python3 skills/reconcile-acceptance/scripts/test_load_findings.py
 check python3 skills/reconcile-quality-gates/scripts/test_load_findings.py
 check python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py
 check python3 skills/verify-app/scripts/test_journeys.py
+check python3 .githooks/test_check_rumdl_version.py
+check python3 .githooks/check_rumdl_version.py
 
 run_planned_checks
 

@@ -14,11 +14,16 @@ jobs:
   markdown:
     name: Markdown (rumdl)
     runs-on: ubuntu-latest
-    env:
-      RUMDL_VERSION: v0.2.77
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # .rumdl-version is the one place the version lives. It holds the bare
+      # version `rumdl --version` prints, and the release URL needs the `v`.
+      # .githooks/check_rumdl_version.py fails a push when the local rumdl
+      # differs from it, so the two cannot drift in silence.
+      - name: Read the pinned rumdl version
+        run: echo "RUMDL_VERSION=v$(tr -d '[:space:]' < .rumdl-version)" >> "$GITHUB_ENV"
 
       - name: Cache rumdl binary
         id: cache-rumdl
@@ -47,9 +52,9 @@ jobs:
       # relative link to a path that does not exist, so without this step the
       # gate lives only in .githooks/pre-push. core.hooksPath is local config
       # and does not travel with a clone, so a hook-only gate protects only the
-      # machines somebody wired by hand. MD057 needs v0.2.33 or later, which is why
-      # RUMDL_VERSION was bumped. MD013 is excluded here because a whole-tree
-      # run would fail on the 87 files not yet reflowed to 100 columns.
+      # machines somebody wired by hand. MD057 needs v0.2.33 or later. MD013
+      # is excluded here because a whole-tree run would fail on the 87 files
+      # not yet reflowed to 100 columns.
       # .githooks/pre-push carries MD013 separately, scoped to the changed
       # set, which CI does not run.
       - name: Lint Markdown
