@@ -22,9 +22,9 @@
 #      along too: the label script runs it as a sibling to decide the /build
 #      claim, and without it /build starts with no claim at all.
 #   2. Wires that path into <repo>/.claude/settings.json for the four events
-#      the hook dispatches on: PreToolUse (matcher Skill), UserPromptSubmit,
-#      Stop, and SubagentStop. Everything else in settings.json is left
-#      byte-identical.
+#      the hook dispatches on: PreToolUse (once for matcher Skill and once for
+#      matcher Agent), UserPromptSubmit, Stop, and SubagentStop. Everything
+#      else in settings.json is left byte-identical.
 #
 # --check answers the same two questions and changes nothing: it reports how
 # each installed copy differs from the source and which of the four events are
@@ -59,13 +59,19 @@ CHECK_ONLY=false
 # Verbatim from the reference wiring in ~/Dev/atlas/.claude/settings.json, so a
 # repo installed by this script shows the same progress lines as that one.
 PRE_MESSAGE="feature-development / simplify / code-review / fresh-eyes-cr / qa / verify-acceptance: labeling bead..."
+AGENT_MESSAGE="acceptance-verifier: labeling bead..."
 PROMPT_MESSAGE="slash command: labeling bead..."
 STOP_MESSAGE="Resolving pending bead labels..."
 SUBAGENT_STOP_MESSAGE="Checking for a missing acceptance report..."
 
-# Every event the hook dispatches on. --check verifies each one, and the jq
-# program below wires each one.
-WIRED_EVENTS="PreToolUse UserPromptSubmit Stop SubagentStop"
+# Every registration the hook needs, as the event and, where the event takes
+# one, its matcher in parentheses. --check verifies each one, and the jq program
+# below wires each one.
+#
+# PreToolUse is here twice. The Agent registration is how a session that starts
+# the acceptance-verifier directly is seen at all: such a start calls no Skill
+# tool, so the Skill registration never fires for it.
+WIRED_REGISTRATIONS="PreToolUse(Skill) PreToolUse(Agent) UserPromptSubmit Stop SubagentStop"
 
 die() { echo "error: $*" >&2; exit 1; }
 
@@ -187,19 +193,27 @@ report_script_state() {
   fi
 }
 
-# Which of the four events name this hook. Wiring drift is its own failure:
-# a current script reached by three events does nothing on the fourth, which is
-# exactly how a typed slash command went unlabeled while the file was fine.
-wired_events() {
+# Which registrations name this hook, in the spelling WIRED_REGISTRATIONS uses.
+# Wiring drift is its own failure: a current script reached by three events does
+# nothing on the fourth, which is exactly how a typed slash command went
+# unlabeled while the file was fine.
+#
+# A matcher is a pattern, so a group whose matcher is Skill|Agent counts for
+# both. A group with no matcher on PreToolUse matches every tool, and counts
+# for both as well.
+wired_registrations() {
   [[ -f "$SETTINGS" ]] || return 0
   jq -r --arg name "$HOOK_SCRIPT" '
     (.hooks // {})
     | to_entries[]
     | .key as $event
     | (.value | if type == "array" then .[] else empty end)
-    | (.hooks // [])[]
-    | select((.command? // "") | contains($name))
-    | $event
+    | select([(.hooks // [])[] | (.command? // "") | contains($name)] | any)
+    | if $event == "PreToolUse"
+      then ((.matcher // "") | if . == "" or . == "*" then "Skill|Agent" else . end
+            | split("|")[] | "PreToolUse(\(.))")
+      else $event
+      end
   ' "$SETTINGS" 2>/dev/null | sort -u
 }
 
@@ -221,9 +235,9 @@ if [[ "$CHECK_ONLY" == true ]]; then
   report_script_state "module:  " "$MODULE_SOURCE" "$MODULE_DEST" "$DEST_DIR/$MODULE_SCRIPT" ||
     check_failed=true
 
-  found="$(wired_events | tr '\n' ' ')"
+  found="$(wired_registrations | tr '\n' ' ')"
   missing_events=""
-  for e in $WIRED_EVENTS; do
+  for e in $WIRED_REGISTRATIONS; do
     case " $found " in *" $e "*) ;; *) missing_events="$missing_events $e" ;; esac
   done
   if [[ -z "$missing_events" ]]; then
@@ -366,11 +380,17 @@ else
   settings_existed=false
 fi
 
-# Per event: repoint any entry that already names this hook, otherwise append
-# one to the group whose matcher matches, otherwise add that group. Rewriting
-# in place is what makes a second run a repair rather than a duplication.
+# Per registration: repoint any entry that already names this hook, otherwise
+# append one to the group whose matcher matches, otherwise add that group.
+# Rewriting in place is what makes a second run a repair rather than a
+# duplication.
 #
-# Single-quoted on purpose: $cmd, $name, $pre, $prompt, $stop, and
+# "Already names this hook" is asked per matcher, because PreToolUse carries two
+# registrations. A matcher is a pattern, so a group whose matcher is Skill|Agent
+# already serves both and gains nothing. A group is never widened: one that
+# holds somebody else's hook under Skill keeps firing on Skill alone.
+#
+# Single-quoted on purpose: $cmd, $name, $pre, $agent, $prompt, $stop, and
 # $subagent_stop are jq variables fed by the --arg flags below, and letting
 # bash expand them first would substitute empty strings into the program.
 # shellcheck disable=SC2016
@@ -384,13 +404,17 @@ def patched($msg):
   | .command = $cmd
   | if has("statusMessage") then . else .statusMessage = $msg end;
 
+def serves($matcher):
+  $matcher == null
+  or ((.matcher // "") | . == "" or . == "*" or (split("|") | index($matcher) != null));
+
 def wire($event; $matcher; $msg):
   (.hooks[$event] // []) as $groups
-  | if [$groups[] | (.hooks // [])[] | is_ours] | any
+  | if [$groups[] | select(serves($matcher)) | (.hooks // [])[] | is_ours] | any
     then
       .hooks[$event] = [
         $groups[]
-        | if [(.hooks // [])[] | is_ours] | any
+        | if serves($matcher) and ([(.hooks // [])[] | is_ours] | any)
           then .hooks = [.hooks[] | if is_ours then patched($msg) else . end]
           else .
           end
@@ -406,6 +430,7 @@ def wire($event; $matcher; $msg):
     end;
 
 wire("PreToolUse"; "Skill"; $pre)
+| wire("PreToolUse"; "Agent"; $agent)
 | wire("UserPromptSubmit"; null; $prompt)
 | wire("Stop"; null; $stop)
 | wire("SubagentStop"; null; $subagent_stop)
@@ -418,6 +443,7 @@ printf '%s' "$original" |
   jq --arg cmd "$HOOK_COMMAND" \
      --arg name "$HOOK_SCRIPT" \
      --arg pre "$PRE_MESSAGE" \
+     --arg agent "$AGENT_MESSAGE" \
      --arg prompt "$PROMPT_MESSAGE" \
      --arg stop "$STOP_MESSAGE" \
      --arg subagent_stop "$SUBAGENT_STOP_MESSAGE" \

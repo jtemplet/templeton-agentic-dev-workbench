@@ -6,14 +6,16 @@ copy of record, so change it here, never in a deployed copy. `CLAUDE.md` here is
 this file.
 
 - `scripts/label_bead_on_skill_invocation.sh` labels the bead that a skill invocation acts on. It
-  is wired to `PreToolUse` (matcher `Skill`), `UserPromptSubmit`, `Stop`, and `SubagentStop`.
-  Deployed copies are downstream of it.
+  is wired to `PreToolUse` (matcher `Skill`, and matcher `Agent`), `UserPromptSubmit`, `Stop`,
+  and `SubagentStop`. The `Agent` registration is how a directly started `acceptance-verifier`
+  gets its pending `accepted` marker. Deployed copies are downstream of it.
 - `scripts/install_label_bead_on_skill_invocation.sh` installs it into whatever repository you
   run it from, under `.claude/scripts/`. It puts `scripts/run_codex_bead_hooks.sh` in
   `.codex/scripts/`, and removes a runner an older installer left in `.claude/scripts/`.
   Re-running it is safe. `--dest-dir` moves the label script and its module, never the runner.
 - `... --check` reports whether each installed copy matches its source, and whether all four
-  events reference the label script. It changes nothing, and exits 1 when any is out of step.
+  events reference the label script, `PreToolUse` under both matchers. It changes nothing, and
+  exits 1 when any is out of step.
 - `scripts/claim_bead_for_build.py` decides the `/build` claim: claim, adopt, already held,
   refuse, or leave alone. It refuses an epic or a milestone before any of those.
   Its `candidates` subcommand lists the bead ids worth probing for a branch and a skill's

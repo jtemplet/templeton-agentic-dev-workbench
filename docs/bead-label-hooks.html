@@ -194,6 +194,8 @@ record what was asked for, and <code>Stop</code> checks what happened. <code>Sub
       <td>Maps the command name to a skill, then runs the shared flow</td></tr>
   <tr><td><code>PreToolUse</code>, matcher <code>Skill</code></td><td>Claude calls the Skill tool</td>
       <td>Reads the skill name from the payload, then runs the same shared flow</td></tr>
+  <tr><td><code>PreToolUse</code>, matcher <code>Agent</code></td><td>Claude starts a subagent. The script continues only for <code>acceptance-verifier</code></td>
+      <td>Runs the shared flow as the <code>verify-acceptance</code> skill, so a grading started without the skill still gets its marker</td></tr>
   <tr><td><code>Stop</code></td><td>Every time Claude yields, not only when the work is done</td>
       <td>Looks at each pending marker and reads that skill's report</td></tr>
   <tr><td><code>SubagentStop</code></td><td>A subagent finishes. The script continues only for <code>acceptance-verifier</code></td>
@@ -211,7 +213,7 @@ record what was asked for, and <code>Stop</code> checks what happened. <code>Sub
   <tr><td><code>/build</code> (<code>feature-development</code>)</td><td><code>implemented</code></td><td><span class="tag t-ok">gate</span></td>
       <td><code>&lt;git-dir&gt;/build-report.json</code>. Also claims the bead</td></tr>
   <tr><td><code>/simplify</code> (<code>code-simplify</code>)</td><td><code>simplified</code></td><td><span class="tag t-shell">apply</span></td><td>The run itself: labeled at once</td></tr>
-  <tr><td><code>/code-review</code>, <code>/fresh-eyes-cr</code></td><td><code>reviewed</code></td><td><span class="tag t-shell">apply</span></td><td>The run itself: labeled at once</td></tr>
+  <tr><td><code>/code-review</code>, <code>/fresh-eyes-cr</code>, <code>mattpocock-skills:code-review</code></td><td><code>reviewed</code></td><td><span class="tag t-shell">apply</span></td><td>The run itself: labeled at once</td></tr>
   <tr><td><code>/quality-gates</code>, <code>/qa</code></td><td><code>qa-d</code></td><td><span class="tag t-ok">gate</span></td>
       <td><code>&lt;git-dir&gt;/quality-gates-report.json</code>, or a <code>.gstack/qa-reports/</code> file for <code>/qa</code></td></tr>
   <tr><td><code>/verify-acceptance</code></td><td><code>accepted</code></td><td><span class="tag t-ok">gate</span></td>

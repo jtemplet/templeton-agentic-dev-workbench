@@ -1452,6 +1452,152 @@ if case_start "label/subagent-stop: a marker with no session line is left for th
   if [[ ! -e "$R/.git/bead-label.log" ]]; then ok "the log gained no line"; else nope "the log gained no line"; fi
 fi
 
+# tadw-quyb. A session can start the acceptance-verifier with the Agent tool
+# directly, with no Skill call and no typed command. Measured on Claude Code
+# 2.1.296: that PreToolUse payload carries tool_name "Agent" and a tool_input
+# of description, prompt and subagent_type.
+agent_launch() {  # agent_launch <subagent-type> [prompt] [session-id] [tool-name]
+  jq -n --arg t "$1" --arg p "${2:-}" --arg s "${3-$THIS_SESSION}" --arg n "${4:-Agent}" \
+    '{hook_event_name:"PreToolUse", tool_name:$n,
+      tool_input:({description:"Grade the work", prompt:$p}
+                  + (if $t == "" then {} else {subagent_type:$t} end))}
+     + (if $s == "" then {} else {session_id:$s} end)'
+}
+
+if case_start "label/agent: starting the acceptance-verifier directly drops an accepted gate marker"; then
+  R="$(new_repo g1 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(agent_launch tadw:acceptance-verifier 'Grade tadw-alpha-one against its criteria.')"
+  assert_eq "$HOOK_CODE" 0 "exits 0"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label up front"
+  [[ ! -s "$R/.hookout" ]] && ok "wrote nothing to stdout" || nope "wrote nothing to stdout" "$(cat "$R/.hookout")"
+  M="$(marker_dir "$R")/accepted__tadw-alpha-one"
+  [[ -f "$M" ]] && ok "dropped the marker" || nope "dropped the marker"
+  assert_eq "$(sed -n 3p "$M" 2>/dev/null)" "tadw:verify-acceptance" "the marker names the skill whose report Stop reads"
+  assert_eq "$(sed -n 4p "$M" 2>/dev/null)" "gate" "the marker records gate mode"
+  assert_eq "$(sed -n 5p "$M" 2>/dev/null)" "$THIS_SESSION" "the marker names the session"
+  assert_match "$R/.git/bead-label.log" "pending accepted" "logged the pending label"
+fi
+
+if case_start "label/agent: the bead comes from the branch when the prompt names none"; then
+  # The atlas-5fum shape: a worktree branch named for the bead, and a prompt of prose.
+  R="$(new_repo g2 with-origin)"
+  seed_export "$R" tadw-alpha-one
+  on_branch "$R" tadw-alpha-one-some-slug
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(agent_launch tadw:acceptance-verifier 'Grade the current unit of work.')"
+  [[ -f "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "dropped the marker" || nope "dropped the marker"
+fi
+
+if case_start "label/agent: a bare number in the prompt looks up no pull request"; then
+  # Skill arguments name a pull request by a bare number. A prompt is prose, and
+  # "3 criteria" is not pull request 3.
+  R="$(new_repo g2n with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(agent_launch tadw:acceptance-verifier 'Grade tadw-alpha-one against its 3 criteria. See #12.')"
+  assert_no_match "$R/.ghlog" "." "made no gh call"
+  [[ -f "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "still dropped the marker" || nope "still dropped the marker"
+fi
+
+if case_start "label/agent: a passing report written after a direct start labels accepted on Stop"; then
+  R="$(new_repo g3 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(agent_launch tadw:acceptance-verifier 'Grade tadw-alpha-one.')"
+  age_artifacts "$R"; write_acceptance_report "$R" 3 3 0 0 3 0 0
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_match "$R/.bdcalls" "^update tadw-alpha-one --add-label accepted$" "labeled it accepted"
+  [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "cleared the marker" || nope "cleared the marker"
+fi
+
+if case_start "label/agent: a failing report after a direct start applies no label"; then
+  R="$(new_repo g4 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(agent_launch tadw:acceptance-verifier 'Grade tadw-alpha-one.')"
+  age_artifacts "$R"; write_acceptance_report "$R" 2 3 1 0 3 0 0
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label"
+  assert_match "$R/.git/bead-label.log" "withheld accepted" "logged that it withheld the label"
+fi
+
+if case_start "label/agent: a report older than a direct start applies no label"; then
+  # A passing report left by an earlier grading says nothing about this run.
+  R="$(new_repo g5 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  write_acceptance_report "$R" 3 3 0 0 3 0 0; age_artifacts "$R"
+  run_hook "$LABEL" "$R" "$(agent_launch tadw:acceptance-verifier 'Grade tadw-alpha-one.')"
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_no_match "$R/.bdcalls" "--add-label" "applied no label"
+  [[ -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "kept the marker waiting" || nope "kept the marker waiting"
+fi
+
+if case_start "label/agent: another agent, or no agent type, drops no marker and logs nothing"; then
+  for kind in tadw:diagnostician general-purpose ""; do
+    R="$(new_repo "g6-$(echo "${kind:-none}" | tr -c 'a-z\n' '-')" with-origin)"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+    run_hook "$LABEL" "$R" "$(agent_launch "$kind" 'Look at tadw-alpha-one.')"
+    assert_eq "$HOOK_CODE" 0 "exits 0 (${kind:-no type})"
+    [[ ! -d "$(marker_dir "$R")" ]] && ok "dropped no marker (${kind:-no type})" || nope "dropped no marker (${kind:-no type})"
+    [[ ! -e "$R/.git/bead-label.log" ]] && ok "the log gained no line (${kind:-no type})" || nope "the log gained no line (${kind:-no type})"
+    assert_no_match "$R/.bdcalls" "." "made no tracker call (${kind:-no type})"
+  done
+fi
+
+if case_start "label/agent: the bare agent name and the older Task tool name are read the same way"; then
+  R="$(new_repo g7 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(agent_launch acceptance-verifier 'Grade tadw-alpha-one.')"
+  [[ -f "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "the bare agent name dropped the marker" || nope "the bare agent name dropped the marker"
+  R="$(new_repo g7t with-origin)"
+  run_hook "$LABEL" "$R" "$(agent_launch tadw:acceptance-verifier 'Grade tadw-alpha-one.' "$THIS_SESSION" Task)"
+  [[ -f "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "the Task tool name dropped the marker" || nope "the Task tool name dropped the marker"
+fi
+
+if case_start "label/agent: the skill and then its agent leave one marker, and Stop still labels"; then
+  # The usual path fires both: the Skill call, then the agent it starts. The
+  # second write replaces the first, and the report is newer than either.
+  R="$(new_repo g8 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'tadw:verify-acceptance' 'tadw-alpha-one' \
+    | jq --arg s "$THIS_SESSION" '. + {session_id:$s}')"
+  run_hook "$LABEL" "$R" "$(agent_launch tadw:acceptance-verifier 'Grade tadw-alpha-one.')"
+  assert_eq "$(ls "$(marker_dir "$R")" | wc -l | tr -d ' ')" "1" "one marker"
+  age_artifacts "$R"; write_acceptance_report "$R" 3 3 0 0 3 0 0
+  run_hook "$LABEL" "$R" "$(payload Stop '')"
+  assert_eq "$(grep -c -- '--add-label accepted' "$R/.bdcalls")" "1" "labeled it accepted once"
+  [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "cleared the marker" || nope "cleared the marker"
+fi
+
+if case_start "label/agent: a direct start whose agent writes no report is cleared by SubagentStop"; then
+  R="$(new_repo g9 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(agent_launch tadw:acceptance-verifier 'Grade tadw-alpha-one.')"
+  run_hook "$LABEL" "$R" "$(subagent_stop tadw:acceptance-verifier)"
+  assert_match "$R/.git/bead-label.log" "finished and wrote no report" "logged the missing report"
+  [[ ! -e "$(marker_dir "$R")/accepted__tadw-alpha-one" ]] && ok "deleted the marker" || nope "deleted the marker"
+fi
+
+# tadw-quyb. mattpocock-skills:code-review is a review pass over finished code,
+# and it reached the hook as a Skill call the map did not name.
+if case_start "label/pre: mattpocock-skills:code-review labels reviewed"; then
+  R="$(new_repo m1 with-origin)"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' 'mattpocock-skills:code-review' 'tadw-alpha-one')"
+  assert_match "$R/.bdcalls" "^update tadw-alpha-one --add-label reviewed$" "labeled it reviewed"
+  assert_match "$R/.git/bead-label.log" "applied reviewed" "logged the label"
+fi
+
+if case_start "label/pre: another plugin's skill that ends in code-review labels nothing"; then
+  # The name is matched whole. A pattern such as *:code-review would label a
+  # skill nobody has read, which is how style skills once labeled a plain build.
+  for other in "other-plugin:code-review" "mattpocock-skills:tdd" "mattpocock-skills:code-review-extra"; do
+    R="$(new_repo "m2-$(echo "$other" | tr -c 'a-z\n' '-')" with-origin)"
+    export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+    run_hook "$LABEL" "$R" "$(payload PreToolUse '' '' "$other" 'tadw-alpha-one')"
+    assert_no_match "$R/.bdcalls" "." "made no tracker call ($other)"
+    [[ ! -e "$R/.git/bead-label.log" ]] && ok "the log gained no line ($other)" || nope "the log gained no line ($other)"
+  done
+fi
+
 if case_start "label/stop: a bare ACCEPTED verdict string earns nothing on its own"; then
   # Criterion 4, and the reason this reader derives rather than reads. A grader
   # that wrote its own conclusion beside failing counts would be labeling work
@@ -2679,6 +2825,50 @@ if case_start "install/check: settings with no SubagentStop hook fail, and the i
   run_installer "$R" --check
   assert_eq "$INSTALL_CODE" 0 "--check exits 0 after the installer runs"
   assert_match "$R/.instout" "wiring:   all four events" "reports SubagentStop wired again"
+fi
+
+# tadw-quyb. PreToolUse needs two registrations: one for the Skill tool and one
+# for the Agent tool, which is how a directly started acceptance-verifier is seen.
+our_pre_matchers() {  # our_pre_matchers <repo>; echoes the sorted matchers, space-separated
+  jq -r '[.hooks.PreToolUse[]
+          | select([(.hooks // [])[] | (.command // "") | contains("label_bead_on_skill_invocation.sh")] | any)
+          | .matcher] | sort | join(" ")' "$1/.claude/settings.json"
+}
+
+if case_start "install: PreToolUse is wired for the Skill tool and for the Agent tool"; then
+  R="$(new_repo i14)"
+  run_installer "$R"
+  assert_eq "$(our_pre_matchers "$R")" "Agent Skill" "one registration per matcher"
+  run_installer "$R"
+  assert_eq "$(our_pre_matchers "$R")" "Agent Skill" "a second run adds no duplicate"
+  assert_match "$R/.instout" "settings:    already wired" "and rewrites no settings"
+  assert_match "$R/.instout" "PreToolUse \(matcher Agent\)" "the report lists the Agent registration"
+fi
+
+if case_start "install/check: settings from before the Agent registration fail, and the installer repairs them"; then
+  R="$(new_repo i15)"
+  run_installer "$R"
+  jq '.hooks.PreToolUse |= map(select(.matcher != "Agent"))' "$R/.claude/settings.json" > "$R/.s" \
+    && mv "$R/.s" "$R/.claude/settings.json"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 1 "--check exits 1 without the Agent registration"
+  assert_match "$R/.instout" "NOT WIRED for PreToolUse\(Agent\)" "names the registration that is missing"
+  run_installer "$R"
+  assert_eq "$(our_pre_matchers "$R")" "Agent Skill" "the installer adds it beside the Skill registration"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 0 "--check exits 0 after the installer runs"
+fi
+
+if case_start "install: a Skill matcher group that holds another hook keeps its matcher"; then
+  # Widening that group to Skill|Agent would run somebody else's hook on every agent start.
+  R="$(new_repo i16)"
+  mkdir -p "$R/.claude"
+  echo '{"hooks":{"PreToolUse":[{"matcher":"Skill","hooks":[{"type":"command","command":"echo theirs"}]}]}}' \
+    > "$R/.claude/settings.json"
+  run_installer "$R"
+  assert_eq "$(jq -r '[.hooks.PreToolUse[] | select([.hooks[] | .command == "echo theirs"] | any) | .matcher] | join(" ")' "$R/.claude/settings.json")" \
+    "Skill" "their hook still fires on Skill alone"
+  assert_eq "$(our_pre_matchers "$R")" "Agent Skill" "and ours is wired for both"
 fi
 
 if case_start "install/check: an uninstalled repository reports that, rather than a diff"; then

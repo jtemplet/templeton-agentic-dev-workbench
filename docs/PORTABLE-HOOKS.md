@@ -45,6 +45,12 @@ hashes. After the copy, that evidence is gone.
 matches its source, and whether all four events reference the label script. It exits 1 if any of
 those is out of step.
 
+`PreToolUse` carries two registrations, one with matcher `Skill` and one with matcher `Agent`.
+`--check` names a missing one as `PreToolUse(Skill)` or `PreToolUse(Agent)`. A repository
+installed before 2026-10-11 has the first alone, so run the installer there again. The installer
+adds the second as its own matcher group. It never widens a `Skill` group, because that group can
+hold another hook.
+
 The two kinds of drift fail independently. The second is the one that is easy to miss: a current
 script reached by only three events does nothing on the fourth. `tadw-j80` covers wiring `--check`
 into `.githooks/pre-push`.
@@ -122,6 +128,41 @@ happened. The pattern is now held in a shell variable, where `$` needs no escape
 The Codex prompt hook sees only explicit skill names at the start of a prompt. Codex does not call
 a `Skill` tool when it selects a skill from ordinary prose. That implicit selection cannot create
 the pending label marker, so include the `$skill` name when automatic labeling matters.
+
+## A directly started acceptance-verifier
+
+A session can start the `acceptance-verifier` agent with the Agent tool, with no Skill call and
+no typed command. Plain prose such as "run verify acceptance" can produce that. Until 2026-10-11
+such a run wrote no pending marker. The agent wrote a passing `acceptance-report.json`, `Stop`
+found no marker to resolve, and the bead stayed without `accepted`. That happened to
+`atlas-5fum`.
+
+The `PreToolUse` registration with matcher `Agent` covers it. The script reads
+`tool_input.subagent_type`. A value that ends in `acceptance-verifier` runs the same flow as the
+`tadw:verify-acceptance` skill: it writes a pending `accepted` marker, and `Stop` applies the
+label only when a passing report is newer than that marker. Every other agent type exits with no
+marker and no log line.
+
+Three details follow from that:
+
+- **The marker is still required.** A passing report with no marker earns no label. The marker
+  is what proves the report belongs to this run.
+- **The usual path writes the marker twice.** The Skill call writes it, and then the agent's
+  start writes it again with a later time. The report is written after both.
+- **The prompt is searched for a bead id, never for a pull request.** Skill arguments name a
+  pull request by a bare number, and a prompt is prose that holds bare numbers.
+
+Measured on Claude Code 2.1.296: the payload carries `tool_name` `Agent`, and `tool_input` holds
+`description`, `prompt`, and `subagent_type`. The script reads `subagent_type` alone, so the
+older tool name `Task` is read the same way. The installed matcher is `Agent`.
+
+## Which skills earn `reviewed`
+
+Three entry points apply `reviewed`: `/code-review`, `/tadw:fresh-eyes-cr`, and the
+`mattpocock-skills:code-review` skill. The last one is matched by its whole name. A pattern such
+as `*:code-review` would label for any plugin's skill of that name. A broad match did that once:
+the style skills were mapped to `reviewed`, `/build` loads the same skills to write by, and a
+plain build labeled its own unreviewed code.
 
 ## The working tree stays clean
 

@@ -4,6 +4,9 @@
 # Wired to four events and dispatches on hook_event_name:
 #
 #   PreToolUse (matcher Skill)  Claude invoked the Skill tool.
+#   PreToolUse (matcher Agent)  Claude started the acceptance-verifier
+#                               agent with the Agent tool. Same flow as
+#                               the verify-acceptance skill.
 #   UserPromptSubmit            A person typed a Claude slash command or
 #                               a Codex dollar-prefixed skill name. Same
 #                               flow, keyed on the command or skill name.
@@ -11,8 +14,8 @@
 #   SubagentStop                Says when the acceptance-verifier agent
 #                               finished and wrote no report.
 #
-# Both entry points converge on run_label_flow, so a skill labels the same
-# whichever way it was started.
+# All three entry points converge on run_label_flow, so a skill labels the
+# same whichever way it was started.
 #
 # Three modes, because a PreToolUse hook fires BEFORE the skill runs.
 # Measured: the PostToolUse hook for the same call fires ~30ms later, so
@@ -107,8 +110,13 @@ SCRIPT_PATH="${BASH_SOURCE[0]}"
 SCRIPT_HASH=""
 
 # The agent /verify-acceptance sends the grading to. SubagentStop names it in
-# agent_type as tadw:acceptance-verifier, so it is matched as a suffix.
+# agent_type as tadw:acceptance-verifier, and PreToolUse names it the same way
+# in tool_input.subagent_type, so it is matched as a suffix.
 ACCEPTANCE_AGENT="acceptance-verifier"
+
+# The skill that agent grades for. A marker the agent's start writes names this
+# skill, so Stop reads the same report whichever way the grading began.
+ACCEPTANCE_SKILL="tadw:verify-acceptance"
 
 # The plugin version whose acceptance-verifier first wrote a report file.
 ACCEPTANCE_REPORT_SINCE="4.3.1"
@@ -340,10 +348,15 @@ known_id_prefixes() {
 # runs. Both set RESOLVE_FAILURE to the cause, so a caller can tell a broken
 # install from a branch that names no bead. It stays empty when the module
 # answered and no candidate matched.
+#
+# $3 is prose that can name the bead, such as the prompt an agent was started
+# with. It is searched for ids and never for a pull request: a pull request is
+# named by a bare number, and prose is full of those.
 resolve_bead() {
-  local args="$1" branch="$2" text pr_id pr_json module candidates candidates_code candidate found id
+  local args="$1" branch="$2" prose="${3:-}" text pr_id pr_json module candidates candidates_code candidate found id
   RESOLVE_FAILURE=""
   text="$args"
+  [[ -n "$prose" ]] && text+=$'\n'"$prose"
 
   pr_id="$(echo "$args" | tr ' ' '\n' | awk '
     /^#?[0-9]+$/      { gsub(/#/, ""); print; exit }
@@ -428,8 +441,9 @@ classify_skill() {
       LABEL="implemented"; MODE="gate"; CLAIM=1 ;;
     simplify|tadw:code-simplify)
       LABEL="simplified"; MODE="apply" ;;
-    # Two entry points earn "reviewed", and only these two: /code-review and
-    # /tadw:fresh-eyes-cr. Both are review passes over finished code.
+    # Three entry points earn "reviewed", and only these three: /code-review,
+    # /tadw:fresh-eyes-cr, and the mattpocock-skills:code-review skill. Each is
+    # a review pass over finished code.
     #
     # The language style skills (style-swift, style-frontend, style-go,
     # terraform-iac-expert, agentic-clean-code) and the per-language review
@@ -440,7 +454,11 @@ classify_skill() {
     # a label a command forgot to apply, so the indirect path is gone. If
     # /tadw:code-review should label again, map it in skill_for_command below,
     # where a command name belongs.
+    #
+    # mattpocock-skills:code-review is named whole, never as *:code-review. A
+    # pattern would label for any plugin's skill of that name, read or not.
     code-review|code-review:code-review|\
+    mattpocock-skills:code-review|\
     review-fresh-eyes|tadw:review-fresh-eyes)
       LABEL="reviewed";   MODE="apply" ;;
     # Both leave an artifact Stop can read, one each; the marker records
@@ -465,14 +483,15 @@ classify_skill() {
 }
 
 # The shared flow, once a skill name is known. $3 names the hook event so
-# inject mode can label its own output correctly.
+# inject mode can label its own output correctly. $4 is prose that can name the
+# bead, which resolve_bead searches for ids alone.
 run_label_flow() {
-  local skill="$1" args="$2" event="$3" branch claim_result claim_code claim_outcome claim_hook
+  local skill="$1" args="$2" event="$3" prose="${4:-}" branch claim_result claim_code claim_outcome claim_hook
 
   init_repo
   branch="$(git branch --show-current 2>/dev/null || true)"
 
-  resolve_bead "$args" "$branch" || {
+  resolve_bead "$args" "$branch" "$prose" || {
     if [[ -n "$RESOLVE_FAILURE" ]]; then
       log_outcome "$event" "$skill" "$branch" "" "FAILED, $RESOLVE_FAILURE; wanted $LABEL"
       quiet_exit
@@ -563,11 +582,39 @@ handle_pre() {
   local payload="$1" skill args
 
   skill="$(echo "$payload" | jq -r '.tool_input.skill // empty' 2>/dev/null || true)"
-  [[ -z "$skill" ]] && quiet_exit
+  if [[ -z "$skill" ]]; then
+    handle_agent_start "$payload"
+    quiet_exit
+  fi
   classify_skill "$skill" || quiet_exit
 
   args="$(echo "$payload" | jq -r '.tool_input.args // ""' 2>/dev/null || true)"
   run_label_flow "$skill" "$args" PreToolUse
+}
+
+# A PreToolUse payload that names no skill: the Agent tool, or nothing we label.
+#
+# A session can start the acceptance-verifier with the Agent tool directly, with
+# no Skill call and no typed command. On 2026-10-11 a grading of atlas-5fum
+# returned ACCEPTED that way. No marker had been written, so Stop had nothing to
+# resolve, and the label was applied by hand.
+#
+# Measured on Claude Code 2.1.296: tool_name is "Agent", and tool_input carries
+# description, prompt and subagent_type. This reads subagent_type and never
+# tool_name, so the tool's older name, Task, is read the same way.
+#
+# The usual path fires twice: the Skill call writes the marker, then the agent's
+# start writes it again. The second write is the same file with a later time,
+# and the report is written after both.
+handle_agent_start() {
+  local payload="$1" agent_type prompt
+
+  agent_type="$(echo "$payload" | jq -r '.tool_input.subagent_type // empty' 2>/dev/null || true)"
+  [[ "$agent_type" == *"$ACCEPTANCE_AGENT" ]] || quiet_exit
+  classify_skill "$ACCEPTANCE_SKILL" || quiet_exit
+
+  prompt="$(echo "$payload" | jq -r '.tool_input.prompt // ""' 2>/dev/null || true)"
+  run_label_flow "$ACCEPTANCE_SKILL" "" PreToolUse "$prompt"
 }
 
 # ---------------------------------------------------------------------
