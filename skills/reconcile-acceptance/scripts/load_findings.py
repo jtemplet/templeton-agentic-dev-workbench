@@ -14,15 +14,18 @@ the only stdout line, with any detail on stderr. 2 is a usage error. 3 means the
 counts make the report ACCEPTED, so there is nothing to fix.
 
 THE ORDER OF THE REASONS is the plan's reasons table, and the first that holds
-wins. All ten tokens are constants here, including the three only the skill can
+wins. All ten tokens are constants here, including the four only the skill can
 decide, so one test can check them against SKILL.md.
 
 WHY `failures-outside-change` NEVER PRINTS HERE. Acceptance findings name no
 file, so no finding can sit outside the change before the skill re-runs its
-command. `uncommitted-changes` still prints, by a wider rule than the
-quality-gates loader uses: any path in `changed_files` with uncommitted changes
-blocks a run that has something to fix, because any of them may be the file a
-fix edits. With `base` null there is no changed set, and the skill decides.
+command.
+
+THE GRADED WORK IS COMMITTED, NOT REFUSED. A path in `changed_files` that has
+uncommitted changes is work the report graded, so it prints in `commit_first`
+and the skill commits it, in its own commit, before it fixes anything. This
+loader never prints `uncommitted-changes`: with `base` null there is no changed
+set, and the skill decides that reason, as it does for a file outside the change.
 
 WHAT IS IN SCOPE. FAIL criteria and FAIL gates. UNVERIFIABLE criteria and
 BLOCKED gates are out of scope, and print without `evidence` or `command`,
@@ -130,6 +133,7 @@ class Findings:
     out_of_scope: list[dict[str, Any]]
     base: dict[str, str] | None
     bead: str | None
+    commit_first: list[str] = field(default_factory=list)
     exit_code: int = field(default=EXIT_FINDINGS, init=False)
 
     def emit(self, out: TextIO, err: TextIO) -> None:
@@ -139,6 +143,7 @@ class Findings:
             "base": self.base,
             "bead": self.bead,
             "scope_known": self.base is not None,
+            "commit_first": self.commit_first,
         }
         json.dump(document, out, indent=2)
         out.write("\n")
@@ -295,13 +300,8 @@ def scope_findings(report: dict[str, Any], dirty_paths: frozenset[str]) -> Outco
     in_scope += [gate_entry(g) for g in gates_with(report, FAIL)]
 
     if in_scope:
-        dirty_changed = sorted(dirty_paths.intersection(report["changed_files"] or []))
-        if dirty_changed:
-            return Blocked(
-                UNCOMMITTED_CHANGES,
-                "Commit these changed files first: " + ", ".join(dirty_changed),
-            )
-        return Findings(in_scope, out_of_scope(report), report["base"], report["bead"])
+        graded_work = sorted(dirty_paths.intersection(report["changed_files"] or []))
+        return Findings(in_scope, out_of_scope(report), report["base"], report["bead"], graded_work)
 
     if gates_with(report, BLOCKED):
         return Blocked(NEEDS_ENVIRONMENT, "Nothing is in scope, and a gate is BLOCKED.")

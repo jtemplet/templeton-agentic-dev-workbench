@@ -83,8 +83,11 @@ here so they are not argued again:
 - **The base is named, never detected.** Detecting a stacked branch's parent is a guess, and a
   wrong guess narrows the scope while the report still reads as confident. `changed_set.py` gains
   `--base <ref>` instead.
-- **The fixer refuses a file with uncommitted changes.** Committing the whole file was the other
-  choice, and it would put work nobody asked to commit into a fix commit.
+- **The fixer never puts uncommitted work into a fix commit.** Committing the whole file with the
+  fix was the other choice, and it would put work nobody asked to commit into a fix commit.
+  `tadw-9whf` changed how the rule is kept, on 2026-10-11. The fixer first commits the dirty files in
+  the report's `changed_files`, in their own commit, then fixes. It still refuses a dirty file
+  outside `changed_files`, and any dirty file when the report has no changed set.
 - **Two loaders, one per report shape.** A shared loader would need a mode argument or a third file,
   and house rule 1 waits for a third copy. The runtime cost is the same, because the model reads the
   loader's output and never its source.
@@ -103,8 +106,9 @@ here so they are not argued again:
 - **The report files are now a contract between two repositories.** A field rename in tadw breaks
   outrigger. `version: 2` marks the shape, and a loader refuses any other version with
   `report-unreadable`.
-- **A person working by hand must commit before calling a fixer.** A manual report is usually
-  written before a commit, so the fixer often stops with `uncommitted-changes` or `report-stale`.
+- **A manual report is usually written before a commit.** The fixer commits the graded files
+  itself (`tadw-9whf`), so that no longer stops it with `uncommitted-changes`. A commit the person
+  makes that adds a file the report never graded still stops it with `report-stale`.
 - **A flipping verdict makes the loop repeat.** `tadw-4s5` records that `/tadw:quality-gates` can
   give different verdicts on one tree. Until it is fixed, outrigger's cap of 3 attempts is the only
   bound, so `tadw-4s5` blocks `reconcile-quality-gates`.

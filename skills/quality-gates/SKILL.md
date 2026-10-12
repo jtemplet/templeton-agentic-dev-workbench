@@ -985,10 +985,11 @@ by the report's `bead` when it is not `null`. It is the last line of the report.
 RAN verdict has nothing to fix. An INCOMPLETE verdict gets no `**Next:**` line either: it has no
 FAIL row, so the reconcile skill could only stop and ask for a human check.
 
-**Commit, then follow the line.** The reconcile skill refuses a file with uncommitted changes. It
-accepts a report graded on a dirty tree once the caller commits the graded work, as long as every
-file committed since the report's `head` is in the report's `changed_files`. A commit that adds
-any other file makes the report stale: run this skill again, then reconcile.
+**Follow the line with or without a commit.** The reconcile skill commits the graded files that
+are still uncommitted, in their own commit, before it fixes anything. It also accepts a report
+graded on a dirty tree after the caller commits the graded work, as long as every file committed
+since the report's `head` is in the report's `changed_files`. A commit that adds any other file
+makes the report stale: run this skill again, then reconcile.
 
 **The line is for the caller to act on.** This skill never runs `/tadw:reconcile-quality-gates`
 itself, and it never fixes what it found.

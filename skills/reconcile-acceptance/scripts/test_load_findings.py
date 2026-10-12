@@ -195,12 +195,6 @@ def case_null_report_bead_is_bead_mismatch() -> None:
     assert reason_of(load(body, bead="tadw-abc")) == "bead-mismatch"
 
 
-def case_dirty_changed_file_is_uncommitted_changes() -> None:
-    outcome = load(FAILING, dirty={"src/auth.py"})
-    assert reason_of(outcome) == "uncommitted-changes", f"got {outcome!r}"
-    assert "src/auth.py" in outcome.detail, f"must name the file: {outcome.detail!r}"
-
-
 def case_only_blocked_gates_is_needs_environment() -> None:
     body = report([criterion(1, "PASS")], gates=[gate("Tests", "BLOCKED")])
     assert reason_of(load(body)) == "needs-environment"
@@ -241,10 +235,6 @@ for name, fn in [
         case_null_report_bead_is_bead_mismatch,
     ),
     (
-        "a dirty changed file is uncommitted-changes [criterion 1]",
-        case_dirty_changed_file_is_uncommitted_changes,
-    ),
-    (
         "only blocked gates is needs-environment [criterion 1]",
         case_only_blocked_gates_is_needs_environment,
     ),
@@ -268,13 +258,24 @@ def case_no_bead_argument_skips_the_bead_check() -> None:
 
 
 def case_dirty_file_outside_the_change_does_not_block() -> None:
-    assert load(FAILING, dirty={"README.md"}).exit_code == 0
+    assert findings_of(load(FAILING, dirty={"README.md"}))["commit_first"] == []
+
+
+def case_dirty_changed_files_print_in_commit_first() -> None:
+    findings = findings_of(load(FAILING, dirty={"tests/test_auth.py", "src/auth.py", "README.md"}))
+    assert findings["commit_first"] == ["src/auth.py", "tests/test_auth.py"], findings
+
+
+def case_clean_tree_prints_an_empty_commit_first() -> None:
+    assert findings_of(load(FAILING))["commit_first"] == []
 
 
 def case_null_base_leaves_dirty_files_to_the_skill() -> None:
     body = report(FAILING["criteria"], FAILING["gates"], base=None, changed_files=None)
     outcome = load(body, dirty={"src/auth.py"})
-    assert findings_of(outcome)["scope_known"] is False
+    findings = findings_of(outcome)
+    assert findings["scope_known"] is False
+    assert findings["commit_first"] == [], "no changed set names the graded work"
 
 
 def case_fail_in_no_changed_file_stays_in_scope() -> None:
@@ -289,6 +290,14 @@ for name, fn in [
     (
         "a dirty file outside the change does not block",
         case_dirty_file_outside_the_change_does_not_block,
+    ),
+    (
+        "dirty changed files print in commit_first, sorted",
+        case_dirty_changed_files_print_in_commit_first,
+    ),
+    (
+        "a clean tree prints an empty commit_first",
+        case_clean_tree_prints_an_empty_commit_first,
     ),
     (
         "a null base leaves dirty files to the skill",
@@ -313,7 +322,7 @@ def case_stale_beats_bead_mismatch() -> None:
     assert reason_of(load(FAILING, head="f" * 40, bead="tadw-xyz")) == "report-stale"
 
 
-def case_bead_mismatch_beats_uncommitted_changes() -> None:
+def case_bead_mismatch_beats_a_dirty_changed_file() -> None:
     outcome = load(FAILING, dirty={"src/auth.py"}, bead="tadw-xyz")
     assert reason_of(outcome) == "bead-mismatch"
 
@@ -330,8 +339,8 @@ for name, fn in [
     ("report-unreadable beats report-stale [criterion 1]", case_unreadable_beats_stale),
     ("report-stale beats bead-mismatch [criterion 1]", case_stale_beats_bead_mismatch),
     (
-        "bead-mismatch beats uncommitted-changes [criterion 1]",
-        case_bead_mismatch_beats_uncommitted_changes,
+        "bead-mismatch beats a dirty changed file [criterion 1]",
+        case_bead_mismatch_beats_a_dirty_changed_file,
     ),
     (
         "needs-environment beats needs-human-check [criterion 1]",
@@ -469,8 +478,8 @@ def case_findings_print_as_json() -> None:
 
 def case_renamed_from_path_counts_as_dirty() -> None:
     code, out, _ = run_cli(dirty_files=RENAME_STATUS)
-    assert code == 1, f"the rename's original path is a changed file, got {code}: {out!r}"
-    assert out.strip() == "RECONCILE_ACCEPTANCE_BLOCKED uncommitted-changes", out
+    assert code == 0, f"must exit 0, got {code}: {out!r}"
+    assert json.loads(out)["commit_first"] == ["src/auth.py"], out
 
 
 def case_unreadable_report_stops_with_its_own_cause() -> None:

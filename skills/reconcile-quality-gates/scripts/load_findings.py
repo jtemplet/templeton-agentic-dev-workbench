@@ -36,8 +36,12 @@ that head is an ancestor of HEAD. The report then stays valid when every moved
 file is in `changed_files`, so the commit the caller made after grading does not
 strand the report.
 
-`uncommitted-changes` covers only the files that in-scope findings name. The
-skill applies the same rule to a file it finds by re-running a command.
+THE GRADED WORK IS COMMITTED, NOT REFUSED. A path in `changed_files` that has
+uncommitted changes is work the report graded, so it prints in `commit_first`
+and the skill commits it, in its own commit, before it fixes anything.
+`uncommitted-changes` is left for a report with no changed set: there a dirty
+file that an in-scope finding names stops the run, because nothing says the
+report graded it. The skill applies that rule to a file outside the change.
 """
 
 from __future__ import annotations
@@ -136,6 +140,7 @@ class Findings:
     out_of_scope: list[dict[str, Any]]
     base: dict[str, str] | None
     bead: str | None
+    commit_first: list[str] = field(default_factory=list)
     exit_code: int = field(default=EXIT_FINDINGS, init=False)
 
     def emit(self, out: TextIO, err: TextIO) -> None:
@@ -145,6 +150,7 @@ class Findings:
             "base": self.base,
             "bead": self.bead,
             "scope_known": self.base is not None,
+            "commit_first": self.commit_first,
         }
         json.dump(document, out, indent=2)
         out.write("\n")
@@ -281,6 +287,20 @@ def scope_findings(report: dict[str, Any], dirty_paths: frozenset[str]) -> Outco
     in_scope, out_of_scope = split_by_scope(report)
     if not in_scope:
         return nothing_in_scope(report)
+    changed_files = report["changed_files"]
+    if changed_files is None:
+        return findings_without_a_changed_set(report, in_scope, out_of_scope, dirty_paths)
+    graded_work = sorted(dirty_paths.intersection(changed_files))
+    return Findings(in_scope, out_of_scope, report["base"], report["bead"], graded_work)
+
+
+def findings_without_a_changed_set(
+    report: dict[str, Any],
+    in_scope: list[dict[str, Any]],
+    out_of_scope: list[dict[str, Any]],
+    dirty_paths: frozenset[str],
+) -> Outcome:
+    """With no changed set, nothing says a dirty file is graded work, so it stops the run."""
     named_files = {entry["file"] for entry in in_scope if entry["file"] is not None}
     dirty = sorted(dirty_paths & named_files)
     if dirty:

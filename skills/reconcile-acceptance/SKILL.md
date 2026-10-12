@@ -1,6 +1,6 @@
 ---
 name: reconcile-acceptance
-description: "Fix the FAIL criteria and FAIL gates a /tadw:verify-acceptance run recorded in acceptance-report.json, then stop without re-grading the fix. Reads findings only from that report file, never from the diff or a transcript, and refuses to start when the report is missing, stale, foreign, or unreadable. Runs each finding's command, criterion or gate alike, before committing when it names one, edits outside the report's changed_files only to add a new file or to correct configuration a gate or a criterion's command reads, never to loosen either, refuses a file with uncommitted changes, and ends with one machine line: RECONCILE_ACCEPTANCE_DONE <n> or RECONCILE_ACCEPTANCE_BLOCKED <reason>. Use after a NOT ACCEPTED verdict, never to grade work or to fix a review finding."
+description: "Fix the FAIL criteria and FAIL gates a /tadw:verify-acceptance run recorded in acceptance-report.json, then stop without re-grading the fix. Reads findings only from that report file, never from the diff or a transcript, and refuses to start when the report is missing, stale, foreign, or unreadable. Runs each finding's command, criterion or gate alike, before committing when it names one, edits outside the report's changed_files only to add a new file or to correct configuration a gate or a criterion's command reads, never to loosen either, commits the graded files that are still uncommitted in their own commit before any fix, refuses an uncommitted file outside the change, and ends with one machine line: RECONCILE_ACCEPTANCE_DONE <n> or RECONCILE_ACCEPTANCE_BLOCKED <reason>. Use after a NOT ACCEPTED verdict, never to grade work or to fix a review finding."
 ---
 
 # Reconcile Acceptance
@@ -65,13 +65,39 @@ Drop `--bead "$BEAD_ID"` when the caller named none.
 | 2 | A usage error: a blank `--head`, a blank `--bead`, or an unreadable `--dirty-files` | Fix the argument and run it again. This is the caller's own mistake, not a report problem |
 | 3 | The report's counts already make it ACCEPTED | Print `RECONCILE_ACCEPTANCE_DONE 0` and stop. Nothing to fix |
 
-The JSON object on exit 0 holds five keys. `in_scope` lists the findings to fix, each with its
+The JSON object on exit 0 holds six keys. `in_scope` lists the findings to fix, each with its
 own `criterion` or `gate` key. `out_of_scope` lists findings this skill never touches, without
 `evidence` or `command`. `base`, `bead`, and `scope_known` name the report's own scope.
+`commit_first` lists every path in the report's `changed_files` that has uncommitted changes.
 
 **Every finding names no file.** The loader never emits `failures-outside-change`, because an
 acceptance criterion or gate is graded against behavior, not a line in a diff. Step 4 decides
 which file each finding needs.
+
+#### Commit the Graded Work First
+
+**When `commit_first` lists a path, commit those paths before anything else.** The check skill
+usually grades a tree that is not committed yet, so the files it graded are still uncommitted
+here. They get their own commit, so the fix commit in Step 6 holds only fixes.
+
+```bash
+git add -- <path> <path> ...
+git commit -m "chore(acceptance): commit the graded work before reconcile (<bead-id>)" \
+  -- <path> <path> ...
+```
+
+Name exactly the paths in `commit_first`, in both commands. The paths after `--` on the
+`git commit` line limit the commit to those files, so a file staged for another reason stays out
+of it. Drop the `(<bead-id>)` parenthetical when no bead was given.
+
+**Do not run the loader again after this commit.** `HEAD` has moved, and the findings Step 1
+already printed are the ones to fix.
+
+**When this commit fails, stop.** Make no edit, and print the BLOCKED line with `commit-failed`
+in Step 7.
+
+**`commit_first` is empty when `scope_known` is `false`.** No changed set says which files the
+report graded, so Step 4 checks each file before an edit.
 
 ### Step 2: Check for a Repeated Finding
 
@@ -100,12 +126,11 @@ Every finding lacks a `file` key, so find one before editing:
 **Check the file against "Which Files a Fix May Touch".** That section says when a fix may reach
 a file outside the report's `changed_files`, and what to report when it may not.
 
-**The dirty-file refusal already happened in Step 1, only when `scope_known` is `true`.** The
-loader checks every in-scope finding's file against `changed_files` before printing anything, and
-stops with `uncommitted-changes` when one already has uncommitted changes. That check needs
-`changed_files`, so it never runs when `scope_known` is `false`; the loader has no changed set to
-check a dirty file against. It also never covers a file outside `changed_files`; "Which Files a Fix
-May Touch" has that check.
+**Step 1 already committed every dirty file in `changed_files`, only when `scope_known` is
+`true`.** So a file in the change is clean by the time a fix edits it. That commit needs
+`changed_files`, so it never happens when `scope_known` is `false`; the loader has no changed set
+to compare a dirty file against. It also never covers a file outside `changed_files`; "Which Files
+a Fix May Touch" has that check.
 
 **When `scope_known` is `false`, check each file yourself before you edit it.** Run
 `git status --porcelain=v1 -z` again, or reuse `--dirty-files`, and compare it against the file
@@ -144,8 +169,8 @@ given. The body has one line per fixed finding, naming the criterion number or g
 `file:line`, and the problem it had. Add one line for each existing file edited outside
 `changed_files`, naming the file and the reason.
 
-**Never amend, push, or rewrite history.** This is the one commit the run makes, and the caller
-decides what happens to it next.
+**Never amend, push, or rewrite history.** The run makes at most two commits, the graded work in
+Step 1 and the fixes here, and the caller decides what happens to them next.
 
 When nothing was fixed, make no commit and go straight to Step 7.
 
@@ -164,9 +189,8 @@ names the file and the edit it needs. Then print exactly one line, as the last l
 ## The Ten BLOCKED Reasons
 
 The first of these that applies wins. Reasons 1 to 4 and 7 to 8 come from `load_findings.py`, on
-stdout, in Step 1. Reason 5 comes from the loader when `scope_known` is `true`; this skill decides
-it itself, in Step 4, when `scope_known` is `false`, and in Step 5 for a file outside
-`changed_files`. Reasons 6, 9, and 10 are this skill's own too, decided in Step 4 onward.
+stdout, in Step 1. This skill decides reason 5 itself: in Step 4, when `scope_known` is `false`,
+and in Step 5 for a file outside `changed_files`. Reasons 6, 9, and 10 are this skill's own too.
 
 | # | Reason | Decided by | Condition |
 |---|---|---|---|
@@ -174,12 +198,12 @@ it itself, in Step 4, when `scope_known` is `false`, and in Step 5 for a file ou
 | 2 | `report-unreadable` | the loader | The file will not parse, lacks a version 2 field, or names a version other than 2 |
 | 3 | `report-stale` | the loader | The report's `head` differs from the current `HEAD` |
 | 4 | `bead-mismatch` | the loader | `--bead` was given and differs from the report's `bead`, `null` included |
-| 5 | `uncommitted-changes` | the loader for a file in `changed_files` when `scope_known` is `true`, this skill otherwise | A file in `changed_files` already has uncommitted changes, or a file outside it that a fix needs does, or, when `scope_known` is `false`, the file Step 4 found does |
+| 5 | `uncommitted-changes` | this skill | A file outside `changed_files` that a fix needs has uncommitted changes, or, when `scope_known` is `false`, the file Step 4 found does. Step 1 commits a dirty file in `changed_files` and never stops on it |
 | 6 | `failures-outside-change` | this skill | Never printed. Acceptance findings name no file, so nothing can sit outside the change before Step 4 picks one |
 | 7 | `needs-environment` | the loader | Nothing is in scope, and a gate is BLOCKED |
 | 8 | `needs-human-check` | the loader | Nothing is in scope, and the report is not ACCEPTED: only UNVERIFIABLE criteria remain, or the report grades no criteria |
 | 9 | `finding-not-fixed` | this skill | At least one in-scope finding stayed unfixed after Step 5 |
-| 10 | `commit-failed` | this skill | `git commit` refused, for example because a hook failed |
+| 10 | `commit-failed` | this skill | `git commit` refused, in Step 1 or in Step 6, for example because a hook failed |
 
 ## Which Files a Fix May Touch
 
@@ -220,6 +244,7 @@ Step 7, naming the file.
 
 **Bead:** tadw-abc, or "none given"
 **Report:** <n> in scope, <n> out of scope, base <scope_known>
+**Committed first:** <n> graded files, or "none"
 
 | # | Finding | Result |
 |---|---|---|
@@ -234,6 +259,7 @@ RECONCILE_ACCEPTANCE_BLOCKED finding-not-fixed
 **Always:**
 
 - Read findings only from `load_findings.py`'s output, never from the diff or a transcript.
+- Commit the paths in `commit_first` in their own commit, before the first edit.
 - Run a finding's `command` before counting it fixed, when it has one.
 - Stage fixed files by path, never with `git add -A`.
 - End with exactly one machine line, as the last line of the output.
@@ -245,16 +271,17 @@ RECONCILE_ACCEPTANCE_BLOCKED finding-not-fixed
 - Write a verdict, or grade whether the fix worked.
 - Edit an existing file outside the report's `changed_files`, beyond what "Which Files a Fix
   May Touch" allows.
-- Amend, push, or rewrite the commit this skill made.
+- Amend, push, or rewrite a commit this skill made.
+- Commit a dirty file that is not in `commit_first` to clear the way for a fix.
 
 ## Quality Checklist
 
 - [ ] Every finding came from `load_findings.py`'s JSON, none from the diff or a transcript.
-- [ ] A dirty file was checked before every edit, by the loader for a file in `changed_files`
-      when `scope_known` is `true`, by this skill otherwise.
+- [ ] Every path in `commit_first` was committed, in its own commit, before the first edit.
+- [ ] A dirty file outside `commit_first` was checked before every edit.
 - [ ] Every fixed finding's `command` ran and passed, when it had one.
 - [ ] No test or assertion was weakened, skipped, or deleted.
 - [ ] Every file touched outside `changed_files` is a new file or configuration a gate or a
       criterion's command reads, and no configuration edit loosened either.
-- [ ] The commit, if one was made, stages fixed files by path, never with `git add -A`.
+- [ ] Each commit, if one was made, stages its files by path, never with `git add -A`.
 - [ ] The output ends with exactly one machine line.

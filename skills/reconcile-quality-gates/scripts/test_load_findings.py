@@ -238,10 +238,20 @@ def case_null_report_bead_is_bead_mismatch() -> None:
     assert reason_of(load(with_field(IN_CHANGE, bead=None), bead="tadw-abc")) == "bead-mismatch"
 
 
-def case_dirty_in_scope_file_is_uncommitted_changes() -> None:
-    outcome = load(IN_CHANGE, dirty={CHANGED_FILE})
+def case_dirty_named_file_with_no_changed_set_is_uncommitted_changes() -> None:
+    body = with_field(IN_CHANGE, base=None, changed_files=None)
+    outcome = load(body, dirty={CHANGED_FILE})
     assert reason_of(outcome) == "uncommitted-changes", f"got {outcome!r}"
     assert CHANGED_FILE in outcome.detail, f"must name the file: {outcome.detail!r}"
+
+
+def case_dirty_changed_files_print_in_commit_first() -> None:
+    findings = findings_of(load(IN_CHANGE, dirty={CHANGED_FILE, "README.md"}))
+    assert findings["commit_first"] == [CHANGED_FILE], findings
+
+
+def case_clean_tree_prints_an_empty_commit_first() -> None:
+    assert findings_of(load(IN_CHANGE))["commit_first"] == []
 
 
 def case_every_fail_outside_change_is_failures_outside_change() -> None:
@@ -290,8 +300,16 @@ for name, fn in [
     ("another bead is bead-mismatch [criterion 1]", case_other_bead_is_bead_mismatch),
     ("a null report bead is bead-mismatch [criterion 1]", case_null_report_bead_is_bead_mismatch),
     (
-        "a dirty file an in-scope finding names is uncommitted-changes [criterion 1]",
-        case_dirty_in_scope_file_is_uncommitted_changes,
+        "a dirty file a finding names, with no changed set, is uncommitted-changes [criterion 1]",
+        case_dirty_named_file_with_no_changed_set_is_uncommitted_changes,
+    ),
+    (
+        "dirty changed files print in commit_first, and other dirty files do not",
+        case_dirty_changed_files_print_in_commit_first,
+    ),
+    (
+        "a clean tree prints an empty commit_first",
+        case_clean_tree_prints_an_empty_commit_first,
     ),
     (
         "every FAIL finding outside the change is failures-outside-change [criterion 1]",
@@ -323,7 +341,7 @@ def case_stale_beats_bead_mismatch() -> None:
     assert reason_of(load(IN_CHANGE, head=OTHER_HEAD, bead="tadw-xyz")) == "report-stale"
 
 
-def case_bead_mismatch_beats_uncommitted_changes() -> None:
+def case_bead_mismatch_beats_a_dirty_changed_file() -> None:
     outcome = load(IN_CHANGE, dirty={CHANGED_FILE}, bead="tadw-xyz")
     assert reason_of(outcome) == "bead-mismatch"
 
@@ -366,8 +384,8 @@ for name, fn in [
     ("report-unreadable beats report-stale [criterion 1]", case_unreadable_beats_stale),
     ("report-stale beats bead-mismatch [criterion 1]", case_stale_beats_bead_mismatch),
     (
-        "bead-mismatch beats uncommitted-changes [criterion 1]",
-        case_bead_mismatch_beats_uncommitted_changes,
+        "bead-mismatch beats a dirty changed file [criterion 1]",
+        case_bead_mismatch_beats_a_dirty_changed_file,
     ),
     (
         "failures-outside-change beats needs-environment [criterion 1]",
@@ -567,8 +585,8 @@ def case_findings_print_as_json() -> None:
 
 def case_renamed_from_path_counts_as_dirty() -> None:
     code, out, _ = run_cli(dirty_files=RENAME_STATUS)
-    assert code == 1, f"the rename's original path is an in-scope file, got {code}: {out!r}"
-    assert out.strip() == "RECONCILE_QUALITY_GATES_BLOCKED uncommitted-changes", out
+    assert code == 0, f"must exit 0, got {code}: {out!r}"
+    assert json.loads(out)["commit_first"] == [CHANGED_FILE], out
 
 
 def case_report_that_will_not_open_is_report_unreadable_with_its_cause() -> None:
