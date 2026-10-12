@@ -181,8 +181,8 @@ A skill that claims nothing is not stopped. `/code-review` on an epic still labe
 rejects the fifth argument and fails the claim, so `/build` runs with no claim and no refusal. A
 label script that is one version behind passes four arguments, and the module then treats every
 bead as a leaf. A module older than the `candidates` subcommand offers no candidates, so no bead
-resolves and nothing is labeled. `install_label_bead_on_skill_invocation.sh --check` fails on
-either copy.
+resolves and nothing is labeled. The log line and `--doctor` both name that cause.
+`install_label_bead_on_skill_invocation.sh --check` fails on either copy.
 
 ## Widening before narrowing
 
@@ -237,6 +237,10 @@ Two things now answer the question.
 branch, the resolved bead id or `unresolved`, and the action.
 
 A run of `unresolved` lines is an outage.
+
+An `unresolved` line whose action starts with `FAILED` is a broken install, not a branch that names
+no bead. The action names the cause: `python3` or the claim module is missing, or the module
+failed the `candidates` call. `--doctor` prints the same cause on its `bead:` line.
 
 The file lives in the git directory. It is never tracked, and it never dirties the tree. It is
 truncated to its last 1000 lines.

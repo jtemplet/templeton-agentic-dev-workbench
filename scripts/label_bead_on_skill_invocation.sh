@@ -335,10 +335,14 @@ known_id_prefixes() {
 # UserPromptSubmit. Measured against fathom's tracker on 2026-08-23, one
 # bd show takes 0.53s.
 #
-# A missing python3 or module offers no candidates, so nothing is labeled
-# and the skill still runs.
+# A missing python3 or module offers no candidates, and neither does a module
+# that fails the `candidates` call, so nothing is labeled and the skill still
+# runs. Both set RESOLVE_FAILURE to the cause, so a caller can tell a broken
+# install from a branch that names no bead. It stays empty when the module
+# answered and no candidate matched.
 resolve_bead() {
-  local args="$1" branch="$2" text pr_id pr_json module candidates candidate found id
+  local args="$1" branch="$2" text pr_id pr_json module candidates candidates_code candidate found id
+  RESOLVE_FAILURE=""
   text="$args"
 
   pr_id="$(echo "$args" | tr ' ' '\n' | awk '
@@ -356,10 +360,18 @@ resolve_bead() {
 
   module="$(dirname "$SCRIPT_PATH")/$CLAIM_MODULE"
   if ! command -v python3 >/dev/null 2>&1 || [[ ! -f "$module" ]]; then
-    log "python3 or $CLAIM_MODULE is missing; no bead candidates to probe"
+    RESOLVE_FAILURE="python3 or $CLAIM_MODULE is missing"
+    log "$RESOLVE_FAILURE; no bead candidates to probe"
     return 1
   fi
   candidates="$(printf '%s' "$text" | python3 "$module" candidates "$branch" "$(known_id_prefixes)")"
+  candidates_code=$?
+  # A module older than the subcommand prints its usage and exits nonzero.
+  if (( candidates_code != 0 )); then
+    RESOLVE_FAILURE="$CLAIM_MODULE candidates exited $candidates_code; the installed copy can predate the candidates subcommand, so run the installer again"
+    log "$RESOLVE_FAILURE"
+    return 1
+  fi
   [[ -z "$candidates" ]] && return 1
 
   while IFS= read -r candidate; do
@@ -461,6 +473,10 @@ run_label_flow() {
   branch="$(git branch --show-current 2>/dev/null || true)"
 
   resolve_bead "$args" "$branch" || {
+    if [[ -n "$RESOLVE_FAILURE" ]]; then
+      log_outcome "$event" "$skill" "$branch" "" "FAILED, $RESOLVE_FAILURE; wanted $LABEL"
+      quiet_exit
+    fi
     log "no candidate resolved to a bead (branch '$branch')"
     log_outcome "$event" "$skill" "$branch" "" "wanted $LABEL, no candidate resolved to a bead"
     quiet_exit
@@ -1151,6 +1167,12 @@ run_doctor() {
   echo "branch:     ${branch:-<none, detached HEAD>}"
 
   if ! resolve_bead "" "$branch"; then
+    if [[ -n "$RESOLVE_FAILURE" ]]; then
+      echo "bead:       FAILED, $RESOLVE_FAILURE."
+      echo "            No bead can be resolved until that is fixed,"
+      echo "            so every labeled skill run here would label nothing."
+      return 0
+    fi
     echo "bead:       none. No candidate from this branch resolved to a bead,"
     echo "            so every labeled skill run here would label nothing."
     return 0

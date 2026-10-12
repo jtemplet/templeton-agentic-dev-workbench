@@ -2293,7 +2293,55 @@ if case_start "label/log: an unresolved run still exits 0 and still says so in t
   L="$(label_log "$R")"
   assert_eq "$(wc -l < "$L" | tr -d ' ')" "1" "wrote exactly one line"
   assert_match "$L" "unresolved" "recorded that nothing resolved"
-  assert_match "$L" "wanted reviewed" "named the label it could not apply"
+  assert_match "$L" "wanted reviewed, no candidate resolved to a bead" "named the label it could not apply"
+fi
+
+# A copy of the label script in a directory of its own, so the module beside it
+# can be absent or replaced without touching the copy of record.
+lone_label() {  # lone_label <repo>; echoes the copied script's path
+  mkdir -p "$1/lonely"
+  cp "$LABEL" "$1/lonely/label_bead_on_skill_invocation.sh"
+  echo "$1/lonely/label_bead_on_skill_invocation.sh"
+}
+
+# What a module older than the `candidates` subcommand does with that call.
+old_module() {  # old_module <repo>
+  printf '%s\n' 'import sys' \
+    'print("[bead-label] usage: claim_bead_for_build.py claim ...", file=sys.stderr)' \
+    'sys.exit(1)' > "$1/lonely/claim_bead_for_build.py"
+}
+
+run_doctor_with() {  # run_doctor_with <script> <repo>; sets DOCTOR_CODE, writes .docout
+  ( cd "$2" && PATH="$BINDIR:$PATH" BD_REPO="$2" BD_LOG="$2/.bdlog" BD_CALLS="$2/.bdcalls" \
+      bash "$1" --doctor > "$2/.docout" 2> "$2/.docerr" )
+  DOCTOR_CODE=$?
+}
+
+if case_start "label/log: without the claim module the log names the missing module"; then
+  # The bead is on the branch and in the tracker, so only the module is at fault.
+  R="$(new_repo g2b with-origin)"
+  on_branch "$R" "outrigger/tadw-alpha-one/some-slug"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_hook "$(lone_label "$R")" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_eq "$HOOK_CODE" 0 "exits 0, so the skill still runs"
+  L="$(label_log "$R")"
+  assert_eq "$(wc -l < "$L" | tr -d ' ')" "1" "wrote exactly one line"
+  assert_match "$L" "FAILED, python3 or claim_bead_for_build.py is missing; wanted reviewed" "named the cause and the label"
+  assert_no_match "$L" "no candidate resolved to a bead" "did not call it an ordinary no-bead run"
+fi
+
+if case_start "label/log: with a module older than candidates the log names the failed call"; then
+  R="$(new_repo g2c with-origin)"
+  on_branch "$R" "outrigger/tadw-alpha-one/some-slug"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  HOOK="$(lone_label "$R")"; old_module "$R"
+  run_hook "$HOOK" "$R" "$(payload PreToolUse '' '' 'tadw:review-fresh-eyes' '')"
+  assert_eq "$HOOK_CODE" 0 "exits 0, so the skill still runs"
+  L="$(label_log "$R")"
+  assert_eq "$(wc -l < "$L" | tr -d ' ')" "1" "wrote exactly one line"
+  assert_match "$L" "FAILED, claim_bead_for_build.py candidates exited 1; the installed copy can predate the candidates subcommand, so run the installer again; wanted reviewed" "named the cause and the label"
+  assert_no_match "$L" "no candidate resolved to a bead" "did not call it an ordinary no-bead run"
+  assert_eq "$(grep -c '^show ' "$R/.bdcalls")" "0" "probed nothing"
 fi
 
 if case_start "label/log: a gate withheld at Stop is recorded, not just dropped"; then
@@ -2376,6 +2424,36 @@ if case_start "label/doctor: names the bead and the labels, and writes nothing";
   assert_no_match "$R/.bdcalls" "--add-label" "applied no label"
   assert_no_match "$R/.bdcalls" "export -o" "refreshed no export"
   [[ ! -e "$(label_log "$R")" ]] && ok "wrote no log line" || nope "wrote no log line"
+fi
+
+if case_start "label/doctor: without the claim module it names the missing module"; then
+  R="$(new_repo g6b with-origin)"
+  on_branch "$R" "outrigger/tadw-alpha-one/some-slug"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  run_doctor_with "$(lone_label "$R")" "$R"
+  assert_eq "$DOCTOR_CODE" 0 "exits 0"
+  assert_match "$R/.docout" "bead: *FAILED, python3 or claim_bead_for_build.py is missing\." "named the cause"
+  assert_no_match "$R/.docout" "No candidate from this branch" "did not call it an ordinary no-bead branch"
+  [[ ! -e "$(label_log "$R")" ]] && ok "wrote no log line" || nope "wrote no log line"
+fi
+
+if case_start "label/doctor: with a module older than candidates it names the failed call"; then
+  R="$(new_repo g6c with-origin)"
+  on_branch "$R" "outrigger/tadw-alpha-one/some-slug"
+  export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
+  HOOK="$(lone_label "$R")"; old_module "$R"
+  run_doctor_with "$HOOK" "$R"
+  assert_eq "$DOCTOR_CODE" 0 "exits 0"
+  assert_match "$R/.docout" "bead: *FAILED, claim_bead_for_build.py candidates exited 1; the installed copy can predate the candidates subcommand, so run the installer again\." "named the cause"
+  assert_no_match "$R/.docout" "No candidate from this branch" "did not call it an ordinary no-bead branch"
+fi
+
+if case_start "label/doctor: a branch that names no bead keeps the ordinary text"; then
+  R="$(new_repo g6d with-origin)"
+  export BD_KNOWN="" BD_LABELS_JSON=""
+  run_doctor_with "$LABEL" "$R"
+  assert_match "$R/.docout" "^bead:       none\. No candidate from this branch resolved to a bead,$" "said no bead resolved"
+  assert_no_match "$R/.docout" "FAILED" "reported no failure"
 fi
 
 if case_start "label/doctor: returns without waiting on stdin"; then
