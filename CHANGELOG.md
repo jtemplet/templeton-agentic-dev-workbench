@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [4.8.4] - 2026-10-11
+
+### Added
+
+- **Label hook records a missing or outdated claim...** (`9180618`, tadw-fdqp)
+- **Reconcile skills commit the graded work instead of stopping.** (`cab82da`, tadw-9whf)
+
+### Changed
+
+- **Bump the rumdl pin to v0.2.77 to match the local version.** (`e7b54b8`)
+- **Keep the local rumdl and the CI rumdl on one pinned version.** (`15b87bb`, tadw-36mk)
+- **Move bead candidate resolution into Python.** (`db82440`, tadw-n4xs)
+- **Publish complete bead graphs with recoverable...** (`63ada4c`, tadw-5n2s.3)
+- **Update outrigger config and workspace file.** (`46e3806`)
+
 ## [4.8.3] - 2026-10-11
 
 ### Changed
@@ -2891,7 +2906,8 @@ regression cases are documented in the fix commit.
 Releases prior to 1.14.0 predate this changelog; their history is recorded in
 the git tags and commit log (latest prior tag: `v1.13.0`).
 
-[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.3...HEAD
+[Unreleased]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.4...HEAD
+[4.8.4]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.3...v4.8.4
 [4.8.3]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.2...v4.8.3
 [4.8.2]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.1...v4.8.2
 [4.8.1]: https://github.com/jtemplet/templeton-agentic-dev-workbench/compare/v4.8.0...v4.8.1
