@@ -54,6 +54,9 @@ export default [
       complexity: ["error", 8],
       "max-params": ["error", 4],
       "max-statements": ["error", 8],
+      // Nesting depth has no rule in the Python baseline. Three levels is the
+      // most a reader holds at once; deeper code wants an early return.
+      "max-depth": ["error", 3],
 
       // The ruff selections that have an ESLint equivalent. Measured against
       // atlas and meridian, these reported one finding between them.
