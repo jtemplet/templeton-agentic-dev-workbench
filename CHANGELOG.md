@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Changed
+
+- **Ship commits a dirty feature branch instead of stopping.** Tracked and untracked changes land
+  with the branch, so a forgotten file is no longer left out and the worktree can be removed.
+  (tadw-aqp6)
+
 ## [4.8.4] - 2026-10-11
 
 ### Added

@@ -59,6 +59,7 @@ python3 skills/ship/scripts/test_ship_recovery.py            # regression suite 
 python3 skills/ship/scripts/test_candidate.py               # regression suite for ship's checked candidate
 python3 skills/ship/scripts/test_git_process.py              # regression suite for ship's single git runner
 python3 skills/ship/scripts/test_worktree_cleanup.py        # regression suite for ship's worktree cleanup and cd guidance
+python3 skills/ship/scripts/test_commit_left_work.py        # regression suite for committing a dirty feature branch at ship
 python3 skills/reconcile-acceptance/scripts/test_load_findings.py   # regression suite for the acceptance findings loader
 python3 skills/reconcile-quality-gates/scripts/test_load_findings.py   # regression suite for the quality-gates findings loader
 python3 skills/verify-acceptance/scripts/test_write_acceptance_report.py   # regression suite for the acceptance report writer

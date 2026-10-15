@@ -65,6 +65,7 @@ def execute_sibling(name: str, path: Path) -> ModuleType:
 
 
 git_process = load_sibling("git_process")
+commit_left_work = load_sibling("commit_left_work")
 resolve_ground = load_sibling("resolve_ground")
 select_bead = load_sibling("select_bead")
 resolve_rebase_conflict = load_sibling("resolve_rebase_conflict")
@@ -158,13 +159,31 @@ def run_steps_without_git_errors(request: Request, gate: candidate.Gate) -> Ship
 
 
 def run_steps(request: Request, gate: candidate.Gate) -> Shipped:
-    ground = read_ground(request.repo)
+    ground = ground_after_committing(request.repo)
     store = ship_progress.ProgressStore(Path(ground["git_common_dir"]))
     try:
         with ship_progress.exclusive_run(store):
             return run_locked(Run(request, ground, gate, store))
     except ship_progress.ShipBusy as busy:
         raise ShipStop("git-state", str(busy), NOTHING_CHANGED) from busy
+
+
+def ground_after_committing(repo: Path) -> dict:
+    """Uncommitted work on the feature branch lands with it rather than stopping the run."""
+    report_committed(commit_or_stop(repo))
+    return read_ground(repo)
+
+
+def commit_or_stop(repo: Path) -> list[str]:
+    try:
+        return commit_left_work.commit_left_work(repo)
+    except commit_left_work.LeftWorkStop as stopped:
+        raise ShipStop("git-state", str(stopped), NOTHING_CHANGED) from stopped
+
+
+def report_committed(paths: list[str]) -> None:
+    if paths:
+        say(f"committed {len(paths)} uncommitted path(s) first: {', '.join(paths)}")
 
 
 def run_locked(run: Run) -> Shipped:

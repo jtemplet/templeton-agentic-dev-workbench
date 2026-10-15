@@ -43,6 +43,17 @@ tadw-ship process at the named point, and a second run resumes from the record.
   ------------------------------------------------------------------------------
   6. After a successful ship, the export in the     case_shipped_bead_is_closed_in_the_main_export,
      stable checkout holds the bead as closed       case_9_landed_branch_export_shows_the_close
+
+  tadw-aqp6 criterion                               Pinned by
+  ------------------------------------------------------------------------------
+  1. Work left uncommitted in the worktree lands    case_left_work_lands_with_the_branch,
+     with the branch, and the run names it          case_left_work_is_named
+  2. A secret-shaped path stops the ship with       case_secret_left_work_stops_the_ship
+     git-state, names it, and commits nothing
+  3. A refused commit stops the ship with           case_refused_left_work_stops_the_ship
+     git-state, says why, and leaves nothing staged
+  A worktree whose leftovers were committed is      case_left_work_worktree_is_removed
+  removed after the landing
 """
 
 from __future__ import annotations
@@ -243,6 +254,9 @@ class Outcome(NamedTuple):
     noted: str
     unrelated_file_kept: bool
     stale_worktrees: int
+    main_files: tuple[str, ...]
+    worktree_removed: bool
+    worktree_staged: str
 
     def last(self, index: int = -1) -> str:
         return self.runs[index].stdout.splitlines()[-1]
@@ -297,7 +311,20 @@ def read_outcome(repository: Repository, runs: tuple, noted: str) -> Outcome:
         noted=noted,
         unrelated_file_kept=read_if_present(repository.main / "notes.local") == "mine\n",
         stale_worktrees=worktrees.count("tadw-ship-candidate-"),
+        main_files=tuple(git("ls-tree", "-r", "--name-only", "main").splitlines()),
+        worktree_removed=not repository.worktree.exists(),
+        worktree_staged=staged_in(repository.worktree),
     )
+
+
+def staged_in(worktree: Path) -> str:
+    if not worktree.exists():
+        return ""
+    return subprocess.run(
+        ["git", "-C", str(worktree), "diff", "--cached", "--name-only"],
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
 
 
 def read_if_present(path: Path) -> str:
@@ -443,6 +470,36 @@ def shipped_cleanly() -> Outcome:
 
 
 @functools.cache
+def shipped_with_left_work() -> Outcome:
+    def leave_work(repository: Repository) -> None:
+        (repository.worktree / "thing.txt").write_text("the thing, revised\n")
+        (repository.worktree / "forgotten.txt").write_text("never added\n")
+
+    return scenario(leave_work, runs=1)
+
+
+@functools.cache
+def shipped_with_a_secret_left() -> Outcome:
+    def leave_a_secret(repository: Repository) -> str:
+        (repository.worktree / "thing.txt").write_text("the thing, revised\n")
+        (repository.worktree / ".env").write_text("TOKEN=secret\n")
+        return repository.git("rev-parse", BRANCH)
+
+    return scenario(leave_a_secret, runs=1)
+
+
+@functools.cache
+def shipped_with_a_refusing_hook() -> Outcome:
+    def refuse_commits(repository: Repository) -> str:
+        repository.hook("pre-commit", "echo 'lint found 3 errors' >&2\nexit 1")
+        (repository.worktree / "thing.txt").write_text("the thing, revised\n")
+        (repository.worktree / "forgotten.txt").write_text("never added\n")
+        return repository.git("rev-parse", BRANCH)
+
+    return scenario(refuse_commits, runs=1)
+
+
+@functools.cache
 def closed_by_another_run() -> Outcome:
     def kill_in_gate(repository: Repository) -> None:
         killed = repository.root / "killed"
@@ -545,6 +602,41 @@ def shipped(outcome: Outcome, index: int = -1) -> str:
 def case_shipped_bead_is_closed_in_the_main_export() -> None:
     outcome = shipped_cleanly()
     assert '"status":"closed"' in outcome.main_export, outcome.stderr()
+
+
+def case_left_work_lands_with_the_branch() -> None:
+    outcome = shipped_with_left_work()
+    assert outcome.last().startswith("SHIP_DONE "), outcome.stderr()
+    assert "forgotten.txt" in outcome.main_files, outcome.main_files
+    assert outcome.origin_tip == outcome.main_tip, outcome.stderr()
+
+
+def case_left_work_is_named() -> None:
+    stderr = shipped_with_left_work().stderr()
+    assert "committed 2 uncommitted path(s) first: forgotten.txt, thing.txt" in stderr, stderr
+
+
+def case_secret_left_work_stops_the_ship() -> None:
+    outcome = shipped_with_a_secret_left()
+    assert outcome.last() == "SHIP_BLOCKED git-state", outcome.runs[-1].stdout
+    assert ".env" in outcome.stderr(), outcome.stderr()
+    assert outcome.branch_tip == outcome.noted, "the branch gained a commit"
+    assert outcome.worktree_staged == "", outcome.worktree_staged
+    assert outcome.origin_tip == outcome.main_tip and outcome.gate_runs == 0, outcome.stderr()
+
+
+def case_refused_left_work_stops_the_ship() -> None:
+    outcome = shipped_with_a_refusing_hook()
+    assert outcome.last() == "SHIP_BLOCKED git-state", outcome.runs[-1].stdout
+    assert "lint found 3 errors" in outcome.stderr(), outcome.stderr()
+    assert outcome.branch_tip == outcome.noted, "the branch gained a commit"
+    assert outcome.worktree_staged == "", outcome.worktree_staged
+    assert outcome.gate_runs == 0, outcome.stderr()
+
+
+def case_left_work_worktree_is_removed() -> None:
+    outcome = shipped_with_left_work()
+    assert outcome.worktree_removed, outcome.stderr()
 
 
 def case_1_resume_after_close_ships_the_bead() -> None:
@@ -763,6 +855,11 @@ for name, fn in [
     ("9. a landed branch is not rebased", case_9_landed_branch_is_not_rebased),
     ("a shipped bead is closed in the main checkout's export",
      case_shipped_bead_is_closed_in_the_main_export),
+    ("left work lands with the branch", case_left_work_lands_with_the_branch),
+    ("left work is named", case_left_work_is_named),
+    ("a worktree whose left work was committed is removed", case_left_work_worktree_is_removed),
+    ("a secret in the left work stops the ship", case_secret_left_work_stops_the_ship),
+    ("a refused commit of the left work stops the ship", case_refused_left_work_stops_the_ship),
 ]:  # fmt: skip
     check(name, fn)
 
