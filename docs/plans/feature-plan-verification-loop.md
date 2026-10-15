@@ -2,6 +2,7 @@
 
 **Date:** 2026-08-31
 **Revised:** 2026-10-05, to reflect the browser verifier and journey helper now in the repository
+**Revised:** 2026-10-15, to move the acceptance report changes into the version 3 transition
 **Status:** In Progress
 
 ## Summary
@@ -87,13 +88,16 @@ outrigger's `claude -p` process boundary, and ADR 0011 rejected it for that reas
 
 **A script grades the handoff, not the model.** `verify-acceptance` runs `route_qa.py` and
 `journeys.py` on its changed set. Then it passes both outputs and the `verify-app` report file to
-`write_acceptance_report.py`. The writer builds each handoff row from one fixed table:
+`write_acceptance_report.py`. The writer builds each handoff row from one fixed table. The first
+line that matches decides, so a current failure wins over an unfinished journey. The
+[validation report contract](../validation-report-contract.md) owns this table, under "UI
+precedence".
 
 | What the report file holds | Handoff row |
 |---|---|
-| `VERIFY_PASS` with the current fingerprint, for every needed journey | PASS |
-| `VERIFY_FAIL` with the current fingerprint, for any needed journey | FAIL |
-| Anything else: no result, an old fingerprint, STALE, BLOCKED, or a changed file no journey covers | HANDOFF |
+| `VERIFY_FAIL` with the current fingerprint, for any needed journey, even when another is unfinished | FAIL |
+| No current failure, and no result, an old fingerprint, STALE, BLOCKED, or a changed file no journey covers | HANDOFF |
+| `VERIFY_PASS` with the current fingerprint, for every needed journey, and no uncovered changed file | PASS |
 
 A HANDOFF row makes the verdict INCONCLUSIVE, never NOT ACCEPTED. A check nobody ran proves nothing
 either way, which is the case an UNVERIFIABLE criterion already covers
@@ -138,7 +142,7 @@ same product would need its own copy of all three.
 | `skills/verify-app/scripts/write_verify_report.py` | Write one result per journey to `<git-dir>/verify-app-report.json` | New |
 | `skills/quality-gates/scripts/route_qa.py` | Name the new skills as the two handoff owners | Modified |
 | `skills/quality-gates/SKILL.md` | Point the two handoff rows at the new skills | Modified |
-| `skills/verify-acceptance/scripts/write_acceptance_report.py` | Grade each handoff from the fixed table, and count `gates_handoff` | Modified |
+| `skills/verify-acceptance/scripts/write_acceptance_report.py` | Grade each handoff from the fixed table, and count `gates_handoff`, in version 3 reports | Modified |
 | `skills/reconcile-acceptance/scripts/load_findings.py` | Read a HANDOFF row and the `gates_handoff` count | Modified |
 | `scripts/label_bead_on_skill_invocation.sh` | Refuse `accepted` when `gates_handoff` is above zero | Modified |
 | `skills/verify-acceptance/SKILL.md` | Route the change, pass the paths, and grade an unresolved HANDOFF as INCONCLUSIVE | Modified |
@@ -199,10 +203,19 @@ the journey name. A run of one journey replaces that journey's result and keeps 
 | `step` or `reason` | The step that broke, or why the run could not start |
 | `fingerprint` | The hash `journeys.py` gave the journey. This field, not `head`, decides freshness |
 
-`<git-dir>/acceptance-report.json` stays at version 2 and gains one count, `gates_handoff`, and one
-gate status, HANDOFF. Outrigger reads this file with Go's `json.Unmarshal`, which ignores an unknown
-field. It also requires the `accepted` label, so the label hook stays the guard and outrigger needs
-no change (`cmd/outrigger-phased/verifyacceptance.go:41` in the outrigger repository).
+`<git-dir>/acceptance-report.json` gains one count, `gates_handoff`, and one gate status, HANDOFF,
+as part of version 3. They ship in the coordinated version 3 transition that
+[ADR 0013](../adr/0013-version-3-reports-reach-readers-before-producers.md) records. No separate
+version 2 UI release ships. The [validation report contract](../validation-report-contract.md)
+owns both fields.
+
+The order of releases protects the readers, and the version number protects only some of them.
+Outrigger refuses every version other than 2 (`cmd/outrigger-phased/verifyacceptance.go` in the
+outrigger repository), so it stops on a version 3 report. An installed label hook reads the seven
+counts by name, checks no version, and ignores `gates_handoff`. So a report that gained the count,
+at version 2 or version 3, would earn `accepted` from an old hook over an unchecked UI change.
+Readers that understand the count ship first, the installed label hook included, and the writer
+emits a HANDOFF row only after them.
 
 ### API / Interface
 
@@ -233,7 +246,9 @@ not, and 2 on operator error. It accepts `--json`, matching `check_staleness.py`
 |---|---|---|
 | 0001 | A bead's How goes in the native `design` field, Done when in `notes`, and Acceptance Criteria in `acceptance_criteria`. The description body is not the place for them | Every bead `/plan-to-beads` creates from this plan writes those three native fields |
 | 0002 | An agent in this plugin can dispatch a subagent and receive its result. The quality-gates orchestrator fans out to blocking subagents | `agents/verify-app.md` is dispatchable, so a caller can run a verification in its own context window |
+| 0003 | A push to `main` is already published | The handoff count reaches readers only after they understand version 3 |
 | 0011 | A check result travels in a report file inside `<git-dir>`, never in a transcript. A check never runs the next step. A script runs no git and is told its inputs | `verify-app` writes its report file, `quality-gates` names the owner and runs nothing, and `journeys.py` and both writers take every value as an argument |
+| 0013 | Version 3 reaches readers before producers, and success never downgrades to version 2 | The handoff grading ships in version 3 reports, after the version 3 readers |
 
 ## Implementation Milestones
 
@@ -245,7 +260,7 @@ not, and 2 on operator error. It accepts `--json`, matching `check_staleness.py`
 | 4 | `verify-app-ios` (tadw-qby) | The same skill for the iOS Simulator, driven by the `agent-device` command-line tool, which can tap where `xcrun simctl` cannot. Add a `device` section to the control template. Write each result to the `verify-app` report file under surface `mobile-ui` | M | `claude plugin validate .` exits 0, the skill is registered in the three places, and one recorded run returned a verdict |
 | 5a | The journeys script (tadw-6xhi) | Write `journeys.py` and its regression suite. Add the suite to the check list in `CLAUDE.md` and to `.tadw/ship-gates.json` | S | One command names the journeys a changed set needs, and a fingerprint changes only when one of that journey's files changes |
 | 5b | The `verify-app` report file (tadw-imgg) | Write `write_verify_report.py` and its suite. Call it from Step 6 of `verify-app`. Reword its Never rule to allow the one file inside `<git-dir>` | M | Every run on a leaf-document journey leaves that journey's outcome and fingerprint in the report file, and the working tree is unchanged |
-| 5c | The handoff grading (tadw-do7x) | Teach `write_acceptance_report.py` the fixed table and `gates_handoff`. Teach `load_findings.py` and the label hook the same count | M | An unchecked UI change leaves `gates_handoff` above zero and the bead without `accepted` |
+| 5c | The handoff grading (tadw-do7x) | Teach `write_acceptance_report.py` the fixed table and `gates_handoff` in version 3 reports. The version 3 readers in `load_findings.py` (tadw-wtby) and the label hook (tadw-nrsd) learn the same count first | M | An unchecked UI change leaves `gates_handoff` above zero and the bead without `accepted`, and no version 2 report carries the count |
 | 5d | The routing (tadw-440) | Point `route_qa.py` and `skills/quality-gates/SKILL.md` at the new skills. Make `verify-acceptance` route the change, pass the paths, reuse a saved pass by fingerprint, and grade HANDOFF as INCONCLUSIVE | S | Every handoff owner is a `tadw:verify-*` skill, and an unchecked UI change grades INCONCLUSIVE |
 | 6 | Diagnostician reproduction | Add the browser tools to the `agents/diagnostician.md` tool list. Rewrite Step 2 to drive the application when the bug is in a web page, and to say plainly when it could not | S | The frontmatter lists the browser tools, and the quality checklist item "The failing behavior was actually reproduced or observed" names how |
 | 7 | The two proofs | Add `evals/cases/verify-app-loads/case.json`. Run `verify-app` once against a real running application and record the transcript in the bead | M | The eval case passes 3 of 3 runs on the with-plugin arm, and the bead holds the transcript of a run that returned a verdict |
@@ -293,7 +308,7 @@ is proven by criteria 8 and 9 alone, which is stated under Risks below.
 | Requiring a drive block on every leaf document turns a large existing tree red on the first run | Med | Med | `check_drive_blocks.py` reports a missing block as a finding, and the check enters the pre-push list only for this repository, which has no `docs/products` tree |
 | The skill grows into a second `/qa`, taking on fixing as well as reporting | Med | Med | `verify-app` edits no file in the working tree and writes only its report file, matching `quality-gates`. Write that into its Critical Rules |
 | A browser run costs minutes and tokens on every gate run | Med | Med | It runs only when routing finds a `browser-ui` surface, and only for a needed journey whose saved pass is missing or carries an old fingerprint |
-| A gate status that one reader does not know lets a UI change through, or breaks a reader | High | Med | Milestone 5c changes the writer, the loader, and the label hook in one bead, with a test for each |
+| A gate status that one reader does not know lets a UI change through, or breaks a reader | High | Med | The status ships only in version 3. Every reader learns version 3 before any writer emits it, as ADR 0013 requires, and the compatibility fixtures test each reader |
 | A pass on an unrelated journey settles the handoff | High | Med | The writer requires a pass for every journey whose `source_refs` include a changed file, and a changed file that no journey covers keeps the row HANDOFF |
 | Scope grows to cover the eval battery | Low | Med | Out of Scope names it, and it becomes beads instead |
 
@@ -306,6 +321,9 @@ is proven by criteria 8 and 9 alone, which is stated under Risks below.
   for milestone 4 only. The owner chose `agent-device` on 2026-09-10 and confirmed it on
   2026-10-05.
 - A running application to record the live seam against, for milestone 7.
+- Version 3 readers before milestone 5c teaches any writer the count: both reconcile loaders, the
+  label hook, and the Outrigger companion reader. The validation reports plan delivers them, and
+  the [validation report contract](../validation-report-contract.md) fixes their rules.
 - No dependency on `/qa`, `/ios-qa`, or the `ll` plugin. This plan removes the first two from the
   pipeline and copies a shape from the third without importing it.
 

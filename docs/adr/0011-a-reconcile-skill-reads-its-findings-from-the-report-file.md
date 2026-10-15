@@ -1,7 +1,9 @@
 # 0011. A reconcile skill reads its findings from the report file and never grades its own fix
 
 **Date:** 2026-09-13
-**Status:** Accepted
+**Status:** Accepted, amended 2026-10-15 by
+[ADR 0013](0013-version-3-reports-reach-readers-before-producers.md), which changes the version rule
+and states the one exception to rule 1
 
 ## Context
 
