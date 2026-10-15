@@ -11,7 +11,6 @@
 # a skill, or a slash command). Single-quote values; backticks are literal.
 
 implement_tool='the `/tadw:build` skill'
-simplify_tool='the `/simplify` skill'
 
 # Code review: the wrapper measures the diff size at render time and picks
 # the tool deterministically (the agent does not evaluate the threshold).
@@ -60,7 +59,7 @@ qa_tool='the `tadw:quality-gates` skill'
 # value below, list acceptance or you opt out of it silently.
 #
 # Uncomment to run the simplify phase (quality cleanup) before code review:
-dev_pipeline = development,review,qa,acceptance,closeout
+dev_pipeline = development,review,acceptance,closeout
 
 # Triage age escalation. A bead's effective priority improves by one tier for
 # every full aging period it has waited, floored at P1 so waiting can never
