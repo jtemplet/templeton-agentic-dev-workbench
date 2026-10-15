@@ -18,24 +18,16 @@ event="${1:-}"
 [[ -n "$event" ]] ||
   event="$(printf '%s' "$payload" | jq -r '.hook_event_name // empty' 2>/dev/null || true)"
 
-# The label script sits in one of two places. Beside this one is the layout of
-# the workbench repository. Under .claude/scripts of the MAIN checkout is where
-# install_label_bead_on_skill_invocation.sh puts it, while this script goes to
-# .codex/scripts, and the git common dir resolves there from a linked worktree
-# too.
+# The label script is the one beside this runner. The workbench repository has
+# it in scripts/, and install_label_bead_on_skill_invocation.sh --agent codex
+# puts a copy in .codex/scripts/ next to this file. This runner never runs the
+# copy under .claude/scripts/, which exists for Claude Code alone.
 resolve_label_hook() {
-  local script_dir sibling common installed
+  local script_dir sibling
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || return 1
   sibling="$script_dir/label_bead_on_skill_invocation.sh"
-  if [[ -x "$sibling" ]]; then
-    printf '%s' "$sibling"
-    return 0
-  fi
-  common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-  [[ -n "$common" ]] || return 1
-  installed="${common%/.git}/.claude/scripts/label_bead_on_skill_invocation.sh"
-  [[ -x "$installed" ]] || return 1
-  printf '%s' "$installed"
+  [[ -x "$sibling" ]] || return 1
+  printf '%s' "$sibling"
 }
 
 # A label script this cannot find used to return in silence. That is the exact

@@ -20,10 +20,20 @@ hook dropped at the `bd` cutover.
 ## The installer
 
 `scripts/install_label_bead_on_skill_invocation.sh` installs the hook into whatever repository
-you run it from. It copies the hook and its claim module to `.claude/scripts/` and the Codex
-runner to `.codex/scripts/`, backs up `.claude/settings.json`, and wires the four events.
+you run it from, for the agent you name. `--agent claude|codex|both` is required. A run with no
+`--agent`, or with another value, prints the usage text, exits 2, and writes no file. The
+installer never guesses from the folders it finds, because a repository with a `.codex/` folder
+may still want the Claude hook alone.
+
+| Value | What it writes |
+|---|---|
+| `claude` | The label script and its claim module in `.claude/scripts/`. It backs up `.claude/settings.json`, then wires the four events. |
+| `codex` | The label script, its claim module, and the runner in `.codex/scripts/`. It writes nothing else under `.claude/` and leaves `.claude/settings.json` alone. |
+| `both` | Both sets. The repository then holds two copies of the label script, one for each agent. |
+
 Re-running it is safe. It repairs wiring that names an older path instead of adding a second
-entry. `--dest-dir` moves the label script and its module, never the runner.
+entry. `--dest-dir` moves the Claude label script and its module. It does not apply to
+`--agent codex`, and the installer refuses the pair. Every argument error exits 2.
 
 The claim module is `claim_bead_for_build.py`. It decides whether `/build` may claim the bead, and
 the label script runs it as a sibling. It also lists the candidate bead ids for every labeled
@@ -35,15 +45,16 @@ copy under the old name, and `--check` fails while one remains.
 its claim module work together.
 
 Only the label script is wired here. The runner is inert until somebody adds it to
-`.codex/hooks.json`, so a repository that never runs Codex carries one unused file and loses
-nothing. See "Codex" below.
+`.codex/hooks.json`, so a repository that never runs Codex should not install for Codex. See
+"Codex" below.
 
 A run that overwrites an existing copy first reports how the two differ, in line counts and
 hashes. After the copy, that evidence is gone.
 
-`--check` answers the same questions and changes nothing. It reports whether each installed copy
-matches its source, and whether all four events reference the label script. It exits 1 if any of
-those is out of step.
+`--check` takes the same `--agent` flag. It answers the same questions for that agent and changes
+nothing. It checks exactly the files, and for `claude` and `both` the wiring, that an install
+with that value writes. It deletes nothing, including files that an install with another value
+left behind. It exits 1 if any of those is out of step.
 
 `PreToolUse` carries two registrations, one with matcher `Skill` and one with matcher `Agent`.
 `--check` names a missing one as `PreToolUse(Skill)` or `PreToolUse(Agent)`. A repository
@@ -53,7 +64,7 @@ hold another hook.
 
 The two kinds of drift fail independently. The second is the one that is easy to miss: a current
 script reached by only three events does nothing on the fourth. `tadw-j80` covers wiring `--check`
-into `.githooks/pre-push`.
+into `.githooks/pre-push`; the hook has to pass the same `--agent` value the repository installed.
 
 ## Codex
 
@@ -67,19 +78,25 @@ label script.
 
 ### Where the two scripts live
 
-`scripts/install_label_bead_on_skill_invocation.sh` copies the label script into
-`.claude/scripts/` and the runner into `.codex/scripts/` of the target repository. Codex is the
-only thing that runs the runner, so it lives under Codex's directory. The runner looks for the
-label script as a sibling first, which is the layout of this repository's own `scripts/`. It then
-looks under `.claude/scripts/` of the main checkout, resolved through the git common dir, which is
-where an install puts it. A linked worktree finds the main checkout's copy.
+`--agent codex` copies the label script, its claim module, and the runner into `.codex/scripts/`
+of the target repository. The runner runs the label script beside it, which is also the layout of
+this repository's own `scripts/`, and it never runs the copy under `.claude/scripts/`. A Codex
+install therefore depends on no Claude file. A runner that finds no label script beside it writes
+`no-label-script` to the log and labels nothing.
 
-Before 2026-10-06 the installer put the runner in `.claude/scripts/` too. A run now removes that
-copy, unless `.codex/hooks.json` still names its path. In that case it keeps the copy and says so,
-and `--check` fails on it until the wiring points at `.codex/scripts/`.
+Until 2026-10-14 the runner fell back to the label script under `.claude/scripts/` of the main
+checkout. It no longer does, because that file exists for Claude, and a Codex hook that ran it
+depended on an install nobody asked for.
 
-**`--dest-dir` and the runner do not mix.** The runner only knows the two places above, so a label
-script installed anywhere else is one it cannot find. It then writes `no-label-script` to the log.
+Before 2026-10-06 the installer put the runner in `.claude/scripts/`. A run with any `--agent`
+value removes that copy, and `--dest-dir` does not change where it looks. It removes the copy
+even when `.codex/hooks.json` still names its path, because the author asked on 2026-10-14 for
+the file to go whenever it exists. Codex then labels nothing until that wiring names
+`.codex/scripts/`. So the run prints a warning, and `--check` fails while the old path stays in
+`.codex/hooks.json`.
+
+**`--dest-dir` does not apply to Codex.** The Codex files always go to `.codex/scripts/`, so the
+runner and the label script it finds are always the pair one install wrote.
 
 The failure of a split pair used to be silent. The installer wrote the label script to
 `.claude/scripts/` while the runner looked only for a sibling, so a repository set up the
@@ -223,7 +240,7 @@ rejects the fifth argument and fails the claim, so `/build` runs with no claim a
 label script that is one version behind passes four arguments, and the module then treats every
 bead as a leaf. A module older than the `candidates` subcommand offers no candidates, so no bead
 resolves and nothing is labeled. The log line and `--doctor` both name that cause.
-`install_label_bead_on_skill_invocation.sh --check` fails on either copy.
+`install_label_bead_on_skill_invocation.sh --check --agent <value>` fails on either copy.
 
 ## Widening before narrowing
 

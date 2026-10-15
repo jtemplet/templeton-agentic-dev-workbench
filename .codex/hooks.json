@@ -40,7 +40,7 @@
       {
         "hooks": [
           {
-            "command": "d=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; test -n \"$d\" || exit 0; s=\"$d/scripts/run_codex_bead_hooks.sh\"; test -f \"$s\" || exit 0; exec bash \"$s\" UserPromptSubmit",
+            "command": "d=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; test -n \"$d\" || exit 0; s=\"$d/.codex/scripts/run_codex_bead_hooks.sh\"; test -f \"$s\" || exit 0; exec bash \"$s\" UserPromptSubmit",
             "statusMessage": "Refreshing Beads context and workflow status",
             "type": "command"
           }
@@ -51,7 +51,7 @@
       {
         "hooks": [
           {
-            "command": "d=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; test -n \"$d\" || exit 0; s=\"$d/scripts/run_codex_bead_hooks.sh\"; test -f \"$s\" || exit 0; exec bash \"$s\" Stop",
+            "command": "d=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; test -n \"$d\" || exit 0; s=\"$d/.codex/scripts/run_codex_bead_hooks.sh\"; test -f \"$s\" || exit 0; exec bash \"$s\" Stop",
             "statusMessage": "Resolving pending bead labels",
             "type": "command"
           }

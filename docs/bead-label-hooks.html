@@ -153,7 +153,9 @@ and a Python module that the shell script calls for one decision.</p>
 </div>
 
 <p>A third file, <code>run_codex_bead_hooks.sh</code>, lives in <code>.codex/scripts/</code>. Codex runs it, and it
-passes the Codex payload to the same shell script. It is not part of the Claude Code path.</p>
+passes the Codex payload to the label script beside it. It is not part of the Claude Code path. The installer's
+<code>--agent codex</code> puts a copy of the label script and its claim module in <code>.codex/scripts/</code>, so a
+Codex install depends on no file under <code>.claude/</code>.</p>
 
 <h2>The four events</h2>
 
@@ -482,6 +484,7 @@ the git common dir, which every worktree shares.</p>
   <tr><td><code>.claude/scripts/label_bead_on_skill_invocation.sh</code></td><td>The hook. A copy; the source is in the tadw repository's <code>scripts/</code></td></tr>
   <tr><td><code>.claude/scripts/claim_bead_for_build.py</code></td><td>The claim module, beside the hook</td></tr>
   <tr><td><code>.codex/scripts/run_codex_bead_hooks.sh</code></td><td>The Codex runner. Inert until <code>.codex/hooks.json</code> names it</td></tr>
+  <tr><td><code>.codex/scripts/label_bead_on_skill_invocation.sh</code> and <code>claim_bead_for_build.py</code></td><td>The Codex copies of the hook and its claim module, beside the runner</td></tr>
   <tr><td><code>.claude/settings.json</code></td><td>Connects the four events to the hook</td></tr>
   <tr><td><code>&lt;git-common-dir&gt;/pending-bead-labels/</code></td><td>The markers. Never tracked, shared by every worktree</td></tr>
   <tr><td><code>&lt;git-common-dir&gt;/bead-label.log</code></td><td>One line per outcome, kept to the last 1,000 lines</td></tr>

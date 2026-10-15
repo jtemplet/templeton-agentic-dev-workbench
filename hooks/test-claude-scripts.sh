@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# tadw - test suite for the two hooks in .claude/scripts/
+# tadw - test suite for the bead hooks: the label hook, its installer, and the
+# Codex runner (copies of record in scripts/), and the close hook (.claude/scripts/)
 #
 # No dependencies beyond what the hooks themselves need (bash, git, jq, coreutils).
 # Run with:
@@ -36,7 +37,8 @@
 #      under a temp directory. No case reads or writes the real tracker, and no
 #      case can reach a network: the git stub refuses any push whose remote is
 #      not a local path, and the repositories that push have a bare repo on disk
-#      as their origin.
+#      as their origin. The one exception is reading: a few cases read files of
+#      this checkout to assert what this repository carries, and none writes.
 #
 #   3. git IS REAL, BEHIND A RECORDING STUB. The bead asked for a git stub
 #      alongside the tracker and gh. A stub that answers rev-parse, status --porcelain,
@@ -57,10 +59,13 @@ set -uo pipefail
 HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$HOOKS_DIR")"
 SCRIPTS_DIR="${TADW_HOOK_SCRIPTS_DIR:-$REPO_ROOT/.claude/scripts}"
+# The label hook is the one people edit, and its copy of record is scripts/. The
+# close hook has no copy of record, so it runs from .claude/scripts/.
+LABEL_DIR="${TADW_HOOK_SCRIPTS_DIR:-$REPO_ROOT/scripts}"
 FILTER="${1:-}"
 
 CLOSE="$SCRIPTS_DIR/close_bead_on_pr_merge.sh"
-LABEL="$SCRIPTS_DIR/label_bead_on_skill_invocation.sh"
+LABEL="$LABEL_DIR/label_bead_on_skill_invocation.sh"
 # From the override directory when it holds one, so the revert discipline in
 # the header applies to this script too. It is not a .claude/scripts hook, so
 # the default is its own home.
@@ -2741,6 +2746,7 @@ cp "$REPO_ROOT/scripts/install_label_bead_on_skill_invocation.sh" \
    "$REPO_ROOT/scripts/claim_bead_for_build.py" "$INSTALLER_SRC/"
 INSTALLER="$INSTALLER_SRC/install_label_bead_on_skill_invocation.sh"
 
+# Arguments pass through untouched, so every case names its own --agent value.
 run_installer() {  # run_installer <repo> [args...]; sets INSTALL_CODE, writes .instout
   local repo="$1"; shift
   sandbox_path "$repo"
@@ -2752,12 +2758,12 @@ installed_hook() { echo "$1/.claude/scripts/label_bead_on_skill_invocation.sh"; 
 
 if case_start "install: a second run reports already current and rewrites no settings"; then
   R="$(new_repo i1)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   assert_eq "$INSTALL_CODE" 0 "the first run succeeds"
   assert_match "$R/.instout" "hook script: installed" "reported the install"
   [[ -x "$(installed_hook "$R")" ]] && ok "left it executable" || nope "left it executable"
 
-  run_installer "$R"
+  run_installer "$R" --agent claude
   assert_eq "$INSTALL_CODE" 0 "the second run succeeds"
   assert_match "$R/.instout" "hook script: already current" "reported already current"
   assert_match "$R/.instout" "settings:    already wired" "left the wiring alone"
@@ -2768,19 +2774,28 @@ if case_start "install: a locally modified copy is described before it is overwr
   # The report has to come BEFORE the copy, because afterwards the evidence it
   # describes no longer exists.
   R="$(new_repo i2)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   echo '# somebody patched this by hand' >> "$(installed_hook "$R")"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   assert_match "$R/.instout" "carries 1 line\(s\) the source does not" "counted what it overwrote"
   assert_match "$R/.instout" "hashes:  source [0-9a-f]{12}, installed [0-9a-f]{12}" "named both hashes"
   assert_match "$R/.instout" "hook script: updated" "and then updated it"
 fi
 
+if case_start "install: a locally modified Codex copy is described before it is overwritten"; then
+  R="$(new_repo i2c)"
+  run_installer "$R" --agent codex
+  echo '# somebody patched this by hand' >> "$R/.codex/scripts/label_bead_on_skill_invocation.sh"
+  run_installer "$R" --agent codex
+  assert_match "$R/.instout" "carries 1 line\(s\) the source does not" "counted what it overwrote"
+  assert_match "$R/.instout" "codex script: updated" "and then updated it"
+fi
+
 if case_start "install/check: a current install passes and changes nothing"; then
   R="$(new_repo i3)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   before="$(cat "$R/.claude/settings.json")"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 0 "exits 0"
   assert_match "$R/.instout" "script:   current" "called the script current"
   assert_match "$R/.instout" "wiring:   all four events" "called the wiring complete"
@@ -2789,10 +2804,10 @@ fi
 
 if case_start "install/check: a drifted copy fails and is left exactly as it was"; then
   R="$(new_repo i4)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   echo '# local patch' >> "$(installed_hook "$R")"
   before="$(cat "$(installed_hook "$R")")"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 1 "exits non-zero, so a pre-push hook can use it"
   assert_match "$R/.instout" "script:   DRIFTED" "said the script drifted"
   assert_match "$R/.instout" "carries 1 line" "said how"
@@ -2803,9 +2818,9 @@ if case_start "install/check: wiring that is missing an event fails even with a 
   # tadw-ci8's failure mode exactly: the file was fine and UserPromptSubmit was
   # not wired, so every typed slash command went unlabeled.
   R="$(new_repo i5)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   jq 'del(.hooks.UserPromptSubmit)' "$R/.claude/settings.json" > "$R/.s" && mv "$R/.s" "$R/.claude/settings.json"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 1 "exits non-zero"
   assert_match "$R/.instout" "script:   current" "still calls the script current"
   assert_match "$R/.instout" "NOT WIRED for UserPromptSubmit" "names the event that is missing"
@@ -2815,14 +2830,14 @@ if case_start "install/check: settings with no SubagentStop hook fail, and the i
   # tadw-a6y criterion 5. Without this event the hook never learns that the
   # acceptance-verifier finished, and a missing report stays silent.
   R="$(new_repo i5s)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   jq 'del(.hooks.SubagentStop)' "$R/.claude/settings.json" > "$R/.s" && mv "$R/.s" "$R/.claude/settings.json"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 1 "--check exits 1 without the SubagentStop hook"
   assert_match "$R/.instout" "NOT WIRED for SubagentStop" "names the event that is missing"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   assert_eq "$INSTALL_CODE" 0 "the installer succeeds"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 0 "--check exits 0 after the installer runs"
   assert_match "$R/.instout" "wiring:   all four events" "reports SubagentStop wired again"
 fi
@@ -2837,9 +2852,9 @@ our_pre_matchers() {  # our_pre_matchers <repo>; echoes the sorted matchers, spa
 
 if case_start "install: PreToolUse is wired for the Skill tool and for the Agent tool"; then
   R="$(new_repo i14)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   assert_eq "$(our_pre_matchers "$R")" "Agent Skill" "one registration per matcher"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   assert_eq "$(our_pre_matchers "$R")" "Agent Skill" "a second run adds no duplicate"
   assert_match "$R/.instout" "settings:    already wired" "and rewrites no settings"
   assert_match "$R/.instout" "PreToolUse \(matcher Agent\)" "the report lists the Agent registration"
@@ -2847,15 +2862,15 @@ fi
 
 if case_start "install/check: settings from before the Agent registration fail, and the installer repairs them"; then
   R="$(new_repo i15)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   jq '.hooks.PreToolUse |= map(select(.matcher != "Agent"))' "$R/.claude/settings.json" > "$R/.s" \
     && mv "$R/.s" "$R/.claude/settings.json"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 1 "--check exits 1 without the Agent registration"
   assert_match "$R/.instout" "NOT WIRED for PreToolUse\(Agent\)" "names the registration that is missing"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   assert_eq "$(our_pre_matchers "$R")" "Agent Skill" "the installer adds it beside the Skill registration"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 0 "--check exits 0 after the installer runs"
 fi
 
@@ -2865,7 +2880,7 @@ if case_start "install: a Skill matcher group that holds another hook keeps its 
   mkdir -p "$R/.claude"
   echo '{"hooks":{"PreToolUse":[{"matcher":"Skill","hooks":[{"type":"command","command":"echo theirs"}]}]}}' \
     > "$R/.claude/settings.json"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   assert_eq "$(jq -r '[.hooks.PreToolUse[] | select([.hooks[] | .command == "echo theirs"] | any) | .matcher] | join(" ")' "$R/.claude/settings.json")" \
     "Skill" "their hook still fires on Skill alone"
   assert_eq "$(our_pre_matchers "$R")" "Agent Skill" "and ours is wired for both"
@@ -2873,7 +2888,7 @@ fi
 
 if case_start "install/check: an uninstalled repository reports that, rather than a diff"; then
   R="$(new_repo i6)"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 1 "exits non-zero"
   assert_match "$R/.instout" "script:   NOT INSTALLED" "said it is not installed"
   [[ ! -e "$(installed_hook "$R")" ]] && ok "installed nothing" || nope "installed nothing"
@@ -2884,28 +2899,28 @@ if case_start "install: the Codex runner lands in .codex/scripts"; then
   # Claude labeling and Codex labeling that never ran, with nothing to see
   # either way.
   R="$(new_repo i7)"
-  run_installer "$R"
+  run_installer "$R" --agent codex
   assert_eq "$INSTALL_CODE" 0 "the run succeeds"
   assert_match "$R/.instout" "codex runner: installed at .codex/scripts/run_codex_bead_hooks.sh" "reported the runner"
   [[ -x "$R/.codex/scripts/run_codex_bead_hooks.sh" ]] \
     && ok "left the runner executable" || nope "left the runner executable"
   [[ ! -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] \
     && ok "put no runner in .claude/scripts" || nope "put no runner in .claude/scripts"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent codex
   assert_eq "$INSTALL_CODE" 0 "--check passes on a complete install"
-  assert_match "$R/.instout" "codex:    current" "--check reports the runner"
+  assert_match "$R/.instout" "codex runner: current" "--check reports the runner"
 fi
 
 if case_start "install/check: the claim module is installed and matches its source"; then
   # The label script runs it as a sibling to decide the /build claim (tadw-huz9).
   R="$(new_repo i9)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   assert_match "$R/.instout" "hook module: installed at .claude/scripts/claim_bead_for_build.py" "reported the module"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 0 "--check passes"
   assert_match "$R/.instout" "module:   current at .claude/scripts/claim_bead_for_build.py \([0-9a-f]{12}\)" "--check calls the module current"
   echo '# local patch' >> "$R/.claude/scripts/claim_bead_for_build.py"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 1 "a drifted module fails --check"
   assert_match "$R/.instout" "module:   DRIFTED" "said the module drifted"
 fi
@@ -2914,8 +2929,8 @@ if case_start "install: the installed script and module refuse a container toget
   # The refusal needs both files: the script passes the type, the module decides.
   for container in epic milestone; do
     R="$(new_repo "i13-$container")"
-    run_installer "$R"
-    run_installer "$R" --check
+    run_installer "$R" --agent claude
+    run_installer "$R" --check --agent claude
     assert_eq "$INSTALL_CODE" 0 "--check passes ($container)"
     export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON="" BD_STATUS="open" BD_TYPE="$container"
     unset BD_ASSIGNEE
@@ -2926,18 +2941,144 @@ if case_start "install: the installed script and module refuse a container toget
   done
 fi
 
+if case_start "install: with no --agent, a run prints the usage text, exits 2, and writes no file"; then
+  R="$(new_repo ia1)"
+  run_installer "$R"
+  assert_eq "$INSTALL_CODE" 2 "exits 2"
+  assert_match "$R/.instout" "Usage: install_label_bead_on_skill_invocation.sh --agent claude\|codex\|both" "printed the usage"
+  [[ ! -e "$R/.claude" && ! -e "$R/.codex" ]] && ok "wrote nothing" || nope "wrote nothing"
+fi
+
+if case_start "install/check: with no --agent, --check prints the usage text and exits 2"; then
+  R="$(new_repo ia1c)"
+  run_installer "$R" --check
+  assert_eq "$INSTALL_CODE" 2 "exits 2"
+  assert_match "$R/.instout" "Usage: install_label_bead_on_skill_invocation.sh" "printed the usage"
+fi
+
+if case_start "install: an --agent value other than claude, codex, or both exits 2 and names it"; then
+  R="$(new_repo ia1v)"
+  run_installer "$R" --agent cursor
+  assert_eq "$INSTALL_CODE" 2 "exits 2"
+  assert_match "$R/.instout" "must be claude, codex, or both, not 'cursor'" "named the value"
+  [[ ! -e "$R/.claude" && ! -e "$R/.codex" ]] && ok "wrote nothing" || nope "wrote nothing"
+fi
+
+if case_start "install: --agent claude installs the Claude files and nothing under .codex"; then
+  R="$(new_repo ia2)"
+  run_installer "$R" --agent claude
+  assert_eq "$INSTALL_CODE" 0 "exits 0"
+  assert_eq "$(cmp -s "$REPO_ROOT/scripts/label_bead_on_skill_invocation.sh" "$(installed_hook "$R")" && echo same)" same "label script matches scripts/"
+  assert_eq "$(jq '[.hooks[][] | .hooks[] | select(.command | contains("label_bead_on_skill_invocation.sh"))] | length' "$R/.claude/settings.json")" 5 "wired five registrations"
+  [[ ! -e "$R/.codex" ]] && ok "wrote nothing under .codex" || nope "wrote nothing under .codex"
+  [[ ! -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] && ok "put no runner in .claude/scripts" || nope "put no runner in .claude/scripts"
+fi
+
+if case_start "install: --agent codex installs the Codex files and leaves .claude alone"; then
+  R="$(new_repo ia3)"
+  run_installer "$R" --agent codex
+  assert_eq "$INSTALL_CODE" 0 "exits 0"
+  for f in label_bead_on_skill_invocation.sh run_codex_bead_hooks.sh claim_bead_for_build.py; do
+    assert_eq "$(cmp -s "$REPO_ROOT/scripts/$f" "$R/.codex/scripts/$f" && echo same)" same "$f matches scripts/"
+  done
+  [[ ! -e "$R/.claude" ]] && ok "wrote nothing under .claude" || nope "wrote nothing under .claude"
+fi
+
+if case_start "install: --agent codex with --dest-dir is refused as an argument error"; then
+  R="$(new_repo ia3d)"
+  run_installer "$R" --agent codex --dest-dir elsewhere
+  assert_eq "$INSTALL_CODE" 2 "exits 2"
+  assert_match "$R/.instout" "does not apply to --agent codex" "said why"
+  [[ ! -e "$R/.codex" && ! -e "$R/elsewhere" ]] && ok "wrote nothing" || nope "wrote nothing"
+fi
+
+if case_start "install: --agent codex leaves an existing settings.json byte-identical"; then
+  R="$(new_repo ia4)"
+  mkdir -p "$R/.claude"
+  echo '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo mine"}]}]}}' > "$R/.claude/settings.json"
+  before="$(cat "$R/.claude/settings.json")"
+  run_installer "$R" --agent codex
+  assert_eq "$(cat "$R/.claude/settings.json")" "$before" "settings.json is untouched"
+  compgen -G "$R/.claude/settings.json.bak.*" >/dev/null && nope "wrote no backup" || ok "wrote no backup"
+fi
+
+if case_start "install: --agent both installs both sets"; then
+  R="$(new_repo ia5)"
+  run_installer "$R" --agent both
+  assert_eq "$INSTALL_CODE" 0 "exits 0"
+  [[ -x "$(installed_hook "$R")" && -f "$R/.claude/settings.json" ]] && ok "installed the Claude set" || nope "installed the Claude set"
+  [[ -x "$R/.codex/scripts/run_codex_bead_hooks.sh" && -x "$R/.codex/scripts/label_bead_on_skill_invocation.sh" ]] && ok "installed the Codex set" || nope "installed the Codex set"
+  [[ ! -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] && ok "put no runner in .claude/scripts" || nope "put no runner in .claude/scripts"
+fi
+
+if case_start "install/check: --check checks only the agent it is given"; then
+  R="$(new_repo ia6)"
+  run_installer "$R" --agent codex
+  run_installer "$R" --check --agent codex
+  assert_eq "$INSTALL_CODE" 0 "a Codex install passes --check --agent codex"
+  run_installer "$R" --check --agent claude
+  assert_eq "$INSTALL_CODE" 1 "and fails --check --agent claude"
+  run_installer "$R" --check --agent both
+  assert_eq "$INSTALL_CODE" 1 "and fails --check --agent both"
+  R="$(new_repo ia7)"
+  run_installer "$R" --agent claude
+  run_installer "$R" --check --agent claude
+  assert_eq "$INSTALL_CODE" 0 "a Claude install passes --check --agent claude"
+  assert_no_match "$R/.instout" "codex" "and says nothing about Codex"
+  [[ ! -e "$R/.codex" ]] && ok "--check created no .codex" || nope "--check created no .codex"
+fi
+
+if case_start "install/check: an old runner in .claude/scripts is removed, and reported, under every --agent value"; then
+  for v in claude codex both; do
+    R="$(new_repo "ia8$v")"
+    run_installer "$R" --agent "$v"
+    mkdir -p "$R/.claude/scripts"
+    echo '# old' > "$R/.claude/scripts/run_codex_bead_hooks.sh"
+    run_installer "$R" --check --agent "$v"
+    assert_eq "$INSTALL_CODE" 1 "--check --agent $v fails on the old copy"
+    assert_match "$R/.instout" "OLD COPY at .claude/scripts/run_codex_bead_hooks.sh" "--check --agent $v named it"
+    [[ -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] && ok "--check --agent $v deleted nothing" || nope "--check --agent $v deleted nothing"
+    run_installer "$R" --agent "$v"
+    [[ ! -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] && ok "--agent $v removed it" || nope "--agent $v removed it"
+  done
+fi
+
+if case_start "install: the Skill registration's status message names no skills"; then
+  R="$(new_repo ia9)"
+  run_installer "$R" --agent claude
+  assert_eq "$(jq -r '.hooks.PreToolUse[] | select(.matcher == "Skill") | .hooks[].statusMessage' "$R/.claude/settings.json")" \
+    "labeling bead..." "the installer wrote labeling bead..."
+fi
+
+# The three cases below read this checkout, which is the exception rule 2 in the
+# header names. --check copies nothing and deletes nothing, so none of them writes.
+if case_start "repo: --check --agent both passes from this repository's root"; then
+  ( cd "$REPO_ROOT" && PATH="$BINDIR:$PATH" bash scripts/install_label_bead_on_skill_invocation.sh --check --agent both ) > "$SANDBOX/self.out" 2>&1
+  assert_eq "$?" 0 "exits 0"
+fi
+
+if case_start "repo: both Codex commands call the installed runner"; then
+  assert_eq "$(jq -r '[.hooks.UserPromptSubmit[].hooks[].command, .hooks.Stop[].hooks[].command] | map(contains("$d/.codex/scripts/run_codex_bead_hooks.sh")) | all' "$REPO_ROOT/.codex/hooks.json")" \
+    true "UserPromptSubmit and Stop both name .codex/scripts/run_codex_bead_hooks.sh"
+fi
+
+if case_start "repo: the Skill status message in .claude/settings.json names no skills"; then
+  assert_eq "$(jq -r '.hooks.PreToolUse[] | select(.matcher == "Skill") | .hooks[].statusMessage' "$REPO_ROOT/.claude/settings.json")" \
+    "labeling bead..." "it is labeling bead..."
+fi
+
 if case_start "install: a runner an older installer left in .claude/scripts is removed"; then
   R="$(new_repo i10)"
   mkdir -p "$R/.claude/scripts"
   echo '# old' > "$R/.claude/scripts/run_codex_bead_hooks.sh"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 1 "--check fails on the old copy"
-  assert_match "$R/.instout" "codex:    OLD COPY at .claude/scripts/run_codex_bead_hooks.sh" "named the old copy"
-  run_installer "$R"
+  assert_match "$R/.instout" "old runner: OLD COPY at .claude/scripts/run_codex_bead_hooks.sh" "named the old copy"
+  run_installer "$R" --agent claude
   assert_match "$R/.instout" "old runner:  removed from .claude/scripts/run_codex_bead_hooks.sh" "reported the removal"
   [[ ! -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] \
     && ok "removed the old copy" || nope "removed the old copy"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 0 "--check passes afterward"
 fi
 
@@ -2945,10 +3086,10 @@ if case_start "install: a claim module under its old name is removed"; then
   R="$(new_repo i12)"
   mkdir -p "$R/.claude/scripts"
   echo '# old' > "$R/.claude/scripts/label_bead_hook.py"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent claude
   assert_eq "$INSTALL_CODE" 1 "--check fails on the old module"
   assert_match "$R/.instout" "module:   OLD COPY at .claude/scripts/label_bead_hook.py" "named the old module"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   assert_match "$R/.instout" "old module:  removed from .claude/scripts/label_bead_hook.py" "reported the removal"
   [[ ! -e "$R/.claude/scripts/label_bead_hook.py" ]] \
     && ok "removed the old module" || nope "removed the old module"
@@ -2956,25 +3097,68 @@ if case_start "install: a claim module under its old name is removed"; then
     && ok "installed the renamed module" || nope "installed the renamed module"
 fi
 
-if case_start "install: an old runner that .codex/hooks.json still names is kept"; then
-  R="$(new_repo i11)"
-  mkdir -p "$R/.claude/scripts" "$R/.codex"
+# The author asked on 2026-10-14 for the old runner to go whenever it exists,
+# even when the Codex wiring still names it. That wiring is then stale, so the
+# run says so.
+old_runner_wired_repo() {  # old_runner_wired_repo <name>; echoes a repo whose .codex/hooks.json names the old runner
+  local r
+  r="$(new_repo "$1")"
+  mkdir -p "$r/.claude/scripts" "$r/.codex"
+  echo '# old' > "$r/.claude/scripts/run_codex_bead_hooks.sh"
+  echo '{"hooks":{"Stop":[{"hooks":[{"command":"bash .claude/scripts/run_codex_bead_hooks.sh Stop"}]}]}}' > "$r/.codex/hooks.json"
+  echo "$r"
+}
+
+if case_start "install: an old runner that .codex/hooks.json still names is removed anyway"; then
+  R="$(old_runner_wired_repo i11)"
+  run_installer "$R" --agent claude
+  assert_eq "$INSTALL_CODE" 0 "exits 0"
+  [[ ! -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] \
+    && ok "removed the old copy" || nope "removed the old copy"
+fi
+
+if case_start "install: an old runner path left in .codex/hooks.json is reported as stale wiring"; then
+  R="$(old_runner_wired_repo i11w)"
+  run_installer "$R" --agent claude
+  assert_match "$R/.instout" "WARNING: .codex/hooks.json still names .claude/scripts/run_codex_bead_hooks.sh" "named the stale wiring"
+fi
+
+if case_start "install/check: an old runner path left in .codex/hooks.json fails --check"; then
+  R="$(old_runner_wired_repo i11c)"
+  run_installer "$R" --agent claude
+  run_installer "$R" --check --agent claude
+  assert_eq "$INSTALL_CODE" 1 "exits 1"
+  assert_match "$R/.instout" "old runner: .codex/hooks.json still names .claude/scripts/run_codex_bead_hooks.sh" "named the stale wiring"
+fi
+
+if case_start "install: --dest-dir does not move where an old runner is looked for"; then
+  # The runner was never under --dest-dir, so the old copy is always in .claude/scripts.
+  R="$(new_repo i11d)"
+  mkdir -p "$R/.claude/scripts"
   echo '# old' > "$R/.claude/scripts/run_codex_bead_hooks.sh"
-  echo '{"hooks":{"Stop":[{"hooks":[{"command":"bash .claude/scripts/run_codex_bead_hooks.sh Stop"}]}]}}' > "$R/.codex/hooks.json"
-  run_installer "$R"
-  assert_match "$R/.instout" "old runner:  KEPT at .claude/scripts/run_codex_bead_hooks.sh" "said it kept the old copy"
-  [[ -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] \
-    && ok "left the wired copy in place" || nope "left the wired copy in place"
+  run_installer "$R" --agent claude --dest-dir tools/hooks
+  [[ ! -e "$R/.claude/scripts/run_codex_bead_hooks.sh" ]] \
+    && ok "removed .claude/scripts/run_codex_bead_hooks.sh" || nope "removed .claude/scripts/run_codex_bead_hooks.sh"
+fi
+
+if case_start "install/check: --dest-dir does not move where --check looks for an old runner"; then
+  R="$(new_repo i11e)"
+  run_installer "$R" --agent claude --dest-dir tools/hooks
+  mkdir -p "$R/.claude/scripts"
+  echo '# old' > "$R/.claude/scripts/run_codex_bead_hooks.sh"
+  run_installer "$R" --check --agent claude --dest-dir tools/hooks
+  assert_eq "$INSTALL_CODE" 1 "exits 1"
+  assert_match "$R/.instout" "old runner: OLD COPY at .claude/scripts/run_codex_bead_hooks.sh" "named the old copy"
 fi
 
 if case_start "install/check: a missing Codex runner fails, even with the label script current"; then
   R="$(new_repo i8)"
-  run_installer "$R"
+  run_installer "$R" --agent codex
   rm -f "$R/.codex/scripts/run_codex_bead_hooks.sh"
-  run_installer "$R" --check
+  run_installer "$R" --check --agent codex
   assert_eq "$INSTALL_CODE" 1 "exits non-zero"
-  assert_match "$R/.instout" "script:   current" "the label script is still current"
-  assert_match "$R/.instout" "codex:    NOT INSTALLED" "named the missing runner"
+  assert_match "$R/.instout" "codex script: current" "the label script is still current"
+  assert_match "$R/.instout" "codex runner: NOT INSTALLED" "named the missing runner"
 fi
 
 # ---------------------------------------------------------------------------
@@ -3035,7 +3219,7 @@ if case_start "install/wiring: a project directory that is gone is silent, not a
   # No tracker state and no origin: the point of the case is that the script
   # never runs, so anything it would have read is setup that proves nothing.
   R="$(new_repo w1)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   run_wired "$R" "$SANDBOX/w1-removed-under-the-session" "$(payload Stop '')"
   assert_eq "$WIRED_CODE" 0 "exits 0, so Claude Code reports no hook error"
   # Both streams, because Claude Code surfaces either one as the hook's output.
@@ -3047,7 +3231,7 @@ if case_start "install/wiring: the guard still runs the script when it is there"
   # The other half of the guard. A wiring that is quiet in both states labels
   # nothing and reports nothing, which is worse than the error it replaced.
   R="$(new_repo w2)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   qg_marker "$R" tadw-alpha-one
   age_artifacts "$R"; write_qg_report "$R" PASS
@@ -3063,7 +3247,7 @@ if case_start "install/wiring: a linked worktree runs the MAIN checkout's copy";
   # untracked file does not travel to a worktree. So this case fails outright on
   # wiring that reads $CLAUDE_PROJECT_DIR/.claude directly.
   R="$(new_repo w3)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   WT="$SANDBOX/w3-worktree"
   sgit "$R" worktree add --quiet --detach "$WT" HEAD
   [[ ! -e "$WT/.claude/scripts/$HOOK_SCRIPT_NAME" ]] \
@@ -3084,7 +3268,7 @@ if case_start "install/wiring: a stale copy in the worktree is not the one that 
   # a tracked file, so a session in one could otherwise run whatever version that
   # branch happened to hold. The decoy here would be obvious in the log if it ran.
   R="$(new_repo w4)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   WT="$SANDBOX/w4-worktree"
   sgit "$R" worktree add --quiet --detach "$WT" HEAD
   mkdir -p "$WT/.claude/scripts"
@@ -3105,7 +3289,7 @@ if case_start "install/wiring: a project directory outside any repository is sil
   # The test -n guard. Without it an empty git answer resolves to /.claude/...
   # at the filesystem root, which is a path this wiring must never reach for.
   R="$(new_repo w5)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   NOREPO="$SANDBOX/w5-not-a-repo"; mkdir -p "$NOREPO"
   run_wired "$R" "$NOREPO" "$(payload Stop '')"
   assert_eq "$WIRED_CODE" 0 "exits 0"
@@ -3124,7 +3308,7 @@ if case_start "install/wiring: an empty project dir resolves nothing, not the cw
   # like success. That is what makes it the right shape for the test: the label
   # appearing is the bug, not the assertion being wrong.
   R="$(new_repo w6)"
-  run_installer "$R"
+  run_installer "$R" --agent claude
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   qg_marker "$R" tadw-alpha-one
   age_artifacts "$R"; write_qg_report "$R" PASS
@@ -3190,9 +3374,9 @@ if case_start "codex/runner: a runner with no label script beside it says so in 
   assert_match "$R/.git/bead-label.log" "script=codex-runner" "named itself as the writer"
 fi
 
-if case_start "codex/runner: a runner with no sibling finds the installed label script"; then
-  # The layout the installer produces once somebody moves the runner elsewhere:
-  # no sibling, and the label script under .claude/scripts of the main checkout.
+if case_start "codex/runner: a runner with no sibling never runs the Claude copy of the label script"; then
+  # The Claude install is for Claude. With no label script beside it, the
+  # runner logs the miss and labels nothing, even when .claude/scripts holds one.
   R="$(new_repo cx5 with-origin)"
   mkdir -p "$R/lonely" "$R/.claude/scripts"
   cp "$CODEX_RUNNER" "$R/lonely/run_codex_bead_hooks.sh"
@@ -3202,8 +3386,8 @@ if case_start "codex/runner: a runner with no sibling finds the installed label 
   age_artifacts "$R"; write_build_report "$R" 1 1 0 0
   export BD_KNOWN="tadw-alpha-one" BD_LABELS_JSON=""
   run_hook "$R/lonely/run_codex_bead_hooks.sh" "$R" "$(payload Stop '')" Stop
-  assert_match "$R/.bdcalls" "--add-label implemented" "applied the implemented label"
-  assert_no_match "$R/.git/bead-label.log" "no-label-script" "logged no miss"
+  assert_no_match "$R/.bdcalls" "--add-label implemented" "did not run the .claude/scripts copy"
+  assert_match "$R/.git/bead-label.log" "no-label-script" "logged the miss"
 fi
 
 if case_start "codex/wiring: prompt and stop events run the composite hook"; then
