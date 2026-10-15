@@ -87,7 +87,13 @@ Every gate ends in exactly one of these.
 | **BLOCKED** | The gate applies but could not run: missing binary, exit 127, timeout, crash | Overall FAIL |
 | **HANDOFF** | The change needs a check this skill cannot perform, and another tool owns it | Overall INCOMPLETE |
 
-Never record BLOCKED or HANDOFF as SKIP to keep a report tidy. Those distinctions are the point.
+**Gate 7 has one setup exception.** If no server is listening and no start command is declared,
+record SKIP: "nothing is listening, and the project declares no start command".
+The project supplies no supported way to start the server. A declared command that cannot start
+the server is BLOCKED. An already listening server needs no declared start command.
+
+Apply that exception before the general BLOCKED rule. Keep BLOCKED and HANDOFF distinct from SKIP
+in every other case.
 
 ## Required Workflow
 
@@ -281,8 +287,8 @@ is a `curl` gate and an `agent-browser` handoff, not a choice between them.
 the owning tool. That is not cosmetic. A diff that adds a REST route and a React component produces
 a Gate 2 finding and a browser handoff, and a single status cannot hold both: FAIL and HANDOFF mean
 different next moves, and folding them together drops one. So Gate 2 grades the `curl` and
-`coverage` surfaces, and browser-ui rides its own HANDOFF row. Gate 2 is itself HANDOFF only when
-every surface routed to a handoff, leaving it nothing to grade.
+`coverage` surfaces, and browser-ui rides its own HANDOFF row. Gate 2's ordered rules below decide
+its own status after removing documentation surfaces from consideration.
 
 Three things the script reports that the report must carry:
 
@@ -331,8 +337,8 @@ silently never appears. Every row the report can contain has an owner here.
 | Gate 1 as SKIP, one bare `Tests` row | Orchestrator | Step 2 selected no suite |
 | Gate 2 for `cli`, `library`, `prompt-assets`, `infra`, `unknown` | `backend-unit` | Step 3 routed one of those surfaces |
 | Gate 2 for `http-api`, both the unit level and the end-to-end level | `integration` | Step 3 routed `http-api` |
-| Gate 2 as SKIP, carrying the router's reason | Orchestrator | Every surface Step 3 routed was `docs`, so nothing changed behavior |
-| Gate 2 as HANDOFF, in place of a graded row | Orchestrator | Every surface Step 3 routed was a handoff |
+| Gate 2 as SKIP, carrying its reason | Orchestrator | Gate 2's ordered rules find no routed surfaces or only `none` surfaces |
+| Gate 2 as HANDOFF, in place of a graded row | Orchestrator | After removing `none` surfaces, Gate 2's ordered rules find only handoffs |
 | Gate 7, the live API probe | `integration` | Step 3 routed a surface to `curl` |
 | `Handoff: browser-ui`, naming `agent-browser` | `frontend` | Step 3 routed `browser-ui` |
 | `Handoff: mobile-ui`, naming `agent-device` | Orchestrator | Step 3 routed `mobile-ui` |
@@ -569,13 +575,24 @@ WARN, WARN, then FAIL over three runs. The list leaves no middle.
 
 **F. Grade.**
 
+Apply these rules in order. Stop at the first match.
+
+1. If Step 3 routed no surfaces, emit SKIP with reason "no routed surfaces".
+2. Remove surfaces whose method is `none`.
+   If none remain, emit SKIP with the router's documentation reason.
+3. If every remaining surface uses `handoff`, emit HANDOFF with reason "only handoff surfaces remain".
+4. Otherwise, grade the remaining `curl` and `coverage` surfaces with the table below.
+
+The orchestrator emits the SKIP or HANDOFF row. Each handoff keeps its own `Handoff: <surface>`
+row under Step 4's ownership table, whichever rule matched. Docs plus a handoff therefore yields
+Gate 2 HANDOFF and the separate handoff row. Docs plus a graded surface uses the grading table.
+An empty routed set never matches the all-handoff rule.
+
 | Result | When |
 |---|---|
 | **PASS** | Every case has a unit test, every touched surface has an end-to-end test, and every span class you identified is covered |
 | **WARN** | Every case has a unit test and every touched surface has an end-to-end test, but a span class is uncovered, and no uncovered class has a failure on the closed list |
 | **FAIL** | Any case has no test at all, any touched CLI command or HTTP route has no end-to-end test, or an uncovered span class has a failure on the closed list |
-| **HANDOFF** | Step 3 routed *every* surface to `handoff`, so nothing is left here to grade. The orchestrator emits this row, since no single lane sees the union of surfaces. When only some surfaces routed to a handoff, grade the rest and let each handoff surface carry its own row, defined below |
-| **SKIP** | Step 3 routed every surface to `none`: documentation, comments, or formatting only |
 
 Report the cases as a table: number, case, unit test, end-to-end test, span covered. An empty cell
 is the finding.
@@ -585,11 +602,21 @@ is the finding.
 Run the project's linter and formatter check, narrowed as Step 2's scope table says. Record error
 and warning counts separately, because most linters fail on the first and not the second.
 
+If the command cannot run, use BLOCKED under the Status Model. Otherwise, apply these rules in order:
+
+1. Reported errors or failed formatter checks produce FAIL.
+2. Warnings without errors produce WARN, including tools configured to exit nonzero on warnings.
+3. A nonzero exit without an explained warning produces FAIL.
+4. Exit 0 with no errors or warnings produces PASS.
+
 #### Gate 4: Type Checking
 
 Run the project's type checker over the whole project, then report the errors in changed files.
 Record both numbers when they differ, so a pre-existing backlog does not read as new breakage. SKIP
 only when no type checker is configured; a configured checker that will not start is BLOCKED.
+
+For a completed check, errors in changed files produce FAIL. Errors only outside the changed set
+produce WARN. No errors produce PASS. Report both error counts even when the status is WARN.
 
 #### Gate 5: Documentation Freshness
 
@@ -725,6 +752,9 @@ script.
 | Nothing is listening, and the project declares a start command | Put it in `server.start` with a `health_path`. The script starts it, waits for it, and always stops it |
 | Nothing is listening, and the project declares no start command | **SKIP**, with that exact reason. Do not invent `rails s` or `npm run dev` |
 
+This is the Status Model's setup exception. A declared start command that fails or times out is
+BLOCKED. If a server is already listening, probe it even without a declared start command.
+
 **Do not guess the start command.** A guessed command runs migrations against the wrong database,
 or starts a second copy on a port the first one holds, and the failure looks like a broken endpoint.
 
@@ -795,6 +825,9 @@ its own report row, carrying its exact command and its real counts, because the 
 bare name `Project checks`, and two or more are each `Project checks: <qualifier>`. The orchestrator
 owns every one of them. Omit them only when Step 1 sent no command here. Each command runs at
 `--changed` too, as the scope table in Step 2 states.
+
+For each command, exit 127, a missing binary, or a timeout produces BLOCKED. Every other nonzero
+exit produces FAIL. Exit 0 produces PASS. Report the exit code or timeout reason beside the status.
 
 <!-- quality-gates-project-checks:end -->
 
@@ -1161,7 +1194,7 @@ The order is load-bearing. An all-BLOCKED run is a FAIL by rule 1 and never reac
 - Call an in-process call of a handler an end-to-end test
 - Ask for the cross-product of span classes, for a branch unreachable through the public interface, or for a test of code this change did not touch
 - Ask for defensive code: a nil check the type guarantees, a `try` around code that cannot raise, or a re-validation the caller already performed
-- Downgrade BLOCKED or HANDOFF to SKIP, or let an all-SKIP run report PASS
+- Downgrade BLOCKED or HANDOFF to SKIP outside Gate 7's stated setup exception, or let an all-SKIP run report PASS
 - Pass a browser UI change silently; hand it to `agent-browser` on its own row
 - Fold a handoff surface and a graded surface into one status
 - Let a lane render a report section, write the artifact, or decide the verdict
@@ -1189,7 +1222,7 @@ Before reporting completion, verify:
 - [ ] Every test counted as coverage was read, not just found by name
 - [ ] Cite each counted test in its cell: a unit `file:line`, and an end-to-end quoted driving line. An uncitable cell is graded empty
 - [ ] Nothing asked for is a cross-product, an unreachable branch, or a defensive check
-- [ ] No configured gate is recorded as SKIP
+- [ ] Every configured gate recorded as SKIP has a scope reason or Gate 7's stated setup exception
 - [ ] A browser or mobile UI change is HANDOFF, never PASS
 - [ ] The `base_url` was the localhost default or a URL the caller named, never one inferred from the repository
 - [ ] A non-loopback host, if any, is named in the report and marked as not this machine

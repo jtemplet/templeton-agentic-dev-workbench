@@ -137,6 +137,19 @@ You run Gates 3, 4, 5, and 6 yourself. Each is one scripted command, and startin
 one `python3` call costs more than it saves. Gate 7, the live API probe, belongs to the
 `integration` lane.
 
+Apply the skill's status rules to the rows you run and to lane results:
+
+- Gate 3: errors or failed formatter checks mean FAIL; warnings alone mean WARN.
+  An unexplained nonzero exit means FAIL. An error-free and warning-free check means PASS.
+- Gate 4: errors in changed files mean FAIL; errors only outside the changed set mean WARN.
+  No errors means PASS. Keep both error counts.
+- Project checks: exit 127, a missing binary, or a timeout means BLOCKED.
+  Every other nonzero exit means FAIL; exit 0 means PASS.
+- A configured command that cannot run follows the skill's BLOCKED rule before diagnostic grading.
+- Gate 7: no listening server and no declared start command means SKIP with that exact reason.
+  This is the Status Model's setup exception. A declared command that fails to start is BLOCKED.
+  An already listening server still gets probed without a declared start command.
+
 **Write the Step 5 attribution for every gate you run yourself.** A lane attributes its own
 failures, and these four gates have no lane. So when one of them FAILs, say whether the failure
 looks new, in the same sentence form Step 5 of the skill requires. Skip this and a FAIL you found
@@ -147,8 +160,8 @@ union of routed surfaces:
 
 - the `Handoff: mobile-ui` row, naming `agent-device`
 - the **Project checks** rows, one per command Step 1's rule sent there
-- Gate 2's own HANDOFF status, when every routed surface is a handoff
-- Gate 2's SKIP row, carrying the router's reason, when every routed surface is `docs`
+- Gate 2's own HANDOFF status, when its ordered rules leave only handoff surfaces
+- Gate 2's SKIP row, when its ordered rules find no routed surfaces or only documentation
 - **any row for a surface the ownership table does not name.** A surface added to `route_qa.py`
   later matches no row in that table. Without this one it would have no owner at all, and a row
   with no owner is the row that silently never appears.
@@ -168,6 +181,12 @@ clean at exactly the moment it is most wrong.
 
 **When every routed surface is `docs`, start no lane at all.** Nothing changed behavior, so Gate 2
 is your SKIP row and the lanes have nothing to grade.
+
+**Apply Gate 2's ordered rules before merging coverage results.** First check for an empty routed
+set, then remove `none` surfaces. An empty remainder means SKIP; a remainder containing only
+handoffs means HANDOFF. Otherwise, grade the `curl` and `coverage` surfaces normally.
+Docs plus a handoff means Gate 2 HANDOFF. No routed surfaces means SKIP with reason
+"no routed surfaces". Preserve each handoff row under its existing owner in all cases.
 
 ### Step 4: Merge the rows
 
